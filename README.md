@@ -199,7 +199,7 @@ Runnable examples live in [`examples/`](./examples):
 - [`download-pdf.ts`](./examples/download-pdf.ts)
 - [`verify-webhook.ts`](./examples/verify-webhook.ts)
 
-## Supported runtimes
+## Supported runtimes & deprecation policy
 
 | Runtime              | Status                         |
 | -------------------- | ------------------------------ |
@@ -208,9 +208,26 @@ Runnable examples live in [`examples/`](./examples):
 | Node 24              | ✅ supported (CI)              |
 | Deno / Bun / Workers | ✅ works (Web `fetch` based)   |
 
+Minimum **Node 20**. The full support matrix, the Node-version policy and the
+deprecation / breaking-change policy live in [`SUPPORT.md`](./SUPPORT.md).
+
 ## Versioning
 
-This SDK follows SemVer. The pinned `Factuarea-Version` it sends is documented in the [CHANGELOG](./CHANGELOG.md); upgrading the SDK is how you adopt a newer API version. While in `0.x`, minor versions may include breaking changes.
+This SDK follows SemVer and is aligned with the API's date-based
+`Factuarea-Version`. Each release pins one `Factuarea-Version` and sends it on
+every request, so the API's behaviour is stable until you upgrade the SDK —
+upgrading is how you adopt a newer API version. The pinned value per release is
+recorded in the [CHANGELOG](./CHANGELOG.md), and the full policy + version
+mapping is in [`docs/VERSIONING.md`](./docs/VERSIONING.md). While in `0.x`, minor
+versions may include breaking changes.
+
+## Releases & spec sync
+
+Releases are automated with [Changesets](https://github.com/changesets/changesets)
+and published to npm via [Trusted Publishing (OIDC)](https://docs.npmjs.com/trusted-publishers)
+with build provenance — see [`docs/RELEASING.md`](./docs/RELEASING.md). The
+generated layer is kept in sync with the public OpenAPI spec automatically — see
+[`docs/SPEC_SYNC.md`](./docs/SPEC_SYNC.md).
 
 ## Contributing & spec
 
