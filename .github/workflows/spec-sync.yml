@@ -30,9 +30,12 @@ permissions:
   pull-requests: write # open the sync PR
 
 env:
-  # The published spec URL. Overridable from a repository_dispatch payload
-  # (client_payload.spec_url) so the emitter can point at a staging spec.
-  SPEC_URL: ${{ github.event.client_payload.spec_url || 'https://docs.factuarea.com/api/openapi' }}
+  # The published spec URL is FIXED to the official endpoint and is NOT
+  # overridable from the event payload. A repository_dispatch is only a "go
+  # regenerate" signal; allowing client_payload.spec_url to set the URL would
+  # let any dispatch point CI at an attacker-controlled spec that is then
+  # downloaded, regenerated into code, and executed (RCE in CI).
+  SPEC_URL: "https://docs.factuarea.com/api/openapi"
 
 jobs:
   sync:
