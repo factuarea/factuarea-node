@@ -32,11 +32,11 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0 # changesets needs full history for changelog links
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -65,7 +65,7 @@ jobs:
 
       - name: Create Release PR or Publish to npm
         id: changesets
-        uses: changesets/action@v1.9.0
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           # `version` applies the bumps + changelog; `publish` runs once the
           # Version PR is merged and the changeset files are gone.
