@@ -1,0 +1,72 @@
+{
+  "name": "@factuarea/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the Factuarea API — Spanish e-invoicing & VeriFactu.",
+  "license": "MIT",
+  "author": "Factuarea <info@factuarea.com>",
+  "homepage": "https://github.com/factuarea/factuarea-node#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/factuarea/factuarea-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/factuarea/factuarea-node/issues"
+  },
+  "keywords": [
+    "factuarea",
+    "sdk",
+    "api",
+    "invoicing",
+    "facturacion",
+    "verifactu",
+    "spain",
+    "typescript"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "spec/openapi.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "generate": "openapi-ts && npm run generate:resources",
+    "generate:resources": "node scripts/build-resources.mjs",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.98.1",
+    "@types/node": "^20.17.0",
+    "msw": "^2.14.6",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.9"
+  }
+}

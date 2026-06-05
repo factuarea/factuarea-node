@@ -1,0 +1,11 @@
+node_modules/
+coverage/
+test/
+examples/
+.github/
+*.log
+.DS_Store
+openapi-ts.config.ts
+tsup.config.ts
+vitest.config.ts
+.gitattributes
