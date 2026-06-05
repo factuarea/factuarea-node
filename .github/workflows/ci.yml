@@ -25,6 +25,8 @@ jobs:
           npm run generate
           git diff --exit-code src/generated src/resources \
             || (echo "::error::Generated code is out of sync. Run 'npm run generate' and commit." && exit 1)
+      - name: Verify SDK_VERSION is in sync with package.json
+        run: npm run version:check
       - run: npm run typecheck
       - run: npm run build
       - run: npm test

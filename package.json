@@ -47,6 +47,10 @@
     "LICENSE"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=20"
   },
@@ -58,10 +62,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
+    "changeset": "changeset",
+    "version": "changeset version && node scripts/sync-version.mjs && npm install --package-lock-only --ignore-scripts",
+    "version:check": "node scripts/sync-version.mjs --check",
+    "release": "changeset publish",
     "prepublishOnly": "npm run build"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
     "@hey-api/openapi-ts": "0.98.1",
     "@types/node": "^20.17.0",
     "msw": "^2.14.6",
