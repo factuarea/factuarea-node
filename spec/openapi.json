@@ -39159,9 +39159,9 @@
                         "type": "string",
                         "format": "email",
                         "description": "Sender address.",
-                        "example": "info@axiomaprint.com",
+                        "example": "customer@example.com",
                         "examples": [
-                            "info@axiomaprint.com"
+                            "customer@example.com"
                         ]
                     },
                     "from_name": {
