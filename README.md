@@ -24,19 +24,24 @@ import { Factuarea } from "@factuarea/sdk";
 
 const factuarea = new Factuarea({ apiKey: process.env.FACTUAREA_API_KEY! });
 
-// Create an invoice
-const invoice = await factuarea.invoices.create({
+// Create an invoice. Single-resource calls (create/show/update) return the API
+// envelope `{ data, ... }`; read `.data` to get the resource. Operation
+// results are typed `unknown` in 0.x, so cast to the shape you expect.
+const created = (await factuarea.invoices.create({
   client_id: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a9b",
   series_id: "01931b3e-7c4a-7f2e-9a8b-000000000001",
-  issue_date: "2026-06-05",
+  issued_on: "2026-06-05",
+  due_on: "2026-07-05",
   lines: [
-    { description: "Consulting", quantity: 1, unit_price: 1000, taxes_id: "..." },
+    // Pass `tax_rate` (a percentage) or `tax_rate_id` (a tax UUID).
+    { description: "Consulting", quantity: 1, unit_price: 1000, tax_rate: 21 },
   ],
-});
+})) as { data: { id: string } };
+const invoice = created.data;
 
-// List with transparent auto-pagination
+// List with transparent auto-pagination (list yields the resources directly).
 for await (const inv of await factuarea.invoices.list({ status: "paid" })) {
-  console.log(inv.id);
+  console.log((inv as { id: string }).id);
 }
 
 // Download a PDF
