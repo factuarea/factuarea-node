@@ -16,12 +16,6 @@ export class ClientsResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Delete multiple clients in bulk (deprecated alias) */
-  async bulkDeleteLegacy(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/clients/bulk";
-    return this._delete<unknown>(path, params, config);
-  }
-
   /** Create a client */
   async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/clients";

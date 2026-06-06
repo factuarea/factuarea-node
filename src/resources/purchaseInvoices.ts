@@ -85,12 +85,6 @@ export class PurchaseInvoicesResource extends BaseResource {
     return this._paginate<unknown>("/purchase_invoices/pending", params, "cursor");
   }
 
-  /** List purchase invoices by supplier */
-  async bySupplier(supplier: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/purchase_invoices/by-supplier/{supplier}", { "supplier": supplier });
-    return this._get<unknown>(path, params, config);
-  }
-
   /** Mark purchase invoice as paid */
   async markPaid(purchaseInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/mark_paid", { "purchase_invoice": purchaseInvoice });

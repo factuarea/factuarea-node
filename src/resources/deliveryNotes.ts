@@ -53,12 +53,6 @@ export class DeliveryNotesResource extends BaseResource {
     return this._send<unknown>("POST", path, undefined, config);
   }
 
-  /** Change delivery note status (deprecated) */
-  async changeStatus(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/change_status", { "delivery_note": deliveryNote });
-    return this._send<unknown>("POST", path, body, config);
-  }
-
   /** Convert delivery note to invoice */
   async convert(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/delivery_notes/{delivery_note}/convert", { "delivery_note": deliveryNote });
