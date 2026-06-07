@@ -36,7 +36,37 @@ if (!command || !publishedPathArg) {
   process.exit(2);
 }
 
-/** Recursively sort object keys so serialization is order-independent. */
+// The docs site decorates the published spec with `x-codeSamples` (per-operation
+// usage snippets). The SDK does not need them, so the sync must ignore that key:
+// otherwise the daily compare would report a (spurious) change every time the
+// docs are republished, even when the API itself is unchanged.
+const CODE_SAMPLES_KEY = "x-codeSamples";
+
+/**
+ * Deep clone of `value` with every `x-codeSamples` key removed at any depth.
+ * Used on the `apply` path so the committed SDK spec never carries the docs-only
+ * extension.
+ */
+function stripCodeSamples(value) {
+  if (Array.isArray(value)) {
+    return value.map(stripCodeSamples);
+  }
+  if (value !== null && typeof value === "object") {
+    const out = {};
+    for (const key of Object.keys(value)) {
+      if (key === CODE_SAMPLES_KEY) continue;
+      out[key] = stripCodeSamples(value[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Recursively sort object keys so serialization is order-independent, dropping
+ * `x-codeSamples` so two specs that differ only in those docs-only snippets are
+ * treated as identical.
+ */
 function canonicalize(value) {
   if (Array.isArray(value)) {
     return value.map(canonicalize);
@@ -44,6 +74,7 @@ function canonicalize(value) {
   if (value !== null && typeof value === "object") {
     const out = {};
     for (const key of Object.keys(value).sort()) {
+      if (key === CODE_SAMPLES_KEY) continue;
       out[key] = canonicalize(value[key]);
     }
     return out;
@@ -110,7 +141,12 @@ if (command === "check") {
 if (command === "apply") {
   // Persist pretty-printed so the committed copy stays diff-friendly while the
   // canonical comparison ignores the formatting difference vs the minified URL.
-  writeFileSync(committedPath, JSON.stringify(published, null, 2) + "\n", "utf8");
+  // Strip `x-codeSamples` so the SDK spec never carries the docs-only extension.
+  writeFileSync(
+    committedPath,
+    JSON.stringify(stripCodeSamples(published), null, 2) + "\n",
+    "utf8",
+  );
   console.log(`spec-sync: wrote ${committedPath} from ${publishedPathArg}.`);
   process.exit(0);
 }

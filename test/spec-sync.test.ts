@@ -49,6 +49,27 @@ describe("spec-sync canonical comparison (design D10)", () => {
     expect(runCheck(committedSpec()).changed).toBe("false");
   });
 
+  it("ignores x-codeSamples added by the docs site", () => {
+    // The docs site decorates each operation with `x-codeSamples`; the SDK does
+    // not carry them. A spec that differs ONLY in those snippets must compare
+    // as unchanged, otherwise the daily sync would open noisy PRs every time
+    // the docs are republished.
+    const spec = committedSpec();
+    let decorated = 0;
+    for (const methods of Object.values(spec.paths)) {
+      for (const op of Object.values(methods)) {
+        if (op && typeof op === "object") {
+          (op as Record<string, unknown>)["x-codeSamples"] = [
+            { lang: "JavaScript", label: "SDK", source: "client.foo()" },
+          ];
+          decorated++;
+        }
+      }
+    }
+    expect(decorated).toBeGreaterThan(0); // guard: the fixture actually changed
+    expect(runCheck(spec).changed).toBe("false");
+  });
+
   it("ignores key ordering and whitespace", () => {
     // Rebuild every object with its keys reversed — same data, different order.
     const reorder = (v: unknown): unknown => {
