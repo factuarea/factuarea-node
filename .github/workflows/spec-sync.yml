@@ -10,20 +10,24 @@ name: Spec Sync
 #     CI when the spec changes (emitter NOT yet wired — needs an org PAT; the
 #     ready-to-paste snippet is in docs/SPEC_SYNC.md).
 #   • workflow_dispatch — manual trigger.
-#   • schedule (daily) — fallback if the dispatch never arrives.
 #
 # When the published spec differs CANONICALLY from the committed copy (parsed
-# JSON, key-order/whitespace-insensitive — see scripts/spec-sync.mjs) the spec
-# is updated, the SDK is regenerated, and a PR is opened with an auto changeset.
-# It NEVER pushes to main directly — a human reviews and merges, which triggers
-# the Release workflow.
+# JSON, key-order/whitespace-insensitive, x-codeSamples ignored — see
+# scripts/spec-sync.mjs) the spec is updated, the SDK is regenerated, and a PR
+# is opened with an auto changeset. It NEVER pushes to main directly.
+#
+# NOTE (2026-06): the daily `schedule` trigger is intentionally PAUSED until the
+# P0 spec is deployed to production and docs.factuarea.com/api/openapi reflects
+# production (the SDK is published ahead of the prod deploy, so published vs
+# pinned are temporarily out of sync — a scheduled run would open a PR that
+# wrongly removes endpoints). Re-add the `schedule` block once docs == prod:
+#   schedule:
+#     - cron: "17 6 * * *"  # daily at 06:17 UTC
 
 on:
   repository_dispatch:
     types: [spec-updated]
   workflow_dispatch:
-  schedule:
-    - cron: "17 6 * * *" # daily at 06:17 UTC
 
 permissions:
   contents: write # create the sync branch
