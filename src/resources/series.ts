@@ -16,6 +16,12 @@ export class SeriesResource extends BaseResource {
     return this._send<unknown>("POST", path, undefined, config);
   }
 
+  /** Bootstrap the default series of a company */
+  async bootstrap(config?: RequestConfig): Promise<unknown> {
+    const path = "/series/bootstrap";
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+
   /** Create a series */
   async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/series";

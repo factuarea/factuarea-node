@@ -22,6 +22,24 @@ export class ProformasResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Bulk download proforma PDFs */
+  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = "/proformas/bulk-pdf";
+    return this._binary(path, "POST", undefined, body, config);
+  }
+
+  /** Bulk send proformas */
+  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/proformas/bulk-send";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Bulk change proforma status */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/proformas/bulk-status";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Convert proforma to invoice */
   async convert(proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/proformas/{proforma}/convert", { "proforma": proforma });
@@ -67,6 +85,12 @@ export class ProformasResource extends BaseResource {
   async duplicate(proforma: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/proformas/{proforma}/duplicate", { "proforma": proforma });
     return this._send<unknown>("POST", path, undefined, config);
+  }
+
+  /** Find a proforma by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/proformas/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve proforma public link */

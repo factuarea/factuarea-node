@@ -65,6 +65,12 @@ export class ProductsResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Bulk change product active state */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/products/bulk-status";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Update stock for many products */
   async bulkUpdateStock(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/products/bulk-update-stock";
@@ -98,6 +104,12 @@ export class ProductsResource extends BaseResource {
   async update(product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/products/{product}", { "product": product });
     return this._send<unknown>("PUT", path, body, config);
+  }
+
+  /** Find a product by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/products/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find a product by SKU */

@@ -9,6 +9,20 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
+export class InvoicesFaceSubmissionsResource extends BaseResource {
+  /** List invoice FACe submissions */
+  async list(invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/face-submissions", { "invoice": invoice });
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Submit invoice to FACe */
+  async submit(invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/face-submissions", { "invoice": invoice });
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+}
+
 export class InvoicesQuarterlyResource extends BaseResource {
   /** List quarters with invoices */
   async available(config?: RequestConfig): Promise<unknown> {
@@ -30,10 +44,12 @@ export class InvoicesQuarterlyResource extends BaseResource {
 }
 
 export class InvoicesResource extends BaseResource {
+  readonly faceSubmissions: InvoicesFaceSubmissionsResource;
   readonly quarterly: InvoicesQuarterlyResource;
 
   constructor(client: HttpClient) {
     super(client);
+    this.faceSubmissions = new InvoicesFaceSubmissionsResource(client);
     this.quarterly = new InvoicesQuarterlyResource(client);
   }
 
@@ -49,9 +65,33 @@ export class InvoicesResource extends BaseResource {
     return this._send<unknown>("POST", path, undefined, config);
   }
 
+  /** Bulk create invoices */
+  async bulkCreate(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/invoices/bulk-create";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Bulk delete invoices */
   async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/invoices/bulk-delete";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Bulk download invoice PDFs */
+  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = "/invoices/bulk-pdf";
+    return this._binary(path, "POST", undefined, body, config);
+  }
+
+  /** Bulk send invoices */
+  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/invoices/bulk-send";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Bulk change invoice status */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/invoices/bulk-status";
     return this._send<unknown>("POST", path, body, config);
   }
 
@@ -96,6 +136,12 @@ export class InvoicesResource extends BaseResource {
     return this._get<unknown>(path, undefined, config);
   }
 
+  /** Create a recurring invoice from an invoice */
+  async createRecurring(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/create-recurring", { "invoice": invoice });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Delete an invoice */
   async delete(invoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/invoices/{invoice}", { "invoice": invoice });
@@ -132,13 +178,25 @@ export class InvoicesResource extends BaseResource {
     return this._send<unknown>("POST", path, undefined, config);
   }
 
+  /** Export invoices to a spreadsheet */
+  async exportExcel(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/invoices/export/excel";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Find an invoice by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/invoices/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Find an invoice by number */
   async findByNumber(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/invoices/find-by-number";
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Generate signed PDF link */
+  /** Generate temporary PDF link */
   async pdfLink(invoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/invoices/{invoice}/pdf-link", { "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
@@ -174,6 +232,18 @@ export class InvoicesResource extends BaseResource {
     return this._get<unknown>(path, undefined, config);
   }
 
+  /** List invoice payments */
+  async paymentsList(invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/payments", { "invoice": invoice });
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Register a payment */
+  async paymentsCreate(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/payments", { "invoice": invoice });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** List invoice statuses */
   async statuses(config?: RequestConfig): Promise<unknown> {
     const path = "/invoices/statuses";
@@ -192,6 +262,12 @@ export class InvoicesResource extends BaseResource {
     return this._send<unknown>("POST", path, undefined, config);
   }
 
+  /** Preview an invoice draft PDF */
+  async pdfPreview(invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/pdf/preview", { "invoice": invoice });
+    return this._get<unknown>(path, undefined, config);
+  }
+
   /** Preview a payment reminder email */
   async reminderPreview(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/invoices/{invoice}/reminder-preview", { "invoice": invoice });
@@ -202,6 +278,18 @@ export class InvoicesResource extends BaseResource {
   async paymentReceipt(invoice: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/invoices/{invoice}/payment-receipt", { "invoice": invoice });
     return this._binary(path, "GET", undefined, undefined, config);
+  }
+
+  /** Reschedule an invoice */
+  async reschedule(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/reschedule", { "invoice": invoice });
+    return this._send<unknown>("PATCH", path, body, config);
+  }
+
+  /** Schedule an invoice */
+  async schedule(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/schedule", { "invoice": invoice });
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Send invoice by email */
@@ -220,6 +308,18 @@ export class InvoicesResource extends BaseResource {
   async substituteSimplified(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/invoices/substitute-simplified";
     return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Unschedule an invoice */
+  async unschedule(invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/unschedule", { "invoice": invoice });
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+
+  /** Unsend an invoice */
+  async unsend(invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/unsend", { "invoice": invoice });
+    return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Void an invoice */

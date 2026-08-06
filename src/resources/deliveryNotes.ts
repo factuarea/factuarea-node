@@ -47,16 +47,28 @@ export class DeliveryNotesResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Bulk download delivery note PDFs */
+  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = "/delivery_notes/bulk-pdf";
+    return this._binary(path, "POST", undefined, body, config);
+  }
+
+  /** Bulk send delivery notes */
+  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/delivery_notes/bulk-send";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Bulk change delivery note status */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/delivery_notes/bulk-status";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Cancel a delivery note */
   async cancel(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/delivery_notes/{delivery_note}/cancel", { "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, undefined, config);
-  }
-
-  /** Change delivery note status (deprecated) */
-  async changeStatus(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/change_status", { "delivery_note": deliveryNote });
-    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Convert delivery note to invoice */
@@ -104,6 +116,12 @@ export class DeliveryNotesResource extends BaseResource {
   async duplicate(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/delivery_notes/{delivery_note}/duplicate", { "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, undefined, config);
+  }
+
+  /** Find a delivery note by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/delivery_notes/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve delivery note stats */

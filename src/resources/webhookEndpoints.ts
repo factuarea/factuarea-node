@@ -77,4 +77,10 @@ export class WebhookEndpointsResource extends BaseResource {
     const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/rotate_secret", { "webhook_endpoint": webhookEndpoint });
     return this._send<unknown>("POST", path, undefined, config);
   }
+
+  /** Send a test event */
+  async testEvent(webhookEndpoint: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/test_event", { "webhook_endpoint": webhookEndpoint });
+    return this._send<unknown>("POST", path, body, config);
+  }
 }
