@@ -57,6 +57,12 @@ export class RecurringInvoicesResource extends BaseResource {
     return this._send<unknown>("PUT", path, body, config);
   }
 
+  /** Find a recurring invoice by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/recurring_invoices/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Generate an invoice from a recurring template */
   async generate(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/recurring_invoices/{recurring_invoice}/generate", { "recurring_invoice": recurringInvoice });
@@ -96,6 +102,12 @@ export class RecurringInvoicesResource extends BaseResource {
   /** Resume recurring invoice */
   async resume(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/recurring_invoices/{recurring_invoice}/resume", { "recurring_invoice": recurringInvoice });
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+
+  /** Skip the next recurring invoice generation */
+  async skip(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/skip", { "recurring_invoice": recurringInvoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

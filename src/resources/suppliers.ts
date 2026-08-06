@@ -16,10 +16,10 @@ export class SuppliersResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Delete multiple suppliers in bulk (deprecated alias) */
-  async bulkDeleteLegacy(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/suppliers/bulk";
-    return this._delete<unknown>(path, params, config);
+  /** Bulk change supplier active state */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/suppliers/bulk-status";
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Create a supplier */
@@ -49,6 +49,12 @@ export class SuppliersResource extends BaseResource {
   async update(supplier: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/suppliers/{supplier}", { "supplier": supplier });
     return this._send<unknown>("PUT", path, body, config);
+  }
+
+  /** Find a supplier by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/suppliers/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find a supplier by tax ID */

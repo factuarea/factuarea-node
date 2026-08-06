@@ -83,6 +83,12 @@ export class VerifactuRecordsResource extends BaseResource {
     const path = this.buildPath("/verifactu/records/{record}", { "record": record });
     return this._get<unknown>(path, undefined, config);
   }
+
+  /** Subsanar a rejected VeriFactu record */
+  async subsanar(record: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/records/{record}/subsanar", { "record": record });
+    return this._send<unknown>("POST", path, undefined, config);
+  }
 }
 
 export class VerifactuDeclaracionResource extends BaseResource {

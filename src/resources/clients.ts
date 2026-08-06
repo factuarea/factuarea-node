@@ -10,16 +10,16 @@ import type { Page } from "../core/pagination.js";
 
 
 export class ClientsResource extends BaseResource {
+  /** Bulk create clients */
+  async bulkCreate(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/clients/bulk-create";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Delete multiple clients in bulk */
   async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/clients/bulk-delete";
     return this._send<unknown>("POST", path, body, config);
-  }
-
-  /** Delete multiple clients in bulk (deprecated alias) */
-  async bulkDeleteLegacy(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/clients/bulk";
-    return this._delete<unknown>(path, params, config);
   }
 
   /** Create a client */
@@ -51,6 +51,18 @@ export class ClientsResource extends BaseResource {
     return this._send<unknown>("PUT", path, body, config);
   }
 
+  /** Download the client import template */
+  async importTemplate(config?: RequestConfig): Promise<unknown> {
+    const path = "/clients/import/template";
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Find a client by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/clients/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Find a client by tax ID */
   async findByTaxId(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/clients/find-by-tax-id";
@@ -69,9 +81,21 @@ export class ClientsResource extends BaseResource {
     return this._get<unknown>(path, undefined, config);
   }
 
+  /** Import clients from a file */
+  async import(formData: FormData, config?: RequestConfig): Promise<unknown> {
+    const path = "/clients/import";
+    return this._sendForm<unknown>(path, formData, config);
+  }
+
   /** Search clients */
   async search(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = "/clients/search";
     return this._get<unknown>(path, params, config);
+  }
+
+  /** Verify a client against the AEAT census */
+  async verifyCensus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/clients/census-verification";
+    return this._send<unknown>("POST", path, body, config);
   }
 }

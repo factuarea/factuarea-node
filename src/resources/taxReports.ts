@@ -22,6 +22,12 @@ export class TaxReportsResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Generate Modelo 130 */
+  async generate130(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/tax_reports/130";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Generate Modelo 303 */
   async generate303(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/tax_reports/303";

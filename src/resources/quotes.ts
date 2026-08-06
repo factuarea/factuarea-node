@@ -22,6 +22,24 @@ export class QuotesResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Bulk download quote PDFs */
+  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = "/quotes/bulk-pdf";
+    return this._binary(path, "POST", undefined, body, config);
+  }
+
+  /** Bulk send quotes */
+  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/quotes/bulk-send";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Bulk change quote status */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/quotes/bulk-status";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Convert quote to invoice */
   async convert(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/quotes/{quote}/convert", { "quote": quote });
@@ -67,6 +85,12 @@ export class QuotesResource extends BaseResource {
   async duplicate(quote: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/quotes/{quote}/duplicate", { "quote": quote });
     return this._send<unknown>("POST", path, undefined, config);
+  }
+
+  /** Find a quote by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/quotes/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve quote public link */
