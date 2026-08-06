@@ -2,6 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@factuarea/sdk.svg)](https://www.npmjs.com/package/@factuarea/sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Spec Sync](https://github.com/factuarea/factuarea-node/actions/workflows/spec-sync.yml/badge.svg)](https://github.com/factuarea/factuarea-node/actions/workflows/spec-sync.yml)
 
 The official TypeScript SDK for the [Factuarea API](https://docs.factuarea.com) — Spanish e‑invoicing, VeriFactu, quotes, delivery notes and more.
 
@@ -233,6 +234,10 @@ and published to npm via [Trusted Publishing (OIDC)](https://docs.npmjs.com/trus
 with build provenance — see [`docs/RELEASING.md`](./docs/RELEASING.md). The
 generated layer is kept in sync with the public OpenAPI spec automatically — see
 [`docs/SPEC_SYNC.md`](./docs/SPEC_SYNC.md).
+
+The **Spec Sync** badge above is when that check last ran, not when the repo was
+last committed to: a check that finds nothing to sync leaves no commit. Click it
+for the date of the latest run.
 
 ## Contributing & spec
 
