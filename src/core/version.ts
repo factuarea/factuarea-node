@@ -2,7 +2,7 @@
  * SDK version. Kept in sync with `package.json` by the release pipeline.
  * Used in the informative `User-Agent` (no telemetry).
  */
-export const SDK_VERSION = "0.1.0";
+export const SDK_VERSION = "0.2.0";
 
 /**
  * Default `Factuarea-Version` pinned by this SDK release. The API is
