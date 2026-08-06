@@ -123,14 +123,14 @@ function output(line) {
 if (command === "check") {
   output(`changed=${changed}`);
   if (changed) {
-    // New operationIds vs none-removed → minor; anything else (removed ops,
-    // schema-only changes) → patch by default. A human still reviews the PR
-    // and can promote the changeset to major for breaking changes.
+    // Operation churn → minor, removals included: while the SDK is in 0.x a
+    // breaking change lands in a minor and `1.0.0` stays reserved for the API's
+    // GA (docs/VERSIONING.md). Schema-only changes → patch.
     const before = operationIds(committed);
     const after = operationIds(published);
     const added = [...after].filter((id) => !before.has(id));
     const removed = [...before].filter((id) => !after.has(id));
-    const bump = added.length > 0 && removed.length === 0 ? "minor" : "patch";
+    const bump = added.length > 0 || removed.length > 0 ? "minor" : "patch";
     output(`bump=${bump}`);
     output(`added_ops=${added.length}`);
     output(`removed_ops=${removed.length}`);

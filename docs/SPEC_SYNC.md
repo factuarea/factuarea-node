@@ -39,11 +39,14 @@ What it does:
 
 The check step infers the SemVer bump from operationId churn:
 
-- new operations and **none removed** → `minor`
-- anything else (removed/renamed operations, schema-only changes) → `patch`
+- any operation added **or removed** → `minor`
+- schema-only changes, with no operation added or removed → `patch`
 
-A removed/renamed operation is potentially **breaking**; the PR body asks the
-reviewer to promote the changeset to `major` before merging when appropriate.
+A removed or renamed operation is **breaking**, and in `0.x` a breaking change
+is still a `minor`: `1.0.0` is reserved for the API's GA event, so spending it
+on a routine renaming would make the GA indistinguishable from it (see
+[VERSIONING.md](./VERSIONING.md)). What the reviewer owes the changeset is the
+**replacement** of each removed operation, not a promoted bump.
 
 ## Emitter side (`factuarea` repo — wired)
 
@@ -99,3 +102,56 @@ two months without a spec update.
 
 No secret is required on the **receiver** (this repo): the workflow uses the
 built-in `GITHUB_TOKEN` to open the PR.
+
+## Auditing the sync state
+
+**When was the spec last checked?** The date of the most recent
+[`Spec Sync` run](https://github.com/factuarea/factuarea-node/actions/workflows/spec-sync.yml),
+which the badge at the top of the [README](../README.md) links to. That date is
+*not* the date of the last commit: a run that finds the spec unchanged is the
+normal outcome and leaves no commit behind, so from the commit log a repo that
+is checked daily and one nobody watches look the same.
+
+**How big is the drift?** A sync PR states it in its title and body (`+N/-M
+ops`), and the changeset it writes repeats the counts. The withdrawn operations
+are not listed by name — read them off the `spec/openapi.json` diff, and pair
+each one with its replacement in the changeset before merging.
+
+**Is anything still watching?** `npm test` asserts, in
+[`test/spec-sync.test.ts`](../test/spec-sync.test.ts), that at least one
+unattended trigger — `repository_dispatch` or `schedule` — is live in
+`spec-sync.yml`. `workflow_dispatch` does not count: it fires when someone
+remembers, and that is the assumption that failed. The assertion has no
+allowlist, so switching the last one off turns CI red instead of going unnoticed.
+
+### Pausing a trigger
+
+Pausing a trigger is allowed. Pausing it silently is not: the pause carries the
+condition that brings it back, written so whoever reads the file next can check
+it without knowing why it was paused.
+
+```yaml
+# PAUSED schedule since 2026-06-07; reactivate when: the published spec has at
+# least as many paths as spec/openapi.json
+# schedule:
+#   - cron: "17 6 * * *"
+```
+
+The test rejects a disabled trigger with no such line, and rejects a vague one —
+the date and the condition are both mandatory, so "paused for now, will re-enable
+later" does not pass.
+
+Reactivating **replaces** that note with the evidence the condition was met, and
+the date it was met. The same test rejects an active trigger still carrying its
+pause note, so the substitution cannot be skipped:
+
+```yaml
+# `schedule` restored 2026-08-06: published spec 345 paths vs 192 pinned, which
+# satisfies the `docs == prod` condition it was paused under on 2026-06-07.
+```
+
+A pause that outlives its own condition is not caught by re-reading the comment;
+nobody re-reads comments, which is how the 2026-06 pause survived two months
+past the moment its condition inverted. It is caught by its effects: while one
+trigger is live, the accumulated drift shows up as a sync PR whose title carries
+its magnitude.
