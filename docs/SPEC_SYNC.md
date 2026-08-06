@@ -11,7 +11,7 @@ The [`Spec Sync`](../.github/workflows/spec-sync.yml) workflow runs on three
 triggers:
 
 - **`repository_dispatch`** with `event_type: spec-updated` — pushed by the
-  `factuarea` CI when the spec changes (the emitter is **not yet wired**, see
+  `factuarea` CI when the public spec is republished (the emitter is wired, see
   below).
 - **`workflow_dispatch`** — run it manually from the Actions tab.
 - **`schedule`** — a daily cron (`17 6 * * *` UTC) as a fallback in case a
@@ -20,8 +20,9 @@ triggers:
 What it does:
 
 1. Downloads the published spec from `SPEC_URL`
-   (default `https://docs.factuarea.com/api/openapi`; a dispatch may override it
-   via `client_payload.spec_url`).
+   (`https://docs.factuarea.com/api/openapi`). The URL is **fixed in this repo**
+   and is not overridable from the event payload — see
+   [Why the emitter sends no `spec_url`](#why-the-emitter-sends-no-spec_url).
 2. **Compares it canonically** against the committed copy — parsed JSON with
    sorted keys, *not* raw bytes. This matters: the published URL serves the spec
    **minified** while the committed copy is **pretty-printed**, so a byte diff
@@ -44,49 +45,57 @@ The check step infers the SemVer bump from operationId churn:
 A removed/renamed operation is potentially **breaking**; the PR body asks the
 reviewer to promote the changeset to `major` before merging when appropriate.
 
-## Emitter side (`factuarea` repo — NOT yet wired)
+## Emitter side (`factuarea` repo — wired)
 
-The emitter is a step in the private repo's CI that fires a `repository_dispatch`
-to this repo (and to `factuarea-php`) when `openapi-public.json` changes on the
-release branch. It is **not implemented yet** because it needs a GitHub token
-with cross-repo `repository_dispatch` permission (a fine-grained PAT or GitHub
-App token scoped to the `factuarea` org — the default `GITHUB_TOKEN` cannot
-dispatch to other repos).
+The emitter is the `SDK Spec Dispatch` workflow
+(`.github/workflows/sdk-spec-dispatch.yml`) in the private `factuarea` repo. It
+fires the `repository_dispatch` to this repo and to `factuarea-php`:
 
-Until then, the daily `schedule` and `workflow_dispatch` triggers keep this repo
-in sync. When you're ready to wire the emitter, add the following job to the
-`factuarea` CI (this snippet is for the **private repo**, do not commit it here):
-
-```yaml
-# .github/workflows/<spec-publish>.yml in the PRIVATE factuarea repo.
-# Run after the public spec is regenerated/published on develop or a release.
-  notify-sdks:
-    name: Notify SDK repos of spec change
-    runs-on: ubuntu-latest
-    # Only when the published spec actually changed in this push.
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - name: Dispatch spec-updated to SDK repos
-        env:
-          # Fine-grained PAT (or GitHub App token) with
-          # "Contents: read" + "Metadata: read" on factuarea-node & factuarea-php,
-          # and the "repository_dispatch" / "Actions" permission to send events.
-          GH_TOKEN: ${{ secrets.SDK_DISPATCH_TOKEN }}
-        run: |
-          for repo in factuarea-node factuarea-php; do
-            gh api "repos/factuarea/$repo/dispatches" \
-              -f event_type=spec-updated \
-              -F 'client_payload[spec_url]=https://docs.factuarea.com/api/openapi'
-          done
+```sh
+# GH_TOKEN is the SDK_DISPATCH_TOKEN secret of the private repo.
+for repo in factuarea/factuarea-node factuarea/factuarea-php; do
+  gh api "repos/${repo}/dispatches" -f event_type=spec-updated
+done
 ```
+
+Its triggers are:
+
+- **`workflow_dispatch`** — the reference trigger, run by hand right after the
+  documentation portal is republished. That is the only moment the published
+  spec is known to have changed.
+- **`push` of a `v*` tag** — the release event that exists in the private repo,
+  as a best-effort automatic nudge.
+
+It deliberately does **not** fire on pushes to `develop`: this workflow reads the
+*published* spec, not the spec on any branch, so a `develop` push would only
+produce a run that finds nothing to sync. The published document is served by a
+separate repo (`factuarea-docs`) that has no hook back into `factuarea`, so
+there is no unambiguous "the published spec just changed" event to hang the
+emitter on — hence the manual trigger being the primary one. A tag push may
+therefore land before the portal is republished; the run then reports "nothing
+to sync" and the daily `schedule` picks the change up within 24h.
+
+### Why the emitter sends no `spec_url`
+
+Earlier revisions of this document showed the emitter sending
+`client_payload[spec_url]`. It does not, and it must not: `SPEC_URL` is fixed in
+the receiver so that a dispatch cannot point CI at a foreign spec that would be
+downloaded, turned into generated code and executed on the runner. A
+`repository_dispatch` is only a "go regenerate" signal, never a "from where".
+
+Sending a value the receiver ignores on purpose invites someone to "fix" the
+inconsistency the wrong way round — by making the receiver honour it. Both sides
+state the reason explicitly so that does not happen.
 
 ### Required secret (in the `factuarea` repo)
 
 | Secret               | What                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------- |
-| `SDK_DISPATCH_TOKEN` | Fine-grained PAT or GitHub App token allowed to send `repository_dispatch` to `factuarea/factuarea-node` and `factuarea/factuarea-php`. The built-in `GITHUB_TOKEN` cannot dispatch cross-repo. |
+| `SDK_DISPATCH_TOKEN` | Fine-grained PAT (or GitHub App installation token) scoped to `factuarea/factuarea-node` and `factuarea/factuarea-php`, with **Contents: Read and write** (plus the mandatory **Metadata: Read-only**). There is no permission literally named `repository_dispatch`: `POST /repos/{owner}/{repo}/dispatches` is gated by *Contents* write, so read-only is not enough. The built-in `GITHUB_TOKEN` cannot dispatch cross-repo at all. |
+
+If the secret is missing, the emitter **fails red** instead of skipping the
+dispatch quietly. An emitter that silently does nothing is how this repo went
+two months without a spec update.
 
 No secret is required on the **receiver** (this repo): the workflow uses the
 built-in `GITHUB_TOKEN` to open the PR.
