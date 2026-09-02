@@ -263,9 +263,9 @@ export class InvoicesResource extends BaseResource {
   }
 
   /** Preview an invoice draft PDF */
-  async pdfPreview(invoice: string, config?: RequestConfig): Promise<unknown> {
+  async pdfPreview(invoice: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/invoices/{invoice}/pdf/preview", { "invoice": invoice });
-    return this._get<unknown>(path, undefined, config);
+    return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Preview a payment reminder email */
@@ -284,6 +284,12 @@ export class InvoicesResource extends BaseResource {
   async reschedule(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/invoices/{invoice}/reschedule", { "invoice": invoice });
     return this._send<unknown>("PATCH", path, body, config);
+  }
+
+  /** Revert an invoice payment */
+  async paymentsRevert(invoice: string, payment: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/payments/{payment}/reversal", { "invoice": invoice, "payment": payment });
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Schedule an invoice */

@@ -64,15 +64,15 @@ export class PurchaseInvoicesResource extends BaseResource {
   }
 
   /** Download the original purchase invoice file */
-  async file(purchaseInvoice: string, config?: RequestConfig): Promise<unknown> {
+  async file(purchaseInvoice: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/file", { "purchase_invoice": purchaseInvoice });
-    return this._get<unknown>(path, undefined, config);
+    return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Download a purchase invoice payment receipt */
-  async paymentReceipt(purchaseInvoice: string, config?: RequestConfig): Promise<unknown> {
+  async paymentReceipt(purchaseInvoice: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/payment-receipt", { "purchase_invoice": purchaseInvoice });
-    return this._get<unknown>(path, undefined, config);
+    return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Find a purchase invoice by external ID */
