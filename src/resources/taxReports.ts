@@ -11,9 +11,9 @@ import type { Page } from "../core/pagination.js";
 
 export class TaxReportsResource extends BaseResource {
   /** Download tax report file */
-  async download(taxReport: string, config?: RequestConfig): Promise<unknown> {
+  async download(taxReport: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/tax_reports/{tax_report}/download", { "tax_report": taxReport });
-    return this._get<unknown>(path, undefined, config);
+    return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Find a tax report by period */

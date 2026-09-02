@@ -27,6 +27,7 @@ import { PaymentMethodsResource } from "./paymentMethods.js";
 import { PayoutsResource } from "./payouts.js";
 import { PayrollExportFormatsResource } from "./payrollExportFormats.js";
 import { PresenceResource } from "./presence.js";
+import { PriceListsResource } from "./priceLists.js";
 import { ProductsResource } from "./products.js";
 import { ProformasResource } from "./proformas.js";
 import { PurchaseInvoicesResource } from "./purchaseInvoices.js";
@@ -72,6 +73,7 @@ export { PaymentMethodsResource } from "./paymentMethods.js";
 export { PayoutsResource } from "./payouts.js";
 export { PayrollExportFormatsResource } from "./payrollExportFormats.js";
 export { PresenceResource } from "./presence.js";
+export { PriceListsResource } from "./priceLists.js";
 export { ProductsResource } from "./products.js";
 export { ProformasResource } from "./proformas.js";
 export { PurchaseInvoicesResource } from "./purchaseInvoices.js";
@@ -118,6 +120,7 @@ export interface ResourceNamespaces {
   payouts: PayoutsResource;
   payrollExportFormats: PayrollExportFormatsResource;
   presence: PresenceResource;
+  priceLists: PriceListsResource;
   products: ProductsResource;
   proformas: ProformasResource;
   purchaseInvoices: PurchaseInvoicesResource;
@@ -166,6 +169,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     payouts: new PayoutsResource(client),
     payrollExportFormats: new PayrollExportFormatsResource(client),
     presence: new PresenceResource(client),
+    priceLists: new PriceListsResource(client),
     products: new ProductsResource(client),
     proformas: new ProformasResource(client),
     purchaseInvoices: new PurchaseInvoicesResource(client),
