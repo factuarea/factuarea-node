@@ -76,9 +76,9 @@ export class QuotesResource extends BaseResource {
   }
 
   /** Download quote PDF */
-  async pdf(quote: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async pdf(quote: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/quotes/{quote}/pdf", { "quote": quote });
-    return this._get<unknown>(path, params, config);
+    return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Duplicate a quote */

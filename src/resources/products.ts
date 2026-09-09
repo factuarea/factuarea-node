@@ -9,6 +9,90 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
+export class ProductsPresentationsResource extends BaseResource {
+  /** Create a product presentation */
+  async create(product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/presentations", { "product": product });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** List product presentations */
+  async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/products/{product}/presentations", { "product": product });
+    return this._paginate<unknown>(path, params, "starting_after");
+  }
+
+  /** Delete a product presentation */
+  async delete(product: string, presentation: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/presentations/{presentation}", { "product": product, "presentation": presentation });
+    return this._send<unknown>("DELETE", path, undefined, config);
+  }
+
+  /** Update a product presentation */
+  async update(product: string, presentation: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/presentations/{presentation}", { "product": product, "presentation": presentation });
+    return this._send<unknown>("PUT", path, body, config);
+  }
+}
+
+export class ProductsVariantsResource extends BaseResource {
+  /** Create a product variant */
+  async create(product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/variants", { "product": product });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** List product variants */
+  async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/products/{product}/variants", { "product": product });
+    return this._paginate<unknown>(path, params, "starting_after");
+  }
+
+  /** Delete a product variant */
+  async delete(product: string, variant: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/variants/{variant}", { "product": product, "variant": variant });
+    return this._send<unknown>("DELETE", path, undefined, config);
+  }
+
+  /** Update a product variant */
+  async update(product: string, variant: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/variants/{variant}", { "product": product, "variant": variant });
+    return this._send<unknown>("PUT", path, body, config);
+  }
+}
+
+export class ProductsSupplierOffersResource extends BaseResource {
+  /** Create a supplier offer */
+  async create(product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/supplier-offers", { "product": product });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** List supplier offers */
+  async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/products/{product}/supplier-offers", { "product": product });
+    return this._paginate<unknown>(path, params, "starting_after");
+  }
+
+  /** Delete a supplier offer */
+  async delete(product: string, offer: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/supplier-offers/{offer}", { "product": product, "offer": offer });
+    return this._send<unknown>("DELETE", path, undefined, config);
+  }
+
+  /** Update a supplier offer */
+  async update(product: string, offer: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/supplier-offers/{offer}", { "product": product, "offer": offer });
+    return this._send<unknown>("PUT", path, body, config);
+  }
+
+  /** Set the preferred supplier offer */
+  async preferred(product: string, offer: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/supplier-offers/{offer}/preferred", { "product": product, "offer": offer });
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+}
+
 export class ProductsGalleryResource extends BaseResource {
   /** Remove a gallery image from a product */
   async delete(product: string, index: string, config?: RequestConfig): Promise<unknown> {
@@ -49,14 +133,56 @@ export class ProductsVideoResource extends BaseResource {
   }
 }
 
+export class ProductsConfigurationsResource extends BaseResource {
+  /** List product commercial combinations */
+  async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/products/{product}/configurations", { "product": product });
+    return this._paginate<unknown>(path, params, "starting_after");
+  }
+
+  /** Preview the impact of restricting a catalog */
+  async impactPreview(product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/configurations/impact-preview", { "product": product });
+    return this._send<unknown>("POST", path, body, config);
+  }
+}
+
+export class ProductsOptionsResource extends BaseResource {
+  /** List product option groups */
+  async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/products/{product}/options", { "product": product });
+    return this._paginate<unknown>(path, params, "starting_after");
+  }
+}
+
+export class ProductsStockMovementsResource extends BaseResource {
+  /** List stock movements of a product */
+  async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/products/{product}/stock-movements", { "product": product });
+    return this._paginate<unknown>(path, params, "starting_after");
+  }
+}
+
 export class ProductsResource extends BaseResource {
+  readonly presentations: ProductsPresentationsResource;
+  readonly variants: ProductsVariantsResource;
+  readonly supplierOffers: ProductsSupplierOffersResource;
   readonly gallery: ProductsGalleryResource;
   readonly video: ProductsVideoResource;
+  readonly configurations: ProductsConfigurationsResource;
+  readonly options: ProductsOptionsResource;
+  readonly stockMovements: ProductsStockMovementsResource;
 
   constructor(client: HttpClient) {
     super(client);
+    this.presentations = new ProductsPresentationsResource(client);
+    this.variants = new ProductsVariantsResource(client);
+    this.supplierOffers = new ProductsSupplierOffersResource(client);
     this.gallery = new ProductsGalleryResource(client);
     this.video = new ProductsVideoResource(client);
+    this.configurations = new ProductsConfigurationsResource(client);
+    this.options = new ProductsOptionsResource(client);
+    this.stockMovements = new ProductsStockMovementsResource(client);
   }
 
   /** Delete multiple products in bulk */
@@ -95,9 +221,9 @@ export class ProductsResource extends BaseResource {
   }
 
   /** Retrieve a product */
-  async show(product: string, config?: RequestConfig): Promise<unknown> {
+  async show(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/products/{product}", { "product": product });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<unknown>(path, params, config);
   }
 
   /** Update a product */
@@ -140,6 +266,12 @@ export class ProductsResource extends BaseResource {
   async stats(config?: RequestConfig): Promise<unknown> {
     const path = "/products/stats";
     return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Resolve a catalog selection */
+  async resolveSelection(product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/products/{product}/resolve-selection", { "product": product });
+    return this._send<unknown>("POST", path, body, config);
   }
 
   /** Search products */

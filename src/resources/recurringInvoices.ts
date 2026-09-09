@@ -76,9 +76,9 @@ export class RecurringInvoicesResource extends BaseResource {
   }
 
   /** List recurring invoice activity */
-  async activities(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+  async activities(recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/recurring_invoices/{recurring_invoice}/activities", { "recurring_invoice": recurringInvoice });
-    return this._get<unknown>(path, undefined, config);
+    return this._paginate<unknown>(path, params, "starting_after");
   }
 
   /** List recurring invoice execution logs */

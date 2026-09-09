@@ -11,9 +11,9 @@ import type { Page } from "../core/pagination.js";
 
 export class TaxReportsResource extends BaseResource {
   /** Download tax report file */
-  async download(taxReport: string, config?: RequestConfig): Promise<unknown> {
+  async download(taxReport: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/tax_reports/{tax_report}/download", { "tax_report": taxReport });
-    return this._get<unknown>(path, undefined, config);
+    return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Find a tax report by period */
@@ -41,9 +41,9 @@ export class TaxReportsResource extends BaseResource {
   }
 
   /** List tax report activities */
-  async activities(taxReport: string, config?: RequestConfig): Promise<unknown> {
+  async activities(taxReport: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/tax_reports/{tax_report}/activities", { "tax_report": taxReport });
-    return this._get<unknown>(path, undefined, config);
+    return this._paginate<unknown>(path, params, "starting_after");
   }
 
   /** Retrieve tax report stats */
@@ -53,9 +53,8 @@ export class TaxReportsResource extends BaseResource {
   }
 
   /** List tax report history */
-  async history(config?: RequestConfig): Promise<unknown> {
-    const path = "/tax_reports/history";
-    return this._get<unknown>(path, undefined, config);
+  async history(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    return this._paginate<unknown>("/tax_reports/history", params, "starting_after");
   }
 
   /** Preview a tax report */

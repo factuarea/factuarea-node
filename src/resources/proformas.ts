@@ -76,9 +76,9 @@ export class ProformasResource extends BaseResource {
   }
 
   /** Download proforma PDF */
-  async pdf(proforma: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async pdf(proforma: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/proformas/{proforma}/pdf", { "proforma": proforma });
-    return this._get<unknown>(path, params, config);
+    return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Duplicate a proforma */
