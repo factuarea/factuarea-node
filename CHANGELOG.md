@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+### Patch Changes
+
+- [#7](https://github.com/factuarea/factuarea-node/pull/7) [`25619ea`](https://github.com/factuarea/factuarea-node/commit/25619ea6d931457711b701ef639e30161dac6878) Thanks [@Chelu97](https://github.com/Chelu97)! - `products.variants.update`: `stock` no longer declares `minimum: 0`. Send the current balance to leave it untouched (it may be negative when delivered documents ran ahead of the incoming stock); any other value is a manual set and must still be `>= 0` (422 otherwise). `products.variants.create` keeps `minimum: 0`.
+
 ## 0.3.0
 
 ### Minor Changes
