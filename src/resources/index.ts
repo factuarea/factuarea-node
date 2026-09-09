@@ -7,6 +7,7 @@ import { AbsencePoliciesResource } from "./absencePolicies.js";
 import { AbsenceRequestsResource } from "./absenceRequests.js";
 import { AbsenceTypesResource } from "./absenceTypes.js";
 import { AccountResource } from "./account.js";
+import { AutomationsResource } from "./automations.js";
 import { ClientsResource } from "./clients.js";
 import { CompaniesResource } from "./companies.js";
 import { DeliveryNotesResource } from "./deliveryNotes.js";
@@ -27,12 +28,15 @@ import { PaymentMethodsResource } from "./paymentMethods.js";
 import { PayoutsResource } from "./payouts.js";
 import { PayrollExportFormatsResource } from "./payrollExportFormats.js";
 import { PresenceResource } from "./presence.js";
+import { PriceListsResource } from "./priceLists.js";
 import { ProductsResource } from "./products.js";
 import { ProformasResource } from "./proformas.js";
 import { PurchaseInvoicesResource } from "./purchaseInvoices.js";
 import { QuotesResource } from "./quotes.js";
 import { RecurringInvoicesResource } from "./recurringInvoices.js";
 import { SeriesResource } from "./series.js";
+import { ShopifyResource } from "./shopify.js";
+import { StoresResource } from "./stores.js";
 import { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
 import { SuppliersResource } from "./suppliers.js";
 import { TaxCatalogResource } from "./taxCatalog.js";
@@ -44,6 +48,7 @@ import { TimeEntriesResource } from "./timeEntries.js";
 import { TimeTrackingSettingsResource } from "./timeTrackingSettings.js";
 import { VerifactuResource } from "./verifactu.js";
 import { WebhookEndpointsResource } from "./webhookEndpoints.js";
+import { WoocommerceResource } from "./woocommerce.js";
 import { WorkSchedulesResource } from "./workSchedules.js";
 
 export { AbsenceBalancesResource } from "./absenceBalances.js";
@@ -52,6 +57,7 @@ export { AbsencePoliciesResource } from "./absencePolicies.js";
 export { AbsenceRequestsResource } from "./absenceRequests.js";
 export { AbsenceTypesResource } from "./absenceTypes.js";
 export { AccountResource } from "./account.js";
+export { AutomationsResource } from "./automations.js";
 export { ClientsResource } from "./clients.js";
 export { CompaniesResource } from "./companies.js";
 export { DeliveryNotesResource } from "./deliveryNotes.js";
@@ -72,12 +78,15 @@ export { PaymentMethodsResource } from "./paymentMethods.js";
 export { PayoutsResource } from "./payouts.js";
 export { PayrollExportFormatsResource } from "./payrollExportFormats.js";
 export { PresenceResource } from "./presence.js";
+export { PriceListsResource } from "./priceLists.js";
 export { ProductsResource } from "./products.js";
 export { ProformasResource } from "./proformas.js";
 export { PurchaseInvoicesResource } from "./purchaseInvoices.js";
 export { QuotesResource } from "./quotes.js";
 export { RecurringInvoicesResource } from "./recurringInvoices.js";
 export { SeriesResource } from "./series.js";
+export { ShopifyResource } from "./shopify.js";
+export { StoresResource } from "./stores.js";
 export { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
 export { SuppliersResource } from "./suppliers.js";
 export { TaxCatalogResource } from "./taxCatalog.js";
@@ -89,6 +98,7 @@ export { TimeEntriesResource } from "./timeEntries.js";
 export { TimeTrackingSettingsResource } from "./timeTrackingSettings.js";
 export { VerifactuResource } from "./verifactu.js";
 export { WebhookEndpointsResource } from "./webhookEndpoints.js";
+export { WoocommerceResource } from "./woocommerce.js";
 export { WorkSchedulesResource } from "./workSchedules.js";
 
 export interface ResourceNamespaces {
@@ -98,6 +108,7 @@ export interface ResourceNamespaces {
   absenceRequests: AbsenceRequestsResource;
   absenceTypes: AbsenceTypesResource;
   account: AccountResource;
+  automations: AutomationsResource;
   clients: ClientsResource;
   companies: CompaniesResource;
   deliveryNotes: DeliveryNotesResource;
@@ -118,12 +129,15 @@ export interface ResourceNamespaces {
   payouts: PayoutsResource;
   payrollExportFormats: PayrollExportFormatsResource;
   presence: PresenceResource;
+  priceLists: PriceListsResource;
   products: ProductsResource;
   proformas: ProformasResource;
   purchaseInvoices: PurchaseInvoicesResource;
   quotes: QuotesResource;
   recurringInvoices: RecurringInvoicesResource;
   series: SeriesResource;
+  shopify: ShopifyResource;
+  stores: StoresResource;
   stripeAutoinvoicing: StripeAutoinvoicingResource;
   suppliers: SuppliersResource;
   taxCatalog: TaxCatalogResource;
@@ -135,6 +149,7 @@ export interface ResourceNamespaces {
   timeTrackingSettings: TimeTrackingSettingsResource;
   verifactu: VerifactuResource;
   webhookEndpoints: WebhookEndpointsResource;
+  woocommerce: WoocommerceResource;
   workSchedules: WorkSchedulesResource;
 }
 
@@ -146,6 +161,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     absenceRequests: new AbsenceRequestsResource(client),
     absenceTypes: new AbsenceTypesResource(client),
     account: new AccountResource(client),
+    automations: new AutomationsResource(client),
     clients: new ClientsResource(client),
     companies: new CompaniesResource(client),
     deliveryNotes: new DeliveryNotesResource(client),
@@ -166,12 +182,15 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     payouts: new PayoutsResource(client),
     payrollExportFormats: new PayrollExportFormatsResource(client),
     presence: new PresenceResource(client),
+    priceLists: new PriceListsResource(client),
     products: new ProductsResource(client),
     proformas: new ProformasResource(client),
     purchaseInvoices: new PurchaseInvoicesResource(client),
     quotes: new QuotesResource(client),
     recurringInvoices: new RecurringInvoicesResource(client),
     series: new SeriesResource(client),
+    shopify: new ShopifyResource(client),
+    stores: new StoresResource(client),
     stripeAutoinvoicing: new StripeAutoinvoicingResource(client),
     suppliers: new SuppliersResource(client),
     taxCatalog: new TaxCatalogResource(client),
@@ -183,6 +202,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     timeTrackingSettings: new TimeTrackingSettingsResource(client),
     verifactu: new VerifactuResource(client),
     webhookEndpoints: new WebhookEndpointsResource(client),
+    woocommerce: new WoocommerceResource(client),
     workSchedules: new WorkSchedulesResource(client),
   };
 }

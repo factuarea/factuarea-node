@@ -9,7 +9,7 @@ export type Webhooks = WebhooksEventWebhookRequest;
 /**
  * AbsenceBalance
  *
- * An absence balance for the Control Horario (time tracking) module: the accrued, carried-over, consumed and available days of one employee for one absence type in a given year. Day amounts are exact decimal strings. `available_days` is the usable balance (accrued + non-expired carried-over − consumed).
+ * An absence balance for the Control Horario (time tracking) module: the accrued, carried-over, consumed and available days of one employee for one absence type in a given year. Day amounts are decimal strings. `accrued_days`, `carried_over_days` and `consumed_days` are the exact ledger figures; `available_days` is the usable balance (accrued + non-expired carried-over − consumed) **rounded up to a whole day**, because absences are requested in whole working days. As a result `available_days` can exceed the exact arithmetic by up to one day — that fraction is granted by the company — so do not expect it to reconcile to the cent with the other three fields.
  */
 export type AbsenceBalance = {
     /**
@@ -53,7 +53,7 @@ export type AbsenceBalance = {
      */
     consumed_days: string;
     /**
-     * Usable balance (accrued + non-expired carried-over − consumed), as an exact decimal string.
+     * Usable balance (accrued + non-expired carried-over − consumed), rounded up to a whole day. Always an integer value, serialised as a decimal string.
      */
     available_days: string;
     /**
@@ -314,7 +314,7 @@ export type AcceptQuoteRequest = {
 /**
  * Account
  *
- * Snapshot of the company, plan, developer addon status and metadata of the API key used to make the request. Use this endpoint to introspect credentials and discover limits with a single call.
+ * Snapshot of the company, plan, Developer API entitlement and metadata of the API key used to make the request. Use this endpoint to introspect credentials and discover limits with a single call.
  */
 export type Account = {
     /**
@@ -337,19 +337,19 @@ export type Account = {
         name: string;
     };
     /**
-     * State of the `developer_api` addon for this company.
+     * Developer API entitlement derived from the company plan. The `addon` property name is retained for backwards compatibility.
      */
     addon: {
         /**
-         * true when the addon is currently usable (paid or within grace period).
+         * true when the company plan includes Developer API access.
          */
         active: boolean;
         /**
-         * true when the subscription lapsed but the grace period is still open.
+         * Legacy compatibility field. The plan-based entitlement does not grant an add-on grace period.
          */
         in_grace: boolean;
         /**
-         * Grace period cutoff (ISO 8601) when `in_grace=true`; null otherwise.
+         * Legacy compatibility field. Always null for the canonical plan-based entitlement.
          */
         expires_at: string | null;
     };
@@ -371,7 +371,7 @@ export type Account = {
          */
         scopes: Array<string>;
         /**
-         * Rate-limit tier (`free`, `starter`, `pro`, `scale`). Derived from the company plan (or from an active capacity boost when higher).
+         * Rate-limit tier (`free`, `starter`, `pro`, `scale`). Derived from the company plan (or preserved by historical grandfathering).
          */
         tier: string;
         /**
@@ -706,7 +706,7 @@ export type ApiKey = {
      */
     scopes: Array<string>;
     /**
-     * Rate-limit tier (`free`, `starter`, `pro`, `scale`). Derived from the company plan (or from an active capacity boost when higher), never set from the request body.
+     * Rate-limit tier (`free`, `starter`, `pro`, `scale`). Derived from the company plan (or preserved by historical grandfathering), never set from the request body.
      */
     tier: string;
     /**
@@ -783,7 +783,7 @@ export type ApiKeyWithSecret = {
      */
     scopes: Array<string>;
     /**
-     * Rate-limit tier (`free`, `starter`, `pro`, `scale`). Derived from the company plan (or from an active capacity boost when higher), never set from the request body.
+     * Rate-limit tier (`free`, `starter`, `pro`, `scale`). Derived from the company plan (or preserved by historical grandfathering), never set from the request body.
      */
     tier: string;
     /**
@@ -949,7 +949,708 @@ export type AssignScheduleRequest = {
  * AttachPurchaseInvoiceFileRequest
  */
 export type AttachPurchaseInvoiceFileRequest = {
+    /**
+     * Maximum file size: 51200 kilobytes.
+     */
     file: Blob | File;
+};
+
+/**
+ * AutomationActionInput
+ *
+ * One action of an automation rule: what to run when an event matches the condition tree.
+ */
+export type AutomationActionInput = {
+    /**
+     * Kind of action to run. Must be one of the action types `GET /v1/automations/catalog` reports as registered.
+     */
+    type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+    /**
+     * Position of the action within the sequence, starting at 0. Omit it (or send `null`) and the action takes position 0.
+     */
+    order?: number;
+    /**
+     * Parameters of the action, whose accepted keys depend on `type`. The schema of each action type is published by `GET /v1/automations/catalog`.
+     */
+    parameters?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * AutomationCatalog
+ *
+ * Everything you need to build a valid automation rule without guessing: the triggers your company can listen to, the operators and combinators its conditions accept, and the actions it can run with their parameter schemas. Deterministic: two consecutive calls with no configuration change return exactly the same body, so it is safe to cache and diff. It deliberately does NOT include the evaluable fields of every trigger (that would be hundreds of kilobytes) — ask `GET /v1/automations/catalog/triggers/{trigger}/fields` for the one you picked.
+ */
+export type AutomationCatalog = {
+    /**
+     * Always `automation_catalog`.
+     */
+    object: 'automation_catalog';
+    /**
+     * Events your company can subscribe an automation to, already filtered by the modules your plan includes: a trigger governed by a module you have not contracted is not offered at all. Returned in catalogue order.
+     */
+    triggers: Array<{
+        /**
+         * Name of the event, in `resource.action` form. This is the value you send as `trigger_type` when creating a rule.
+         */
+        key: string;
+        /**
+         * Human-readable name of the trigger, already translated to the language negotiated for the request via `Accept-Language`.
+         */
+        label: string;
+        /**
+         * Prefix of the event name (the part before the first dot). It is part of the name itself, so it is not translated — use it to group triggers in a picker.
+         */
+        category: string;
+        /**
+         * Key of the module that governs the visibility of this trigger, or `null` when the trigger is transversal. Informational: a trigger you cannot use never reaches this list.
+         */
+        module: string | null;
+    }>;
+    /**
+     * The closed set of comparison operators a condition can use, with the field types each one applies to.
+     */
+    operators: Array<{
+        /**
+         * Raw value of the operator, as sent inside a condition tree.
+         */
+        key: 'eq' | 'neq' | 'in' | 'not_in' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'is_null';
+        /**
+         * Human-readable name of the operator, already translated.
+         */
+        label: string;
+        /**
+         * Field types this operator accepts. It is the same operator-by-type matrix the write validation applies, so an operator you pick from here for a matching field type will never be rejected with a 422.
+         */
+        applies_to: Array<'string' | 'integer' | 'number' | 'boolean' | 'datetime' | 'string_list'>;
+        /**
+         * Shape the comparison value must have: `scalar` for a single value, `list` for a non-empty array of values (`in`, `not_in`), `none` for an operator that takes no value at all (`is_null`).
+         */
+        value_shape: 'scalar' | 'list' | 'none';
+    }>;
+    /**
+     * The closed set of logical combinators a condition tree can nest.
+     */
+    combinators: Array<{
+        /**
+         * Raw value of the combinator, as sent inside a condition tree.
+         */
+        key: 'and' | 'or';
+        /**
+         * Human-readable name of the combinator, already translated.
+         */
+        label: string;
+    }>;
+    /**
+     * Actions an automation can run, derived from the adapters actually WIRED in this deployment — never from the declared type catalogue. A type without a registered adapter is not announced, because picking it would produce a rule whose step is skipped at run time.
+     */
+    actions: Array<{
+        /**
+         * Raw value of the action type, as sent in the `actions` of a rule.
+         */
+        key: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+        /**
+         * Human-readable name of the action, already translated.
+         */
+        label: string;
+        /**
+         * Parameter schema declared by the adapter, in the order it declared it. Serialised deterministically: the same configuration always yields the same array.
+         */
+        parameters: Array<{
+            /**
+             * Key of the parameter inside the `parameters` object of the action.
+             */
+            name: string;
+            /**
+             * Type token of the parameter.
+             */
+            type: string;
+            /**
+             * Whether the action refuses to be created without this parameter.
+             */
+            required: boolean;
+            /**
+             * Closed set of accepted values, or an empty array when the parameter is free-form.
+             */
+            allowed_values: Array<string>;
+            /**
+             * Human-readable name of the parameter, already translated.
+             */
+            label: string;
+            /**
+             * What the parameter is for, already translated.
+             */
+            description: string;
+        }>;
+        /**
+         * Whether this action can be used in a rule whose `scope` is `cartera`. Actions that notify you —or that touch no record at all— can; actions whose subject would be a record of the managed company cannot, because a portfolio rule never operates on its behalf. Creating a portfolio rule with an action marked `false` is rejected with `automation_portfolio_scope_forbids_action`.
+         */
+        supports_portfolio_scope: boolean;
+    }>;
+    /**
+     * The scopes a rule can be created with, and whether THIS company can use each one. A scope your company cannot use is returned marked as unavailable with its reason instead of being omitted, so you can tell "not contracted" from "does not exist".
+     */
+    scopes: Array<{
+        /**
+         * Raw value of the scope, as sent in the `scope` of a rule.
+         */
+        key: 'empresa' | 'cartera';
+        /**
+         * Human-readable name of the scope, already translated to the language negotiated for the request.
+         */
+        label: string;
+        /**
+         * Whether the company behind the credential can create rules with this scope. `empresa` is always available; `cartera` requires the accountancy-practice module and a company that is not itself managed by another one.
+         */
+        available: boolean;
+        /**
+         * Why the scope is not available, or `null` when it is. `module_not_granted` means the company does not have the accountancy-practice module (upgrading the plan grants it); `company_is_managed_child` means the company is itself managed by an accountancy practice, and the hierarchy is one level deep, so no plan unlocks it.
+         */
+        unavailable_reason: 'module_not_granted' | 'company_is_managed_child' | null;
+    }>;
+};
+
+/**
+ * AutomationDryRun
+ *
+ * What an automation rule WOULD do against a sample event, without materialising a single effect: no e-mail is sent, no webhook delivery is created, no target entity is mutated, no run or step row is written, and neither the monthly budget nor the rate limit is consumed. That is why the operation only requires the read scope even though it is a POST.
+ */
+export type AutomationDryRun = {
+    /**
+     * Always `automation_dry_run`.
+     */
+    object: 'automation_dry_run';
+    /**
+     * UUID v7 of the automation rule that was tested.
+     */
+    automation_rule_id: string;
+    /**
+     * Trigger declared by the rule, in `resource.action` form. It is the only event type the rule can be tested against.
+     */
+    trigger_type: string;
+    /**
+     * Whether the condition of the rule would be satisfied by the sample payload. When `false`, no step would fire.
+     */
+    matched: boolean;
+    /**
+     * One entry per LEAF node that was evaluated, in evaluation order — which is the order the condition was written in. An empty array with `matched: true` means the rule has no condition and always acts. Same shape the real execution path produces.
+     */
+    condition_trace: Array<{
+        /**
+         * Path of the evaluated field inside the `data.object` of the sample event.
+         */
+        path: string;
+        /**
+         * Operator that was applied.
+         */
+        operator: 'eq' | 'neq' | 'in' | 'not_in' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'is_null';
+        /**
+         * Comparison value declared by the condition. Its shape follows the `value_shape` of the operator: a scalar, an array of scalars, or `null` for operators that take no value.
+         */
+        expected: unknown;
+        /**
+         * Value actually found at `path` in the sample payload, or `null` when the field was absent.
+         */
+        observed: unknown;
+        /**
+         * Whether this leaf was satisfied.
+         */
+        matched: boolean;
+    }>;
+    /**
+     * Why the condition could not be evaluated, in Spanish, or `null` when it evaluated fine. It travels in the DOCUMENT with a 200, not as an HTTP failure: seeing why a rule cannot be evaluated BEFORE activating it is exactly what the dry run is for. Not redundant with `matched`: a non-null error implies `matched: false`, but the common case is a condition that evaluates perfectly and simply is not satisfied.
+     */
+    condition_error: string | null;
+    /**
+     * One entry per action, in the order they would run.
+     */
+    steps: Array<{
+        /**
+         * Position the step WOULD have in the real run — the one that results from ordering the actions by their `order`, not the position in the stored array. It matches the `step_index` you would later replay.
+         */
+        index: number;
+        /**
+         * Raw value of the action type, exactly as stored in the definition. Returned verbatim and NOT as a closed enum: a type retired from the catalogue must still be countable in a dry run instead of breaking it.
+         */
+        action_type: string;
+        /**
+         * Whether the code path reached the edge of the effect without anything discarding it. It never promises the effect would SUCCEED. It is `false` in three cases: the condition of the rule is not satisfied, the action type has no registered adapter, or the adapter refused the action because of some state of the world.
+         */
+        executable: boolean;
+        /**
+         * Parameters that would be frozen into the step — those of the current rule definition. `{}` when the action takes none.
+         */
+        resolved_parameters: {
+            [key: string]: unknown;
+        };
+        /**
+         * Traces of the effects that would fire, in order. Same shape the real execution path records.
+         */
+        effects: Array<{
+            /**
+             * Family of the effect (sending an e-mail, mutating a document, …).
+             */
+            kind: string;
+            /**
+             * What the effect would act on.
+             */
+            target: string;
+            /**
+             * What the adapter derived from the parameters — recipient, subject, document — which is where the detail of the effect is readable. `{}` when there is none.
+             */
+            summary: {
+                [key: string]: unknown;
+            };
+            /**
+             * Always `true` here: the trace comes from the simulator, never from a materialised effect.
+             */
+            simulated: boolean;
+        }>;
+        /**
+         * Why the step would NOT run, in Spanish, or `null` when it would. A guardrail that would also cut the real execution shows up here as a non-executable step instead of faking success.
+         */
+        reason: string | null;
+    }>;
+};
+
+/**
+ * AutomationRule
+ *
+ * An automation rule: the event it listens to, the condition tree that decides whether to act, and the ordered actions to run when an event matches. Delivered as the `data.object` of the `automation_rule.*` webhook events, captured at emission time and frozen there.
+ */
+export type AutomationRule = {
+    /**
+     * Opaque identifier of the automation rule, a UUID v7 (e.g. `01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a9b`).
+     */
+    id: string;
+    /**
+     * Always `automation_rule`.
+     */
+    object: 'automation_rule';
+    /**
+     * Name the account owner gave the automation.
+     */
+    name: string;
+    /**
+     * Free-form description of what the automation is for, or `null`.
+     */
+    description: string | null;
+    /**
+     * Event the automation listens to, in `resource.action` form (e.g. `invoice.paid`). It is one of the event types returned by `GET /v1/event-catalog`.
+     */
+    trigger_type: string;
+    /**
+     * Which companies the automation watches: `empresa` (the default, and the scope of every rule created before portfolio automations existed) watches only the events of the company that owns it, while `cartera` is reserved for accounting-firm accounts and watches the events of every client company they manage, delivering the notices to the firm itself. It is fixed when the rule is created and cannot be changed afterwards, so a run stays attributable to the scope it executed under.
+     */
+    scope: 'empresa' | 'cartera';
+    /**
+     * Condition tree of the current version that decides whether an incoming event triggers the actions. An empty object `{}` means the automation has no condition and always acts. Its shape is defined by the account owner (nested combinators over the fields of the trigger payload), so it is returned verbatim.
+     */
+    conditions: {
+        [key: string]: unknown;
+    };
+    /**
+     * Actions of the current version, in the order the account owner declared them. Each element carries its action type and its frozen parameters. An empty array means the version declares no action.
+     */
+    actions: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * State of the automation: `draft` (not listening yet), `active` (listening) or `paused` (not listening; either paused by a person or auto-paused by the platform after a streak of failures).
+     */
+    status: 'draft' | 'active' | 'paused';
+    /**
+     * Number of the current version of the definition. Editing an automation creates a new version instead of mutating the previous one, so every run keeps a pointer to the exact definition it executed.
+     */
+    current_version: number;
+    /**
+     * When the automation was created (ISO 8601).
+     */
+    created_at: string | null;
+    /**
+     * When the automation was last modified (ISO 8601).
+     */
+    updated_at: string | null;
+};
+
+/**
+ * AutomationRuleVersion
+ *
+ * A frozen version of the definition of an automation rule. Editing a rule never mutates its previous definition: it seals a new version and bumps `current_version`. Every run keeps a pointer to the exact version it executed, so a run from weeks ago stays readable after the rule has moved on.
+ */
+export type AutomationRuleVersion = {
+    /**
+     * Opaque identifier of this version, a UUID v7 (e.g. `01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a9b`).
+     */
+    id: string;
+    /**
+     * Always `automation_rule_version`.
+     */
+    object: 'automation_rule_version';
+    /**
+     * UUID v7 of the automation rule this version belongs to.
+     */
+    automation_rule_id: string;
+    /**
+     * Version number, monotonically increasing within the rule. It is what `automation_run.rule_version` points at, and what you pass to `GET /v1/automations/rules/{rule}/versions/{version}`.
+     */
+    version: number;
+    /**
+     * Event this version listens to, in `resource.action` form (e.g. `invoice.paid`), frozen at the time the version was sealed.
+     */
+    trigger_type: string;
+    /**
+     * Frozen condition tree of this version. An empty object `{}` means the version has no condition and always acts. Its shape is defined by the account owner (nested combinators over the fields of the trigger payload), so it is returned verbatim.
+     */
+    conditions: {
+        [key: string]: unknown;
+    };
+    /**
+     * Frozen actions of this version, in the order they were declared. Each element carries its action type and its parameters. An empty array means the version declares no action.
+     */
+    actions: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * When this version was sealed (ISO 8601).
+     */
+    created_at: string | null;
+};
+
+/**
+ * AutomationRun
+ *
+ * One execution of an automation rule, with its steps. Delivered as the `data.object` of the `automation_run.*` webhook events, captured at emission time and frozen there: a run snapshotted while `running` keeps showing `running` even after it completes. It carries the frozen definition it executed (`rule_version` + `rule_snapshot`) and the frozen payload of the event that triggered it (`event_payload`), so an execution stays readable weeks later, when the rule has moved on to a newer version.
+ */
+export type AutomationRun = {
+    /**
+     * Opaque identifier of the run, a UUID v7 (e.g. `01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a9b`).
+     */
+    id: string;
+    /**
+     * Always `automation_run`.
+     */
+    object: 'automation_run';
+    /**
+     * UUID v7 of the automation rule that produced this run.
+     */
+    automation_rule_id: string;
+    /**
+     * Version number of the rule definition this run executed. It can lag behind the rule’s `current_version`: editing a rule never rewrites past runs.
+     */
+    rule_version: number;
+    /**
+     * The rule definition of `rule_version`, frozen at execution time (its condition tree and its actions with their parameters). Returned verbatim, because its shape is defined by the account owner.
+     */
+    rule_snapshot: {
+        [key: string]: unknown;
+    };
+    /**
+     * Event the rule listens to, in `resource.action` form. It is the trigger of the rule, not necessarily identical to `event_name` in future versions of the matcher.
+     */
+    trigger_type: string;
+    /**
+     * The managed client company this run acted upon, when it comes from a rule of scope `cartera`. It is `null` for runs of scope `empresa`, which act on the company that owns the rule and have no subject. `id` and `name` are themselves `null` when the company can no longer be read (it was deleted): the block is still emitted, so a portfolio run stays distinguishable from a company-scoped one.
+     */
+    subject_company: {
+        /**
+         * Opaque identifier of the managed company, a UUID v7, or `null` when it can no longer be read.
+         */
+        id: string | null;
+        /**
+         * Name of the managed company, or `null` when it can no longer be read.
+         */
+        name: string | null;
+    } | null;
+    /**
+     * Public name of the event that triggered this run (e.g. `invoice.paid`), one of the types returned by `GET /v1/event-catalog`.
+     */
+    event_name: string;
+    /**
+     * UUID v7 of the resource the triggering event happened on (the invoice that was paid, the quote that was accepted, …).
+     */
+    event_aggregate_id: string;
+    /**
+     * When the triggering event happened (ISO 8601), or `null` when the emitter did not record it.
+     */
+    event_occurred_on: string | null;
+    /**
+     * The `data.object` of the triggering event, frozen at execution time. Its keys are those of the resource of `event_name`, so the shape varies with the trigger and it is returned verbatim.
+     */
+    event_payload: {
+        [key: string]: unknown;
+    };
+    /**
+     * Identifier shared by everything that descends from the same originating event, so a chain of automations can be followed end to end. `null` when the emitter did not propagate one.
+     */
+    correlation_id: string | null;
+    /**
+     * How deep this run sits in a chain of automations triggering one another (`0` for a run triggered directly by a business event). The platform caps the depth to stop runaway chains: a run over the cap is blocked with reason `chain_depth_exceeded`.
+     */
+    chain_depth: number;
+    /**
+     * State of the run: `pending` (queued), `running`, `completed`, `failed` (finished without producing its effect and not reprocessable), `dead_lettered` (parked awaiting a manual replay) or `blocked` (stopped by a guardrail such as the chain-depth cap, the rate limit or the monthly budget).
+     */
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'dead_lettered' | 'blocked';
+    /**
+     * Attempts the run has consumed.
+     */
+    attempts: number;
+    /**
+     * Classified reason why the run did not produce its effect, or `null` while it has not finished in the red. It is what tells apart a run stopped by a guardrail (`chain_depth_exceeded`, `rate_limit_exceeded`, `monthly_budget_exhausted`) from one that exhausted its attempts (`step_attempts_exhausted`) or timed out (`run_execution_timeout`) — a guardrail cut-off has no step carrying a reason, so this is the only place it shows. Returned VERBATIM as stored: the current engine writes values of a closed catalogue, but rows written before that catalogue existed still hold free-form text, so do not model this as a fixed enum.
+     */
+    discard_reason: string | null;
+    /**
+     * Human-readable label of `discard_reason`, in Spanish. `null` when there is no reason, or when the stored value predates the closed catalogue and therefore cannot be interpreted — in that case `discard_reason` still carries the raw value. The label is always Spanish: it is part of the vocabulary of the automation engine and does not follow `Accept-Language`.
+     */
+    discard_reason_label: string | null;
+    /**
+     * Technical message of the last failure, or `null`. Free-form text meant for debugging: the classified reason of the outcome is `discard_reason` (and the `discard_reason` of each step), an orthogonal axis.
+     */
+    last_error: string | null;
+    /**
+     * When the run started (ISO 8601), or `null` while it is still queued.
+     */
+    started_at: string | null;
+    /**
+     * When the run reached its outcome (ISO 8601), or `null` while it has not finished.
+     */
+    finished_at: string | null;
+    /**
+     * When the run row was created (ISO 8601).
+     */
+    created_at: string | null;
+    /**
+     * When the run row was last modified (ISO 8601).
+     */
+    updated_at: string | null;
+    /**
+     * Steps of the run, ALWAYS in execution order — the order is part of the contract, because `step_index` is the identity of a step. The `automation_run.step_dead_lettered` event publishes the index of the parked step as the extra key `data.step_index`: resolve it here, against the element whose `step_index` matches.
+     */
+    steps: Array<{
+        /**
+         * Opaque identifier of the step, a UUID v7.
+         */
+        id: string;
+        /**
+         * Always `automation_step_run`.
+         */
+        object: 'automation_step_run';
+        /**
+         * Zero-based position of the step inside its run, unique within the run. It is the identity of the step: it is what `automation_run.step_dead_lettered` publishes as `data.step_index`, and what `POST /v1/automations/runs/{run}/steps/{step_index}/replay` takes.
+         */
+        step_index: number;
+        /**
+         * Type of action of the step, as frozen in the rule version snapshot.
+         */
+        action_type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+        /**
+         * State of the step: `pending`, `running`, `succeeded`, `failed`, `skipped`, `dead_lettered` (parked awaiting a manual replay) or `blocked` (stopped by a guardrail).
+         */
+        status: 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'dead_lettered' | 'blocked';
+        /**
+         * Attempts the step has consumed.
+         */
+        attempts: number;
+        /**
+         * Parameters of the action, frozen from the rule version snapshot. `{}` when the action takes none.
+         */
+        parameters: {
+            [key: string]: unknown;
+        };
+        /**
+         * Trace the action adapter returned. `{}` while the step has not finished, or when the adapter produced no trace.
+         */
+        result: {
+            [key: string]: unknown;
+        };
+        /**
+         * Classified reason of the step outcome, or `null` when there is none. Returned VERBATIM as stored: the current engine writes values of a closed catalogue (`condition_not_matched`, `chain_depth_exceeded`, `step_attempts_exhausted`, …), but rows written before that catalogue existed still hold free-form text, so do not model this as a fixed enum. The catalogue value IS guaranteed on the `data.discard_reason` extra of `automation_run.step_dead_lettered`.
+         */
+        discard_reason: string | null;
+        /**
+         * Human-readable label of `discard_reason`, in Spanish. `null` when there is no reason, or when the stored value predates the closed catalogue and therefore cannot be interpreted — in that case `discard_reason` still carries the raw value. The label is always Spanish: it is part of the vocabulary of the automation engine and does not follow `Accept-Language`.
+         */
+        discard_reason_label: string | null;
+        /**
+         * Whether replaying this step can produce a different outcome. `true` only for reasons caused by an external state you can change (a disconnected channel, a client without an e-mail address, exhausted attempts): those park the step in `dead_lettered`, the only state that allows re-entry. `false` for reasons frozen into the rule snapshot (an unregistered action type, invalid parameters) and for guardrail cut-offs, where a replay would take exactly the same branch. Also `false` when the reason is unknown to the catalogue.
+         */
+        replayable: boolean;
+        /**
+         * Technical message of the last failure of the step, or `null`. Orthogonal axis to `discard_reason`: this one is the raw message, that one is the classification.
+         */
+        last_error: string | null;
+        /**
+         * When the step is scheduled to be retried (ISO 8601), or `null` when no retry is pending.
+         */
+        next_retry_at: string | null;
+        /**
+         * When a worker claimed the step (ISO 8601), or `null` while unclaimed.
+         */
+        claimed_at: string | null;
+        /**
+         * When the step reached its outcome (ISO 8601), or `null` while it has not finished.
+         */
+        finished_at: string | null;
+    }>;
+};
+
+/**
+ * AutomationStepRun
+ *
+ * One step of an automation run: an action of the frozen rule definition together with its outcome. Steps are always returned in execution order, because `step_index` is the identity of a step — it is what you replay and what `automation_run.step_dead_lettered` points at.
+ */
+export type AutomationStepRun = {
+    /**
+     * Opaque identifier of the step, a UUID v7.
+     */
+    id: string;
+    /**
+     * Always `automation_step_run`.
+     */
+    object: 'automation_step_run';
+    /**
+     * Zero-based position of the step inside its run, unique within the run. It is the identity of the step: it is what `automation_run.step_dead_lettered` publishes as `data.step_index`, and what `POST /v1/automations/runs/{run}/steps/{step_index}/replay` takes.
+     */
+    step_index: number;
+    /**
+     * Type of action of the step, as frozen in the rule version snapshot.
+     */
+    action_type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+    /**
+     * State of the step: `pending`, `running`, `succeeded`, `failed`, `skipped`, `dead_lettered` (parked awaiting a manual replay) or `blocked` (stopped by a guardrail).
+     */
+    status: 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'dead_lettered' | 'blocked';
+    /**
+     * Attempts the step has consumed.
+     */
+    attempts: number;
+    /**
+     * Parameters of the action, frozen from the rule version snapshot. `{}` when the action takes none.
+     */
+    parameters: {
+        [key: string]: unknown;
+    };
+    /**
+     * Trace the action adapter returned. `{}` while the step has not finished, or when the adapter produced no trace.
+     */
+    result: {
+        [key: string]: unknown;
+    };
+    /**
+     * Classified reason of the step outcome, or `null` when there is none. Returned VERBATIM as stored: the current engine writes values of a closed catalogue (`condition_not_matched`, `chain_depth_exceeded`, `step_attempts_exhausted`, …), but rows written before that catalogue existed still hold free-form text, so do not model this as a fixed enum. The catalogue value IS guaranteed on the `data.discard_reason` extra of `automation_run.step_dead_lettered`.
+     */
+    discard_reason: string | null;
+    /**
+     * Human-readable label of `discard_reason`, in Spanish. `null` when there is no reason, or when the stored value predates the closed catalogue and therefore cannot be interpreted — in that case `discard_reason` still carries the raw value. The label is always Spanish: it is part of the vocabulary of the automation engine and does not follow `Accept-Language`.
+     */
+    discard_reason_label: string | null;
+    /**
+     * Whether replaying this step can produce a different outcome. `true` only for reasons caused by an external state you can change (a disconnected channel, a client without an e-mail address, exhausted attempts): those park the step in `dead_lettered`, the only state that allows re-entry. `false` for reasons frozen into the rule snapshot (an unregistered action type, invalid parameters) and for guardrail cut-offs, where a replay would take exactly the same branch. Also `false` when the reason is unknown to the catalogue.
+     */
+    replayable: boolean;
+    /**
+     * Technical message of the last failure of the step, or `null`. Orthogonal axis to `discard_reason`: this one is the raw message, that one is the classification.
+     */
+    last_error: string | null;
+    /**
+     * When the step is scheduled to be retried (ISO 8601), or `null` when no retry is pending.
+     */
+    next_retry_at: string | null;
+    /**
+     * When a worker claimed the step (ISO 8601), or `null` while unclaimed.
+     */
+    claimed_at: string | null;
+    /**
+     * When the step reached its outcome (ISO 8601), or `null` while it has not finished.
+     */
+    finished_at: string | null;
+};
+
+/**
+ * AutomationTriggerFields
+ *
+ * The fields of ONE trigger that an automation condition can evaluate, with the operators each field accepts. Served per trigger, not inside the catalogue: with around a hundred visible triggers and dozens of properties each, a single document would be hundreds of kilobytes to end up using the fields of one.
+ */
+export type AutomationTriggerFields = {
+    /**
+     * Always `automation_trigger_fields`.
+     */
+    object: 'automation_trigger_fields';
+    /**
+     * Trigger these fields belong to, in `resource.action` form. It travels in the body as well as in the URL so a cached response stays interpretable on its own.
+     */
+    trigger: string;
+    /**
+     * Evaluable fields, in the order the payload contract declares them. This list is never empty: a trigger without a declared payload contract is rejected as such instead of degrading to an empty list.
+     */
+    fields: Array<{
+        /**
+         * Path of the field relative to the `data.object` of the event. This is the value you put in the `field` of a condition.
+         */
+        path: string;
+        /**
+         * Type token of the field.
+         */
+        type: 'string' | 'integer' | 'number' | 'boolean' | 'datetime' | 'string_list';
+        /**
+         * Human-readable name of the type, already translated.
+         */
+        type_label: string;
+        /**
+         * Operators this field accepts — the row of the operator-by-type matrix that the write validation applies. Pick from here and your condition will not be rejected with a 422.
+         */
+        operators: Array<'eq' | 'neq' | 'in' | 'not_in' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'is_null'>;
+    }>;
+};
+
+/**
+ * AutomationUsage
+ *
+ * How many automation runs your company has consumed this period and what its plan allows. Read it to anticipate running out of budget: this API does not pre-check the quota when you activate a rule, so this is the endpoint that tells you where you stand. The figure comes from the same counter the engine applies when admitting a run, so it advances by exactly N after N admitted runs and does NOT change when run history is purged.
+ */
+export type AutomationUsage = {
+    /**
+     * Always `automation_usage`.
+     */
+    object: 'automation_usage';
+    /**
+     * Automation runs already consumed in the current period.
+     */
+    consumed: number;
+    /**
+     * Cap of the plan for the period, or `null` when the plan has NO cap. `null` means unlimited, never "unknown": treat it as "no progress bar", not as zero.
+     */
+    limit: number | null;
+    /**
+     * When the counter resets — the first instant of the next period (ISO 8601). Returned already resolved so no client has to derive it.
+     */
+    reset_at: string;
+    /**
+     * Identifier of the current period, `YYYY-MM`.
+     */
+    period: string;
+    /**
+     * Consumption percentage at which the platform starts warning the account owner. It travels so your own warning and ours cannot drift apart.
+     */
+    threshold_percent: number;
+};
+
+/**
+ * AvailableInvoiceQuarter
+ */
+export type AvailableInvoiceQuarter = {
+    year: number;
+    quarter: number;
+    invoice_count: number;
+    date_range: {
+        start: string;
+        end: string;
+    };
+    type_breakdown: {
+        [key: string]: number;
+    };
 };
 
 /**
@@ -980,8 +1681,8 @@ export type BicString = string;
  * Create clients in bulk. `clients[]` holds up to 500 client payloads and `dry_run` (default `false`) validates each row without persisting. Per-row rules (format, duplicate `external_id`/`tax_id`, AEAT census) are reported per row instead of failing the whole batch.
  */
 export type BulkCreateClientsV1Request = {
-    dry_run?: boolean | null;
     clients: Array<Array<string>>;
+    dry_run?: boolean | null;
 };
 
 /**
@@ -990,8 +1691,8 @@ export type BulkCreateClientsV1Request = {
  * Create invoices in bulk. `invoices[]` holds up to 100 invoice payloads and `dry_run` (default `false`) validates each row without persisting. Per-row rules (format, duplicate `external_id`, recipient AEAT census) are reported per row instead of failing the whole batch.
  */
 export type BulkCreateInvoicesV1Request = {
-    dry_run?: boolean | null;
     invoices: Array<Array<string>>;
+    dry_run?: boolean | null;
 };
 
 /**
@@ -1236,12 +1937,12 @@ export type BulkPdfQuotesV1Request = {
  * Email several delivery notes in one request (queued), up to 200 per batch. `ids` is an array of delivery-note UUIDs; the optional `to`/`cc` arrays and `subject`/`message`/`language` overrides apply to the whole batch (when `to` is omitted, each delivery note uses its client email).
  */
 export type BulkSendDeliveryNotesV1Request = {
-    subject?: string | null;
-    message?: string | null;
-    language?: string | null;
     ids: Array<string>;
     to?: Array<string> | null;
     cc?: Array<string> | null;
+    subject?: string | null;
+    message?: string | null;
+    language?: string | null;
 };
 
 /**
@@ -1250,12 +1951,12 @@ export type BulkSendDeliveryNotesV1Request = {
  * Email several invoices in one request (queued), up to 200 per batch. `ids` is an array of invoice UUIDs; the optional `to`/`cc` arrays and `subject`/`message`/`language` overrides apply to the whole batch (when `to` is omitted, each invoice uses its client email).
  */
 export type BulkSendInvoicesV1Request = {
-    subject?: string | null;
-    message?: string | null;
-    language?: string | null;
     ids: Array<string>;
     to?: Array<string> | null;
     cc?: Array<string> | null;
+    subject?: string | null;
+    message?: string | null;
+    language?: string | null;
 };
 
 /**
@@ -1264,12 +1965,12 @@ export type BulkSendInvoicesV1Request = {
  * Email several proformas in one request (queued), up to 200 per batch. `ids` is an array of proforma UUIDs; the optional `to`/`cc` arrays and `subject`/`message`/`language` overrides apply to the whole batch (when `to` is omitted, each proforma uses its client email).
  */
 export type BulkSendProformasV1Request = {
-    subject?: string | null;
-    message?: string | null;
-    language?: string | null;
     ids: Array<string>;
     to?: Array<string> | null;
     cc?: Array<string> | null;
+    subject?: string | null;
+    message?: string | null;
+    language?: string | null;
 };
 
 /**
@@ -1278,12 +1979,12 @@ export type BulkSendProformasV1Request = {
  * Email several quotes in one request (queued), up to 200 per batch. `ids` is an array of quote UUIDs; the optional `to`/`cc` arrays and `subject`/`message`/`language` overrides apply to the whole batch (when `to` is omitted, each quote uses its client email).
  */
 export type BulkSendQuotesV1Request = {
-    subject?: string | null;
-    message?: string | null;
-    language?: string | null;
     ids: Array<string>;
     to?: Array<string> | null;
     cc?: Array<string> | null;
+    subject?: string | null;
+    message?: string | null;
+    language?: string | null;
 };
 
 /**
@@ -1292,8 +1993,8 @@ export type BulkSendQuotesV1Request = {
  * Transition several delivery notes to `new_status` (`delivered` or `cancelled`) in one request, up to 50 per batch. `ids` is an array of delivery-note UUIDs; every transition passes the document state guard, and notes that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusDeliveryNotesV1Request = {
-    new_status: 'delivered' | 'cancelled';
     ids: Array<string>;
+    new_status: 'delivered' | 'cancelled';
 };
 
 /**
@@ -1302,9 +2003,9 @@ export type BulkStatusDeliveryNotesV1Request = {
  * Transition several invoices to `new_status` (`sent` or `paid`) in one request, up to 50 per batch. `ids` is an array of invoice UUIDs; `payment_date` is required and cannot be in the future when `new_status` is `paid`. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusInvoicesV1Request = {
+    ids: Array<string>;
     new_status: 'sent' | 'paid';
     payment_date?: string | null;
-    ids: Array<string>;
 };
 
 /**
@@ -1313,8 +2014,8 @@ export type BulkStatusInvoicesV1Request = {
  * Transition several products to `new_status` (`active` or `inactive`) in one request, up to 50 per batch. `ids` is an array of product UUIDs; the change is idempotent (a product already in the target status counts as successful). Products that do not exist are returned under `failures[]`.
  */
 export type BulkStatusProductsV1Request = {
-    new_status: 'active' | 'inactive';
     ids: Array<string>;
+    new_status: 'active' | 'inactive';
 };
 
 /**
@@ -1323,8 +2024,8 @@ export type BulkStatusProductsV1Request = {
  * Transition several proformas to `new_status` (`accepted` or `rejected`) in one request, up to 50 per batch. `ids` is an array of proforma UUIDs; every transition passes the document state guard, and proformas that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusProformasV1Request = {
-    new_status: 'accepted' | 'rejected';
     ids: Array<string>;
+    new_status: 'accepted' | 'rejected';
 };
 
 /**
@@ -1333,9 +2034,9 @@ export type BulkStatusProformasV1Request = {
  * Transition several purchase invoices to `new_status` (`paid`) in one request, up to 50 per batch. `ids` is an array of purchase-invoice UUIDs; `payment_date` is required and cannot be in the future. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusPurchaseInvoicesV1Request = {
+    ids: Array<string>;
     new_status: 'paid';
     payment_date?: string | null;
-    ids: Array<string>;
 };
 
 /**
@@ -1344,8 +2045,8 @@ export type BulkStatusPurchaseInvoicesV1Request = {
  * Transition several quotes to `new_status` (`approved` or `rejected`) in one request, up to 50 per batch. `ids` is an array of quote UUIDs; every transition passes the document state guard, and quotes that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusQuotesV1Request = {
-    new_status: 'approved' | 'rejected';
     ids: Array<string>;
+    new_status: 'approved' | 'rejected';
 };
 
 /**
@@ -1354,8 +2055,8 @@ export type BulkStatusQuotesV1Request = {
  * Transition several suppliers to `new_status` (`active` or `inactive`) in one request, up to 50 per batch. `ids` is an array of supplier UUIDs; the change is idempotent (a supplier already in the target status counts as successful). Suppliers that do not exist are returned under `failures[]`.
  */
 export type BulkStatusSuppliersV1Request = {
-    new_status: 'active' | 'inactive';
     ids: Array<string>;
+    new_status: 'active' | 'inactive';
 };
 
 /**
@@ -1363,18 +2064,28 @@ export type BulkStatusSuppliersV1Request = {
  *
  * Public REST API v1 — POST /v1/products/bulk-update-stock.
  *
- * Body: `{ updates: [{ product_id: string, stock: int, operation?: 'set'|'add'|'subtract' }] }`.
- * Accepts up to 500 updates in a single operation.
+ * Body: `{ updates: [{ product_id: string, stock: numeric-string, operation?: 'set'|'add'|'subtract', variant_id?: uuid }] }`.
+ * Accepts up to 500 updates in a single operation. `variant_id` targets the
+ * own balance of a variant of that product; a variant that does not belong to
+ * the product is skipped like an unknown product (skip-on-miss).
  *
  * We accept `items` as an alias of the canonical `updates` field for
  * forgiveness with integrators following the most common convention. The
  * controller normalizes it to `updates`.
  */
 export type BulkUpdateProductStockRequest = {
+    /**
+     * Up to 500 entries `{product_id, stock, operation?, variant_id?}`. `variant_id` targets the own balance of a variant of that product; entries whose product or variant is unknown are skipped silently.
+     */
     updates: Array<{
+        /**
+         * Tenant-scoped resolution happens in the controller to preserve the
+         * bulk skip-on-miss contract without revealing cross-tenant UUIDs.
+         */
         product_id: string;
         stock: number;
-        operation?: 'set' | 'increase' | 'decrease' | 'add' | 'subtract';
+        operation?: 'set' | 'increase' | 'decrease' | 'add' | 'subtract' | null;
+        variant_id?: string | null;
     }>;
 };
 
@@ -1454,6 +2165,48 @@ export type CanAnnulInvoice = {
  */
 export type CancelFaceSubmissionV1Request = {
     reason: string;
+};
+
+/**
+ * CatalogConfigurationImpact
+ *
+ * What a proposed restriction of a product configurable catalog would invalidate, plus the token that confirms THAT exact change. `impact_token` is not a credential: it carries no secret and does not expire in time, it is the proof of "you were shown the impact over THIS catalog". On confirmation the backend recomputes the fingerprint with the product freshly loaded under lock; if the catalog or the set of prices to retire changed meanwhile, the fingerprints differ and the confirmation is refused asking for a new preview.
+ */
+export type CatalogConfigurationImpact = {
+    object: 'catalog_configuration_impact';
+    product_id: string;
+    /**
+     * True when the product declares no active combination and any cross of active variants and presentations is still sellable.
+     */
+    currently_legacy: boolean;
+    /**
+     * False when the change widens or does not touch what is sellable, and can be applied with no token.
+     */
+    requires_confirmation: boolean;
+    representable_cross_count: number;
+    preserved_cross_count: number;
+    invalidated_cross_count: number;
+    invalidated_crosses: Array<{
+        variant_id: string | null;
+        variant_name: string | null;
+        presentation_id: string | null;
+        presentation_name: string | null;
+        label: string;
+    }>;
+    preserved_crosses: Array<{
+        variant_id: string | null;
+        variant_name: string | null;
+        presentation_id: string | null;
+        presentation_name: string | null;
+        label: string;
+    }>;
+    /**
+     * Fingerprint to send back as `impact_token` when applying the change. Null when `requires_confirmation` is false.
+     */
+    impact_token: string | null;
+    retired_price_count: number;
+    affected_price_list_count: number;
+    affected_price_list_names: Array<string>;
 };
 
 /**
@@ -1616,6 +2369,14 @@ export type Client = {
      * External integration key (ERP/CRM/e-commerce) mapping this client to a record in a third-party system. Free-format, unique per company, distinct from the fiscal `tax_id`.
      */
     external_id?: string | null;
+    /**
+     * UUID (v7) of the default price list assigned to the client.
+     */
+    default_price_list_id: string | null;
+    /**
+     * Snapshot of the assigned default price-list name.
+     */
+    default_price_list_name: string | null;
     notes: string | null;
     metadata: Metadata;
     is_active: boolean;
@@ -1979,6 +2740,36 @@ export type CompanyList = {
 };
 
 /**
+ * CompanySeatChargePreview
+ */
+export type CompanySeatChargePreview = {
+    object: 'seat_charge_preview';
+    /**
+     * Amount in euro cents.
+     */
+    amount: number;
+    /**
+     * Amount in euro cents.
+     */
+    tax_amount: number;
+    /**
+     * Amount in euro cents.
+     */
+    total: number;
+    tax_rate: number | null;
+    currency: 'EUR';
+    next_invoice_date: string | null;
+    requires_payment_method: boolean;
+    requires_active_plan: boolean;
+    included_in_trial: boolean;
+    already_covered: boolean;
+    is_first_seat: boolean;
+    recurring_quantity: number | null;
+    recurring_base_cents: number | null;
+    recurring_total_cents: number | null;
+};
+
+/**
  * ConfigureAbsencePolicyCarryoverRequest
  */
 export type ConfigureAbsencePolicyCarryoverRequest = {
@@ -1998,6 +2789,77 @@ export type ConfigureAbsencePolicyCarryoverRequest = {
      * Carryover expiry day (1-31); when provided, the month is also required.
      */
     carryover_expiry_day?: number | null;
+};
+
+/**
+ * ConnectStoreV1Request
+ *
+ * Public REST API v1 — POST /v1/stores.
+ *
+ * Connect an e-commerce store to your company. Required: `integration_id` (the
+ * provider connection that backs the store), `provider`, `external_store_id`
+ * (the identifier the provider gives to the shop) and `name`. The eight
+ * settings are optional and each one falls back to its declared default, so a
+ * store connected without any of them is created with automatic invoicing OFF
+ * and in the `test` environment. `simplified_threshold` is expressed in EUROS
+ * and capped at the legal maximum for a simplified invoice. `series_id` is a
+ * series of type invoice; omit it to follow the default series of your company,
+ * which is never frozen into the store. A company may connect several stores of
+ * the same provider, but not the same remote shop twice.
+ */
+export type ConnectStoreV1Request = {
+    /**
+     * Identifier (UUID v7) of the provider connection that backs the store.
+     */
+    integration_id: string;
+    /**
+     * E-commerce provider of the store: `woocommerce`, `shopify` or `prestashop`.
+     */
+    provider: 'woocommerce' | 'shopify' | 'prestashop';
+    /**
+     * Identifier the provider gives to the shop; unique per provider within your company.
+     */
+    external_store_id: string;
+    /**
+     * Display name of the store, editable at any time.
+     */
+    name: string;
+    /**
+     * Series (UUID v7, type invoice) the store numbers into; omit to follow the default series of your company.
+     */
+    series_id?: string | null;
+    /**
+     * Order total, in euros, up to which the store issues a simplified invoice. Maximum 3000.00.
+     */
+    simplified_threshold?: number | null;
+    /**
+     * Whether the buyer tax ID is required for the order to be invoiced.
+     */
+    require_tax_id?: boolean | null;
+    /**
+     * Whether the prices of the store already include taxes.
+     */
+    prices_include_tax?: boolean | null;
+    /**
+     * Whether paid orders are invoiced automatically. Off unless you turn it on.
+     */
+    autoinvoicing_enabled?: boolean | null;
+    /**
+     * Whether the invoice is emailed to the buyer automatically. Off unless you turn it on.
+     */
+    autosend_enabled?: boolean | null;
+    /**
+     * Base address of the remote shop, checked against the outbound policy of your company.
+     */
+    remote_base_url?: string | null;
+    /**
+     * Environment the store reports as: `live` invoices for real, `test` discards with a typed reason.
+     */
+    environment?: 'live' | 'test' | null;
+    /**
+     * Authorize the host of `remote_base_url` as an outbound destination in the same call.
+     */
+    authorize_remote_host?: boolean | null;
 };
 
 /**
@@ -2133,7 +2995,7 @@ export type ConvertProformaRequest = {
  * ConvertQuoteRequest
  */
 export type ConvertQuoteRequest = {
-    target: 'invoice' | 'proforma' | 'delivery_note';
+    target: 'invoice';
     issued_on?: string | null;
     due_on?: string | null;
 };
@@ -2231,21 +3093,53 @@ export type CreateApiKeyV1Request = {
      */
     name: string;
     /**
+     * List of scopes from the closed v1 catalog (at least one).
+     */
+    scopes: Array<'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
+    /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
     expires_at?: string | null;
     /**
-     * Key environment: `live` (production) or `test` (sandbox). Defaults to `live`.
-     */
-    environment?: 'live' | 'test';
-    /**
-     * List of scopes from the closed v1 catalog (at least one).
-     */
-    scopes: Array<'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | '*'>;
-    /**
      * Optional list of allowed IPs / CIDR ranges (IPv4, IPv6, /N).
      */
     ip_allowlist?: Array<string> | null;
+    /**
+     * Key environment: `live` (production) or `test` (sandbox). Defaults to `live`.
+     */
+    environment?: 'live' | 'test' | null;
+};
+
+/**
+ * CreateAutomationRuleV1Request
+ */
+export type CreateAutomationRuleV1Request = {
+    /**
+     * Human-readable name of the automation rule.
+     */
+    name: string;
+    /**
+     * Free-form description for whoever maintains the rule. It has no effect on execution.
+     */
+    description?: string | null;
+    /**
+     * Scope of the automation: `empresa` (the default) watches only your own company, `cartera` watches every client company you manage as an accounting firm and delivers its notices to you. Omit it to keep the current behaviour. It cannot be changed afterwards.
+     */
+    scope?: 'empresa' | 'cartera' | null;
+    /**
+     * Trigger that puts the rule in motion, in `resource.action` form (for example `invoice.paid`). Must belong to the catalog visible to the company.
+     */
+    trigger_type: string;
+    /**
+     * Condition tree evaluated against the triggering event. Either a single condition (`field`, `operator`, `value`) or a group (`combinator`, `children`). Omit it to run the rule on every event of its trigger.
+     */
+    conditions?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Ordered list of actions the rule executes. At least one, each with a registered adapter.
+     */
+    actions: Array<AutomationActionInput>;
 };
 
 /**
@@ -2259,13 +3153,13 @@ export type CreateChildApiKeyV1Request = {
      */
     name: string;
     /**
+     * List of scopes from the closed v1 catalog (at least one; a subset of the parent key scopes).
+     */
+    scopes: Array<'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'prestashop_store:read' | 'prestashop_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
+    /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
     expires_at?: string | null;
-    /**
-     * List of scopes from the closed v1 catalog (at least one; a subset of the parent key scopes).
-     */
-    scopes: Array<'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | '*'>;
     /**
      * Optional list of allowed IPs / CIDR ranges (IPv4, IPv6, /N).
      */
@@ -2286,6 +3180,7 @@ export type CreateClientRequest = {
     mobile?: string | null;
     website?: string | null;
     contact_person?: string | null;
+    billing_emails?: Array<string> | null;
     latitude?: number | null;
     longitude?: number | null;
     default_discount?: number | null;
@@ -2293,16 +3188,15 @@ export type CreateClientRequest = {
     default_retention_rate?: number | null;
     is_surcharge_subject?: boolean | null;
     accumulate_347?: boolean;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp';
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other';
+    bank_accounts?: Array<{
+        iban: string;
+        bic?: string | null;
+        is_default?: boolean | null;
+        notes?: string | null;
+    }> | null;
+    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
     payment_terms_days?: number | null;
-    notes?: string | null;
-    metadata?: Metadata;
-    dir3_accounting_office?: string | null;
-    dir3_managing_body?: string | null;
-    dir3_processing_unit?: string | null;
-    external_id?: string | null;
-    billing_emails?: Array<string> | null;
     alternative_id?: {
         /**
          * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
@@ -2323,12 +3217,13 @@ export type CreateClientRequest = {
         province?: string | null;
         country?: string | null;
     };
-    bank_accounts?: Array<{
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
+    notes?: string | null;
+    metadata?: Metadata;
+    dir3_accounting_office?: string | null;
+    dir3_managing_body?: string | null;
+    dir3_processing_unit?: string | null;
+    external_id?: string | null;
+    default_price_list_id?: string | null;
 };
 
 /**
@@ -2387,7 +3282,7 @@ export type CreateCompanyV1Request = {
 export type CreateCorrectiveInvoiceRequest = {
     correction_reason: 'error_fundado' | 'concurso' | 'incobrable' | 'error_importe' | 'error_cliente' | 'devolucion' | 'descuento' | 'otras';
     correction_type: 'full' | 'partial';
-    correction_code?: 'R1' | 'R2' | 'R3' | 'R4' | 'R5';
+    correction_code?: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | null;
     justification?: string | null;
     notes?: string | null;
     tags?: Array<string> | null;
@@ -2397,17 +3292,28 @@ export type CreateCorrectiveInvoiceRequest = {
     }> | null;
     lines?: Array<{
         description?: string;
+        additional_description?: string | null;
         quantity?: number;
         unit_price?: number;
         tax_rate?: number | null;
+        retention_rate?: number | null;
+        surcharge_rate?: number | null;
         discount_percent?: number | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         /**
          * Kind of line: `NORMAL` (default) for an ordinary line, or `SUPLIDO` for a DISBURSEMENT — an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) re-invoiced at cost, which stays out of the taxable base (art. 78.Tres.3 LIVA) and is aggregated into `total_disbursements`. A `SUPLIDO` line must carry no VAT, withholding, surcharge, discount or product, and requires `source_invoice_reference`. Only meaningful when `correction_type` is `partial`, which is when `lines[]` is sent; a value outside the catalog is rejected with 422.
          */
-        line_type?: 'NORMAL' | 'SUPLIDO';
+        line_type?: 'NORMAL' | 'SUPLIDO' | null;
         source_invoice_reference?: string | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
     }>;
 };
 
@@ -2437,19 +3343,22 @@ export type CreateDeliveryNoteRequest = {
     carrier_company?: string | null;
     received_by_name?: string | null;
     received_by_tax_id?: string | null;
-    external_id?: string | null;
-    currency?: 'EUR';
-    metadata?: Metadata;
     billing_emails?: Array<string> | null;
+    external_id?: string | null;
+    currency?: 'EUR' | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
+    metadata?: Metadata;
     tags?: Array<string> | null;
     custom_fields?: Array<{
         field: string;
         value: string;
     }> | null;
     lines: Array<{
-        description: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity: number;
-        unit_price: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -2457,8 +3366,23 @@ export type CreateDeliveryNoteRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
+        base_quantity?: number | null;
         discount_percent?: number | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -2517,6 +3441,8 @@ export type CreateEmployeeRequest = {
 export type CreateInvoiceRequest = {
     client_id: string;
     series_id: string;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
     issued_on: string;
     due_on: string;
     notes?: string | null;
@@ -2527,16 +3453,11 @@ export type CreateInvoiceRequest = {
         field: string;
         value: string;
     }> | null;
-    options?: {
-        issue_directly?: boolean | null;
-        send_automatically?: boolean | null;
-        send_to?: string | null;
-        wait_for_pdf?: boolean | null;
-    };
     lines: Array<{
-        description: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity: number;
-        unit_price: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -2544,14 +3465,17 @@ export type CreateInvoiceRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
-        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20';
-        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2';
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20' | null;
+        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         /**
          * Kind of line: `NORMAL` (default) for an ordinary line of your own operation, or `SUPLIDO` for a DISBURSEMENT — an amount you paid in the name and on behalf of the client (an official fee, duty or registry charge) and now re-invoice at cost. A disbursement is not part of your taxable base (art. 78.Tres.3 LIVA): it stays out of `subtotal`/`taxes_total`/`total`, is aggregated into `total_disbursements`, and is never declared in the AEAT VeriFactu record. A `SUPLIDO` line must carry no VAT, withholding, surcharge, discount, regime key, exemption cause or product, and is rejected on a simplified (`F2`) invoice.
          */
-        line_type?: 'NORMAL' | 'SUPLIDO';
+        line_type?: 'NORMAL' | 'SUPLIDO' | null;
         /**
          * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line. Free text on purpose: the receipt of a public body is rarely registered as a purchase invoice.
          */
@@ -2572,7 +3496,50 @@ export type CreateInvoiceRequest = {
          * Optional CHECKSUM of the line total. When sent, it is compared against the total this API computes and the request is rejected with 422 (`line_total_checksum_mismatch`, with the expected and received values in `error.details`) when they differ by more than one cent. Never stored and never returned: the invoiced amount is always the computed one, so this field only reports a rounding mismatch with your own ERP. Omit it and no checksum runs.
          */
         line_total?: number | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
+    options?: {
+        issue_directly?: boolean | null;
+        send_automatically?: boolean | null;
+        send_to?: string | null;
+        wait_for_pdf?: boolean | null;
+    };
+};
+
+/**
+ * CreatePriceListRequest
+ *
+ * Public REST API v1 — create a price list.
+ */
+export type CreatePriceListRequest = {
+    name: string;
+};
+
+/**
+ * CreateProductPresentationRequest
+ */
+export type CreateProductPresentationRequest = {
+    name: string;
+    mode: 'fixed' | 'variable_measure';
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    conversion_factor?: number | null;
+    nominal_base_quantity?: number | null;
+    barcode?: string | null;
+    commercial_price_override?: string | null;
+    specifications?: {
+        [key: string]: unknown;
+    } | null;
+    active?: boolean;
 };
 
 /**
@@ -2587,33 +3554,24 @@ export type CreateProductRequest = {
      */
     sku?: string | null;
     price: string;
-    /**
-     * Columna `products.description` es `text` → sin `max` artificial.
-     */
     description?: string | null;
+    tags?: Array<string> | null;
+    specifications?: Array<string | null> | null;
     /**
-     * Initial stock (create only; later stock changes are made via `PUT /v1/products/{uuid}/stock`). Absent → defaults to 0.
+     * Initial stock. Absent → defaults to 0. Later you can set it absolutely with `stock` on `PUT /v1/products/{uuid}`, or move it with `PUT /v1/products/{uuid}/stock` (`set`/`increase`/`decrease`).
      */
     stock?: number | null;
-    /**
-     * Umbral per-producto; se persiste en `metadata.low_stock_threshold`.
-     */
     low_stock_threshold?: number | null;
+    item_kind?: 'product' | 'service';
+    base_unit?: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
     /**
      * Whether this product takes part in document-driven stock movements: with `true`, issuing or receiving a document that includes it moves its stock automatically and the movement is recorded in the stock ledger. It only takes effect if your company also has stock management enabled; absent or `null` means `false`.
      */
     manage_stock?: boolean | null;
     /**
-     * Producto es read-only EUR: solo se admite `EUR` (o ausencia/null).
-     * Cualquier otra moneda → 422 (antes se aceptaba-y-descartaba).
+     * Product amounts are read-only EUR: only `EUR` (or absence/null) is accepted.
      */
-    currency?: 'EUR';
-    /**
-     * `taxes` is a global system catalog (without a `company_id` column).
-     * Do NOT use TenantRule here — it would add `WHERE company_id = X` against a
-     * table without that column and cause a 500 (SQLSTATE 42S22). Global
-     * validation by uuid, like in the rest of the BCs (DeliveryNote V1, etc.).
-     */
+    currency?: 'EUR' | null;
     tax_rate_id?: string | null;
     is_active?: boolean | null;
     metadata?: Metadata;
@@ -2621,7 +3579,72 @@ export type CreateProductRequest = {
      * Third-party integration key from your ERP/CRM (orthogonal to `sku`). Free-form, up to 100 characters.
      */
     external_id?: string | null;
-    tags?: Array<string> | null;
+    catalog_availability_mode?: 'open' | 'closed';
+    option_groups?: Array<{
+        id: string;
+        name: string;
+        required?: boolean;
+        position?: number;
+        scope_id?: string | null;
+        active?: boolean;
+        values: Array<{
+            id: string;
+            name: string;
+            position?: number;
+            price_adjustment?: string | null;
+            active?: boolean;
+        }>;
+    }> | null;
+    configurations?: Array<{
+        id: string;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        options?: Array<{
+            group_id: string;
+            value_id: string;
+        }>;
+        commercial_price?: string | null;
+        active?: boolean;
+        restricts_availability?: boolean;
+    }> | null;
+    impact_token?: string | null;
+};
+
+/**
+ * CreateProductVariantRequest
+ */
+export type CreateProductVariantRequest = {
+    name: string;
+    sku?: string | null;
+    barcode?: string | null;
+    /**
+     * Precio propio de la variante POR UNIDAD BASE. `null` = la variante
+     * no altera el precio del producto.
+     */
+    base_price_override?: number | null;
+    /**
+     * Coste propio de la variante POR UNIDAD BASE.
+     */
+    unit_cost_override?: number | null;
+    /**
+     * Alias publicado de `base_price_override`.
+     *
+     * @deprecated
+     */
+    price_override?: number | null;
+    /**
+     * Alias publicado de `unit_cost_override`.
+     *
+     * @deprecated
+     */
+    cost_override?: number | null;
+    manage_stock: boolean;
+    stock: number;
+    low_stock_threshold?: number | null;
+    specifications?: {
+        [key: string]: unknown;
+    } | null;
+    active?: boolean;
 };
 
 /**
@@ -2630,6 +3653,8 @@ export type CreateProductRequest = {
 export type CreateProformaRequest = {
     client_id: string;
     series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
     issued_on: string;
     valid_until?: string | null;
     validity_days?: number | null;
@@ -2642,7 +3667,7 @@ export type CreateProformaRequest = {
     delivery_terms?: string | null;
     estimated_delivery_date?: string | null;
     external_id?: string | null;
-    currency?: 'EUR';
+    currency?: 'EUR' | null;
     metadata?: Metadata;
     tags?: Array<string> | null;
     custom_fields?: Array<{
@@ -2650,9 +3675,10 @@ export type CreateProformaRequest = {
         value: string;
     }> | null;
     lines: Array<{
-        description: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity: number;
-        unit_price: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -2660,8 +3686,22 @@ export type CreateProformaRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -2669,12 +3709,6 @@ export type CreateProformaRequest = {
  * CreatePurchaseInvoiceRequest
  */
 export type CreatePurchaseInvoiceRequest = {
-    /**
-     * Factura simplificada (ticket de gasto): con `is_simplified: true`
-     * el proveedor pasa a opcional. El número del proveedor
-     * (`external_invoice_number`) SIGUE siendo obligatorio en v1/MCP
-     * (el recurso se recupera por número tras crear).
-     */
     is_simplified?: boolean;
     supplier_id?: string | null;
     expense_category_id?: string | null;
@@ -2687,37 +3721,15 @@ export type CreatePurchaseInvoiceRequest = {
     issued_on: string;
     received_on?: string | null;
     due_on?: string | null;
-    /**
-     * Optional initial status. 4-state model:
-     * CREATION allowlist `draft|pending` (`received`/`pending_payment`
-     * were merged into `pending`). `paid|cancelled` are lifecycle
-     * transitions (mark_paid/change_status), NOT creation states.
-     * If omitted, the domain applies the default `draft`.
-     */
     status?: 'draft' | 'pending';
     notes?: string | null;
     metadata?: Metadata;
-    /**
-     * Extend fields. Basic SHAPE only; the `payment_method` allowlist,
-     * `tax_period` format and `tags` cardinality are validated by the
-     * VO/Aggregate.
-     */
     internal_notes?: string | null;
     payment_method?: string | null;
     payment_terms_days?: number | null;
     bank_account_id?: number | null;
     expense_account?: string | null;
     tax_period?: string | null;
-    is_reverse_charge?: boolean | null;
-    deductible_percentage?: number | null;
-    /**
-     * Classifies the origin of the expense for the input VAT of Modelo 303 (boxes [28]-[39]). Closed set; nullable → defaults to `corriente`.
-     */
-    operation_class?: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria';
-    /**
-     * Whether to exclude this purchase invoice from the annual Modelo 347 declaration.
-     */
-    exclude_347?: boolean;
     tags?: Array<string> | null;
     /**
      * Typed custom fields as `[{field, value}]`. `field` up to 60 characters (non-empty), `value` up to 500 characters, up to 50 entries.
@@ -2726,13 +3738,33 @@ export type CreatePurchaseInvoiceRequest = {
         field: string;
         value: string;
     }> | null;
+    is_reverse_charge?: boolean | null;
+    deductible_percentage?: number | null;
+    /**
+     * Classifies the origin of the expense for the input VAT of Modelo 303 (boxes [28]-[39]). Closed set; nullable → defaults to `corriente`.
+     */
+    operation_class?: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria' | 'isp' | null;
+    /**
+     * Whether to exclude this purchase invoice from the annual Modelo 347 declaration.
+     */
+    exclude_347?: boolean;
     lines: Array<{
-        description: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity: number;
-        unit_price: number;
-        tax_rate?: number | null;
+        unit_price?: number | null;
+        product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        supplier_offer_id?: string | null;
+        confirmed_base_quantity?: number | null;
+        unit?: string | null;
         /**
-         * Per-line IRPF retention and deductible VAT. `retention_rate` is the percentage withheld from the supplier (0–100); `vat_deductible` flags VAT deductibility (informational, does not change the amount paid).
+         * Per-line VAT rate (0–100). REQUIRED. There is no silent default: a purchase with no VAT is declared explicitly as `tax_rate: 0`, so that "not stated" and "stated as zero" never collapse into the same document.
+         */
+        tax_rate: number;
+        /**
+         * Per-line IRPF retention and deductible VAT. `retention_rate` is the percentage withheld from the supplier (0–100); `vat_deductible` flags VAT deductibility — it does not change the amount paid, but a `false` line is excluded from the deductible input VAT of Modelo 303 (boxes [28]-[37]).
          */
         retention_rate?: number | null;
         vat_deductible?: boolean | null;
@@ -2740,11 +3772,22 @@ export type CreatePurchaseInvoiceRequest = {
          * Per-line equivalence surcharge (the legal VAT↔surcharge pair is validated) and LIVA exemption reason (closed catalog).
          */
         surcharge_rate?: number | null;
-        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2';
+        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
         /**
          * Per-line indirect tax regime of the supplier. Passthrough only (purchase lines have no `tax_id`): the incoming override is the sole regime channel; the real invariant lives in the domain.
          */
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -2754,12 +3797,14 @@ export type CreatePurchaseInvoiceRequest = {
 export type CreateQuoteRequest = {
     client_id: string;
     series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
     issued_on: string;
     valid_until: string;
     notes?: string | null;
     terms?: string | null;
     external_id?: string | null;
-    currency?: 'EUR';
+    currency?: 'EUR' | null;
     metadata?: Metadata;
     tags?: Array<string> | null;
     custom_fields?: Array<{
@@ -2767,9 +3812,10 @@ export type CreateQuoteRequest = {
         value: string;
     }> | null;
     lines: Array<{
-        description: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity: number;
-        unit_price: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -2777,8 +3823,22 @@ export type CreateQuoteRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -2815,6 +3875,8 @@ export type CreateRecurringFromInvoiceRequest = {
 export type CreateRecurringInvoiceRequest = {
     client_id: string;
     series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
     name?: string | null;
     description?: string | null;
     frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
@@ -2822,17 +3884,17 @@ export type CreateRecurringInvoiceRequest = {
     end_on?: string | null;
     notes?: string | null;
     metadata?: Metadata;
+    tags?: Array<string> | null;
+    custom_fields?: Array<{
+        field: string;
+        value: string;
+    }> | null;
     external_id?: string | null;
     holiday_handling?: string;
     days_before_due?: number | null;
     max_occurrences?: number | null;
     email_to?: string | null;
     send_automatically?: boolean;
-    tags?: Array<string> | null;
-    custom_fields?: Array<{
-        field: string;
-        value: string;
-    }> | null;
     auto_delivery?: {
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
@@ -2841,17 +3903,33 @@ export type CreateRecurringInvoiceRequest = {
         body?: string | null;
     };
     lines: Array<{
-        description: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity: number;
-        unit_price: number;
+        unit_price?: number | null;
+        product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         tax_rate?: number | null;
         retention?: number | null;
         surcharge?: number | null;
-        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2';
-        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20';
+        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
+        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20' | null;
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -2863,10 +3941,29 @@ export type CreateSeriesRequest = {
     name?: string | null;
     document_type: 'invoice' | 'quote' | 'delivery_note' | 'proforma';
     prefix?: string | null;
-    counter_reset?: 'never' | 'annual' | 'monthly';
+    counter_reset?: 'never' | 'annual' | 'monthly' | null;
     year_reset?: boolean | null;
     number_format?: string | null;
     initial_number?: number | null;
+};
+
+/**
+ * CreateSupplierProductOfferRequest
+ *
+ * Public REST API v1 — create a supplier offer.
+ */
+export type CreateSupplierProductOfferRequest = {
+    supplier_id: string;
+    variant_id?: string | null;
+    supplier_sku?: string | null;
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    conversion_factor: number;
+    unit_cost?: number | null;
+    availability: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
+    minimum_quantity?: number | null;
+    lead_time_days?: number | null;
+    preferred?: boolean;
+    active?: boolean;
 };
 
 /**
@@ -2884,6 +3981,11 @@ export type CreateSupplierRequest = {
     mobile?: string | null;
     website?: string | null;
     contact_person?: string | null;
+    billing_emails?: Array<string> | null;
+    coordinates?: {
+        latitude?: number | null;
+        longitude?: number | null;
+    };
     latitude?: number | null;
     longitude?: number | null;
     default_discount?: number | null;
@@ -2891,19 +3993,23 @@ export type CreateSupplierRequest = {
     default_retention_rate?: number | null;
     is_surcharge_subject?: boolean | null;
     accumulate_347?: boolean;
+    bank_accounts?: Array<{
+        /**
+         * Legacy alias for the whole `bank_accounts` collection, not a single field within it: the value you send becomes the supplier's ONLY bank account, marked as the default one. Send `bank_accounts` instead to register several accounts, or to set `bic`/`notes`. If you send both, `bank_accounts` wins and `iban` is ignored.
+         */
+        iban: string;
+        bic?: string | null;
+        is_default?: boolean | null;
+        notes?: string | null;
+    }> | null;
+    /**
+     * Legacy alias for the whole `bank_accounts` collection, not a single field within it: the value you send becomes the supplier's ONLY bank account, marked as the default one. Send `bank_accounts` instead to register several accounts, or to set `bic`/`notes`. If you send both, `bank_accounts` wins and `iban` is ignored.
+     */
     iban?: string | null;
     default_taxes_id?: string | null;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp';
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other';
+    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
     payment_terms_days?: number | null;
-    notes?: string | null;
-    metadata?: Metadata;
-    external_id?: string | null;
-    billing_emails?: Array<string> | null;
-    coordinates?: {
-        latitude?: number | null;
-        longitude?: number | null;
-    };
     alternative_id?: {
         /**
          * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
@@ -2924,12 +4030,9 @@ export type CreateSupplierRequest = {
         province?: string | null;
         country?: string | null;
     };
-    bank_accounts?: Array<{
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
+    notes?: string | null;
+    metadata?: Metadata;
+    external_id?: string | null;
 };
 
 /**
@@ -2955,7 +4058,7 @@ export type CreateTaxRequest = {
      */
     valid_until?: string | null;
     reverse_charge?: boolean;
-    country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla';
+    country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
     /**
      * FK to the linked equivalence-surcharge tax. UUID v7 value referencing the global `taxes` catalog.
      */
@@ -2979,13 +4082,13 @@ export type CreateTaxRequest = {
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     description?: string | null;
+    ip_allowlist?: Array<string> | null;
     api_version?: string | null;
     metadata?: Metadata;
-    timeout_seconds?: number | null;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'product.created' | 'product.updated' | 'payment.received' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed'>;
-    ip_allowlist?: Array<string> | null;
     custom_headers?: CustomHeaders;
+    timeout_seconds?: number | null;
 };
 
 /**
@@ -3190,7 +4293,7 @@ export type DeclaracionResponsable = {
 /**
  * DeliveryNote
  *
- * A delivery note tracking goods delivered to a customer.
+ * A delivery note tracking goods delivered to a customer. The delivery address fields, `transport_details` and `reference_number` are both accepted on write and returned here; `delivery_city`, `delivery_province` and `delivery_postal_code` are also filterable on `GET /v1/delivery_notes`. Empty strings are normalized to `null`.
  */
 export type DeliveryNote = {
     id: string;
@@ -3202,11 +4305,43 @@ export type DeliveryNote = {
      * Delivery note lifecycle status exposed by the public API: `draft` (created, editable), `sent` (goods marked as delivered, no signature recorded yet), `signed` (delivered AND a recipient signature has been recorded), `invoiced` (converted into an invoice, terminal), `cancelled` (terminal). Note: the internal `delivered` state is surfaced as `sent` (without signature) or `signed` (with signature) — there is no `delivered` value in the public API. Recording a signature on a `sent` note moves it to `signed` (it does not introduce a brand-new lifecycle stage; the signature presence is the only difference).
      */
     status: 'draft' | 'sent' | 'signed' | 'invoiced' | 'cancelled';
+    /**
+     * UUID of the price list selected for this document.
+     */
+    price_list_id: string | null;
+    /**
+     * Price-list name snapshot frozen on the document.
+     */
+    price_list_name: string | null;
     issued_on: string | null;
     delivery_date: string | null;
+    /**
+     * Street of the delivery address recorded on the delivery note. `null` when not set.
+     */
+    delivery_address: string | null;
+    /**
+     * Town or city of the delivery address recorded on the delivery note. Filterable via `?delivery_city=` (also `[in]` and `[contains]`). `null` when not set.
+     */
+    delivery_city: string | null;
+    /**
+     * Postal code of the delivery address recorded on the delivery note. Filterable via `?delivery_postal_code=`; the first two digits identify the Spanish province. `null` when not set.
+     */
+    delivery_postal_code: string | null;
+    /**
+     * Province of the delivery address recorded on the delivery note. Filterable via `?delivery_province=` (also `[in]` and `[contains]`). `null` when not set.
+     */
+    delivery_province: string | null;
+    /**
+     * Country of the delivery address recorded on the delivery note. Free text, not an ISO code. `null` when not set.
+     */
+    delivery_country: string | null;
     signed_at: string | null;
     signed_by: string | null;
     signature_image_url: string | null;
+    /**
+     * Free-text transport details of the delivery. `null` when not set.
+     */
+    transport_details: string | null;
     /**
      * License plate of the delivery vehicle.
      */
@@ -3255,7 +4390,25 @@ export type DeliveryNote = {
      */
     billing_emails: Array<string>;
     subtotal: number;
+    /**
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
+     */
     taxes_total: number;
+    /**
+     * Output VAT (IVA repercutido) accrued by the document: sum of the VAT of its lines. This is the figure a Spanish Modelo 303 declares, and it is NOT recoverable from `taxes_total`, which nets the withholding out.
+     */
+    total_vat: number;
+    /**
+     * Withholding (retención de IRPF) applied to the document: sum of the withholding of its lines, as a POSITIVE amount that SUBTRACTS from the total. This is the figure a Spanish Modelo 130/111 declares. It is ALREADY netted out inside `taxes_total`, so do not subtract it again.
+     */
+    total_retention: number;
+    /**
+     * Equivalence surcharge (recargo de equivalencia) of the document: sum of the surcharge of its lines. It ADDS to the total exactly like VAT does, and is ALREADY included inside `taxes_total`.
+     */
+    total_surcharge: number;
+    /**
+     * Total of the document. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice and yields a false total (4,320.00 + 259.20 - 648.00 = 3,931.20 against a real 4,579.20).
+     */
     total: number;
     currency: string;
     notes: string | null;
@@ -3263,6 +4416,10 @@ export type DeliveryNote = {
      * External integration key (ERP/CRM/e-commerce) mapping this document to a record in a third-party system. Free-format, unique per company, filterable via `?external_id=`. `null` when not set. Persistent synchronization key, independent of the request-level `Idempotency-Key`.
      */
     external_id: string | null;
+    /**
+     * Commercial reference of the delivery note — usually the client's purchase order number, which an ERP uses to reconcile its orders against deliveries. `null` when not set.
+     */
+    reference_number: string | null;
     lines: Array<DeliveryNoteLine>;
     metadata: Metadata;
     /**
@@ -3289,6 +4446,10 @@ export type DeliveryNote = {
 export type DeliveryNoteLine = {
     object: 'delivery_note_line';
     description: string | null;
+    /**
+     * Optional secondary description rendered below the line concept on document PDFs.
+     */
+    additional_description: string | null;
     product: ProductRef | null;
     quantity: number;
     unit_price: number;
@@ -3309,6 +4470,65 @@ export type DeliveryNoteLine = {
      * Indirect tax regime of the line: the per-document override (`iva`/`igic`/`ipsi`) when the user set it (precedence override>zone), otherwise `null` (derived from the establishment AEAT zone). Writable per-document input on create/update; the document must be homogeneous (a single non-null regime across all lines, 422 otherwise).
      */
     indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+    variant: {
+        id: string;
+        name: string | null;
+    } | null;
+    presentation: {
+        id: string;
+        name: string | null;
+        mode: string | null;
+    } | null;
+    item_kind: string | null;
+    commercial_unit_code: string | null;
+    base_unit_code: string | null;
+    conversion_factor: string | null;
+    base_quantity: string | null;
+    price_list_id: string | null;
+    price_list_name: string | null;
+    price_source: string | null;
+    price_unit_code: string | null;
+    /**
+     * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
+     */
+    configuration: {
+        id: string;
+        name: string | null;
+        signature: string | null;
+    } | null;
+    /**
+     * Configurable options frozen on the line, in printing order. Always an array, `[]` included.
+     */
+    options: Array<{
+        group: {
+            id: string;
+            name: string | null;
+        };
+        value: {
+            id: string;
+            name: string | null;
+        };
+        /**
+         * Adjustment of the chosen value per commercial unit. `null` means the value does not change the price — NOT the same as adjusting by `0`.
+         */
+        price_adjustment: string | null;
+        /**
+         * Whether that amount was actually ADDED to the unit price. `false` when an exact price (price-list entry, combination price or a manually typed unit price) already absorbed it.
+         */
+        applied: boolean;
+    }>;
+    /**
+     * Monetary semantics of the resolved price: `per_base_unit` (product/variant own price, converted once by the presentation factor) or `per_commercial_unit` (presentation, combination or price-list entry, never converted). `null` on a line with no catalog price context.
+     */
+    price_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Sum of the adjustments of the chosen option values, as a decimal string. Informational when an exact price already absorbed them.
+     */
+    price_adjustment_total: string | null;
+    /**
+     * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
+     */
+    option_adjustments_absorbed: boolean | null;
 };
 
 /**
@@ -3372,6 +4592,26 @@ export type DeliveryNoteStatusItem = {
      * Suggested color for rendering the status in the UI.
      */
     color: string;
+};
+
+/**
+ * DryRunAutomationRuleV1Request
+ */
+export type DryRunAutomationRuleV1Request = {
+    /**
+     * Sample event type to test the rule with, in `resource.action` form (for example `invoice.paid`). Must belong to the catalog visible to the company.
+     */
+    event_type: string;
+    /**
+     * The `data.object` of the sample event: an object with named keys, never a list.
+     */
+    event_payload: {
+        [key: string]: unknown;
+    };
+    /**
+     * ID (UUID v7) of the sample resource to predict against. Required for rules whose actions operate on a document.
+     */
+    event_aggregate_id?: string | null;
 };
 
 /**
@@ -4180,6 +5420,8 @@ export type EventData = ({
 } & EventDataProductUpdated) | ({
     type: 'payment.received';
 } & EventDataPaymentReceived) | ({
+    type: 'payment.reversed';
+} & EventDataPaymentReversed) | ({
     type: 'tax.metadata_changed';
 } & EventDataTaxMetadataChanged) | ({
     type: 'tax.validity_changed';
@@ -4233,7 +5475,25 @@ export type EventData = ({
     type: 'absence.rejected';
 } & EventDataAbsenceRejected) | ({
     type: 'monthly_register.closed';
-} & EventDataMonthlyRegisterClosed);
+} & EventDataMonthlyRegisterClosed) | ({
+    type: 'automation_rule.activated';
+} & EventDataAutomationRuleActivated) | ({
+    type: 'automation_rule.paused';
+} & EventDataAutomationRulePaused) | ({
+    type: 'automation_rule.auto_paused';
+} & EventDataAutomationRuleAutoPaused) | ({
+    type: 'automation_run.started';
+} & EventDataAutomationRunStarted) | ({
+    type: 'automation_run.completed';
+} & EventDataAutomationRunCompleted) | ({
+    type: 'automation_run.failed';
+} & EventDataAutomationRunFailed) | ({
+    type: 'automation_run.step_dead_lettered';
+} & EventDataAutomationRunStepDeadLettered) | ({
+    type: 'order.invoiced';
+} & EventDataOrderInvoiced) | ({
+    type: 'order.refunded';
+} & EventDataOrderRefunded);
 
 /**
  * EventDataAbsenceApproved
@@ -4263,6 +5523,88 @@ export type EventDataAbsenceRejected = {
 export type EventDataAbsenceRequested = {
     type: 'absence.requested';
     object: AbsenceRequest;
+};
+
+/**
+ * EventDataAutomationRuleActivated
+ *
+ * Payload (`data`) emitted with the `automation_rule.activated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataAutomationRuleActivated = {
+    type: 'automation_rule.activated';
+    object: AutomationRule;
+};
+
+/**
+ * EventDataAutomationRuleAutoPaused
+ *
+ * Payload (`data`) emitted with the `automation_rule.auto_paused` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataAutomationRuleAutoPaused = {
+    type: 'automation_rule.auto_paused';
+    object: AutomationRule;
+    /**
+     * Number of consecutive failed runs that tripped the automatic pause. The rule was paused by the platform, not by a person: `automation_rule.paused` is the human counterpart.
+     */
+    consecutive_failures: number;
+};
+
+/**
+ * EventDataAutomationRulePaused
+ *
+ * Payload (`data`) emitted with the `automation_rule.paused` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataAutomationRulePaused = {
+    type: 'automation_rule.paused';
+    object: AutomationRule;
+};
+
+/**
+ * EventDataAutomationRunCompleted
+ *
+ * Payload (`data`) emitted with the `automation_run.completed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataAutomationRunCompleted = {
+    type: 'automation_run.completed';
+    object: AutomationRun;
+};
+
+/**
+ * EventDataAutomationRunFailed
+ *
+ * Payload (`data`) emitted with the `automation_run.failed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataAutomationRunFailed = {
+    type: 'automation_run.failed';
+    object: AutomationRun;
+};
+
+/**
+ * EventDataAutomationRunStarted
+ *
+ * Payload (`data`) emitted with the `automation_run.started` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataAutomationRunStarted = {
+    type: 'automation_run.started';
+    object: AutomationRun;
+};
+
+/**
+ * EventDataAutomationRunStepDeadLettered
+ *
+ * Payload (`data`) emitted with the `automation_run.step_dead_lettered` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataAutomationRunStepDeadLettered = {
+    type: 'automation_run.step_dead_lettered';
+    object: AutomationRun;
+    /**
+     * Zero-based position of the dead-lettered step inside its run. Resolve it against the snapshot itself: the step is the element of `data.object.steps` whose `step_index` equals this value. The step is identified by position and not by id because it is not a public resource of its own.
+     */
+    step_index: number;
+    /**
+     * Typed reason the step was parked, from a CLOSED catalogue — never free-form text. In practice it is always a replayable reason: an outcome whose reason does not admit reprocessing closes the run as `failed` instead of parking the step.
+     */
+    discard_reason: 'condition_not_matched' | 'condition_not_evaluable_for_event' | 'condition_definition_invalid' | 'chain_depth_exceeded' | 'rate_limit_exceeded' | 'monthly_budget_exhausted' | 'tenant_mismatch' | 'sandbox_neutralized' | 'action_type_unregistered' | 'action_parameters_invalid' | 'channel_integration_inactive' | 'document_target_not_found' | 'document_recipient_missing' | 'document_not_sendable' | 'reminder_cooldown_active' | 'reminder_not_applicable' | 'status_transition_not_allowed' | 'document_tag_limit_exceeded' | 'document_custom_field_limit_exceeded' | 'document_type_not_supported' | 'step_attempts_exhausted' | 'run_execution_timeout';
 };
 
 /**
@@ -4763,13 +6105,95 @@ export type EventDataMonthlyRegisterClosed = {
 };
 
 /**
+ * EventDataOrderInvoiced
+ *
+ * Payload (`data`) emitted with the `order.invoiced` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataOrderInvoiced = {
+    type: 'order.invoiced';
+    object: Invoice;
+    store: {
+        /**
+         * Opaque identifier (UUID v7) of the connected store the order came from.
+         */
+        uuid: string;
+        /**
+         * Store platform the order was ingested from. Currently `woocommerce`, `shopify` or `prestashop`.
+         */
+        provider: string;
+    };
+    order: {
+        /**
+         * Identifier of the order in the store, as the platform reports it. This is the key to correlate the event with your own order on the store side.
+         */
+        external_id: string;
+    };
+};
+
+/**
+ * EventDataOrderRefunded
+ *
+ * Payload (`data`) emitted with the `order.refunded` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataOrderRefunded = {
+    type: 'order.refunded';
+    object: Invoice;
+    store: {
+        /**
+         * Opaque identifier (UUID v7) of the connected store the refunded order came from.
+         */
+        uuid: string;
+        /**
+         * Store platform the order was ingested from. Currently `woocommerce`, `shopify` or `prestashop`.
+         */
+        provider: string;
+    };
+    order: {
+        /**
+         * Identifier of the refunded order in the store, as the platform reports it. This is the key to correlate the event with your own order on the store side.
+         */
+        external_id: string;
+    };
+    refund: {
+        /**
+         * Whether the refund covered the whole order (`total`) or part of it (`partial`), as classified when the corrective invoice was issued.
+         */
+        scope: string;
+        /**
+         * AEAT legal ground of the corrective invoice (`R1`, `R4` or `R5`), decided when the refund was resolved — never recomputed at emission time.
+         */
+        reason_code: string;
+    };
+};
+
+/**
  * EventDataPaymentReceived
  *
  * Payload (`data`) emitted with the `payment.received` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
  */
 export type EventDataPaymentReceived = {
     type: 'payment.received';
-    object: EventPaymentSnapshot;
+    object: InvoicePaymentDetail;
+};
+
+/**
+ * EventDataPaymentReversed
+ *
+ * Payload (`data`) emitted with the `payment.reversed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPaymentReversed = {
+    type: 'payment.reversed';
+    object: InvoicePaymentDetail;
+    reversal: {
+        /**
+         * Reason the payment was reverted, from the closed catalog.
+         */
+        reason: 'direct_debit_return' | 'card_dispute' | 'misapplied_payment' | 'bounced_effect' | 'recording_error';
+        /**
+         * Where the reversal came from: `gateway` when the payment provider reported a return, dispute or chargeback (a bank movement already happened); `manual` when a user recorded it.
+         */
+        origin: 'gateway' | 'manual';
+    };
 };
 
 /**
@@ -5442,35 +6866,19 @@ export type EventDeletedObject = {
 };
 
 /**
- * EventPaymentSnapshot
- *
- * Snapshot of a received payment captured at emission time. Payments have no dedicated v1 endpoint; this shape only appears inside `payment.*` events.
- */
-export type EventPaymentSnapshot = {
-    id: string;
-    object: 'payment';
-    /**
-     * Identifier of the invoice the payment was applied to.
-     */
-    invoice_id: string;
-    invoice_number: string | null;
-    amount: number;
-    payment_date: string;
-    payment_method: string;
-    reference: string | null;
-    created_at: string;
-};
-
-/**
  * ExportInvoicesExcelV1Request
  *
  * Export invoices to a spreadsheet. `format` selects the content layout (`SUMMARY` one row per invoice, `ITEMS` one row per line) and `file_format` the file type (`xlsx` or `csv`). Narrow the selection with `date_from`/`date_to`, `client_id`, `series_id` or `invoice_ids`, or omit them to export everything.
  */
 export type ExportInvoicesExcelV1Request = {
     /**
+     * List of invoice IDs (UUID v7 values) to export. If omitted, exports the set matching the filters.
+     */
+    invoice_ids?: Array<string> | null;
+    /**
      * Invoice status to filter by (draft, sent, paid, overdue, cancelled, annulled, scheduled).
      */
-    status?: 'draft' | 'scheduled' | 'sent' | 'paid' | 'cancelled' | 'overdue' | 'annulled';
+    status?: 'draft' | 'scheduled' | 'sent' | 'paid' | 'cancelled' | 'overdue' | 'annulled' | null;
     /**
      * Start of the issue-date range (inclusive).
      */
@@ -5494,15 +6902,11 @@ export type ExportInvoicesExcelV1Request = {
     /**
      * Content layout: SUMMARY (one row per invoice) or ITEMS (one row per line).
      */
-    format?: 'SUMMARY' | 'ITEMS';
+    format?: 'SUMMARY' | 'ITEMS' | null;
     /**
      * Formato de fichero: xlsx o csv.
      */
-    file_format?: 'xlsx' | 'csv';
-    /**
-     * List of invoice IDs (UUID v7 values) to export. If omitted, exports the set matching the filters.
-     */
-    invoice_ids?: Array<string> | null;
+    file_format?: 'xlsx' | 'csv' | null;
 };
 
 /**
@@ -5627,13 +7031,23 @@ export type FindInvoiceByExternalIdRequest = {
  *
  * Public REST API v1 — POST /v1/invoices/find-by-number.
  *
- * Body: `number` (invoice number, required), `year` optional to
- * disambiguate when the number repeats across fiscal years. Aligned with
- * Supplier's `find-by-tax-id`.
+ * Body: `number` (invoice number, required) plus TWO optional discriminators,
+ * because a number repeats for two independent reasons:
+ *
+ * - `year` — series recycle numbering across fiscal years.
+ * - `series_id` — two series of the same company each issue their own
+ * `F-2026-001`; the year cannot tell them apart. Accepts the public UUID v7
+ * of a series of type `invoice` belonging to the caller's company.
+ *
+ * Aligned with Supplier's `find-by-tax-id`.
  */
 export type FindInvoiceByNumberRequest = {
     number: string;
     year?: number | null;
+    /**
+     * Identificador de la serie que emitió la factura. Desambigua cuando dos series comparten número.
+     */
+    series_id?: string | null;
 };
 
 /**
@@ -5684,29 +7098,6 @@ export type FindPurchaseInvoiceByExternalIdRequest = {
  */
 export type FindQuoteByExternalIdRequest = {
     external_id: string;
-};
-
-/**
- * FindRecordByAeatCsvV1Request
- *
- * Look up a VeriFactu record by its AEAT CSV. Send `{ "aeat_csv": "..." }`; the value is normalized (hyphens removed, upper-cased) before matching. Returns 404 when no record matches.
- */
-export type FindRecordByAeatCsvV1Request = {
-    [key: string]: unknown;
-};
-
-/**
- * FindRecordByHuellaV1Request
- */
-export type FindRecordByHuellaV1Request = {
-    [key: string]: unknown;
-};
-
-/**
- * FindRecordByInvoiceNumberV1Request
- */
-export type FindRecordByInvoiceNumberV1Request = {
-    [key: string]: unknown;
 };
 
 /**
@@ -5778,6 +7169,12 @@ export type GenerateModelo130V1Request = {
     deduccion_vivienda_centimos?: number | null;
     resultado_complementaria_centimos?: number | null;
     pagos_fraccionados_anteriores_override_centimos?: number | null;
+    /**
+     * [13] Rendimiento neto del EJERCICIO ANTERIOR (base de la minoración
+     * del art. 110.3.c RIRPF). SIN `min:0`: el ejercicio anterior puede
+     * haber cerrado en pérdidas y un valor negativo es fiscalmente válido.
+     */
+    rendimiento_neto_ejercicio_anterior_centimos?: number | null;
 };
 
 /**
@@ -5868,16 +7265,16 @@ export type ImportClientsV1Request = {
      */
     file: Blob | File;
     /**
-     * If `true`, validates the file and returns a per-row preview WITHOUT persisting any client. Defaults to `false`.
-     */
-    dry_run?: boolean | null;
-    /**
      * Mapeo de columnas `{cabecera_csv: campo_destino}`. Debe declarar al
      * menos `name` y `tax_id`.
      */
     mapping: {
         [key: string]: string;
     };
+    /**
+     * If `true`, validates the file and returns a per-row preview WITHOUT persisting any client. Defaults to `false`.
+     */
+    dry_run?: boolean | null;
 };
 
 /**
@@ -5913,7 +7310,7 @@ export type IntegrationEvent = {
     /**
      * Typed reason why the event was discarded, from a CLOSED catalogue, or `null` when it was not discarded. This is the axis to filter and group by. A value retired from the catalogue in a later version is still returned verbatim here, but its `discard_reason_label`, `is_actionable` and `is_replayable` degrade to neutral rather than breaking the page.
      */
-    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | null;
+    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | null;
     /**
      * Human-readable label of `discard_reason`, in Spanish (the platform's end-user language). `null` when there is no discard reason, or when the stored reason is no longer part of the current catalogue.
      */
@@ -5990,10 +7387,36 @@ export type Invoice = {
      * Invoice lifecycle status.
      */
     status: string;
+    /**
+     * UUID of the price list selected for this document.
+     */
+    price_list_id: string | null;
+    /**
+     * Price-list name snapshot frozen on the document.
+     */
+    price_list_name: string | null;
     issued_on: string;
     due_on: string | null;
     subtotal: number;
+    /**
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
+     */
     taxes_total: number;
+    /**
+     * Output VAT (IVA repercutido) accrued by the document: sum of the VAT of its lines. This is the figure a Spanish Modelo 303 declares, and it is NOT recoverable from `taxes_total`, which nets the withholding out.
+     */
+    total_vat: number;
+    /**
+     * Withholding (retención de IRPF) applied to the document: sum of the withholding of its lines, as a POSITIVE amount that SUBTRACTS from the total. This is the figure a Spanish Modelo 130/111 declares. It is ALREADY netted out inside `taxes_total`, so do not subtract it again.
+     */
+    total_retention: number;
+    /**
+     * Equivalence surcharge (recargo de equivalencia) of the document: sum of the surcharge of its lines. It ADDS to the total exactly like VAT does, and is ALREADY included inside `taxes_total`.
+     */
+    total_surcharge: number;
+    /**
+     * Total of the document. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice and yields a false total (4,320.00 + 259.20 - 648.00 = 3,931.20 against a real 4,579.20).
+     */
     total: number;
     /**
      * Sum of the `SUPLIDO` (disbursement) lines of this invoice: amounts the issuer paid in the name and on behalf of the client and re-invoices at cost. Deliberately OUTSIDE `subtotal`, `taxes_total` and `total`, because a disbursement is not part of the issuer's taxable base (art. 78.Tres.3 LIVA) and is not declared in the AEAT VeriFactu record. `0` on an invoice without disbursements.
@@ -6089,6 +7512,14 @@ export type Invoice = {
      * Action the scheduler runs when `scheduled_for` is reached: `issue_and_send` (issue and email) or `draft` (issue only). `null` when the invoice is not scheduled.
      */
     scheduled_action: 'draft' | 'issue_and_send' | null;
+    /**
+     * Sales channel the invoice originated from (`woocommerce`, `shopify`, `prestashop`), or `null` when it was not created from a store order — which is the common case.
+     */
+    channel: string | null;
+    /**
+     * UUID (v7) of the connected store whose order produced this invoice, or `null` when it was not created from a store order. A store order is not a resource of its own on this API, so `channel` and `source_store_id` are the traceability from the order to the invoice.
+     */
+    source_store_id: string | null;
     created_at: string;
     updated_at: string;
 };
@@ -6189,6 +7620,10 @@ export type InvoiceCorrective = {
 export type InvoiceLine = {
     object: 'invoice_line';
     description: string | null;
+    /**
+     * Optional secondary description rendered below the line concept on document PDFs.
+     */
+    additional_description: string | null;
     product: ProductRef | null;
     quantity: number;
     unit_price: number;
@@ -6209,6 +7644,65 @@ export type InvoiceLine = {
      * Indirect tax regime of the line: the per-document override (`iva`/`igic`/`ipsi`) when the user set it (precedence override>zone), otherwise `null` (derived from the establishment AEAT zone). Writable per-document input on create/update; the document must be homogeneous (a single non-null regime across all lines, 422 otherwise).
      */
     indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+    variant: {
+        id: string;
+        name: string | null;
+    } | null;
+    presentation: {
+        id: string;
+        name: string | null;
+        mode: string | null;
+    } | null;
+    item_kind: string | null;
+    commercial_unit_code: string | null;
+    base_unit_code: string | null;
+    conversion_factor: string | null;
+    base_quantity: string | null;
+    price_list_id: string | null;
+    price_list_name: string | null;
+    price_source: string | null;
+    price_unit_code: string | null;
+    /**
+     * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
+     */
+    configuration: {
+        id: string;
+        name: string | null;
+        signature: string | null;
+    } | null;
+    /**
+     * Configurable options frozen on the line, in printing order. Always an array, `[]` included.
+     */
+    options: Array<{
+        group: {
+            id: string;
+            name: string | null;
+        };
+        value: {
+            id: string;
+            name: string | null;
+        };
+        /**
+         * Adjustment of the chosen value per commercial unit. `null` means the value does not change the price — NOT the same as adjusting by `0`.
+         */
+        price_adjustment: string | null;
+        /**
+         * Whether that amount was actually ADDED to the unit price. `false` when an exact price (price-list entry, combination price or a manually typed unit price) already absorbed it.
+         */
+        applied: boolean;
+    }>;
+    /**
+     * Monetary semantics of the resolved price: `per_base_unit` (product/variant own price, converted once by the presentation factor) or `per_commercial_unit` (presentation, combination or price-list entry, never converted). `null` on a line with no catalog price context.
+     */
+    price_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Sum of the adjustments of the chosen option values, as a decimal string. Informational when an exact price already absorbed them.
+     */
+    price_adjustment_total: string | null;
+    /**
+     * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
+     */
+    option_adjustments_absorbed: boolean | null;
     /**
      * VeriFactu special regime key (ClaveRegimen, AEAT L8.1) declared for this line, or null when the line inherits the regime from the invoice header.
      */
@@ -6305,6 +7799,26 @@ export type InvoicePaymentDetail = {
      * Internal notes for the payment. `null` if not provided.
      */
     notes: string | null;
+    /**
+     * Whether the payment has been reverted. A reverted payment stays in the ledger but stops counting towards `paid_amount`, `pending_amount` and every treasury aggregate — read this flag, do not infer the state from absence.
+     */
+    is_reversed: boolean;
+    /**
+     * When the payment was reverted (ISO 8601), or `null` while it is in force.
+     */
+    reversed_at: string | null;
+    /**
+     * Reason the payment was reverted, from the closed catalog. `null` while the payment is in force.
+     */
+    reversal_reason: 'direct_debit_return' | 'card_dispute' | 'misapplied_payment' | 'bounced_effect' | 'recording_error' | null;
+    /**
+     * Human-readable label of the reversal reason (Spanish), or `null`.
+     */
+    reversal_reason_text: string | null;
+    /**
+     * Free-text remark recorded with the reversal (up to 500 characters), or `null`.
+     */
+    reversal_note: string | null;
     /**
      * When the payment was recorded (ISO 8601), or `null`.
      */
@@ -6539,7 +8053,7 @@ export type MarkInvoicePaidRequest = {
  */
 export type MarkPurchaseInvoicePaidRequest = {
     paid_on?: string | null;
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other';
+    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
     notes?: string | null;
 };
 
@@ -6572,7 +8086,7 @@ export type MonthlyCloseAbsenceBalance = {
      */
     absence_type_name: string;
     /**
-     * Available days of that absence type, frozen at closing (decimal string).
+     * Available days of that absence type, frozen at closing. Rounded up to a whole day, like `AbsenceBalance.available_days` (decimal string).
      */
     available_days: string;
 };
@@ -6939,6 +8453,21 @@ export type PayrollExportFormat = {
 export type PhoneString = string;
 
 /**
+ * PreviewCatalogConfigurationImpactRequest
+ */
+export type PreviewCatalogConfigurationImpactRequest = {
+    catalog_availability_mode?: 'open' | 'closed';
+    configurations: Array<{
+        variant_id: string | null;
+        presentation_id: string | null;
+        option_value_ids: Array<string> | null;
+        restricts_availability: boolean;
+    }>;
+    presentation_ids?: Array<string>;
+    variant_ids?: Array<string>;
+};
+
+/**
  * PreviewTaxReportV1Request
  *
  * Public REST API v1 — POST /v1/tax_reports/preview.
@@ -6958,6 +8487,90 @@ export type PreviewTaxReportV1Request = {
 };
 
 /**
+ * PriceList
+ */
+export type PriceList = {
+    id: string;
+    object: 'price_list';
+    name: string;
+    status: 'active' | 'inactive';
+    currency: string;
+    item_count: number;
+    assigned_client_count: number;
+    assigned_draft_count: number;
+    items: Array<PriceListItem>;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * PriceListCollection
+ */
+export type PriceListCollection = {
+    data: Array<PriceList>;
+    has_more: boolean;
+    next_cursor: string | null;
+};
+
+/**
+ * PriceListItem
+ *
+ * A price entry of a price list. Listing endpoints accept `?search=`, which filters and paginates server-side over the visible names of the target: product, variant, presentation, commercial combination and option values.
+ */
+export type PriceListItem = {
+    id: string;
+    object: 'price_list_item';
+    price_list_id: string;
+    product_id: string;
+    variant_id: string | null;
+    presentation_id: string | null;
+    /**
+     * The stored commercial combination the entry is priced for. `null` when the entry targets the legacy product/variant/presentation crossing or a selection signature: the three ways of naming a target are mutually exclusive. On a withdrawn entry it is read from the frozen snapshot, never from the live catalog.
+     */
+    configuration_id: string | null;
+    /**
+     * Canonical 64-hex signature of the normalized selection the entry is priced for, when it targets the selection itself instead of a stored combination. `null` otherwise. On a withdrawn entry it is read from the frozen snapshot, never from the live catalog.
+     */
+    selection_signature: string | null;
+    product_name: string;
+    variant_name: string | null;
+    presentation_name: string | null;
+    unit_price: string;
+    currency: string;
+    price_unit: string;
+    /**
+     * Lifecycle of the entry. `retired` means a confirmed catalog deletion withdrew it: it keeps its price as history, is excluded from price resolution, client assignment and every statistic, and is never reactivated.
+     */
+    status: 'active' | 'retired';
+    /**
+     * Why the entry was withdrawn. `null` while the entry is active.
+     */
+    retirement_reason: 'product_deleted' | 'variant_deleted' | 'presentation_deleted' | 'configuration_deleted' | 'option_group_deleted' | 'option_value_deleted' | 'legacy_orphan' | null;
+    /**
+     * Human-readable label of `retirement_reason`, in Spanish. `null` while the entry is active.
+     */
+    retirement_reason_label: string | null;
+    retired_at: string | null;
+    /**
+     * Snapshot of the target taken when the entry was withdrawn. It is read from the entry itself, never from the live catalog, so it still describes the entry after the product is gone. `null` while the entry is active.
+     */
+    retired_target_snapshot: RetiredPriceListTarget | null;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * PriceListItemCollection
+ *
+ * Cursor-paginated price entries. `has_more` and `next_cursor` are computed over the FILTERED set when `?search=` is supplied, not over the whole price list.
+ */
+export type PriceListItemCollection = {
+    data: Array<PriceListItem>;
+    has_more: boolean;
+    next_cursor: string | null;
+};
+
+/**
  * Product
  *
  * A product in your catalog.
@@ -6971,9 +8584,17 @@ export type Product = {
     currency: string;
     tax_rate: TaxRateRef | null;
     /**
-     * Cantidad disponible en stock.
+     * Available stock quantity with four-decimal scale.
      */
-    stock: number;
+    stock: string;
+    /**
+     * Catalog item kind.
+     */
+    item_kind: 'product' | 'service';
+    /**
+     * UNECE base unit code.
+     */
+    base_unit: string;
     /**
      * Whether the product participates in document-driven stock movements (invoices, delivery notes). Requires the company `stock_management` module to be enabled. Defaults to `false`.
      */
@@ -7020,7 +8641,34 @@ export type Product = {
     /**
      * Threshold below which stock is considered low, or `null` if not configured.
      */
-    low_stock_threshold: number | null;
+    low_stock_threshold: string | null;
+    presentation_count: number;
+    variant_count: number;
+    supplier_offer_count: number;
+    /**
+     * Number of option groups the product declares (active and inactive). Always reported, so a listing that omits `option_groups` for brevity never reads as a plain product.
+     */
+    option_group_count: number;
+    /**
+     * Number of commercial combinations the product declares (active and inactive). Matches the size of `configurations` returned by the product detail.
+     */
+    configuration_count: number;
+    /**
+     * `open` keeps the Cartesian product of active axes sellable; only configurations with `restricts_availability=true` constrain their own variant. `closed` treats all active configurations as the exact allow-list.
+     */
+    catalog_availability_mode: 'open' | 'closed';
+    preferred_supplier_offer_id: string | null;
+    presentations: Array<ProductPresentation>;
+    variants: Array<ProductVariant>;
+    supplier_offers: Array<SupplierProductOffer>;
+    /**
+     * Sellable option groups (finish, flavour, quality) with their values. Always an array; `[]` when the product declares none. Populated only when the caller asks for the configurable catalog.
+     */
+    option_groups: Array<ProductOptionGroup>;
+    /**
+     * Commercial configurations used for exact pricing and, depending on `catalog_availability_mode`, availability. In `open`, they do not restrict unless a row explicitly opts in. In `closed`, active rows form the exact allow-list; an empty active list means nothing is sellable.
+     */
+    configurations: Array<ProductConfiguration>;
     /**
      * Indicates whether the current stock is below the configured threshold.
      */
@@ -7088,11 +8736,161 @@ export type ProductActivity = {
 };
 
 /**
+ * ProductConfiguration
+ *
+ * A valid commercial combination of a product: an optional variant, an optional presentation and a canonical set of option values.
+ */
+export type ProductConfiguration = {
+    id: string;
+    object: 'product_configuration';
+    product_id: string;
+    /**
+     * Visible label composed from variant + presentation + values. It is not a stored column: the historical name is frozen by the document line, not by the catalog. It is also the text the price-list `search` filter matches.
+     */
+    name: string;
+    variant_id: string | null;
+    variant_name: string | null;
+    presentation_id: string | null;
+    presentation_name: string | null;
+    /**
+     * Canonical, order-independent signature of variant + presentation + option values. Unique per product.
+     */
+    signature: string;
+    /**
+     * FINAL price per commercial unit. When set it ALREADY absorbs the adjustments of its option values: they are not added again.
+     */
+    commercial_price: string | null;
+    active: boolean;
+    /**
+     * Only used in `open` mode. When true, this row constrains the named variant; omitted presentation/options are wildcards. False means the row is pricing/identity only.
+     */
+    restricts_availability: boolean;
+    options: Array<ProductConfigurationOption>;
+};
+
+/**
+ * ProductConfigurationOption
+ *
+ * One chosen option inside a commercial combination.
+ */
+export type ProductConfigurationOption = {
+    object: 'product_configuration_option';
+    group_id: string;
+    group_name: string;
+    value_id: string;
+    value_name: string;
+    price_adjustment: string | null;
+};
+
+/**
+ * ProductOptionGroup
+ *
+ * A group of sellable options of a product (finish, flavour, quality). Each group accepts a single value per line; multiple selection is out of scope.
+ */
+export type ProductOptionGroup = {
+    id: string;
+    object: 'product_option_group';
+    product_id: string;
+    name: string;
+    /**
+     * Whether a value of this group must be chosen to confirm a line.
+     */
+    required: boolean;
+    position: number;
+    /**
+     * Scope of the group: `null` means it applies to the whole product; when set, it is the id of a variant or a presentation of the same product and the group only takes part in selections including it.
+     */
+    scope_id: string | null;
+    active: boolean;
+    values: Array<ProductOptionValue>;
+};
+
+/**
+ * ProductOptionValue
+ *
+ * A selectable value inside an option group.
+ */
+export type ProductOptionValue = {
+    id: string;
+    object: 'product_option_value';
+    name: string;
+    /**
+     * Display order inside its group.
+     */
+    position: number;
+    /**
+     * Additive adjustment PER COMMERCIAL UNIT. `null` means "this value does not change the price", which is NOT the same as `"0.0000"`.
+     */
+    price_adjustment: string | null;
+    /**
+     * Whether the value is still selectable. An inactive value keeps naming historical document lines.
+     */
+    active: boolean;
+};
+
+/**
+ * ProductPresentation
+ */
+export type ProductPresentation = {
+    id: string;
+    object: 'product_presentation';
+    product_id: string;
+    name: string;
+    mode: 'fixed' | 'variable_measure';
+    unit: string;
+    conversion_factor: string | null;
+    nominal_base_quantity: string | null;
+    barcode: string | null;
+    /**
+     * Own price PER COMMERCIAL UNIT, or `null` when the presentation declares none. Orthogonal to `conversion_factor`, which converts QUANTITY and is never reused as a price multiplier: a 3.5 kg tub priced at 50.00 is worth 50.00 per tub.
+     */
+    commercial_price_override: string | null;
+    /**
+     * Technical specifications OWN to this presentation (informational, not selectable). Empty object `{}` when there are none. The effective sheet combines product < variant < presentation and is composed by the aggregate.
+     */
+    specifications: {
+        [key: string]: unknown;
+    };
+    active: boolean;
+};
+
+/**
  * ProductRef
  */
 export type ProductRef = {
     id: string;
     name: string | null;
+};
+
+/**
+ * ProductSalesAnalytics
+ */
+export type ProductSalesAnalytics = {
+    /**
+     * Exact quantity sold, represented as a decimal string.
+     */
+    units_sold: string;
+    /**
+     * Sales revenue in EUR.
+     */
+    total_revenue: number;
+    invoices_count: number;
+    month_over_month_delta_percent: number;
+    trend: Array<string>;
+    trend_labels: Array<string>;
+    last_buyer: {
+        name: string;
+        initials: string;
+        invoice_number: string;
+        invoice_date: string;
+    } | null;
+    activity: Array<{
+        id: string;
+        kind: string;
+        title: string;
+        detail: string;
+        occurred_at: string;
+    }>;
 };
 
 /**
@@ -7120,6 +8918,30 @@ export type ProductStats = {
 };
 
 /**
+ * ProductVariant
+ */
+export type ProductVariant = {
+    id: string;
+    object: 'product_variant';
+    product_id: string;
+    name: string;
+    sku: string | null;
+    barcode: string | null;
+    base_price_override: number | null;
+    unit_cost_override: number | null;
+    manage_stock: boolean;
+    stock: string;
+    low_stock_threshold: string | null;
+    /**
+     * Technical specifications OWN to this variant (informational, not selectable). Empty object `{}` when there are none. `base_price_override` stays PER BASE UNIT, unlike a presentation price, which is per commercial unit.
+     */
+    specifications: {
+        [key: string]: unknown;
+    };
+    active: boolean;
+};
+
+/**
  * Proforma
  *
  * A proforma invoice that can be converted to a final invoice.
@@ -7134,6 +8956,14 @@ export type Proforma = {
      * Proforma lifecycle status (draft, accepted, rejected, cancelled, expired, converted).
      */
     status: string;
+    /**
+     * UUID of the price list selected for this document.
+     */
+    price_list_id: string | null;
+    /**
+     * Price-list name snapshot frozen on the document.
+     */
+    price_list_name: string | null;
     issued_on: string;
     valid_until: string | null;
     /**
@@ -7154,7 +8984,7 @@ export type Proforma = {
     converted_invoice_number: string | null;
     subtotal: number;
     /**
-     * Aggregate tax amount (= total_vat + total_surcharge − total_retention). Use total_vat/total_retention/total_surcharge for the breakdown.
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
      */
     taxes_total: number;
     /**
@@ -7169,6 +8999,9 @@ export type Proforma = {
      * Sum of the equivalence surcharge of all lines.
      */
     total_surcharge: number;
+    /**
+     * Total of the document. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice and yields a false total (4,320.00 + 259.20 - 648.00 = 3,931.20 against a real 4,579.20).
+     */
     total: number;
     /**
      * Additional shipping cost added to the total.
@@ -7234,6 +9067,10 @@ export type Proforma = {
 export type ProformaLine = {
     object: 'proforma_line';
     description: string | null;
+    /**
+     * Optional secondary description rendered below the line concept on document PDFs.
+     */
+    additional_description: string | null;
     product: ProductRef | null;
     quantity: number;
     unit_price: number;
@@ -7254,6 +9091,65 @@ export type ProformaLine = {
      * Indirect tax regime of the line: the per-document override (`iva`/`igic`/`ipsi`) when the user set it (precedence override>zone), otherwise `null` (derived from the establishment AEAT zone). Writable per-document input on create/update; the document must be homogeneous (a single non-null regime across all lines, 422 otherwise).
      */
     indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+    variant: {
+        id: string;
+        name: string | null;
+    } | null;
+    presentation: {
+        id: string;
+        name: string | null;
+        mode: string | null;
+    } | null;
+    item_kind: string | null;
+    commercial_unit_code: string | null;
+    base_unit_code: string | null;
+    conversion_factor: string | null;
+    base_quantity: string | null;
+    price_list_id: string | null;
+    price_list_name: string | null;
+    price_source: string | null;
+    price_unit_code: string | null;
+    /**
+     * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
+     */
+    configuration: {
+        id: string;
+        name: string | null;
+        signature: string | null;
+    } | null;
+    /**
+     * Configurable options frozen on the line, in printing order. Always an array, `[]` included.
+     */
+    options: Array<{
+        group: {
+            id: string;
+            name: string | null;
+        };
+        value: {
+            id: string;
+            name: string | null;
+        };
+        /**
+         * Adjustment of the chosen value per commercial unit. `null` means the value does not change the price — NOT the same as adjusting by `0`.
+         */
+        price_adjustment: string | null;
+        /**
+         * Whether that amount was actually ADDED to the unit price. `false` when an exact price (price-list entry, combination price or a manually typed unit price) already absorbed it.
+         */
+        applied: boolean;
+    }>;
+    /**
+     * Monetary semantics of the resolved price: `per_base_unit` (product/variant own price, converted once by the presentation factor) or `per_commercial_unit` (presentation, combination or price-list entry, never converted). `null` on a line with no catalog price context.
+     */
+    price_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Sum of the adjustments of the chosen option values, as a decimal string. Informational when an exact price already absorbed them.
+     */
+    price_adjustment_total: string | null;
+    /**
+     * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
+     */
+    option_adjustments_absorbed: boolean | null;
 };
 
 /**
@@ -7297,6 +9193,15 @@ export type ProformaStats = {
      * Average value of the proformas (EUR).
      */
     average_value: number;
+};
+
+/**
+ * PublicDocumentStatus
+ */
+export type PublicDocumentStatus = {
+    value: string;
+    label: string;
+    color: string;
 };
 
 /**
@@ -7361,11 +9266,25 @@ export type PurchaseInvoice = {
     received_on: string | null;
     due_on: string | null;
     subtotal: number;
+    /**
+     * VAT BORNE (IVA soportado) of this purchase invoice, WITHOUT surcharge and WITHOUT withholding. Careful: on the sales-side documents (invoice, delivery note, quote, proforma) the SAME field name carries the NET aggregate `total_vat + total_surcharge − total_retention` instead. Header invariant here: `total === subtotal + taxes_total + total_surcharge − total_retention`. Read `total_vat` for a VAT figure whose meaning does not depend on the document family.
+     */
     taxes_total: number;
     /**
-     * Aggregated IRPF withholding of the lines (Σ retention_amount). Header invariant: `total === subtotal + taxes_total − total_retention`.
+     * Same VAT amount as `taxes_total`, published under the name the concept carries in the other four document families, so that the explicit identity `total === subtotal + total_vat + total_surcharge − total_retention` holds across all five without knowing which resource produced the body.
+     */
+    total_vat: number;
+    /**
+     * Aggregated IRPF withholding of the lines (Σ retention_amount). Header invariant: `total === subtotal + taxes_total + total_surcharge − total_retention`.
      */
     total_retention: number;
+    /**
+     * Aggregated equivalence surcharge of the lines (Σ surcharge_amount). It adds to the total exactly like VAT does, so it is part of the header invariant above.
+     */
+    total_surcharge: number;
+    /**
+     * Total of the purchase invoice. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the one specific to this family, where `taxes_total` is the VAT alone - `total = subtotal + taxes_total + total_surcharge - total_retention`. Note that the aggregate shortcut of the sales-side families (`subtotal + taxes_total`) does NOT apply here: the same field name carries a different meaning on each side.
+     */
     total: number;
     currency: string;
     /**
@@ -7403,9 +9322,9 @@ export type PurchaseInvoice = {
      */
     deductible_percentage: number | null;
     /**
-     * Operation class for the input VAT of Modelo 303. Defaults to `corriente`.
+     * Operation class for the input VAT of Modelo 303. Defaults to `corriente`. `isp` (domestic reverse charge, Art. 84.Uno.2 LIVA) and `intracomunitaria` are self-assessed: the buyer declares both the output VAT and the deductible input VAT.
      */
-    operation_class: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria';
+    operation_class: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria' | 'isp';
     /**
      * Declarative per-document flag: whether this purchase invoice is excluded from the annual Modelo 347 report.
      */
@@ -7470,6 +9389,10 @@ export type PurchaseInvoiceAttachment = {
 export type PurchaseInvoiceLine = {
     object: 'purchase_invoice_line';
     description: string | null;
+    /**
+     * Optional secondary description rendered below the line concept on document PDFs.
+     */
+    additional_description: string | null;
     quantity: number;
     unit_price: number;
     tax_rate: number;
@@ -7492,7 +9415,7 @@ export type PurchaseInvoiceLine = {
      */
     surcharge_amount: number;
     /**
-     * Whether the line VAT is deductible. Informational: it does not change the amount paid.
+     * Whether the line VAT is deductible. It does not change the amount paid, but a `false` line is excluded from the deductible input VAT of Modelo 303 (boxes [28]-[37]).
      */
     vat_deductible: boolean;
     total: number;
@@ -7504,6 +9427,85 @@ export type PurchaseInvoiceLine = {
      * Indirect tax regime override of the supplier line: `iva`/`igic`/`ipsi` when set per-document (precedence override>zone), otherwise `null`. Writable on create/update; the document must be homogeneous (a single non-null regime across all lines, 422 otherwise).
      */
     indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+    product: ProductRef | null;
+    variant: {
+        id: string;
+        name: string | null;
+    } | null;
+    presentation: {
+        id: string;
+        name: string | null;
+        mode: string | null;
+    } | null;
+    supplier_offer_id: string | null;
+    item_kind: string | null;
+    commercial_unit_code: string | null;
+    base_unit_code: string | null;
+    conversion_factor: string | null;
+    base_quantity: string | null;
+    price_source: string | null;
+    price_unit_code: string | null;
+    /**
+     * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
+     */
+    configuration: {
+        id: string;
+        name: string | null;
+        signature: string | null;
+    } | null;
+    /**
+     * Configurable options frozen on the line, in printing order. Always an array, `[]` included.
+     */
+    options: Array<{
+        group: {
+            id: string;
+            name: string | null;
+        };
+        value: {
+            id: string;
+            name: string | null;
+        };
+        /**
+         * Adjustment of the chosen value per commercial unit. `null` means the value does not change the price — NOT the same as adjusting by `0`.
+         */
+        price_adjustment: string | null;
+        /**
+         * Whether that amount was actually ADDED to the unit price. `false` when an exact price (price-list entry, combination price or a manually typed unit price) already absorbed it.
+         */
+        applied: boolean;
+    }>;
+    /**
+     * Monetary semantics of the frozen price: `per_base_unit` (converted once by the presentation factor) or `per_commercial_unit` (never converted). `null` when the line carries no catalog price context.
+     */
+    price_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Sum of the adjustments of the chosen option values, as a decimal string.
+     */
+    price_adjustment_total: string | null;
+    /**
+     * TRI-STATE, and `null` is NOT `false`. `true`: the frozen price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined.
+     */
+    option_adjustments_absorbed: boolean | null;
+};
+
+/**
+ * PurchaseInvoicePayment
+ */
+export type PurchaseInvoicePayment = {
+    id: string;
+    object: 'purchase_invoice_payment';
+    amount: number;
+    paid_on: string;
+    payment_method: string;
+    bank_account_id: number | null;
+    reference: string | null;
+    notes: string | null;
+    is_reversed: boolean;
+    reversed_at: string | null;
+    reversal_reason: string | null;
+    reversal_reason_text: string | null;
+    reversal_note: string | null;
+    created_at: string;
 };
 
 /**
@@ -7558,6 +9560,13 @@ export type PurchaseInvoiceStats = {
 };
 
 /**
+ * PurgeRetiredPriceListItemRequest
+ */
+export type PurgeRetiredPriceListItemRequest = {
+    confirm: 'yes' | 'on' | '1' | 1 | 'true' | true;
+};
+
+/**
  * QuarterlyDownloadV1Request
  *
  * Public REST API v1 — POST /v1/invoices/quarterly/download-zip
@@ -7589,6 +9598,14 @@ export type Quote = {
      * Quote lifecycle status (draft, sent, accepted, rejected, expired, converted, cancelled).
      */
     status: string;
+    /**
+     * UUID of the price list selected for this document.
+     */
+    price_list_id: string | null;
+    /**
+     * Price-list name snapshot frozen on the document.
+     */
+    price_list_name: string | null;
     issued_on: string;
     valid_until: string | null;
     accepted_at: string | null;
@@ -7603,7 +9620,7 @@ export type Quote = {
     converted_invoice_number: string | null;
     subtotal: number;
     /**
-     * Aggregated tax amount. Use total_vat/total_retention/total_surcharge for breakdown.
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
      */
     taxes_total: number;
     /**
@@ -7618,6 +9635,9 @@ export type Quote = {
      * Sum of equivalence surcharge (recargo de equivalencia) across all lines.
      */
     total_surcharge: number;
+    /**
+     * Total of the document. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice and yields a false total (4,320.00 + 259.20 - 648.00 = 3,931.20 against a real 4,579.20).
+     */
     total: number;
     currency: string;
     notes: string | null;
@@ -7659,6 +9679,10 @@ export type Quote = {
 export type QuoteLine = {
     object: 'quote_line';
     description: string | null;
+    /**
+     * Optional secondary description rendered below the line concept on document PDFs.
+     */
+    additional_description: string | null;
     product: ProductRef | null;
     quantity: number;
     unit_price: number;
@@ -7679,6 +9703,65 @@ export type QuoteLine = {
      * Indirect tax regime of the line: the per-document override (`iva`/`igic`/`ipsi`) when the user set it (precedence override>zone), otherwise `null` (derived from the establishment AEAT zone). Writable per-document input on create/update; the document must be homogeneous (a single non-null regime across all lines, 422 otherwise).
      */
     indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+    variant: {
+        id: string;
+        name: string | null;
+    } | null;
+    presentation: {
+        id: string;
+        name: string | null;
+        mode: string | null;
+    } | null;
+    item_kind: string | null;
+    commercial_unit_code: string | null;
+    base_unit_code: string | null;
+    conversion_factor: string | null;
+    base_quantity: string | null;
+    price_list_id: string | null;
+    price_list_name: string | null;
+    price_source: string | null;
+    price_unit_code: string | null;
+    /**
+     * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
+     */
+    configuration: {
+        id: string;
+        name: string | null;
+        signature: string | null;
+    } | null;
+    /**
+     * Configurable options frozen on the line, in printing order. Always an array, `[]` included.
+     */
+    options: Array<{
+        group: {
+            id: string;
+            name: string | null;
+        };
+        value: {
+            id: string;
+            name: string | null;
+        };
+        /**
+         * Adjustment of the chosen value per commercial unit. `null` means the value does not change the price — NOT the same as adjusting by `0`.
+         */
+        price_adjustment: string | null;
+        /**
+         * Whether that amount was actually ADDED to the unit price. `false` when an exact price (price-list entry, combination price or a manually typed unit price) already absorbed it.
+         */
+        applied: boolean;
+    }>;
+    /**
+     * Monetary semantics of the resolved price: `per_base_unit` (product/variant own price, converted once by the presentation factor) or `per_commercial_unit` (presentation, combination or price-list entry, never converted). `null` on a line with no catalog price context.
+     */
+    price_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Sum of the adjustments of the chosen option values, as a decimal string. Informational when an exact price already absorbed them.
+     */
+    price_adjustment_total: string | null;
+    /**
+     * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
+     */
+    option_adjustments_absorbed: boolean | null;
 };
 
 /**
@@ -7709,6 +9792,20 @@ export type QuoteStats = {
      * Quotes converted to an invoice.
      */
     converted_count: number;
+};
+
+/**
+ * ReassignRetiredPriceListItemRequest
+ */
+export type ReassignRetiredPriceListItemRequest = {
+    id?: string;
+    product_id: string;
+    variant_id?: string | null;
+    presentation_id?: string | null;
+    configuration_id?: string | null;
+    selection_signature?: string | null;
+    unit_price: number;
+    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
 };
 
 /**
@@ -7760,6 +9857,14 @@ export type RecurringInvoice = {
      * Recurring schedule status (active, paused, completed, cancelled).
      */
     status: string;
+    /**
+     * UUID of the price list selected for generated invoices.
+     */
+    price_list_id: string | null;
+    /**
+     * Price-list name snapshot stored by the recurrence.
+     */
+    price_list_name: string | null;
     /**
      * Cadence (weekly, monthly, quarterly, yearly, etc.).
      */
@@ -7819,7 +9924,25 @@ export type RecurringInvoice = {
      */
     cancelled_at: string | null;
     subtotal: number;
+    /**
+     * NET aggregate of the header taxes: `total_vat + total_surcharge - total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total. It is NOT the VAT figure of the Spanish Modelo 303 - read `total_vat` for that. These amounts are a PREVIEW aggregated from the template lines (the recurrence persists no header totals), rounded per line exactly as the invoice it will issue stores them.
+     */
     taxes_total: number;
+    /**
+     * Output VAT (IVA repercutido) the recurrence will accrue: sum of the VAT of its template lines. This is the figure a Spanish Modelo 303 declares, and it is NOT recoverable from `taxes_total`, which nets the withholding out.
+     */
+    total_vat: number;
+    /**
+     * Withholding (retencion de IRPF) the recurrence will apply: sum of the withholding of its template lines, as a POSITIVE amount that SUBTRACTS from the total. This is the figure a Spanish Modelo 130/111 declares. It is ALREADY netted out inside `taxes_total`, so do not subtract it again.
+     */
+    total_retention: number;
+    /**
+     * Equivalence surcharge (recargo de equivalencia) of the template lines. It ADDS to the total exactly like VAT does, and is ALREADY included inside `taxes_total`.
+     */
+    total_surcharge: number;
+    /**
+     * Total the recurrence will invoice. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the six document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice.
+     */
     total: number;
     currency: string;
     lines: Array<RecurringInvoiceLine>;
@@ -7917,6 +10040,10 @@ export type RecurringInvoiceActivity = {
 export type RecurringInvoiceLine = {
     object: 'recurring_invoice_line';
     description: string | null;
+    /**
+     * Optional secondary description rendered below the line concept on generated invoice PDFs.
+     */
+    additional_description?: string | null;
     quantity: number;
     unit_price: number;
     tax_rate: number;
@@ -7928,6 +10055,10 @@ export type RecurringInvoiceLine = {
      * Equivalence surcharge (recargo de equivalencia) percentage applied to the line (0–100). Default 0. Its amount is already aggregated into `taxes`.
      */
     surcharge: number;
+    /**
+     * Discount percentage applied to the line (0-100) BEFORE any tax, exactly as the domain and the invoice this recurrence will issue apply it. `subtotal` is already net of it, so `unit_price` multiplied by `quantity` does NOT equal `subtotal` on a discounted line. Default 0.
+     */
+    discount_percent: number;
     subtotal: number;
     taxes: number;
     total: number;
@@ -7951,6 +10082,125 @@ export type RecurringInvoiceLine = {
      * Indirect tax regime override of the recurring template line: `iva`/`igic`/`ipsi` when set per-document (precedence override>zone), otherwise `null`. Writable on create/update; propagated to each generated invoice. The template must be homogeneous (a single non-null regime across all lines, 422 otherwise).
      */
     indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+    product_id: string | null;
+    product_name: string | null;
+    item_kind: string | null;
+    variant_id: string | null;
+    variant_name: string | null;
+    presentation_id: string | null;
+    presentation_name: string | null;
+    presentation_mode: string | null;
+    commercial_unit_code: string | null;
+    base_unit_code: string | null;
+    conversion_factor: string | null;
+    base_quantity: string | null;
+    price_list_id: string | null;
+    price_list_name: string | null;
+    price_source: string | null;
+    price_unit_code: string | null;
+    /**
+     * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
+     */
+    configuration: {
+        id: string;
+        name: string | null;
+        signature: string | null;
+    } | null;
+    /**
+     * Configurable options frozen on the line, in printing order. Always an array, `[]` included.
+     */
+    options: Array<{
+        group: {
+            id: string;
+            name: string | null;
+        };
+        value: {
+            id: string;
+            name: string | null;
+        };
+        /**
+         * Adjustment of the chosen value per commercial unit. `null` means the value does not change the price — NOT the same as adjusting by `0`.
+         */
+        price_adjustment: string | null;
+        /**
+         * Whether that amount was actually ADDED to the unit price. `false` when an exact price (price-list entry, combination price or a manually typed unit price) already absorbed it.
+         */
+        applied: boolean;
+    }>;
+    /**
+     * Monetary semantics of the frozen price: `per_base_unit` (converted once by the presentation factor) or `per_commercial_unit` (never converted). `null` when the line carries no catalog price context.
+     */
+    price_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Sum of the adjustments of the chosen option values, as a decimal string.
+     */
+    price_adjustment_total: string | null;
+    /**
+     * TRI-STATE, and `null` is NOT `false`. `true`: the frozen price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined.
+     */
+    option_adjustments_absorbed: boolean | null;
+};
+
+/**
+ * RecurringInvoiceLog
+ */
+export type RecurringInvoiceLog = {
+    id: string;
+    executed_at: string;
+    status: string;
+    invoice_id: string | null;
+    invoice_number: string | null;
+    error_message: string | null;
+    created_at: string | null;
+};
+
+/**
+ * RecurringInvoicePreviewDate
+ */
+export type RecurringInvoicePreviewDate = {
+    date: string;
+    due_date: string;
+    occurrence_number: number;
+    estimated_total: number;
+    will_be_sent: boolean;
+};
+
+/**
+ * RecurringInvoicePreviewDocument
+ */
+export type RecurringInvoicePreviewDocument = {
+    lines: Array<{
+        quantity: number;
+        unit_price: number;
+        tax_rate: number;
+        retention_rate: number;
+        surcharge_rate: number;
+        commercial_quantity: number;
+        subtotal: number;
+        tax: number;
+        line_total: number;
+        description: string | null;
+        commercial_unit_code: string | null;
+        base_unit_code: string | null;
+        conversion_factor: string | null;
+        base_quantity: string | null;
+        price_list_uuid: string | null;
+        price_list_name: string | null;
+        price_source: string | null;
+        price_unit_code: string | null;
+        configuration_uuid: string | null;
+        configuration_name: string | null;
+        configuration_signature: string | null;
+        price_semantics: string | null;
+        price_adjustment_total: string | null;
+        option_labels: Array<string>;
+        option_adjustments_absorbed: boolean | null;
+    }>;
+    totals: {
+        subtotal: number;
+        tax: number;
+        total: number;
+    };
 };
 
 /**
@@ -8020,7 +10270,7 @@ export type RecurringInvoiceStats = {
         next_run_date: string | null;
     }>;
     /**
-     * Estimated revenue from recurrences during the current month (EUR).
+     * Remaining scheduled template estimate from today through month end (EUR); it is not issued revenue, collections, or guaranteed cash.
      */
     estimated_revenue_this_month: number;
 };
@@ -8120,6 +10370,270 @@ export type RequestTimeCorrectionRequest = {
  */
 export type RescheduleInvoiceRequest = {
     scheduled_for: string;
+};
+
+/**
+ * ResolveCatalogPriceRequest
+ */
+export type ResolveCatalogPriceRequest = {
+    price_list_id?: string | null;
+    product_id: string;
+    variant_id?: string | null;
+    presentation_id?: string | null;
+    configuration_id?: string | null;
+    selection_signature?: string | null;
+    option_value_ids?: Array<string> | null;
+};
+
+/**
+ * ResolveCatalogSelectionRequest
+ */
+export type ResolveCatalogSelectionRequest = {
+    variant_id?: string | null;
+    presentation_id?: string | null;
+    /**
+     * Opciones ya elegidas: un ÚNICO valor por grupo. La selección
+     * múltiple queda fuera de alcance y dos valores del mismo grupo son
+     * una petición inválida, no una selección parcial.
+     */
+    options?: Array<{
+        group_id: string;
+        value_id: string;
+    }> | null;
+};
+
+/**
+ * ResolveManyCatalogPricesRequest
+ */
+export type ResolveManyCatalogPricesRequest = {
+    price_list_id?: string | null;
+    targets: Array<{
+        product_id: string;
+        variant_id: string | null;
+        presentation_id: string | null;
+        current_unit_price: number | null;
+        configuration_id: string | null;
+        selection_signature: string | null;
+        option_value_ids: Array<string> | null;
+    }>;
+};
+
+/**
+ * ResolvedCatalogPrice
+ */
+export type ResolvedCatalogPrice = {
+    object: 'resolved_catalog_price';
+    product_id: string;
+    variant_id: string | null;
+    presentation_id: string | null;
+    /**
+     * Combinación comercial contra la que se resolvió el precio. Puede venir informada aunque la petición solo enviase la firma: una firma que casa con una combinación materializada se normaliza a su identidad antes de valorar.
+     */
+    configuration_id: string | null;
+    /**
+     * Firma canónica (64 hexadecimales) de la selección resuelta.
+     */
+    selection_signature: string | null;
+    /**
+     * Tarifa CONSULTADA, no la fuente del precio: viene informada aunque `source` sea `product`. Para saber de dónde salió el importe, mira `source`.
+     */
+    price_list_id: string | null;
+    price_list_name: string | null;
+    unit_price: string;
+    currency: string;
+    price_unit: string;
+    base_unit: string;
+    source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
+    /**
+     * Semántica del importe de la fuente ganadora. `per_base_unit` se convierte una vez por el factor de la presentación; `per_commercial_unit` nunca se convierte.
+     */
+    unit_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Importe de la fuente ganadora, ya convertido a `price_unit` y ANTES de los ajustes de opción: `source_amount + option_adjustment_total = unit_price`.
+     */
+    source_amount: string | null;
+    /**
+     * Suma de los ajustes de los valores de opción elegidos, por unidad comercial.
+     */
+    option_adjustment_total: string | null;
+    /**
+     * Si la fuente ganadora ya incluía los ajustes de opción. `null` significa que el resolvedor no se pronunció, nunca `false`.
+     */
+    option_adjustments_absorbed: boolean | null;
+};
+
+/**
+ * ResolvedCatalogPriceList
+ *
+ * Precios resueltos del lote, uno por selección enviada. El orden no es contrato: emparéjalos por `index`.
+ */
+export type ResolvedCatalogPriceList = Array<ResolvedCatalogPricePreview>;
+
+/**
+ * ResolvedCatalogPricePreview
+ *
+ * Una línea del repricing: el precio que resuelve hoy la selección, el que la línea tiene congelado y la diferencia entre los dos.
+ */
+export type ResolvedCatalogPricePreview = {
+    object: 'resolved_catalog_price_preview';
+    /**
+     * Posición de la selección en `targets`. Es lo que empareja cada precio con su línea sin depender del orden de la respuesta.
+     */
+    index: number;
+    product_id: string;
+    variant_id: string | null;
+    presentation_id: string | null;
+    configuration_id: string | null;
+    selection_signature: string | null;
+    price_list_id: string | null;
+    price_list_name: string | null;
+    unit_price: string;
+    currency: string;
+    price_unit: string;
+    base_unit: string;
+    source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
+    /**
+     * Semántica del importe de la fuente ganadora. `per_base_unit` se convierte una vez por el factor de la presentación; `per_commercial_unit` nunca se convierte.
+     */
+    unit_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
+    /**
+     * Importe de la fuente ganadora, ya convertido a `price_unit` y ANTES de los ajustes de opción: `source_amount + option_adjustment_total = unit_price`.
+     */
+    source_amount: string | null;
+    /**
+     * Suma de los ajustes de los valores de opción elegidos, por unidad comercial.
+     */
+    option_adjustment_total: string | null;
+    /**
+     * Si la fuente ganadora ya incluía los ajustes de opción. `null` significa que el resolvedor no se pronunció, nunca `false`.
+     */
+    option_adjustments_absorbed: boolean | null;
+    /**
+     * Precio unitario que la línea tiene congelado hoy, tal y como se envió.
+     */
+    current_unit_price: string | null;
+    /**
+     * `null` cuando no se envió `current_unit_price`: sin él no hay nada que comparar.
+     */
+    changed: boolean | null;
+    /**
+     * `unit_price - current_unit_price`. `null` cuando no se envió `current_unit_price`.
+     */
+    difference: string | null;
+};
+
+/**
+ * ResolvedCatalogSelection
+ *
+ * Outcome of checking a (possibly partial) selection against a product catalog. An ambiguous or incomplete selection is NOT an error here: this operation exists to BUILD the line, so it answers 200 with what is still missing. The 422 is raised by whoever confirms the line.
+ */
+export type ResolvedCatalogSelection = {
+    object: 'resolved_catalog_selection';
+    product_id: string;
+    /**
+     * `open` for explicit open availability, `allow_list` for explicit closed availability. `legacy` is retained only for backwards-compatible historical payloads.
+     */
+    mode: 'open' | 'allow_list' | 'legacy';
+    /**
+     * `resolved`: the selection identifies one combination. `incomplete`: something is still to be chosen (see `pending_option_groups`). `ambiguous`: it matches several combinations at once. `incompatible`: no active combination admits it.
+     */
+    status: 'resolved' | 'incomplete' | 'ambiguous' | 'incompatible';
+    compatible: boolean;
+    complete: boolean;
+    variant_id: string | null;
+    presentation_id: string | null;
+    selected_options: Array<{
+        group_id: string;
+        value_id: string;
+    }>;
+    configuration_id: string | null;
+    configuration_name: string | null;
+    configuration_signature: string | null;
+    /**
+     * Own FINAL price of the resolved combination, per commercial unit. This is CONTEXT, not the final price of the line: the full precedence (exact price-list entry, combination, presentation, variant, product) is resolved by `POST /v1/price-lists/resolve`.
+     */
+    configuration_price: string | null;
+    /**
+     * Sum of the adjustments of the chosen option values. Always present, but INFORMATIONAL when `configuration_price` is set: that price already absorbs them and they are not added again.
+     */
+    option_adjustment_total: string;
+    candidate_configuration_ids: Array<string>;
+    compatible_variants: Array<{
+        id: string;
+        name: string;
+    }>;
+    compatible_presentations: Array<{
+        id: string;
+        name: string;
+    }>;
+    /**
+     * Groups still in play, each with ONLY the values some candidate combination still admits. That is the progressive filtering: a value no compatible combination contains disappears instead of being offered to end in a 422.
+     */
+    compatible_option_groups: Array<{
+        group_id: string;
+        group_name: string;
+        selected_value_id: string | null;
+        values: Array<{
+            id: string;
+            name: string;
+            price_adjustment: string | null;
+        }>;
+    }>;
+    /**
+     * Groups that still need a choice before the line can be confirmed.
+     */
+    pending_option_groups: Array<{
+        group_id: string;
+        group_name: string;
+    }>;
+    /**
+     * Machine-readable cause when the selection is not resolved.
+     */
+    reason_code: string | null;
+    /**
+     * Actionable Spanish message naming what is missing.
+     */
+    reason: string | null;
+};
+
+/**
+ * RetiredPriceListTarget
+ *
+ * Frozen description of the catalog target a withdrawn price entry pointed at.
+ */
+export type RetiredPriceListTarget = {
+    product_id: string;
+    product_name: string;
+    variant_id: string | null;
+    variant_name: string | null;
+    presentation_id: string | null;
+    presentation_name: string | null;
+    configuration_id: string | null;
+    configuration_name: string | null;
+    /**
+     * Canonical 64-hex signature when the entry targeted a normalized selection instead of a stored combination.
+     */
+    selection_signature: string | null;
+    options: Array<{
+        group_id: string | null;
+        group_name: string | null;
+        value_id: string;
+        value_name: string;
+    }>;
+};
+
+/**
+ * RevertInvoicePaymentRequest
+ */
+export type RevertInvoicePaymentRequest = {
+    /**
+     * Why the payment is being reverted. One of the closed catalog: `direct_debit_return` (returned SEPA direct debit), `card_dispute` (card chargeback or reversal), `misapplied_payment` (booked against the wrong invoice), `bounced_effect` (dishonoured bill) or `recording_error`. Any other value returns 422 `payment_reversal_reason_invalid`.
+     */
+    reason: string;
+    /**
+     * Optional free-text remark kept with the reversal trail, up to 500 characters. A longer note returns 422 `payment_reversal_invalid`.
+     */
+    note?: string | null;
 };
 
 /**
@@ -8237,14 +10751,6 @@ export type SendInvoiceReminderV1Request = {
      */
     message?: string | null;
     /**
-     * Per-send override for "attach the invoice PDF". If omitted (or `null`), the company default (`email_settings`) is used.
-     */
-    attach_pdf?: boolean | null;
-    /**
-     * Per-send override for the "Stripe payment button". If omitted (or `null`), the company default is used.
-     */
-    stripe_payment_button?: boolean | null;
-    /**
      * Direcciones en copia.
      */
     cc?: Array<string> | null;
@@ -8252,6 +10758,14 @@ export type SendInvoiceReminderV1Request = {
      * Direcciones en copia oculta.
      */
     bcc?: Array<string> | null;
+    /**
+     * Per-send override for "attach the invoice PDF". If omitted (or `null`), the company default (`email_settings`) is used.
+     */
+    attach_pdf?: boolean | null;
+    /**
+     * Per-send override for the "Stripe payment button". If omitted (or `null`), the company default is used.
+     */
+    stripe_payment_button?: boolean | null;
 };
 
 /**
@@ -8266,10 +10780,10 @@ export type SendInvoiceReminderV1Request = {
  */
 export type SendInvoiceRequest = {
     to?: string | null;
-    subject?: string | null;
-    body?: string | null;
     cc?: Array<string> | null;
     bcc?: Array<string> | null;
+    subject?: string | null;
+    body?: string | null;
 };
 
 /**
@@ -8284,10 +10798,10 @@ export type SendInvoiceRequest = {
  */
 export type SendProformaRequest = {
     to?: string | null;
-    subject?: string | null;
-    body?: string | null;
     cc?: Array<string> | null;
     bcc?: Array<string> | null;
+    subject?: string | null;
+    body?: string | null;
 };
 
 /**
@@ -8302,10 +10816,10 @@ export type SendProformaRequest = {
  */
 export type SendQuoteRequest = {
     to?: string | null;
-    subject?: string | null;
-    body?: string | null;
     cc?: Array<string> | null;
     bcc?: Array<string> | null;
+    subject?: string | null;
+    body?: string | null;
 };
 
 /**
@@ -8314,7 +10828,7 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'product.created' | 'product.updated' | 'payment.received' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed';
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | null;
 };
 
 /**
@@ -8476,6 +10990,50 @@ export type SeriesRef = {
 };
 
 /**
+ * ShopifyConnectionCheck
+ *
+ * The outcome of testing the connection with one of your connected Shopify stores. The public `id` is the UUID (v7) of the STORE that was tested, so you can tell which shop this diagnosis is about. Nothing is stored: this resource is a diagnosis, not a record. Read `reachable` and `credential_accepted` together — `reachable: false` means the shop did not answer, while `reachable: true` with `credential_accepted: false` means it answered and rejected the access token — and read `failure_code` for the concrete cause, which is what tells «your token is no longer valid» apart from «the Admin API version we speak has expired».
+ */
+export type ShopifyConnectionCheck = {
+    /**
+     * UUID (v7) of the store that was tested. Public identity (KEY `id`).
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `shopify_connection_check` for this resource.
+     */
+    object: 'shopify_connection_check';
+    /**
+     * Whether the shop answered at all. `false` covers a timeout, a transport failure, a 5xx from Shopify, an exhausted query cost budget and a destination your company has not authorised for outbound traffic.
+     */
+    reachable: boolean;
+    /**
+     * Whether the shop accepted the stored access token. Always `false` when `reachable` is `false`: we never got to ask.
+     */
+    credential_accepted: boolean;
+    /**
+     * The Shopify plan the shop reports, or `null` when it does not report one. Shopify publishes no «store version»; the plan display name is the closest equivalent it exposes. Informational: nothing is gated on it.
+     */
+    store_version: string | null;
+    /**
+     * The pinned Admin API version this connector talked to the shop with (`YYYY-MM`), or `null` when it could not be resolved. It is OUR pin, not something the shop reports: Shopify serves whatever version you ask for and, once yours expires, silently falls forward to the oldest stable one with HTTP 200. Read it together with `supported_until`.
+     */
+    api_version: string | null;
+    /**
+     * The date the pinned Admin API version is supported until (ISO 8601 date), or `null` when there is no version to ask about or the version is not in our calendar. This is the field to watch: when an Admin API version expires Shopify does not fail, it answers 200 with the fields of another version, so the breakage is silent and shows up as data quietly going missing.
+     */
+    supported_until: string | null;
+    /**
+     * Code naming the concrete cause when the check did not succeed, or `null` when it did. Today `shopify_store_unreachable` (the shop did not answer, or the query cost budget was exhausted — the only one worth retrying), `shopify_credentials_rejected` (the shop rejected the access token, or there was none to use), `shopify_api_version_expired` (the pinned Admin API version is no longer served) and `store_url_not_allowed` (your company has not authorised that destination for outbound traffic). Not an exhaustive enumeration: new causes may appear without a breaking change, so treat an unknown value as a failure you cannot classify.
+     */
+    failure_code: string | null;
+    /**
+     * When the check ran (ISO 8601). Nothing is cached: every call tests the shop again.
+     */
+    checked_at: string;
+};
+
+/**
  * SignDeliveryNoteRequest
  *
  * Public REST API v1 — POST /v1/delivery_notes/{uuid}/sign.
@@ -8541,6 +11099,134 @@ export type SimplifiedInvoiceEligibilityV1Request = {
     is_intra_community?: boolean | null;
     is_reverse_charge?: boolean | null;
     client_requires_deductible?: boolean | null;
+};
+
+/**
+ * StockMovement
+ *
+ * One row of the append-only stock ledger of a product, from the most recently applied movement to the oldest. Lets an integration audit and reconcile inventory instead of only seeing the current balance.
+ */
+export type StockMovement = {
+    object: 'stock_movement';
+    id: string;
+    /**
+     * Signed change in BASE units, decimal string with scale 4. Positive = stock in, negative = stock out. Never zero.
+     */
+    delta: string;
+    /**
+     * Balance right after this movement was applied, decimal string with scale 4. Derived from the COMPLETE ledger, so it does not change when `direction` hides the interleaved rows.
+     */
+    stock_after: string;
+    /**
+     * Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`.
+     */
+    reason: string;
+    /**
+     * Kind of document that caused the movement. `manual` for an adjustment with no source document.
+     */
+    source_type: 'invoice' | 'delivery_note' | 'purchase_invoice' | 'manual';
+    /**
+     * Id of the source document, `null` for a manual adjustment or when the document is no longer reachable.
+     */
+    source_id: string | null;
+    /**
+     * Human-readable number of the source document.
+     */
+    source_label: string | null;
+    /**
+     * Name of the user who caused the movement. `null` means the system did.
+     */
+    performed_by: string | null;
+    occurred_at: string;
+    /**
+     * UN/ECE code of the unit `delta` and `stock_after` are measured in. Always present.
+     */
+    base_unit_code: string;
+    /**
+     * Commercial magnitude the delta came from, decimal string with scale 4. All-or-nothing with `commercial_unit_code` and `conversion_factor`.
+     */
+    commercial_quantity: string | null;
+    /**
+     * UN/ECE code of the commercial unit. All-or-nothing with `commercial_quantity` and `conversion_factor`.
+     */
+    commercial_unit_code: string | null;
+    /**
+     * Base units per commercial unit, decimal string with scale 6. All-or-nothing with the other two. Informational: it is NOT applied again here.
+     */
+    conversion_factor: string | null;
+    /**
+     * Managing variant the balance belongs to, `null` when it is the base product.
+     */
+    variant_id: string | null;
+    variant_name: string | null;
+};
+
+/**
+ * Store
+ *
+ * A connected e-commerce store of your company. The public `id` is the store UUID (v7). `integration_id` is the UUID of the provider connection that backs it, and `external_store_id` is the identifier the provider gives to the shop — an opaque string, not a foreign key of ours. The settings decide how the orders of the store become invoices.
+ */
+export type Store = {
+    /**
+     * UUID (v7) of the store. Public identity (KEY `id`).
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `store` for this resource.
+     */
+    object: 'store';
+    /**
+     * UUID of the provider connection (integration) that backs the store. Several stores of the same provider may hang from one connection.
+     */
+    integration_id: string;
+    /**
+     * E-commerce provider of the store.
+     */
+    provider: 'woocommerce' | 'shopify' | 'prestashop';
+    /**
+     * Identifier the provider gives to the shop. Unique per provider within your company; an opaque string, NOT a foreign key of ours.
+     */
+    external_store_id: string;
+    /**
+     * Editable display name of the store.
+     */
+    name: string;
+    /**
+     * Order total, in EUROS, up to which the store issues a simplified invoice (F2). Capped at 3000.00, the legal maximum. Defaults to 400.00, the general legal limit.
+     */
+    simplified_threshold: number;
+    /**
+     * Whether the buyer tax ID is required for an order to be invoiced. Defaults to `false`: a retail store sells to consumers who do not provide one.
+     */
+    require_tax_id: boolean;
+    /**
+     * Whether the prices of the store already include taxes. Defaults to `true`, which is how Spanish retail displays prices.
+     */
+    prices_include_tax: boolean;
+    /**
+     * Whether paid orders are invoiced automatically. Defaults to `false`: a freshly connected store does not invoice on its own until you turn it on.
+     */
+    autoinvoicing_enabled: boolean;
+    /**
+     * Whether the invoice is emailed to the buyer automatically. Defaults to `false`.
+     */
+    autosend_enabled: boolean;
+    /**
+     * Base address of the remote shop, or `null` when none is declared. Credentials embedded in the address are removed before it is returned.
+     */
+    remote_base_url: string | null;
+    /**
+     * Environment the store reports as. `live` invoices for real; `test` discards its events with a typed reason. Defaults to `test`.
+     */
+    environment: 'live' | 'test';
+    /**
+     * Store status. `active` while connected; `disconnected` after disconnecting.
+     */
+    status: 'active' | 'disconnected';
+    /**
+     * When the store was connected (ISO 8601), or `null` if unknown.
+     */
+    connected_at: string | null;
 };
 
 /**
@@ -8777,8 +11463,8 @@ export type StripePayout = {
  */
 export type SubstituteSimplifiedV1Request = {
     client_id: string;
-    notes?: string | null;
     simplified_invoice_ids: Array<string>;
+    notes?: string | null;
 };
 
 /**
@@ -8884,6 +11570,20 @@ export type Supplier = {
      * External integration key (ERP/CRM/e-commerce) mapping this supplier to a record in a third-party system. Free-format, unique per company, distinct from the fiscal `tax_id`. Persistent ERP synchronization key, independent of the request-level `Idempotency-Key`.
      */
     external_id?: string | null;
+    /**
+     * Number of catalog supplier offers linked to this supplier.
+     */
+    offers_count: number;
+    /**
+     * Number of distinct products linked through supplier offers.
+     */
+    related_products_count: number;
+    /**
+     * Filter to list the supplier offers owned by this supplier.
+     */
+    offers_filter: {
+        supplier_id: string;
+    };
     notes: string | null;
     metadata: Metadata;
     is_active: boolean;
@@ -8933,6 +11633,27 @@ export type SupplierActivity = {
      * When the event occurred (ISO 8601).
      */
     created_at: string;
+};
+
+/**
+ * SupplierProductOffer
+ */
+export type SupplierProductOffer = {
+    id: string;
+    object: 'supplier_product_offer';
+    product_id: string;
+    supplier_id: string;
+    variant_id: string | null;
+    supplier_sku: string | null;
+    purchase_unit: string;
+    conversion_factor: string;
+    unit_cost: number | null;
+    currency: string;
+    availability: string;
+    minimum_quantity: string | null;
+    lead_time_days: number | null;
+    preferred: boolean;
+    active: boolean;
 };
 
 /**
@@ -9353,6 +12074,10 @@ export type TaxReport = {
      * Non-blocking warnings emitted during generation (e.g. invoices with incomplete data).
      */
     warnings: Array<string>;
+    /**
+     * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry.
+     */
+    warning_codes: Array<string>;
 };
 
 /**
@@ -9506,6 +12231,10 @@ export type TaxReportPreview = {
      * Non-blocking warnings detected during the computation (e.g. invoices with incomplete data).
      */
     warnings: Array<string>;
+    /**
+     * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry.
+     */
+    warning_codes: Array<string>;
 };
 
 /**
@@ -9520,7 +12249,7 @@ export type TaxReportStats = {
      */
     total_reports: number;
     /**
-     * Report count by type.
+     * Report count by type. Covers every declaration type, so the three values add up to `total_reports`.
      */
     by_type: {
         /**
@@ -9531,6 +12260,10 @@ export type TaxReportStats = {
          * Declaraciones Modelo 347 generadas.
          */
         modelo_347: number;
+        /**
+         * Declaraciones Modelo 130 generadas.
+         */
+        modelo_130: number;
     };
     /**
      * Report count by output format.
@@ -10092,7 +12825,7 @@ export type UpdateAbsencePolicyRequest = {
     /**
      * Day allowance type: `limited` or `unlimited`.
      */
-    allowance_type?: 'limited' | 'unlimited';
+    allowance_type?: 'limited' | 'unlimited' | null;
     /**
      * Days allotted per year (positive; the domain requires a value when the allowance is `limited`).
      */
@@ -10100,7 +12833,7 @@ export type UpdateAbsencePolicyRequest = {
     /**
      * Day accrual method: `annual` or `monthly`.
      */
-    accrual_method?: 'annual' | 'monthly';
+    accrual_method?: 'annual' | 'monthly' | null;
     /**
      * Absence type IDs (UUID v7) associated (when provided, replaces the association).
      */
@@ -10126,7 +12859,7 @@ export type UpdateAbsenceTypeRequest = {
     /**
      * Unit in which the absence is measured: `days` or `hours`.
      */
-    measurement_unit?: 'days' | 'hours';
+    measurement_unit?: 'days' | 'hours' | null;
     /**
      * Type color for the calendar, in `#RRGGBB` hexadecimal format.
      */
@@ -10134,7 +12867,7 @@ export type UpdateAbsenceTypeRequest = {
     /**
      * Who can see the type: `everyone` or `managers_only`.
      */
-    visibility?: 'everyone' | 'managers_only';
+    visibility?: 'everyone' | 'managers_only' | null;
 };
 
 /**
@@ -10146,15 +12879,47 @@ export type UpdateAccountPersonalizationRequest = {
     /**
      * Account issuing language (es, en or ca).
      */
-    language?: 'es' | 'en' | 'ca';
+    language?: 'es' | 'en' | 'ca' | null;
     /**
      * Invoice PDF template (slug from the template catalog).
      */
-    pdf_template?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    pdf_template?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium' | null;
     /**
      * PDF accent color in hexadecimal (#RRGGBB).
      */
     accent_color?: string | null;
+};
+
+/**
+ * UpdateAutomationRuleV1Request
+ */
+export type UpdateAutomationRuleV1Request = {
+    /**
+     * New human-readable name. Omit it to keep the current one; it cannot be sent empty.
+     */
+    name?: string;
+    /**
+     * New description. Send it empty to clear the current one; omit it to keep it.
+     */
+    description?: string | null;
+    /**
+     * Scope of the automation. It is immutable: send it to state the one the rule already has, or omit it. Sending a different one is rejected and the rule is left untouched.
+     */
+    scope?: 'empresa' | 'cartera' | null;
+    /**
+     * New trigger, in `resource.action` form. Omit it to keep the current one. Must belong to the catalog visible to the company.
+     */
+    trigger_type?: string;
+    /**
+     * New condition tree. An empty object means "no condition" (the rule runs on every event); omit the key to keep the current conditions.
+     */
+    conditions?: {
+        [key: string]: unknown;
+    };
+    /**
+     * New ordered list of actions, replacing the current ones. Omit it to keep them.
+     */
+    actions?: Array<AutomationActionInput>;
 };
 
 /**
@@ -10183,6 +12948,7 @@ export type UpdateClientRequest = {
     mobile?: string | null;
     website?: string | null;
     contact_person?: string | null;
+    billing_emails?: Array<string> | null;
     latitude?: number | null;
     longitude?: number | null;
     default_discount?: number | null;
@@ -10190,16 +12956,15 @@ export type UpdateClientRequest = {
     default_retention_rate?: number | null;
     is_surcharge_subject?: boolean | null;
     accumulate_347?: boolean;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp';
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other';
+    bank_accounts?: Array<{
+        iban: string;
+        bic?: string | null;
+        is_default?: boolean | null;
+        notes?: string | null;
+    }> | null;
+    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
     payment_terms_days?: number | null;
-    notes?: string | null;
-    metadata?: Metadata;
-    dir3_accounting_office?: string | null;
-    dir3_managing_body?: string | null;
-    dir3_processing_unit?: string | null;
-    external_id?: string | null;
-    billing_emails?: Array<string> | null;
     alternative_id?: {
         /**
          * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
@@ -10220,12 +12985,13 @@ export type UpdateClientRequest = {
         province?: string | null;
         country?: string | null;
     };
-    bank_accounts?: Array<{
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
+    notes?: string | null;
+    metadata?: Metadata;
+    dir3_accounting_office?: string | null;
+    dir3_managing_body?: string | null;
+    dir3_processing_unit?: string | null;
+    external_id?: string | null;
+    default_price_list_id?: string | null;
 };
 
 /**
@@ -10311,6 +13077,7 @@ export type UpdateDeliveryNotePublicLinkRequest = {
  */
 export type UpdateDeliveryNoteRequest = {
     client_id?: string;
+    series_id?: string | null;
     delivery_date?: string | null;
     notes?: string | null;
     internal_notes?: string | null;
@@ -10331,18 +13098,21 @@ export type UpdateDeliveryNoteRequest = {
     carrier_company?: string | null;
     received_by_name?: string | null;
     received_by_tax_id?: string | null;
-    external_id?: string | null;
-    metadata?: Metadata;
     billing_emails?: Array<string> | null;
+    external_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
+    metadata?: Metadata;
     tags?: Array<string> | null;
     custom_fields?: Array<{
         field: string;
         value: string;
     }> | null;
     lines?: Array<{
-        description?: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity?: number;
-        unit_price?: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -10350,8 +13120,23 @@ export type UpdateDeliveryNoteRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
+        base_quantity?: number | null;
         discount_percent?: number | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -10417,6 +13202,9 @@ export type UpdateInvoicePublicLinkRequest = {
  */
 export type UpdateInvoiceRequest = {
     client_id?: string;
+    series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
     issued_on?: string;
     due_on?: string;
     notes?: string | null;
@@ -10428,9 +13216,10 @@ export type UpdateInvoiceRequest = {
         value: string;
     }> | null;
     lines?: Array<{
-        description?: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity?: number;
-        unit_price?: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -10438,14 +13227,17 @@ export type UpdateInvoiceRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
-        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20';
-        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2';
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20' | null;
+        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         /**
          * Kind of line: `NORMAL` (default) for an ordinary line of your own operation, or `SUPLIDO` for a DISBURSEMENT — an amount you paid in the name and on behalf of the client and now re-invoice at cost, which stays out of the taxable base (art. 78.Tres.3 LIVA). Replacing the lines of a draft re-applies the same rules, so keep the field when you resend a line you read from the invoice: sending it as `NORMAL` (or omitting it) turns the disbursement into an ordinary taxable line and changes the invoice amount.
          */
-        line_type?: 'NORMAL' | 'SUPLIDO';
+        line_type?: 'NORMAL' | 'SUPLIDO' | null;
         /**
          * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line.
          */
@@ -10466,51 +13258,69 @@ export type UpdateInvoiceRequest = {
          * Optional CHECKSUM of the line total. When sent, it is compared against the total this API computes and the request is rejected with 422 (`line_total_checksum_mismatch`, with the expected and received values in `error.details`) when they differ by more than one cent. Never stored and never returned.
          */
         line_total?: number | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
 /**
+ * UpdatePriceListRequest
+ *
+ * Public REST API v1 — update a price list.
+ */
+export type UpdatePriceListRequest = {
+    name: string;
+    status: 'active' | 'inactive';
+};
+
+/**
+ * UpdateProductPresentationRequest
+ */
+export type UpdateProductPresentationRequest = {
+    name: string;
+    mode: 'fixed' | 'variable_measure';
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    conversion_factor?: number | null;
+    nominal_base_quantity?: number | null;
+    barcode?: string | null;
+    commercial_price_override?: string | null;
+    specifications?: {
+        [key: string]: unknown;
+    } | null;
+    active?: boolean;
+};
+
+/**
  * UpdateProductRequest
- *
- * Public REST API v1 — PUT /v1/products/{uuid}.
- *
- * Full update (PUT). All fields `sometimes`: if not sent, the
- * handler keeps the current value. `sku` unique scoped to the company,
- * ignoring the product itself. Writable: `name`, `sku`, `price`,
- * `description`, `tags`, `low_stock_threshold` (per-product),
- * `manage_stock` (document-driven stock movements flag, PATCH-style),
- * `currency` (EUR only — Producto is read-only EUR; any other code → 422),
- * `tax_rate_id`, `is_active`, `metadata`, `external_id`. `stock` is NOT
- * writable here (D1): stock mutation lives only in
- * `PUT /v1/products/{uuid}/stock` with its `set`/`increase`/`decrease`
- * semantics. Validation of `metadata` via VO `Metadata`.
  */
 export type UpdateProductRequest = {
     name?: string;
     sku?: string | null;
     price?: string;
-    /**
-     * Columna `products.description` es `text` → sin `max` artificial.
-     */
     description?: string | null;
-    /**
-     * Umbral per-producto; se persiste en `metadata.low_stock_threshold`.
-     */
+    tags?: Array<string> | null;
+    specifications?: Array<string | null> | null;
+    stock?: number | null;
     low_stock_threshold?: number | null;
+    item_kind?: 'product' | 'service';
+    base_unit?: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
     /**
      * Whether this product takes part in document-driven stock movements: with `true`, issuing or receiving a document that includes it moves its stock automatically and the movement is recorded in the stock ledger. It only takes effect if your company also has stock management enabled; absent or `null` means `false`.
      */
     manage_stock?: boolean;
     /**
-     * Product amounts are read-only EUR: only `EUR` (or absence/null) is accepted. Stock is not writable here; stock changes are made via `PUT /v1/products/{uuid}/stock`.
+     * Product amounts are read-only EUR: only `EUR` (or absence/null) is accepted.
      */
-    currency?: 'EUR';
-    /**
-     * `taxes` is a global system catalog (without a `company_id` column).
-     * Do NOT use TenantRule here — it would add `WHERE company_id = X` against a
-     * table without that column and cause a 500 (SQLSTATE 42S22). Global
-     * validation by uuid, like in the rest of the BCs (DeliveryNote V1, etc.).
-     */
+    currency?: 'EUR' | null;
     tax_rate_id?: string | null;
     is_active?: boolean;
     metadata?: Metadata;
@@ -10518,21 +13328,90 @@ export type UpdateProductRequest = {
      * Third-party integration key from your ERP/CRM. Partial update: an absent value is preserved. Free-form, up to 100 characters; unique per company.
      */
     external_id?: string | null;
-    tags?: Array<string> | null;
+    catalog_availability_mode?: 'open' | 'closed';
+    option_groups?: Array<{
+        id: string;
+        name: string;
+        required?: boolean;
+        position?: number;
+        scope_id?: string | null;
+        active?: boolean;
+        values: Array<{
+            id: string;
+            name: string;
+            position?: number;
+            price_adjustment?: string | null;
+            active?: boolean;
+        }>;
+    }> | null;
+    configurations?: Array<{
+        id: string;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        options?: Array<{
+            group_id: string;
+            value_id: string;
+        }>;
+        commercial_price?: string | null;
+        active?: boolean;
+        restricts_availability?: boolean;
+    }> | null;
+    impact_token?: string | null;
 };
 
 /**
  * UpdateProductStockRequest
- *
- * Public REST API v1 — PUT /v1/products/{uuid}/stock.
- *
- * Body: `{ stock: int, operation?: 'set'|'increase'|'decrease' }`.
- * `operation` defaults to `set` (replace). Accepts also `add` / `subtract`
- * as aliases for `increase` / `decrease` for ergonomics.
  */
 export type UpdateProductStockRequest = {
+    /**
+     * Quantity for the operation, in the product base unit (up to 4 decimals).
+     */
     stock: number;
-    operation?: 'set' | 'increase' | 'decrease' | 'add' | 'subtract';
+    /**
+     * How `stock` applies: `set` replaces the balance (default), `increase` adds, `decrease` subtracts. `add`/`subtract` are accepted aliases. A manual decrease below zero fails with 422.
+     */
+    operation?: 'set' | 'increase' | 'decrease' | 'add' | 'subtract' | null;
+    /**
+     * Optional variant of this product whose OWN balance receives the adjustment (the variant must belong to the product and manage its own stock). Absent → the product base stock.
+     */
+    variant_id?: string | null;
+};
+
+/**
+ * UpdateProductVariantRequest
+ */
+export type UpdateProductVariantRequest = {
+    name: string;
+    sku?: string | null;
+    barcode?: string | null;
+    /**
+     * Precio propio de la variante POR UNIDAD BASE. `null` = la variante
+     * no altera el precio del producto.
+     */
+    base_price_override?: number | null;
+    /**
+     * Coste propio de la variante POR UNIDAD BASE.
+     */
+    unit_cost_override?: number | null;
+    /**
+     * Alias publicado de `base_price_override`.
+     *
+     * @deprecated
+     */
+    price_override?: number | null;
+    /**
+     * Alias publicado de `unit_cost_override`.
+     *
+     * @deprecated
+     */
+    cost_override?: number | null;
+    manage_stock: boolean;
+    stock: number;
+    low_stock_threshold?: number | null;
+    specifications?: {
+        [key: string]: unknown;
+    } | null;
+    active?: boolean;
 };
 
 /**
@@ -10560,6 +13439,9 @@ export type UpdateProformaPublicLinkRequest = {
  */
 export type UpdateProformaRequest = {
     client_id?: string;
+    series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
     issued_on?: string;
     valid_until?: string | null;
     validity_days?: number | null;
@@ -10571,7 +13453,7 @@ export type UpdateProformaRequest = {
     shipping_cost?: number | null;
     delivery_terms?: string | null;
     estimated_delivery_date?: string | null;
-    operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp';
+    operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
     external_id?: string | null;
     metadata?: Metadata;
     tags?: Array<string> | null;
@@ -10580,9 +13462,10 @@ export type UpdateProformaRequest = {
         value: string;
     }> | null;
     lines?: Array<{
-        description?: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity?: number;
-        unit_price?: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -10590,8 +13473,22 @@ export type UpdateProformaRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -10612,21 +13509,12 @@ export type UpdatePurchaseInvoiceRequest = {
     due_on?: string | null;
     notes?: string | null;
     metadata?: Metadata;
-    /**
-     * Extend fields. Basic SHAPE only; the `payment_method` allowlist,
-     * `tax_period` format and `tags` cardinality are validated by the
-     * VO/Aggregate.
-     */
     internal_notes?: string | null;
     payment_method?: string | null;
     payment_terms_days?: number | null;
     bank_account_id?: number | null;
     expense_account?: string | null;
     tax_period?: string | null;
-    is_reverse_charge?: boolean | null;
-    deductible_percentage?: number | null;
-    operation_class?: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria';
-    exclude_347?: boolean;
     tags?: Array<string> | null;
     /**
      * Typed custom fields as `[{field, value}]`. Partial update: an explicit `custom_fields: null` empties the collection.
@@ -10635,11 +13523,25 @@ export type UpdatePurchaseInvoiceRequest = {
         field: string;
         value: string;
     }> | null;
+    is_reverse_charge?: boolean | null;
+    deductible_percentage?: number | null;
+    operation_class?: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria' | 'isp' | null;
+    exclude_347?: boolean;
     lines?: Array<{
-        description?: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity?: number;
-        unit_price?: number;
-        tax_rate?: number | null;
+        unit_price?: number | null;
+        product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        supplier_offer_id?: string | null;
+        confirmed_base_quantity?: number | null;
+        unit?: string | null;
+        /**
+         * Per-line VAT rate (0–100). REQUIRED whenever `lines` is sent: a `PUT` replaces the whole set of lines, so omitting it would wipe the VAT the invoice already had. A purchase with no VAT is declared explicitly as `tax_rate: 0`.
+         */
+        tax_rate?: number;
         /**
          * Per-line IRPF retention and deductible VAT. Same shape rules as create.
          */
@@ -10649,11 +13551,22 @@ export type UpdatePurchaseInvoiceRequest = {
          * Per-line equivalence surcharge (the legal VAT↔surcharge pair is validated) and LIVA exemption reason (closed catalog).
          */
         surcharge_rate?: number | null;
-        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2';
+        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
         /**
          * Per-line indirect tax regime of the supplier. Same shape rule as create (defense in depth); the real invariant lives in the domain.
          */
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -10682,6 +13595,9 @@ export type UpdateQuotePublicLinkRequest = {
  */
 export type UpdateQuoteRequest = {
     client_id?: string;
+    series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
     issued_on?: string;
     valid_until?: string;
     notes?: string | null;
@@ -10694,9 +13610,10 @@ export type UpdateQuoteRequest = {
         value: string;
     }> | null;
     lines?: Array<{
-        description?: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity?: number;
-        unit_price?: number;
+        unit_price?: number | null;
         tax_rate_id?: string | null;
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -10704,8 +13621,22 @@ export type UpdateQuoteRequest = {
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
         product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
 };
 
@@ -10717,6 +13648,8 @@ export type UpdateQuoteRequest = {
 export type UpdateRecurringInvoiceRequest = {
     client_id?: string;
     series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
     name?: string | null;
     description?: string | null;
     frequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
@@ -10725,16 +13658,16 @@ export type UpdateRecurringInvoiceRequest = {
     end_on?: string | null;
     notes?: string | null;
     metadata?: Metadata;
-    external_id?: string | null;
-    days_before_due?: number | null;
-    max_occurrences?: number | null;
-    email_to?: string | null;
-    send_automatically?: boolean;
     tags?: Array<string> | null;
     custom_fields?: Array<{
         field: string;
         value: string;
     }> | null;
+    external_id?: string | null;
+    days_before_due?: number | null;
+    max_occurrences?: number | null;
+    email_to?: string | null;
+    send_automatically?: boolean;
     auto_delivery?: {
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
@@ -10743,18 +13676,94 @@ export type UpdateRecurringInvoiceRequest = {
         body?: string | null;
     };
     lines?: Array<{
-        description?: string;
+        description?: string | null;
+        additional_description?: string | null;
         quantity?: number;
-        unit_price?: number;
+        unit_price?: number | null;
+        product_id?: string | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        confirmed_base_quantity?: number | null;
         tax_rate?: number | null;
         retention?: number | null;
         surcharge?: number | null;
-        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2';
-        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20';
+        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
+        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20' | null;
         retention_rate_id?: string | null;
         surcharge_rate_id?: string | null;
-        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi';
+        indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        configuration_uuid?: string | null;
+        options?: Array<{
+            group_uuid: string;
+            value_uuid: string;
+        }> | null;
+        configuration_signature?: string | null;
+        configuration_name?: string | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
+        price_adjustment_total?: number | null;
+        option_adjustments_absorbed?: boolean | null;
     }>;
+};
+
+/**
+ * UpdateStoreV1Request
+ *
+ * Public REST API v1 — PUT /v1/stores/{store}.
+ *
+ * Partial update of the settings of a connected store: every field is optional
+ * and a field you do not send keeps its current value. The identity of the
+ * store —its provider connection, its provider and the identifier of the remote
+ * shop— cannot be changed here: pointing an existing store at a different shop
+ * would keep the invoicing history of the old one.
+ *
+ * Two fields accept an explicit `null` and it means something: `series_id: null`
+ * goes back to the default series of your company, and `remote_base_url: null`
+ * removes the declared address. Omitting either one leaves it untouched.
+ * `simplified_threshold` is expressed in EUROS and capped at the legal maximum
+ * for a simplified invoice.
+ */
+export type UpdateStoreV1Request = {
+    /**
+     * Display name of the store.
+     */
+    name?: string;
+    /**
+     * Series (UUID v7, type invoice) the store numbers into; send `null` to go back to the default series of your company.
+     */
+    series_id?: string | null;
+    /**
+     * Order total, in euros, up to which the store issues a simplified invoice. Maximum 3000.00.
+     */
+    simplified_threshold?: number;
+    /**
+     * Whether the buyer tax ID is required for the order to be invoiced.
+     */
+    require_tax_id?: boolean;
+    /**
+     * Whether the prices of the store already include taxes.
+     */
+    prices_include_tax?: boolean;
+    /**
+     * Whether paid orders are invoiced automatically.
+     */
+    autoinvoicing_enabled?: boolean;
+    /**
+     * Whether the invoice is emailed to the buyer automatically.
+     */
+    autosend_enabled?: boolean;
+    /**
+     * Base address of the remote shop; send `null` to remove it. Checked against the outbound policy of your company.
+     */
+    remote_base_url?: string | null;
+    /**
+     * Environment the store reports as: `live` invoices for real, `test` discards with a typed reason.
+     */
+    environment?: 'live' | 'test';
+    /**
+     * Authorize the host of `remote_base_url` as an outbound destination in the same call.
+     */
+    authorize_remote_host?: boolean;
 };
 
 /**
@@ -10769,6 +13778,23 @@ export type UpdateStripeAutoinvoicingConfigRequest = {
     require_nif?: boolean;
     refunds_enabled?: boolean;
     subscription_autoinvoicing_enabled?: boolean;
+};
+
+/**
+ * UpdateSupplierProductOfferRequest
+ */
+export type UpdateSupplierProductOfferRequest = {
+    supplier_id: string;
+    variant_id?: string | null;
+    supplier_sku?: string | null;
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    conversion_factor: number;
+    unit_cost?: number | null;
+    availability: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
+    minimum_quantity?: number | null;
+    lead_time_days?: number | null;
+    preferred?: boolean;
+    active?: boolean;
 };
 
 /**
@@ -10799,6 +13825,11 @@ export type UpdateSupplierRequest = {
     mobile?: string | null;
     website?: string | null;
     contact_person?: string | null;
+    billing_emails?: Array<string> | null;
+    coordinates?: {
+        latitude?: number | null;
+        longitude?: number | null;
+    };
     latitude?: number | null;
     longitude?: number | null;
     default_discount?: number | null;
@@ -10807,19 +13838,23 @@ export type UpdateSupplierRequest = {
     is_surcharge_subject?: boolean | null;
     accumulate_347?: boolean;
     is_active?: boolean;
+    bank_accounts?: Array<{
+        /**
+         * Legacy alias for the whole `bank_accounts` collection, not a single field within it: sending it REPLACES every bank account the supplier has with the single one you provide, so any other account already registered is removed. To keep several accounts, send the full `bank_accounts` array instead; to leave the accounts untouched, omit both fields. If you send both, `bank_accounts` wins and `iban` is ignored.
+         */
+        iban: string;
+        bic?: string | null;
+        is_default?: boolean | null;
+        notes?: string | null;
+    }> | null;
+    /**
+     * Legacy alias for the whole `bank_accounts` collection, not a single field within it: sending it REPLACES every bank account the supplier has with the single one you provide, so any other account already registered is removed. To keep several accounts, send the full `bank_accounts` array instead; to leave the accounts untouched, omit both fields. If you send both, `bank_accounts` wins and `iban` is ignored.
+     */
     iban?: string | null;
     default_taxes_id?: string | null;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp';
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other';
+    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
     payment_terms_days?: number | null;
-    notes?: string | null;
-    metadata?: Metadata;
-    external_id?: string | null;
-    billing_emails?: Array<string> | null;
-    coordinates?: {
-        latitude?: number | null;
-        longitude?: number | null;
-    };
     alternative_id?: {
         /**
          * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
@@ -10840,12 +13875,9 @@ export type UpdateSupplierRequest = {
         province?: string | null;
         country?: string | null;
     };
-    bank_accounts?: Array<{
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
+    notes?: string | null;
+    metadata?: Metadata;
+    external_id?: string | null;
 };
 
 /**
@@ -10870,7 +13902,7 @@ export type UpdateTaxRequest = {
      */
     valid_until?: string | null;
     reverse_charge?: boolean;
-    country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla';
+    country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
     /**
      * FK to the linked equivalence-surcharge tax; `null` unlinks it. UUID v7 value referencing the global `taxes` catalog.
      */
@@ -10935,13 +13967,13 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     description?: string | null;
+    ip_allowlist?: Array<string> | null;
     api_version?: string | null;
     metadata?: Metadata;
-    timeout_seconds?: number | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'product.created' | 'product.updated' | 'payment.received' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed'>;
-    ip_allowlist?: Array<string> | null;
     custom_headers?: CustomHeaders;
+    timeout_seconds?: number | null;
 };
 
 /**
@@ -11006,6 +14038,9 @@ export type UploadCompanyCertificateV1Request = {
  * convention. The controller normalizes it to `photo`.
  */
 export type UploadProductGalleryImageRequest = {
+    /**
+     * Maximum file size: 3072 kilobytes.
+     */
     image: Blob | File;
 };
 
@@ -11017,7 +14052,24 @@ export type UploadProductGalleryImageRequest = {
  * Multipart upload: campo `video` (mp4/mov/avi/webm, max 50 MB).
  */
 export type UploadProductVideoRequest = {
+    /**
+     * Maximum file size: 51200 kilobytes.
+     */
     video: Blob | File;
+};
+
+/**
+ * UpsertPriceListItemRequest
+ */
+export type UpsertPriceListItemRequest = {
+    id?: string;
+    product_id: string;
+    variant_id?: string | null;
+    presentation_id?: string | null;
+    configuration_id?: string | null;
+    selection_signature?: string | null;
+    unit_price: number;
+    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
 };
 
 /**
@@ -11618,6 +14670,8 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadProductUpdated) | ({
     type: 'payment.received';
 } & WebhookEventPayloadPaymentReceived) | ({
+    type: 'payment.reversed';
+} & WebhookEventPayloadPaymentReversed) | ({
     type: 'tax.metadata_changed';
 } & WebhookEventPayloadTaxMetadataChanged) | ({
     type: 'tax.validity_changed';
@@ -11671,7 +14725,25 @@ export type WebhookEventPayload = ({
     type: 'absence.rejected';
 } & WebhookEventPayloadAbsenceRejected) | ({
     type: 'monthly_register.closed';
-} & WebhookEventPayloadMonthlyRegisterClosed);
+} & WebhookEventPayloadMonthlyRegisterClosed) | ({
+    type: 'automation_rule.activated';
+} & WebhookEventPayloadAutomationRuleActivated) | ({
+    type: 'automation_rule.paused';
+} & WebhookEventPayloadAutomationRulePaused) | ({
+    type: 'automation_rule.auto_paused';
+} & WebhookEventPayloadAutomationRuleAutoPaused) | ({
+    type: 'automation_run.started';
+} & WebhookEventPayloadAutomationRunStarted) | ({
+    type: 'automation_run.completed';
+} & WebhookEventPayloadAutomationRunCompleted) | ({
+    type: 'automation_run.failed';
+} & WebhookEventPayloadAutomationRunFailed) | ({
+    type: 'automation_run.step_dead_lettered';
+} & WebhookEventPayloadAutomationRunStepDeadLettered) | ({
+    type: 'order.invoiced';
+} & WebhookEventPayloadOrderInvoiced) | ({
+    type: 'order.refunded';
+} & WebhookEventPayloadOrderRefunded);
 
 /**
  * WebhookEventPayloadAbsenceApproved
@@ -11782,6 +14854,265 @@ export type WebhookEventPayloadAbsenceRequested = {
      */
     correlation_id: string | null;
     data: EventDataAbsenceRequested;
+};
+
+/**
+ * WebhookEventPayloadAutomationRuleActivated
+ *
+ * Webhook delivery body for the `automation_rule.activated` event.
+ */
+export type WebhookEventPayloadAutomationRuleActivated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `automation_rule.activated`.
+     */
+    type: 'automation_rule.activated';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataAutomationRuleActivated;
+};
+
+/**
+ * WebhookEventPayloadAutomationRuleAutoPaused
+ *
+ * Webhook delivery body for the `automation_rule.auto_paused` event.
+ */
+export type WebhookEventPayloadAutomationRuleAutoPaused = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `automation_rule.auto_paused`.
+     */
+    type: 'automation_rule.auto_paused';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataAutomationRuleAutoPaused;
+};
+
+/**
+ * WebhookEventPayloadAutomationRulePaused
+ *
+ * Webhook delivery body for the `automation_rule.paused` event.
+ */
+export type WebhookEventPayloadAutomationRulePaused = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `automation_rule.paused`.
+     */
+    type: 'automation_rule.paused';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataAutomationRulePaused;
+};
+
+/**
+ * WebhookEventPayloadAutomationRunCompleted
+ *
+ * Webhook delivery body for the `automation_run.completed` event.
+ */
+export type WebhookEventPayloadAutomationRunCompleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `automation_run.completed`.
+     */
+    type: 'automation_run.completed';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataAutomationRunCompleted;
+};
+
+/**
+ * WebhookEventPayloadAutomationRunFailed
+ *
+ * Webhook delivery body for the `automation_run.failed` event.
+ */
+export type WebhookEventPayloadAutomationRunFailed = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `automation_run.failed`.
+     */
+    type: 'automation_run.failed';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataAutomationRunFailed;
+};
+
+/**
+ * WebhookEventPayloadAutomationRunStarted
+ *
+ * Webhook delivery body for the `automation_run.started` event.
+ */
+export type WebhookEventPayloadAutomationRunStarted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `automation_run.started`.
+     */
+    type: 'automation_run.started';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataAutomationRunStarted;
+};
+
+/**
+ * WebhookEventPayloadAutomationRunStepDeadLettered
+ *
+ * Webhook delivery body for the `automation_run.step_dead_lettered` event.
+ */
+export type WebhookEventPayloadAutomationRunStepDeadLettered = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `automation_run.step_dead_lettered`.
+     */
+    type: 'automation_run.step_dead_lettered';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataAutomationRunStepDeadLettered;
 };
 
 /**
@@ -13302,6 +16633,80 @@ export type WebhookEventPayloadMonthlyRegisterClosed = {
 };
 
 /**
+ * WebhookEventPayloadOrderInvoiced
+ *
+ * Webhook delivery body for the `order.invoiced` event.
+ */
+export type WebhookEventPayloadOrderInvoiced = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `order.invoiced`.
+     */
+    type: 'order.invoiced';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataOrderInvoiced;
+};
+
+/**
+ * WebhookEventPayloadOrderRefunded
+ *
+ * Webhook delivery body for the `order.refunded` event.
+ */
+export type WebhookEventPayloadOrderRefunded = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `order.refunded`.
+     */
+    type: 'order.refunded';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataOrderRefunded;
+};
+
+/**
  * WebhookEventPayloadPaymentReceived
  *
  * Webhook delivery body for the `payment.received` event.
@@ -13336,6 +16741,43 @@ export type WebhookEventPayloadPaymentReceived = {
      */
     correlation_id: string | null;
     data: EventDataPaymentReceived;
+};
+
+/**
+ * WebhookEventPayloadPaymentReversed
+ *
+ * Webhook delivery body for the `payment.reversed` event.
+ */
+export type WebhookEventPayloadPaymentReversed = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `payment.reversed`.
+     */
+    type: 'payment.reversed';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPaymentReversed;
 };
 
 /**
@@ -15584,6 +19026,46 @@ export type WeeklySchedule = {
 };
 
 /**
+ * WooCommerceConnectionCheck
+ *
+ * The outcome of testing the connection with one of your connected WooCommerce stores. The public `id` is the UUID (v7) of the STORE that was tested, so you can tell which shop this diagnosis is about. Nothing is stored: this resource is a diagnosis, not a record. Read `reachable` and `credential_accepted` together — `reachable: false` means the shop did not answer, while `reachable: true` with `credential_accepted: false` means it answered and rejected the credential — and read `failure_code` for the concrete cause, which is what tells «your key is not valid» apart from «your REST API is not published».
+ */
+export type WooCommerceConnectionCheck = {
+    /**
+     * UUID (v7) of the store that was tested. Public identity (KEY `id`).
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `woocommerce_connection_check` for this resource.
+     */
+    object: 'woocommerce_connection_check';
+    /**
+     * Whether the shop answered at all. `false` covers a timeout, a transport failure, a 5xx from the merchant hosting and a destination your company has not authorised for outbound traffic.
+     */
+    reachable: boolean;
+    /**
+     * Whether the shop accepted the consumer key and secret. Always `false` when `reachable` is `false`: we never got to ask.
+     */
+    credential_accepted: boolean;
+    /**
+     * WooCommerce version the shop reports, or `null` when it does not report one. Informational: nothing is gated on it.
+     */
+    store_version: string | null;
+    /**
+     * WordPress version the shop reports, or `null` when it does not report one. WooCommerce does not publish any REST API version of its own — the version this connector speaks (`wc/v3`) is fixed on our side, not something the shop reports — so this field carries the version of WordPress, which is what serves `/wp-json/`, decides whether the route exists depending on the permalink setting and therefore explains most failures of this surface. Informational: nothing is gated on it.
+     */
+    api_version: string | null;
+    /**
+     * Code naming the concrete cause when the check did not succeed, or `null` when it did. Today `woocommerce_store_unreachable` (the shop did not answer — the only one worth retrying), `woocommerce_credentials_rejected` (the shop rejected the credential, or it could not be used) and `woocommerce_rest_route_missing` (the shop answered but its REST API is not published, usually because WordPress permalinks are on the plain setting). Not an exhaustive enumeration: new causes may appear without a breaking change, so treat an unknown value as a failure you cannot classify.
+     */
+    failure_code: string | null;
+    /**
+     * When the check ran (ISO 8601). Nothing is cached: every call tests the shop again.
+     */
+    checked_at: string;
+};
+
+/**
  * WorkdaySessionStatus
  *
  * The derived state of an employee’s current workday for the Control Horario (time tracking) module, reconstructed from the open work span in the immutable ledger. There is no session table — the state is computed from the entries.
@@ -15750,13 +19232,73 @@ export type PublicApiV1QuotesAcceptResponses = {
 
 export type PublicApiV1QuotesAcceptResponse = PublicApiV1QuotesAcceptResponses[keyof PublicApiV1QuotesAcceptResponses];
 
-export type PublicApiV1CompaniesActivateBatchData = {
-    body: ActivateCompaniesBatchV1Request;
+export type PublicApiV1AutomationsRulesActivateData = {
+    body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
-        'Idempotency-Key'?: string;
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+    };
+    query?: never;
+    url: '/automations/rules/{rule}/activate';
+};
+
+export type PublicApiV1AutomationsRulesActivateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesActivateError = PublicApiV1AutomationsRulesActivateErrors[keyof PublicApiV1AutomationsRulesActivateErrors];
+
+export type PublicApiV1AutomationsRulesActivateResponses = {
+    200: {
+        data: AutomationRule;
+    };
+};
+
+export type PublicApiV1AutomationsRulesActivateResponse = PublicApiV1AutomationsRulesActivateResponses[keyof PublicApiV1AutomationsRulesActivateResponses];
+
+export type PublicApiV1CompaniesActivateBatchData = {
+    body: ActivateCompaniesBatchV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -15777,7 +19319,7 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, or the account lacks the plan or add-on this operation bills against. Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -15814,11 +19356,11 @@ export type PublicApiV1CompaniesActivateBatchResponse = PublicApiV1CompaniesActi
 
 export type PublicApiV1VerifactuCertificatesActivateData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -15853,6 +19395,10 @@ export type PublicApiV1VerifactuCertificatesActivateErrors = {
      */
     409: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -15874,11 +19420,11 @@ export type PublicApiV1VerifactuCertificatesActivateResponse = PublicApiV1Verifa
 
 export type PublicApiV1CompaniesActivateData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -15901,7 +19447,7 @@ export type PublicApiV1CompaniesActivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, or the account lacks the plan or add-on this operation bills against. Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -15916,6 +19462,10 @@ export type PublicApiV1CompaniesActivateErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -15998,11 +19548,11 @@ export type PublicApiV1RecurringInvoicesActivateResponse = PublicApiV1RecurringI
 
 export type PublicApiV1InvoicesAnnulData = {
     body: AnnulInvoiceV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -16495,11 +20045,11 @@ export type PublicApiV1AbsencePoliciesAssignResponse = PublicApiV1AbsencePolicie
 
 export type PublicApiV1InvoicesAssignRealNumberData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -16533,6 +20083,10 @@ export type PublicApiV1InvoicesAssignRealNumberErrors = {
      * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -16619,11 +20173,11 @@ export type PublicApiV1WorkSchedulesAssignResponse = PublicApiV1WorkSchedulesAss
 
 export type PublicApiV1PurchaseInvoicesAttachFileData = {
     body: AttachPurchaseInvoiceFileRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -16645,6 +20199,10 @@ export type PublicApiV1PurchaseInvoicesAttachFileErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -16737,7 +20295,11 @@ export type PublicApiV1SeriesBootstrapResponse = PublicApiV1SeriesBootstrapRespo
 
 export type PublicApiV1ClientsBulkCreateData = {
     body: BulkCreateClientsV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -16791,7 +20353,11 @@ export type PublicApiV1ClientsBulkCreateResponse = PublicApiV1ClientsBulkCreateR
 
 export type PublicApiV1InvoicesBulkCreateData = {
     body: BulkCreateInvoicesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -16845,11 +20411,11 @@ export type PublicApiV1InvoicesBulkCreateResponse = PublicApiV1InvoicesBulkCreat
 
 export type PublicApiV1ClientsBulkDeleteData = {
     body: BulkDeleteClientsRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -16903,11 +20469,11 @@ export type PublicApiV1ClientsBulkDeleteResponse = PublicApiV1ClientsBulkDeleteR
 
 export type PublicApiV1DeliveryNotesBulkDeleteData = {
     body: BulkDeleteDeliveryNotesRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -16961,11 +20527,11 @@ export type PublicApiV1DeliveryNotesBulkDeleteResponse = PublicApiV1DeliveryNote
 
 export type PublicApiV1InvoicesBulkDeleteData = {
     body: BulkDeleteInvoicesV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17019,11 +20585,11 @@ export type PublicApiV1InvoicesBulkDeleteResponse = PublicApiV1InvoicesBulkDelet
 
 export type PublicApiV1ProductsBulkDeleteData = {
     body: BulkDeleteProductsRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17077,11 +20643,11 @@ export type PublicApiV1ProductsBulkDeleteResponse = PublicApiV1ProductsBulkDelet
 
 export type PublicApiV1ProformasBulkDeleteData = {
     body: BulkDeleteProformasV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17135,11 +20701,11 @@ export type PublicApiV1ProformasBulkDeleteResponse = PublicApiV1ProformasBulkDel
 
 export type PublicApiV1PurchaseInvoicesBulkDeleteData = {
     body: BulkDeletePurchaseInvoicesRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17193,11 +20759,11 @@ export type PublicApiV1PurchaseInvoicesBulkDeleteResponse = PublicApiV1PurchaseI
 
 export type PublicApiV1QuotesBulkDeleteData = {
     body: BulkDeleteQuotesV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17251,11 +20817,11 @@ export type PublicApiV1QuotesBulkDeleteResponse = PublicApiV1QuotesBulkDeleteRes
 
 export type PublicApiV1RecurringInvoicesBulkDeleteData = {
     body: BulkDeleteRecurringInvoicesRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17309,11 +20875,11 @@ export type PublicApiV1RecurringInvoicesBulkDeleteResponse = PublicApiV1Recurrin
 
 export type PublicApiV1SuppliersBulkDeleteData = {
     body: BulkDeleteSuppliersRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17367,7 +20933,11 @@ export type PublicApiV1SuppliersBulkDeleteResponse = PublicApiV1SuppliersBulkDel
 
 export type PublicApiV1DeliveryNotesBulkPdfData = {
     body: BulkPdfDeliveryNotesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17400,6 +20970,10 @@ export type PublicApiV1DeliveryNotesBulkPdfErrors = {
      */
     409: Error;
     /**
+     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     */
+    413: Error;
+    /**
      * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -17423,7 +20997,11 @@ export type PublicApiV1DeliveryNotesBulkPdfResponse = PublicApiV1DeliveryNotesBu
 
 export type PublicApiV1InvoicesBulkPdfData = {
     body: BulkPdfInvoicesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17456,6 +21034,10 @@ export type PublicApiV1InvoicesBulkPdfErrors = {
      */
     409: Error;
     /**
+     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     */
+    413: Error;
+    /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -17479,7 +21061,11 @@ export type PublicApiV1InvoicesBulkPdfResponse = PublicApiV1InvoicesBulkPdfRespo
 
 export type PublicApiV1ProformasBulkPdfData = {
     body: BulkPdfProformasV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17512,6 +21098,10 @@ export type PublicApiV1ProformasBulkPdfErrors = {
      */
     409: Error;
     /**
+     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     */
+    413: Error;
+    /**
      * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -17535,7 +21125,11 @@ export type PublicApiV1ProformasBulkPdfResponse = PublicApiV1ProformasBulkPdfRes
 
 export type PublicApiV1QuotesBulkPdfData = {
     body: BulkPdfQuotesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17568,6 +21162,10 @@ export type PublicApiV1QuotesBulkPdfErrors = {
      */
     409: Error;
     /**
+     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     */
+    413: Error;
+    /**
      * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -17591,7 +21189,11 @@ export type PublicApiV1QuotesBulkPdfResponse = PublicApiV1QuotesBulkPdfResponses
 
 export type PublicApiV1DeliveryNotesBulkSendData = {
     body: BulkSendDeliveryNotesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17645,7 +21247,11 @@ export type PublicApiV1DeliveryNotesBulkSendResponse = PublicApiV1DeliveryNotesB
 
 export type PublicApiV1InvoicesBulkSendData = {
     body: BulkSendInvoicesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17699,7 +21305,11 @@ export type PublicApiV1InvoicesBulkSendResponse = PublicApiV1InvoicesBulkSendRes
 
 export type PublicApiV1ProformasBulkSendData = {
     body: BulkSendProformasV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17753,7 +21363,11 @@ export type PublicApiV1ProformasBulkSendResponse = PublicApiV1ProformasBulkSendR
 
 export type PublicApiV1QuotesBulkSendData = {
     body: BulkSendQuotesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17807,7 +21421,11 @@ export type PublicApiV1QuotesBulkSendResponse = PublicApiV1QuotesBulkSendRespons
 
 export type PublicApiV1DeliveryNotesBulkStatusData = {
     body: BulkStatusDeliveryNotesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17861,7 +21479,11 @@ export type PublicApiV1DeliveryNotesBulkStatusResponse = PublicApiV1DeliveryNote
 
 export type PublicApiV1InvoicesBulkStatusData = {
     body: BulkStatusInvoicesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17915,7 +21537,11 @@ export type PublicApiV1InvoicesBulkStatusResponse = PublicApiV1InvoicesBulkStatu
 
 export type PublicApiV1ProductsBulkStatusData = {
     body: BulkStatusProductsV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -17969,7 +21595,11 @@ export type PublicApiV1ProductsBulkStatusResponse = PublicApiV1ProductsBulkStatu
 
 export type PublicApiV1ProformasBulkStatusData = {
     body: BulkStatusProformasV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18023,7 +21653,11 @@ export type PublicApiV1ProformasBulkStatusResponse = PublicApiV1ProformasBulkSta
 
 export type PublicApiV1PurchaseInvoicesBulkStatusData = {
     body: BulkStatusPurchaseInvoicesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18077,7 +21711,11 @@ export type PublicApiV1PurchaseInvoicesBulkStatusResponse = PublicApiV1PurchaseI
 
 export type PublicApiV1QuotesBulkStatusData = {
     body: BulkStatusQuotesV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18131,7 +21769,11 @@ export type PublicApiV1QuotesBulkStatusResponse = PublicApiV1QuotesBulkStatusRes
 
 export type PublicApiV1SuppliersBulkStatusData = {
     body: BulkStatusSuppliersV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18185,11 +21827,11 @@ export type PublicApiV1SuppliersBulkStatusResponse = PublicApiV1SuppliersBulkSta
 
 export type PublicApiV1ProductsBulkUpdateStockData = {
     body: BulkUpdateProductStockRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18458,11 +22100,11 @@ export type PublicApiV1AbsenceRequestsCancelResponse = PublicApiV1AbsenceRequest
 
 export type PublicApiV1DeliveryNotesCancelData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18583,11 +22225,11 @@ export type PublicApiV1EmployeeInvitationsCancelResponse = PublicApiV1EmployeeIn
 
 export type PublicApiV1EmployeeSeatsCancelData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18616,6 +22258,10 @@ export type PublicApiV1EmployeeSeatsCancelErrors = {
      */
     409: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -18637,7 +22283,11 @@ export type PublicApiV1EmployeeSeatsCancelResponse = PublicApiV1EmployeeSeatsCan
 
 export type PublicApiV1FaceSubmissionsCancelData = {
     body: CancelFaceSubmissionV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18697,11 +22347,11 @@ export type PublicApiV1FaceSubmissionsCancelResponse = PublicApiV1FaceSubmission
 
 export type PublicApiV1RecurringInvoicesCancelData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18736,6 +22386,10 @@ export type PublicApiV1RecurringInvoicesCancelErrors = {
      */
     409: Error;
     /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -18757,11 +22411,11 @@ export type PublicApiV1RecurringInvoicesCancelResponse = PublicApiV1RecurringInv
 
 export type PublicApiV1EmployeeSeatsChangeQuantityData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -18789,6 +22443,10 @@ export type PublicApiV1EmployeeSeatsChangeQuantityErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -19216,13 +22874,128 @@ export type PublicApiV1AbsencePoliciesCarryoverResponses = {
 
 export type PublicApiV1AbsencePoliciesCarryoverResponse = PublicApiV1AbsencePoliciesCarryoverResponses[keyof PublicApiV1AbsencePoliciesCarryoverResponses];
 
-export type PublicApiV1DeliveryNotesConvertData = {
-    body: ConvertDeliveryNoteRequest;
+export type PublicApiV1StoresIndexData = {
+    body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
-        'Idempotency-Key'?: string;
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         */
+        ending_before?: string;
+    };
+    url: '/stores';
+};
+
+export type PublicApiV1StoresIndexErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StoresIndexError = PublicApiV1StoresIndexErrors[keyof PublicApiV1StoresIndexErrors];
+
+export type PublicApiV1StoresIndexResponses = {
+    200: {
+        data: Array<Store>;
+        has_more: boolean;
+        next_cursor: string | null;
+    };
+};
+
+export type PublicApiV1StoresIndexResponse = PublicApiV1StoresIndexResponses[keyof PublicApiV1StoresIndexResponses];
+
+export type PublicApiV1StoresCreateData = {
+    body: ConnectStoreV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/stores';
+};
+
+export type PublicApiV1StoresCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StoresCreateError = PublicApiV1StoresCreateErrors[keyof PublicApiV1StoresCreateErrors];
+
+export type PublicApiV1StoresCreateResponses = {
+    201: {
+        data: Store;
+    };
+};
+
+export type PublicApiV1StoresCreateResponse = PublicApiV1StoresCreateResponses[keyof PublicApiV1StoresCreateResponses];
+
+export type PublicApiV1DeliveryNotesConvertData = {
+    body: ConvertDeliveryNoteRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -19282,11 +23055,11 @@ export type PublicApiV1DeliveryNotesConvertResponse = PublicApiV1DeliveryNotesCo
 
 export type PublicApiV1ProformasConvertData = {
     body: ConvertProformaRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -19346,11 +23119,11 @@ export type PublicApiV1ProformasConvertResponse = PublicApiV1ProformasConvertRes
 
 export type PublicApiV1QuotesConvertData = {
     body: ConvertQuoteRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -19574,7 +23347,7 @@ export type PublicApiV1AbsenceRequestsListData = {
         /**
          * Lifecycle status to filter by (pending/approved/rejected/cancelled).
          */
-        status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
+        status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | null;
         /**
          * Start date (Y-m-d) to filter the request range by.
          */
@@ -19936,6 +23709,155 @@ export type PublicApiV1AccountApiKeysCreateResponses = {
 
 export type PublicApiV1AccountApiKeysCreateResponse = PublicApiV1AccountApiKeysCreateResponses[keyof PublicApiV1AccountApiKeysCreateResponses];
 
+export type PublicApiV1AutomationsRulesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         */
+        ending_before?: string;
+        /**
+         * Lifecycle status of the automation rule. A rule only fires while it is `active`. Exact match on `status`.
+         */
+        status?: 'draft' | 'active' | 'paused';
+        /**
+         * Trigger that puts the rule in motion, in `resource.action` form (for example `invoice.paid`). Discover the values visible to your company with `GET /v1/automations/catalog`. Exact match on `trigger_type`.
+         */
+        trigger_type?: string;
+        /**
+         * Scope of the rule: `empresa` watches only your own company, `cartera` watches every client company you manage as an accounting firm. Exact match on `scope`.
+         */
+        scope?: 'empresa' | 'cartera';
+        /**
+         * Creation date (ISO 8601). Greater than or equal to the given value.
+         */
+        'created[gte]'?: string;
+        /**
+         * Creation date (ISO 8601). Less than or equal to the given value.
+         */
+        'created[lte]'?: string;
+        /**
+         * Creation date (ISO 8601). Strictly greater than the given value.
+         */
+        'created[gt]'?: string;
+        /**
+         * Creation date (ISO 8601). Strictly less than the given value.
+         */
+        'created[lt]'?: string;
+        /**
+         * Free-text search. Escaped `LIKE %term%` (case-insensitive, max 80 chars) across the resource's key text columns, combined with the other filters (AND) and compatible with the cursor.
+         */
+        search?: string;
+    };
+    url: '/automations/rules';
+};
+
+export type PublicApiV1AutomationsRulesListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesListError = PublicApiV1AutomationsRulesListErrors[keyof PublicApiV1AutomationsRulesListErrors];
+
+export type PublicApiV1AutomationsRulesListResponses = {
+    200: PaginatedList & {
+        data?: Array<AutomationRule>;
+    };
+};
+
+export type PublicApiV1AutomationsRulesListResponse = PublicApiV1AutomationsRulesListResponses[keyof PublicApiV1AutomationsRulesListResponses];
+
+export type PublicApiV1AutomationsRulesCreateData = {
+    body: CreateAutomationRuleV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/automations/rules';
+};
+
+export type PublicApiV1AutomationsRulesCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesCreateError = PublicApiV1AutomationsRulesCreateErrors[keyof PublicApiV1AutomationsRulesCreateErrors];
+
+export type PublicApiV1AutomationsRulesCreateResponses = {
+    201: {
+        data: AutomationRule;
+    };
+};
+
+export type PublicApiV1AutomationsRulesCreateResponse = PublicApiV1AutomationsRulesCreateResponses[keyof PublicApiV1AutomationsRulesCreateResponses];
+
 export type PublicApiV1CompaniesApiKeysListData = {
     body?: never;
     headers?: {
@@ -20260,7 +24182,7 @@ export type PublicApiV1CompaniesListData = {
         /**
          * Filtrar por estado del vínculo de gestoría. Sin filtro se ocultan las archivadas (solo `active` e `inactive`).
          */
-        status?: 'active' | 'inactive' | 'archived';
+        status?: 'active' | 'inactive' | 'archived' | null;
     };
     url: '/companies';
 };
@@ -20301,11 +24223,11 @@ export type PublicApiV1CompaniesListResponse = PublicApiV1CompaniesListResponses
 
 export type PublicApiV1CompaniesCreateData = {
     body: CreateCompanyV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -20326,7 +24248,7 @@ export type PublicApiV1CompaniesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, or the account lacks the plan or add-on this operation bills against. Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -20363,11 +24285,11 @@ export type PublicApiV1CompaniesCreateResponse = PublicApiV1CompaniesCreateRespo
 
 export type PublicApiV1InvoicesCorrectiveData = {
     body: CreateCorrectiveInvoiceRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -20423,6 +24345,7 @@ export type PublicApiV1InvoicesCorrectiveResponses = {
      */
     201: {
         data: Invoice;
+        warnings: Array<string>;
     };
 };
 
@@ -20538,6 +24461,42 @@ export type PublicApiV1DeliveryNotesListData = {
          * Transport / courier company. Partial case-insensitive match (`LIKE %term%`) on `carrier_company`.
          */
         'carrier_company[contains]'?: string;
+        /**
+         * Town or city of the delivery address recorded on the delivery note (e.g. `delivery_city=Alcoy`), never the client's address — to filter by client use `client_id`. Exact match on `delivery_city`.
+         */
+        delivery_city?: string;
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'delivery_city[in]'?: string;
+        /**
+         * Town or city of the delivery address recorded on the delivery note (e.g. `delivery_city=Alcoy`), never the client's address — to filter by client use `client_id`. Partial case-insensitive match (`LIKE %term%`) on `delivery_city`.
+         */
+        'delivery_city[contains]'?: string;
+        /**
+         * Province of the delivery address recorded on the delivery note (e.g. `delivery_province[in]=Alicante,Valencia`), never the client's address — to filter by client use `client_id`. Exact match on `delivery_province`.
+         */
+        delivery_province?: string;
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'delivery_province[in]'?: string;
+        /**
+         * Province of the delivery address recorded on the delivery note (e.g. `delivery_province[in]=Alicante,Valencia`), never the client's address — to filter by client use `client_id`. Partial case-insensitive match (`LIKE %term%`) on `delivery_province`.
+         */
+        'delivery_province[contains]'?: string;
+        /**
+         * Postal code of the delivery address recorded on the delivery note, never the client's address. The first two digits identify the Spanish province, so `delivery_postal_code[contains]=03` narrows the list down to one province. Exact match on `delivery_postal_code`.
+         */
+        delivery_postal_code?: string;
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'delivery_postal_code[in]'?: string;
+        /**
+         * Postal code of the delivery address recorded on the delivery note, never the client's address. The first two digits identify the Spanish province, so `delivery_postal_code[contains]=03` narrows the list down to one province. Partial case-insensitive match (`LIKE %term%`) on `delivery_postal_code`.
+         */
+        'delivery_postal_code[contains]'?: string;
         /**
          * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches delivery notes carrying ANY of the tags). Exact match on `tags`.
          */
@@ -20755,11 +24714,11 @@ export type PublicApiV1EmployeesListResponse = PublicApiV1EmployeesListResponses
 
 export type PublicApiV1EmployeesCreateData = {
     body: CreateEmployeeRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -20780,7 +24739,7 @@ export type PublicApiV1EmployeesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, or the account lacks the plan or add-on this operation bills against. Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -20830,7 +24789,7 @@ export type PublicApiV1InvoicesListData = {
     path?: never;
     query?: {
         original_invoice_id?: string | null;
-        verifactu_status?: 'no_verifactu' | 'pending' | 'accepted' | 'rejected';
+        verifactu_status?: 'no_verifactu' | 'pending' | 'accepted' | 'rejected' | null;
         /**
          * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
@@ -21092,8 +25051,11 @@ export type PublicApiV1InvoicesVerifactuGetErrors = {
 export type PublicApiV1InvoicesVerifactuGetError = PublicApiV1InvoicesVerifactuGetErrors[keyof PublicApiV1InvoicesVerifactuGetErrors];
 
 export type PublicApiV1InvoicesVerifactuGetResponses = {
+    /**
+     * The invoice VeriFactu record, or null when no record exists, and the effective company activation flag.
+     */
     200: {
-        data: Invoice;
+        data: VeriFactuRecord | null;
         verifactu_enabled: boolean;
     };
 };
@@ -21102,11 +25064,11 @@ export type PublicApiV1InvoicesVerifactuGetResponse = PublicApiV1InvoicesVerifac
 
 export type PublicApiV1InvoicesVerifactuCreateData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -21141,6 +25103,10 @@ export type PublicApiV1InvoicesVerifactuCreateErrors = {
      */
     409: Error;
     /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -21153,12 +25119,127 @@ export type PublicApiV1InvoicesVerifactuCreateErrors = {
 export type PublicApiV1InvoicesVerifactuCreateError = PublicApiV1InvoicesVerifactuCreateErrors[keyof PublicApiV1InvoicesVerifactuCreateErrors];
 
 export type PublicApiV1InvoicesVerifactuCreateResponses = {
+    /**
+     * The newly created VeriFactu record. Transmission to AEAT is asynchronous.
+     */
     201: {
-        data: Invoice;
+        data: VeriFactuRecord | null;
     };
 };
 
 export type PublicApiV1InvoicesVerifactuCreateResponse = PublicApiV1InvoicesVerifactuCreateResponses[keyof PublicApiV1InvoicesVerifactuCreateResponses];
+
+export type PublicApiV1PriceListsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        page?: number;
+        limit?: number;
+        starting_after?: string | null;
+        search?: string;
+        status?: 'active' | 'inactive';
+    };
+    url: '/price-lists';
+};
+
+export type PublicApiV1PriceListsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsListError = PublicApiV1PriceListsListErrors[keyof PublicApiV1PriceListsListErrors];
+
+export type PublicApiV1PriceListsListResponses = {
+    200: PaginatedList & PriceListCollection;
+};
+
+export type PublicApiV1PriceListsListResponse = PublicApiV1PriceListsListResponses[keyof PublicApiV1PriceListsListResponses];
+
+export type PublicApiV1PriceListsCreateData = {
+    body: CreatePriceListRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/price-lists';
+};
+
+export type PublicApiV1PriceListsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsCreateError = PublicApiV1PriceListsCreateErrors[keyof PublicApiV1PriceListsCreateErrors];
+
+export type PublicApiV1PriceListsCreateResponses = {
+    201: {
+        data: PriceList;
+    };
+};
+
+export type PublicApiV1PriceListsCreateResponse = PublicApiV1PriceListsCreateResponses[keyof PublicApiV1PriceListsCreateResponses];
 
 export type PublicApiV1ProductsListData = {
     body?: never;
@@ -21365,6 +25446,246 @@ export type PublicApiV1ProductsCreateResponses = {
 };
 
 export type PublicApiV1ProductsCreateResponse = PublicApiV1ProductsCreateResponses[keyof PublicApiV1ProductsCreateResponses];
+
+export type PublicApiV1ProductsPresentationsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: {
+        limit?: number;
+        starting_after?: string | null;
+        active?: boolean;
+    };
+    url: '/products/{product}/presentations';
+};
+
+export type PublicApiV1ProductsPresentationsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsPresentationsListError = PublicApiV1ProductsPresentationsListErrors[keyof PublicApiV1ProductsPresentationsListErrors];
+
+export type PublicApiV1ProductsPresentationsListResponses = {
+    200: PaginatedList & {
+        data?: Array<ProductPresentation>;
+    };
+};
+
+export type PublicApiV1ProductsPresentationsListResponse = PublicApiV1ProductsPresentationsListResponses[keyof PublicApiV1ProductsPresentationsListResponses];
+
+export type PublicApiV1ProductsPresentationsCreateData = {
+    body: CreateProductPresentationRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: never;
+    url: '/products/{product}/presentations';
+};
+
+export type PublicApiV1ProductsPresentationsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsPresentationsCreateError = PublicApiV1ProductsPresentationsCreateErrors[keyof PublicApiV1ProductsPresentationsCreateErrors];
+
+export type PublicApiV1ProductsPresentationsCreateResponses = {
+    201: {
+        data: ProductPresentation;
+    };
+};
+
+export type PublicApiV1ProductsPresentationsCreateResponse = PublicApiV1ProductsPresentationsCreateResponses[keyof PublicApiV1ProductsPresentationsCreateResponses];
+
+export type PublicApiV1ProductsVariantsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: {
+        limit?: number;
+        starting_after?: string | null;
+        active?: boolean;
+    };
+    url: '/products/{product}/variants';
+};
+
+export type PublicApiV1ProductsVariantsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsVariantsListError = PublicApiV1ProductsVariantsListErrors[keyof PublicApiV1ProductsVariantsListErrors];
+
+export type PublicApiV1ProductsVariantsListResponses = {
+    200: PaginatedList & {
+        data?: Array<ProductVariant>;
+    };
+};
+
+export type PublicApiV1ProductsVariantsListResponse = PublicApiV1ProductsVariantsListResponses[keyof PublicApiV1ProductsVariantsListResponses];
+
+export type PublicApiV1ProductsVariantsCreateData = {
+    body: CreateProductVariantRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: never;
+    url: '/products/{product}/variants';
+};
+
+export type PublicApiV1ProductsVariantsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsVariantsCreateError = PublicApiV1ProductsVariantsCreateErrors[keyof PublicApiV1ProductsVariantsCreateErrors];
+
+export type PublicApiV1ProductsVariantsCreateResponses = {
+    201: {
+        data: ProductVariant;
+    };
+};
+
+export type PublicApiV1ProductsVariantsCreateResponse = PublicApiV1ProductsVariantsCreateResponses[keyof PublicApiV1ProductsVariantsCreateResponses];
 
 export type PublicApiV1ProformasListData = {
     body?: never;
@@ -22081,8 +26402,11 @@ export type PublicApiV1InvoicesCreateRecurringErrors = {
 export type PublicApiV1InvoicesCreateRecurringError = PublicApiV1InvoicesCreateRecurringErrors[keyof PublicApiV1InvoicesCreateRecurringErrors];
 
 export type PublicApiV1InvoicesCreateRecurringResponses = {
+    /**
+     * The recurring invoice created from the source invoice.
+     */
     201: {
-        data: Invoice;
+        data: RecurringInvoice;
     };
 };
 
@@ -22616,6 +26940,129 @@ export type PublicApiV1SuppliersCreateResponses = {
 
 export type PublicApiV1SuppliersCreateResponse = PublicApiV1SuppliersCreateResponses[keyof PublicApiV1SuppliersCreateResponses];
 
+export type PublicApiV1ProductsSupplierOffersListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: {
+        supplier_id?: string;
+        variant_id?: string;
+        availability?: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
+        preferred?: boolean;
+        limit?: number;
+        starting_after?: string | null;
+    };
+    url: '/products/{product}/supplier-offers';
+};
+
+export type PublicApiV1ProductsSupplierOffersListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsSupplierOffersListError = PublicApiV1ProductsSupplierOffersListErrors[keyof PublicApiV1ProductsSupplierOffersListErrors];
+
+export type PublicApiV1ProductsSupplierOffersListResponses = {
+    200: PaginatedList & {
+        data?: Array<SupplierProductOffer>;
+    };
+};
+
+export type PublicApiV1ProductsSupplierOffersListResponse = PublicApiV1ProductsSupplierOffersListResponses[keyof PublicApiV1ProductsSupplierOffersListResponses];
+
+export type PublicApiV1ProductsSupplierOffersCreateData = {
+    body: CreateSupplierProductOfferRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: never;
+    url: '/products/{product}/supplier-offers';
+};
+
+export type PublicApiV1ProductsSupplierOffersCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsSupplierOffersCreateError = PublicApiV1ProductsSupplierOffersCreateErrors[keyof PublicApiV1ProductsSupplierOffersCreateErrors];
+
+export type PublicApiV1ProductsSupplierOffersCreateResponses = {
+    201: {
+        data: SupplierProductOffer;
+    };
+};
+
+export type PublicApiV1ProductsSupplierOffersCreateResponse = PublicApiV1ProductsSupplierOffersCreateResponses[keyof PublicApiV1ProductsSupplierOffersCreateResponses];
+
 export type PublicApiV1TaxesListData = {
     body?: never;
     headers?: {
@@ -22886,7 +27333,7 @@ export type PublicApiV1WebhookEndpointsCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, or the account lacks the plan or add-on this operation bills against. Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -23189,13 +27636,190 @@ export type PublicApiV1EmployeesDeactivateResponses = {
 
 export type PublicApiV1EmployeesDeactivateResponse = PublicApiV1EmployeesDeactivateResponses[keyof PublicApiV1EmployeesDeactivateResponses];
 
-export type PublicApiV1ClientsDeleteData = {
+export type PublicApiV1AutomationsRulesDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+    };
+    query?: never;
+    url: '/automations/rules/{rule}';
+};
+
+export type PublicApiV1AutomationsRulesDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesDeleteError = PublicApiV1AutomationsRulesDeleteErrors[keyof PublicApiV1AutomationsRulesDeleteErrors];
+
+export type PublicApiV1AutomationsRulesDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1AutomationsRulesDeleteResponse = PublicApiV1AutomationsRulesDeleteResponses[keyof PublicApiV1AutomationsRulesDeleteResponses];
+
+export type PublicApiV1AutomationsRulesShowData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
-        'Idempotency-Key'?: string;
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+    };
+    query?: never;
+    url: '/automations/rules/{rule}';
+};
+
+export type PublicApiV1AutomationsRulesShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesShowError = PublicApiV1AutomationsRulesShowErrors[keyof PublicApiV1AutomationsRulesShowErrors];
+
+export type PublicApiV1AutomationsRulesShowResponses = {
+    200: {
+        data: AutomationRule;
+    };
+};
+
+export type PublicApiV1AutomationsRulesShowResponse = PublicApiV1AutomationsRulesShowResponses[keyof PublicApiV1AutomationsRulesShowResponses];
+
+export type PublicApiV1AutomationsRulesUpdateData = {
+    body?: UpdateAutomationRuleV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+    };
+    query?: never;
+    url: '/automations/rules/{rule}';
+};
+
+export type PublicApiV1AutomationsRulesUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesUpdateError = PublicApiV1AutomationsRulesUpdateErrors[keyof PublicApiV1AutomationsRulesUpdateErrors];
+
+export type PublicApiV1AutomationsRulesUpdateResponses = {
+    200: {
+        data: AutomationRule;
+    };
+};
+
+export type PublicApiV1AutomationsRulesUpdateResponse = PublicApiV1AutomationsRulesUpdateResponses[keyof PublicApiV1AutomationsRulesUpdateResponses];
+
+export type PublicApiV1ClientsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -23229,6 +27853,10 @@ export type PublicApiV1ClientsDeleteErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -23545,7 +28173,11 @@ export type PublicApiV1CompaniesUpdateResponse = PublicApiV1CompaniesUpdateRespo
 
 export type PublicApiV1DeliveryNotesDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -23579,6 +28211,10 @@ export type PublicApiV1DeliveryNotesDeleteErrors = {
      * The delivery note request conflicts with its current state — e.g. an invalid status transition (signing an already-signed delivery note), an attempt to sign a non-delivered note, or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -23714,11 +28350,11 @@ export type PublicApiV1DeliveryNotesUpdateResponse = PublicApiV1DeliveryNotesUpd
 
 export type PublicApiV1InvoicesDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -23752,6 +28388,10 @@ export type PublicApiV1InvoicesDeleteErrors = {
      * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -23889,13 +28529,256 @@ export type PublicApiV1InvoicesUpdateResponses = {
 
 export type PublicApiV1InvoicesUpdateResponse = PublicApiV1InvoicesUpdateResponses[keyof PublicApiV1InvoicesUpdateResponses];
 
-export type PublicApiV1ProductsDeleteData = {
+export type PublicApiV1PriceListsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+    };
+    query?: never;
+    url: '/price-lists/{priceList}';
+};
+
+export type PublicApiV1PriceListsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsDeleteError = PublicApiV1PriceListsDeleteErrors[keyof PublicApiV1PriceListsDeleteErrors];
+
+export type PublicApiV1PriceListsDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1PriceListsDeleteResponse = PublicApiV1PriceListsDeleteResponses[keyof PublicApiV1PriceListsDeleteResponses];
+
+export type PublicApiV1PriceListsShowData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
-        'Idempotency-Key'?: string;
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+    };
+    query?: never;
+    url: '/price-lists/{priceList}';
+};
+
+export type PublicApiV1PriceListsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsShowError = PublicApiV1PriceListsShowErrors[keyof PublicApiV1PriceListsShowErrors];
+
+export type PublicApiV1PriceListsShowResponses = {
+    200: {
+        data: PriceList;
+    };
+};
+
+export type PublicApiV1PriceListsShowResponse = PublicApiV1PriceListsShowResponses[keyof PublicApiV1PriceListsShowResponses];
+
+export type PublicApiV1PriceListsUpdateData = {
+    body: UpdatePriceListRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+    };
+    query?: never;
+    url: '/price-lists/{priceList}';
+};
+
+export type PublicApiV1PriceListsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsUpdateError = PublicApiV1PriceListsUpdateErrors[keyof PublicApiV1PriceListsUpdateErrors];
+
+export type PublicApiV1PriceListsUpdateResponses = {
+    200: {
+        data: PriceList;
+    };
+};
+
+export type PublicApiV1PriceListsUpdateResponse = PublicApiV1PriceListsUpdateResponses[keyof PublicApiV1PriceListsUpdateResponses];
+
+export type PublicApiV1PriceListsItemsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+        item: string;
+    };
+    query?: never;
+    url: '/price-lists/{priceList}/items/{item}';
+};
+
+export type PublicApiV1PriceListsItemsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsItemsDeleteError = PublicApiV1PriceListsItemsDeleteErrors[keyof PublicApiV1PriceListsItemsDeleteErrors];
+
+export type PublicApiV1PriceListsItemsDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1PriceListsItemsDeleteResponse = PublicApiV1PriceListsItemsDeleteResponses[keyof PublicApiV1PriceListsItemsDeleteResponses];
+
+export type PublicApiV1ProductsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -23929,6 +28812,10 @@ export type PublicApiV1ProductsDeleteErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -23965,7 +28852,14 @@ export type PublicApiV1ProductsShowData = {
     path: {
         product: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Recursos anidados a incluir, separados por comas. Hoy solo
+         * `configurable_catalog`, que adjunta los grupos de opciones
+         * vendibles y las combinaciones comerciales del producto.
+         */
+        include?: string | null;
+    };
     url: '/products/{product}';
 };
 
@@ -23982,6 +28876,10 @@ export type PublicApiV1ProductsShowErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -24132,6 +29030,260 @@ export type PublicApiV1ProductsGalleryDeleteResponses = {
 
 export type PublicApiV1ProductsGalleryDeleteResponse = PublicApiV1ProductsGalleryDeleteResponses[keyof PublicApiV1ProductsGalleryDeleteResponses];
 
+export type PublicApiV1ProductsPresentationsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+        presentation: string;
+    };
+    query?: never;
+    url: '/products/{product}/presentations/{presentation}';
+};
+
+export type PublicApiV1ProductsPresentationsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsPresentationsDeleteError = PublicApiV1ProductsPresentationsDeleteErrors[keyof PublicApiV1ProductsPresentationsDeleteErrors];
+
+export type PublicApiV1ProductsPresentationsDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1ProductsPresentationsDeleteResponse = PublicApiV1ProductsPresentationsDeleteResponses[keyof PublicApiV1ProductsPresentationsDeleteResponses];
+
+export type PublicApiV1ProductsPresentationsUpdateData = {
+    body: UpdateProductPresentationRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+        presentation: string;
+    };
+    query?: never;
+    url: '/products/{product}/presentations/{presentation}';
+};
+
+export type PublicApiV1ProductsPresentationsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsPresentationsUpdateError = PublicApiV1ProductsPresentationsUpdateErrors[keyof PublicApiV1ProductsPresentationsUpdateErrors];
+
+export type PublicApiV1ProductsPresentationsUpdateResponses = {
+    200: {
+        data: ProductPresentation;
+    };
+};
+
+export type PublicApiV1ProductsPresentationsUpdateResponse = PublicApiV1ProductsPresentationsUpdateResponses[keyof PublicApiV1ProductsPresentationsUpdateResponses];
+
+export type PublicApiV1ProductsVariantsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+        variant: string;
+    };
+    query?: never;
+    url: '/products/{product}/variants/{variant}';
+};
+
+export type PublicApiV1ProductsVariantsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsVariantsDeleteError = PublicApiV1ProductsVariantsDeleteErrors[keyof PublicApiV1ProductsVariantsDeleteErrors];
+
+export type PublicApiV1ProductsVariantsDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1ProductsVariantsDeleteResponse = PublicApiV1ProductsVariantsDeleteResponses[keyof PublicApiV1ProductsVariantsDeleteResponses];
+
+export type PublicApiV1ProductsVariantsUpdateData = {
+    body: UpdateProductVariantRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+        variant: string;
+    };
+    query?: never;
+    url: '/products/{product}/variants/{variant}';
+};
+
+export type PublicApiV1ProductsVariantsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsVariantsUpdateError = PublicApiV1ProductsVariantsUpdateErrors[keyof PublicApiV1ProductsVariantsUpdateErrors];
+
+export type PublicApiV1ProductsVariantsUpdateResponses = {
+    200: {
+        data: ProductVariant;
+    };
+};
+
+export type PublicApiV1ProductsVariantsUpdateResponse = PublicApiV1ProductsVariantsUpdateResponses[keyof PublicApiV1ProductsVariantsUpdateResponses];
+
 export type PublicApiV1ProductsVideoDeleteData = {
     body?: never;
     headers?: {
@@ -24195,11 +29347,11 @@ export type PublicApiV1ProductsVideoDeleteResponse = PublicApiV1ProductsVideoDel
 
 export type PublicApiV1ProductsVideoUploadData = {
     body: UploadProductVideoRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -24259,7 +29411,11 @@ export type PublicApiV1ProductsVideoUploadResponse = PublicApiV1ProductsVideoUpl
 
 export type PublicApiV1ProformasDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -24293,6 +29449,10 @@ export type PublicApiV1ProformasDeleteErrors = {
      * The proforma request conflicts with its current state — e.g. an invalid status transition (re-converting an already-converted proforma), an attempt to edit a sent proforma, or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -24432,11 +29592,11 @@ export type PublicApiV1ProformasUpdateResponse = PublicApiV1ProformasUpdateRespo
 
 export type PublicApiV1PurchaseInvoicesDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -24470,6 +29630,10 @@ export type PublicApiV1PurchaseInvoicesDeleteErrors = {
      * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -24717,16 +29881,18 @@ export type PublicApiV1PurchaseInvoicesFileResponses = {
      * El adjunto está cifrado at-rest en el Vault; el handler entrega un
      * temp file DESCIFRADO de vida acotada que se elimina tras enviarse.
      */
-    200: {
-        [key: string]: unknown;
-    };
+    200: Blob | File;
 };
 
 export type PublicApiV1PurchaseInvoicesFileResponse = PublicApiV1PurchaseInvoicesFileResponses[keyof PublicApiV1PurchaseInvoicesFileResponses];
 
 export type PublicApiV1QuotesDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -24760,6 +29926,10 @@ export type PublicApiV1QuotesDeleteErrors = {
      * The quote request conflicts with its current state — e.g. an invalid status transition (accepting a rejected quote), an attempt to convert a non-accepted quote, or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -24895,11 +30065,11 @@ export type PublicApiV1QuotesUpdateResponse = PublicApiV1QuotesUpdateResponses[k
 
 export type PublicApiV1RecurringInvoicesDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -24933,6 +30103,10 @@ export type PublicApiV1RecurringInvoicesDeleteErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -25072,11 +30246,11 @@ export type PublicApiV1RecurringInvoicesUpdateResponse = PublicApiV1RecurringInv
 
 export type PublicApiV1SuppliersDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -25110,6 +30284,10 @@ export type PublicApiV1SuppliersDeleteErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -25247,13 +30425,140 @@ export type PublicApiV1SuppliersUpdateResponses = {
 
 export type PublicApiV1SuppliersUpdateResponse = PublicApiV1SuppliersUpdateResponses[keyof PublicApiV1SuppliersUpdateResponses];
 
-export type PublicApiV1TaxesDeleteData = {
+export type PublicApiV1ProductsSupplierOffersDeleteData = {
     body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+        offer: string;
+    };
+    query?: never;
+    url: '/products/{product}/supplier-offers/{offer}';
+};
+
+export type PublicApiV1ProductsSupplierOffersDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsSupplierOffersDeleteError = PublicApiV1ProductsSupplierOffersDeleteErrors[keyof PublicApiV1ProductsSupplierOffersDeleteErrors];
+
+export type PublicApiV1ProductsSupplierOffersDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1ProductsSupplierOffersDeleteResponse = PublicApiV1ProductsSupplierOffersDeleteResponses[keyof PublicApiV1ProductsSupplierOffersDeleteResponses];
+
+export type PublicApiV1ProductsSupplierOffersUpdateData = {
+    body: UpdateSupplierProductOfferRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
-        'Idempotency-Key'?: string;
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+        offer: string;
+    };
+    query?: never;
+    url: '/products/{product}/supplier-offers/{offer}';
+};
+
+export type PublicApiV1ProductsSupplierOffersUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsSupplierOffersUpdateError = PublicApiV1ProductsSupplierOffersUpdateErrors[keyof PublicApiV1ProductsSupplierOffersUpdateErrors];
+
+export type PublicApiV1ProductsSupplierOffersUpdateResponses = {
+    200: {
+        data: SupplierProductOffer;
+    };
+};
+
+export type PublicApiV1ProductsSupplierOffersUpdateResponse = PublicApiV1ProductsSupplierOffersUpdateResponses[keyof PublicApiV1ProductsSupplierOffersUpdateResponses];
+
+export type PublicApiV1TaxesDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -25287,6 +30592,10 @@ export type PublicApiV1TaxesDeleteErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -25426,7 +30735,11 @@ export type PublicApiV1TaxesUpdateResponse = PublicApiV1TaxesUpdateResponses[key
 
 export type PublicApiV1WebhookEndpointsDeleteData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -25460,6 +30773,10 @@ export type PublicApiV1WebhookEndpointsDeleteErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -25595,7 +30912,11 @@ export type PublicApiV1WebhookEndpointsUpdateResponse = PublicApiV1WebhookEndpoi
 
 export type PublicApiV1StripeAutoinvoicingAccountsDisconnectData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -25629,6 +30950,10 @@ export type PublicApiV1StripeAutoinvoicingAccountsDisconnectErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -25704,7 +31029,11 @@ export type PublicApiV1StripeAutoinvoicingAccountsShowResponse = PublicApiV1Stri
 
 export type PublicApiV1StripeAutoinvoicingAccountsUpdateData = {
     body?: UpdateConnectedAccountRequest;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -25762,6 +31091,183 @@ export type PublicApiV1StripeAutoinvoicingAccountsUpdateResponses = {
 
 export type PublicApiV1StripeAutoinvoicingAccountsUpdateResponse = PublicApiV1StripeAutoinvoicingAccountsUpdateResponses[keyof PublicApiV1StripeAutoinvoicingAccountsUpdateResponses];
 
+export type PublicApiV1StoresDisconnectData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        store: string;
+    };
+    query?: never;
+    url: '/stores/{store}';
+};
+
+export type PublicApiV1StoresDisconnectErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StoresDisconnectError = PublicApiV1StoresDisconnectErrors[keyof PublicApiV1StoresDisconnectErrors];
+
+export type PublicApiV1StoresDisconnectResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1StoresDisconnectResponse = PublicApiV1StoresDisconnectResponses[keyof PublicApiV1StoresDisconnectResponses];
+
+export type PublicApiV1StoresShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        store: string;
+    };
+    query?: never;
+    url: '/stores/{store}';
+};
+
+export type PublicApiV1StoresShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StoresShowError = PublicApiV1StoresShowErrors[keyof PublicApiV1StoresShowErrors];
+
+export type PublicApiV1StoresShowResponses = {
+    200: {
+        data: Store;
+    };
+};
+
+export type PublicApiV1StoresShowResponse = PublicApiV1StoresShowResponses[keyof PublicApiV1StoresShowResponses];
+
+export type PublicApiV1StoresUpdateData = {
+    body?: UpdateStoreV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        store: string;
+    };
+    query?: never;
+    url: '/stores/{store}';
+};
+
+export type PublicApiV1StoresUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StoresUpdateError = PublicApiV1StoresUpdateErrors[keyof PublicApiV1StoresUpdateErrors];
+
+export type PublicApiV1StoresUpdateResponses = {
+    200: {
+        data: Store;
+    };
+};
+
+export type PublicApiV1StoresUpdateResponse = PublicApiV1StoresUpdateResponses[keyof PublicApiV1StoresUpdateResponses];
+
 export type PublicApiV1ClientsImportTemplateData = {
     body?: never;
     headers?: {
@@ -25801,9 +31307,10 @@ export type PublicApiV1ClientsImportTemplateErrors = {
 export type PublicApiV1ClientsImportTemplateError = PublicApiV1ClientsImportTemplateErrors[keyof PublicApiV1ClientsImportTemplateErrors];
 
 export type PublicApiV1ClientsImportTemplateResponses = {
-    200: {
-        [key: string]: unknown;
-    };
+    /**
+     * CSV import template with a UTF-8 BOM, Spanish column headings and two example rows.
+     */
+    200: string;
 };
 
 export type PublicApiV1ClientsImportTemplateResponse = PublicApiV1ClientsImportTemplateResponses[keyof PublicApiV1ClientsImportTemplateResponses];
@@ -25827,7 +31334,7 @@ export type PublicApiV1MonthlyTimeRecordClosesExportData = {
         /**
          * ITSS export format (defaults to rdley_8_2019).
          */
-        format?: 'rdley_8_2019';
+        format?: 'rdley_8_2019' | null;
     };
     url: '/monthly-time-record-closes/{monthly_time_record_close}/export';
 };
@@ -25862,9 +31369,7 @@ export type PublicApiV1MonthlyTimeRecordClosesExportErrors = {
 export type PublicApiV1MonthlyTimeRecordClosesExportError = PublicApiV1MonthlyTimeRecordClosesExportErrors[keyof PublicApiV1MonthlyTimeRecordClosesExportErrors];
 
 export type PublicApiV1MonthlyTimeRecordClosesExportResponses = {
-    200: {
-        [key: string]: unknown;
-    };
+    200: Blob | File;
 };
 
 export type PublicApiV1MonthlyTimeRecordClosesExportResponse = PublicApiV1MonthlyTimeRecordClosesExportResponses[keyof PublicApiV1MonthlyTimeRecordClosesExportResponses];
@@ -25960,6 +31465,10 @@ export type PublicApiV1InvoicesFacturaeErrors = {
      */
     404: Error;
     /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -26048,7 +31557,7 @@ export type PublicApiV1MonthlyTimeRecordClosesPayrollExportData = {
         /**
          * Payroll export format by software (defaults to a3).
          */
-        format?: 'a3' | 'sage' | 'nominasol';
+        format?: 'a3' | 'sage' | 'nominasol' | null;
     };
     url: '/monthly-time-record-closes/{monthly_time_record_close}/payroll-export';
 };
@@ -26083,9 +31592,7 @@ export type PublicApiV1MonthlyTimeRecordClosesPayrollExportErrors = {
 export type PublicApiV1MonthlyTimeRecordClosesPayrollExportError = PublicApiV1MonthlyTimeRecordClosesPayrollExportErrors[keyof PublicApiV1MonthlyTimeRecordClosesPayrollExportErrors];
 
 export type PublicApiV1MonthlyTimeRecordClosesPayrollExportResponses = {
-    200: {
-        [key: string]: unknown;
-    };
+    200: Blob | File;
 };
 
 export type PublicApiV1MonthlyTimeRecordClosesPayrollExportResponse = PublicApiV1MonthlyTimeRecordClosesPayrollExportResponses[keyof PublicApiV1MonthlyTimeRecordClosesPayrollExportResponses];
@@ -26242,7 +31749,7 @@ export type PublicApiV1ProformasPdfErrors = {
 export type PublicApiV1ProformasPdfError = PublicApiV1ProformasPdfErrors[keyof PublicApiV1ProformasPdfErrors];
 
 export type PublicApiV1ProformasPdfResponses = {
-    200: string;
+    200: Blob | File;
 };
 
 export type PublicApiV1ProformasPdfResponse = PublicApiV1ProformasPdfResponses[keyof PublicApiV1ProformasPdfResponses];
@@ -26292,8 +31799,10 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptErrors = {
 export type PublicApiV1PurchaseInvoicesPaymentReceiptError = PublicApiV1PurchaseInvoicesPaymentReceiptErrors[keyof PublicApiV1PurchaseInvoicesPaymentReceiptErrors];
 
 export type PublicApiV1PurchaseInvoicesPaymentReceiptResponses = {
-    200: unknown;
+    200: Blob | File;
 };
+
+export type PublicApiV1PurchaseInvoicesPaymentReceiptResponse = PublicApiV1PurchaseInvoicesPaymentReceiptResponses[keyof PublicApiV1PurchaseInvoicesPaymentReceiptResponses];
 
 export type PublicApiV1QuotesPdfData = {
     body?: never;
@@ -26346,7 +31855,7 @@ export type PublicApiV1QuotesPdfErrors = {
 export type PublicApiV1QuotesPdfError = PublicApiV1QuotesPdfErrors[keyof PublicApiV1QuotesPdfErrors];
 
 export type PublicApiV1QuotesPdfResponses = {
-    200: string;
+    200: Blob | File;
 };
 
 export type PublicApiV1QuotesPdfResponse = PublicApiV1QuotesPdfResponses[keyof PublicApiV1QuotesPdfResponses];
@@ -26396,10 +31905,70 @@ export type PublicApiV1TaxReportsDownloadErrors = {
 export type PublicApiV1TaxReportsDownloadError = PublicApiV1TaxReportsDownloadErrors[keyof PublicApiV1TaxReportsDownloadErrors];
 
 export type PublicApiV1TaxReportsDownloadResponses = {
-    200: string | null;
+    200: Blob | File;
 };
 
 export type PublicApiV1TaxReportsDownloadResponse = PublicApiV1TaxReportsDownloadResponses[keyof PublicApiV1TaxReportsDownloadResponses];
+
+export type PublicApiV1AutomationsRulesDryRunData = {
+    body: DryRunAutomationRuleV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+    };
+    query?: never;
+    url: '/automations/rules/{rule}/dry_run';
+};
+
+export type PublicApiV1AutomationsRulesDryRunErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesDryRunError = PublicApiV1AutomationsRulesDryRunErrors[keyof PublicApiV1AutomationsRulesDryRunErrors];
+
+export type PublicApiV1AutomationsRulesDryRunResponses = {
+    200: {
+        data: AutomationDryRun;
+    };
+};
+
+export type PublicApiV1AutomationsRulesDryRunResponse = PublicApiV1AutomationsRulesDryRunResponses[keyof PublicApiV1AutomationsRulesDryRunResponses];
 
 export type PublicApiV1DeliveryNotesDuplicateData = {
     body?: never;
@@ -26646,7 +32215,11 @@ export type PublicApiV1QuotesDuplicateResponse = PublicApiV1QuotesDuplicateRespo
 
 export type PublicApiV1InvoicesExportExcelData = {
     body?: ExportInvoicesExcelV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -26675,6 +32248,10 @@ export type PublicApiV1InvoicesExportExcelErrors = {
      */
     409: Error;
     /**
+     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     */
+    413: Error;
+    /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -26691,9 +32268,7 @@ export type PublicApiV1InvoicesExportExcelErrors = {
 export type PublicApiV1InvoicesExportExcelError = PublicApiV1InvoicesExportExcelErrors[keyof PublicApiV1InvoicesExportExcelErrors];
 
 export type PublicApiV1InvoicesExportExcelResponses = {
-    200: {
-        [key: string]: unknown;
-    };
+    200: Blob | File;
 };
 
 export type PublicApiV1InvoicesExportExcelResponse = PublicApiV1InvoicesExportExcelResponses[keyof PublicApiV1InvoicesExportExcelResponses];
@@ -27289,8 +32864,8 @@ export type PublicApiV1QuotesFindByExternalIdResponses = {
 export type PublicApiV1QuotesFindByExternalIdResponse = PublicApiV1QuotesFindByExternalIdResponses[keyof PublicApiV1QuotesFindByExternalIdResponses];
 
 export type PublicApiV1VerifactuRecordsFindByCsvData = {
-    body?: FindRecordByAeatCsvV1Request & {
-        aeat_csv?: string;
+    body: {
+        aeat_csv: string;
     };
     headers?: {
         /**
@@ -27321,10 +32896,6 @@ export type PublicApiV1VerifactuRecordsFindByCsvErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -27345,8 +32916,8 @@ export type PublicApiV1VerifactuRecordsFindByCsvResponses = {
 export type PublicApiV1VerifactuRecordsFindByCsvResponse = PublicApiV1VerifactuRecordsFindByCsvResponses[keyof PublicApiV1VerifactuRecordsFindByCsvResponses];
 
 export type PublicApiV1VerifactuRecordsFindByHuellaData = {
-    body?: FindRecordByHuellaV1Request & {
-        huella?: string;
+    body: {
+        huella: string;
     };
     headers?: {
         /**
@@ -27401,9 +32972,9 @@ export type PublicApiV1VerifactuRecordsFindByHuellaResponses = {
 export type PublicApiV1VerifactuRecordsFindByHuellaResponse = PublicApiV1VerifactuRecordsFindByHuellaResponses[keyof PublicApiV1VerifactuRecordsFindByHuellaResponses];
 
 export type PublicApiV1VerifactuRecordsFindByInvoiceNumberData = {
-    body?: FindRecordByInvoiceNumberV1Request & {
-        series?: string;
-        number?: string;
+    body: {
+        series: string;
+        number: string;
     };
     headers?: {
         /**
@@ -27433,10 +33004,6 @@ export type PublicApiV1VerifactuRecordsFindByInvoiceNumberErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -27725,7 +33292,11 @@ export type PublicApiV1TaxReportsFindByPeriodResponse = PublicApiV1TaxReportsFin
 
 export type PublicApiV1DeliveryNotesSignatureAuditsForgetData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -27760,6 +33331,10 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetErrors = {
      */
     409: Error;
     /**
+     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -27784,7 +33359,11 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetResponse = PublicApiV1D
 
 export type PublicApiV1TaxReportsGenerate130Data = {
     body: GenerateModelo130V1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -27829,8 +33408,11 @@ export type PublicApiV1TaxReportsGenerate130Errors = {
 export type PublicApiV1TaxReportsGenerate130Error = PublicApiV1TaxReportsGenerate130Errors[keyof PublicApiV1TaxReportsGenerate130Errors];
 
 export type PublicApiV1TaxReportsGenerate130Responses = {
+    /**
+     * The generated Modelo 130 report, with its identifier for downloading the artifact.
+     */
     201: {
-        data: Array<unknown>;
+        data: TaxReport;
     };
 };
 
@@ -27838,11 +33420,11 @@ export type PublicApiV1TaxReportsGenerate130Response = PublicApiV1TaxReportsGene
 
 export type PublicApiV1TaxReportsGenerate303Data = {
     body: GenerateModelo303V1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -27899,11 +33481,11 @@ export type PublicApiV1TaxReportsGenerate303Response = PublicApiV1TaxReportsGene
 
 export type PublicApiV1TaxReportsGenerate347Data = {
     body: GenerateModelo347V1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -27960,11 +33542,11 @@ export type PublicApiV1TaxReportsGenerate347Response = PublicApiV1TaxReportsGene
 
 export type PublicApiV1RecurringInvoicesGenerateData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -27998,6 +33580,10 @@ export type PublicApiV1RecurringInvoicesGenerateErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -28205,6 +33791,150 @@ export type PublicApiV1TaxesActiveResponses = {
 };
 
 export type PublicApiV1TaxesActiveResponse = PublicApiV1TaxesActiveResponses[keyof PublicApiV1TaxesActiveResponses];
+
+export type PublicApiV1AutomationsCatalogShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/automations/catalog';
+};
+
+export type PublicApiV1AutomationsCatalogShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsCatalogShowError = PublicApiV1AutomationsCatalogShowErrors[keyof PublicApiV1AutomationsCatalogShowErrors];
+
+export type PublicApiV1AutomationsCatalogShowResponses = {
+    200: {
+        data: AutomationCatalog;
+    };
+};
+
+export type PublicApiV1AutomationsCatalogShowResponse = PublicApiV1AutomationsCatalogShowResponses[keyof PublicApiV1AutomationsCatalogShowResponses];
+
+export type PublicApiV1AutomationsCatalogTriggerFieldsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        trigger: string;
+    };
+    query?: never;
+    url: '/automations/catalog/triggers/{trigger}/fields';
+};
+
+export type PublicApiV1AutomationsCatalogTriggerFieldsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsCatalogTriggerFieldsError = PublicApiV1AutomationsCatalogTriggerFieldsErrors[keyof PublicApiV1AutomationsCatalogTriggerFieldsErrors];
+
+export type PublicApiV1AutomationsCatalogTriggerFieldsResponses = {
+    200: {
+        data: AutomationTriggerFields;
+    };
+};
+
+export type PublicApiV1AutomationsCatalogTriggerFieldsResponse = PublicApiV1AutomationsCatalogTriggerFieldsResponses[keyof PublicApiV1AutomationsCatalogTriggerFieldsResponses];
+
+export type PublicApiV1AutomationsUsageShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/automations/usage';
+};
+
+export type PublicApiV1AutomationsUsageShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsUsageShowError = PublicApiV1AutomationsUsageShowErrors[keyof PublicApiV1AutomationsUsageShowErrors];
+
+export type PublicApiV1AutomationsUsageShowResponses = {
+    200: {
+        data: AutomationUsage;
+    };
+};
+
+export type PublicApiV1AutomationsUsageShowResponse = PublicApiV1AutomationsUsageShowResponses[keyof PublicApiV1AutomationsUsageShowResponses];
 
 export type PublicApiV1ClientsActivitiesData = {
     body?: never;
@@ -28567,7 +34297,12 @@ export type PublicApiV1SeriesDefaultData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query: {
+        /**
+         * Document type whose default series is requested.
+         */
+        document_type: 'invoice' | 'quote' | 'proforma' | 'delivery_note';
+    };
     url: '/series/default';
 };
 
@@ -29475,10 +35210,6 @@ export type PublicApiV1PresenceLiveErrors = {
      */
     403: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -29537,9 +35268,12 @@ export type PublicApiV1ProductsLowStockReportErrors = {
 export type PublicApiV1ProductsLowStockReportError = PublicApiV1ProductsLowStockReportErrors[keyof PublicApiV1ProductsLowStockReportErrors];
 
 export type PublicApiV1ProductsLowStockReportResponses = {
+    /**
+     * Products below their stock threshold. The response is a collection, without cursor pagination.
+     */
     200: {
-        data: Product;
-        total_count: string;
+        data: Array<Product>;
+        total_count: number;
     };
 };
 
@@ -29633,14 +35367,9 @@ export type PublicApiV1TimeBalancesMonthlySheetErrors = {
      */
     403: Error;
     /**
-     * Not found
+     * The employee or monthly sheet was not found.
      */
-    404: {
-        /**
-         * Error overview.
-         */
-        message: string;
-    };
+    404: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -29844,8 +35573,11 @@ export type PublicApiV1ProductsSalesAnalyticsErrors = {
 export type PublicApiV1ProductsSalesAnalyticsError = PublicApiV1ProductsSalesAnalyticsErrors[keyof PublicApiV1ProductsSalesAnalyticsErrors];
 
 export type PublicApiV1ProductsSalesAnalyticsResponses = {
+    /**
+     * Sales quantities, revenue, monthly trend and recent activity for this product.
+     */
     200: {
-        data: Product;
+        data: ProductSalesAnalytics;
     };
 };
 
@@ -30362,8 +36094,11 @@ export type PublicApiV1CompaniesSeatChargePreviewErrors = {
 export type PublicApiV1CompaniesSeatChargePreviewError = PublicApiV1CompaniesSeatChargePreviewErrors[keyof PublicApiV1CompaniesSeatChargePreviewErrors];
 
 export type PublicApiV1CompaniesSeatChargePreviewResponses = {
+    /**
+     * Preview the charge for managed-company seats without creating a company or charging a payment method. Monetary amounts are in cents.
+     */
     200: {
-        data: Company;
+        data: CompanySeatChargePreview;
     };
 };
 
@@ -30384,7 +36119,20 @@ export type PublicApiV1SeriesActivitiesData = {
     path: {
         series: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+    };
     url: '/series/{series}/activities';
 };
 
@@ -30525,7 +36273,11 @@ export type PublicApiV1StripeAutoinvoicingConfigShowResponse = PublicApiV1Stripe
 
 export type PublicApiV1StripeAutoinvoicingConfigUpdateData = {
     body: UpdateStripeAutoinvoicingConfigRequest;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -30592,7 +36344,20 @@ export type PublicApiV1SuppliersActivitiesData = {
     path: {
         supplier: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+    };
     url: '/suppliers/{supplier}/activities';
 };
 
@@ -30788,7 +36553,20 @@ export type PublicApiV1TaxReportsActivitiesData = {
     path: {
         tax_report: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+    };
     url: '/tax_reports/{tax_report}/activities';
 };
 
@@ -31298,7 +37076,20 @@ export type PublicApiV1VerifactuRecordsActivitiesData = {
     path: {
         record: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+    };
     url: '/verifactu/records/{record}/activities';
 };
 
@@ -31444,7 +37235,32 @@ export type PublicApiV1VerifactuStatsData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Optional status filter.
+         */
+        status?: string;
+        /**
+         * Optional record type filter.
+         */
+        record_type?: string;
+        /**
+         * Optional invoice type filter.
+         */
+        invoice_type?: string;
+        /**
+         * Optional date from filter.
+         */
+        date_from?: string;
+        /**
+         * Optional date to filter.
+         */
+        date_to?: string;
+        /**
+         * Optional environment filter.
+         */
+        environment?: string;
+    };
     url: '/verifactu/stats';
 };
 
@@ -31457,10 +37273,6 @@ export type PublicApiV1VerifactuStatsErrors = {
      * The API key lacks the required scope for this operation.
      */
     403: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -31536,7 +37348,11 @@ export type PublicApiV1WorkSchedulesStatsResponse = PublicApiV1WorkSchedulesStat
 
 export type PublicApiV1ClientsImportData = {
     body: ImportClientsV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -31800,8 +37616,11 @@ export type PublicApiV1SeriesActiveErrors = {
 export type PublicApiV1SeriesActiveError = PublicApiV1SeriesActiveErrors[keyof PublicApiV1SeriesActiveErrors];
 
 export type PublicApiV1SeriesActiveResponses = {
+    /**
+     * Active document series, optionally filtered by document_type.
+     */
     200: {
-        data: Series;
+        data: Array<Series>;
     };
 };
 
@@ -31820,7 +37639,28 @@ export type PublicApiV1VerifactuAeatAccessListData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+        /**
+         * Optional date from filter.
+         */
+        date_from?: string;
+        /**
+         * Optional date to filter.
+         */
+        date_to?: string;
+    };
     url: '/verifactu/aeat-access/records';
 };
 
@@ -31953,6 +37793,235 @@ export type PublicApiV1DevelopersRequestLogsListResponses = {
 
 export type PublicApiV1DevelopersRequestLogsListResponse = PublicApiV1DevelopersRequestLogsListResponses[keyof PublicApiV1DevelopersRequestLogsListResponses];
 
+export type PublicApiV1AutomationsRulesVersionsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+    };
+    query?: {
+        /**
+         * Number of versions to return. Integer between 1 and 100. Defaults to 25. A non-integer or out-of-range value returns 400.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: pass back the `next_cursor` of the previous page. Treat it as opaque — unlike most v1 listings it is a numeric string, not a UUID v7, because the version history paginates by offset. Never build one yourself. A malformed cursor returns 400.
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination: pass back a cursor you were given to step one page back (it never goes past the first page). Same opaque numeric string as `starting_after`. A malformed cursor returns 400.
+         */
+        ending_before?: string;
+    };
+    url: '/automations/rules/{rule}/versions';
+};
+
+export type PublicApiV1AutomationsRulesVersionsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesVersionsListError = PublicApiV1AutomationsRulesVersionsListErrors[keyof PublicApiV1AutomationsRulesVersionsListErrors];
+
+export type PublicApiV1AutomationsRulesVersionsListResponses = {
+    200: PaginatedList & {
+        data?: Array<AutomationRuleVersion>;
+    };
+};
+
+export type PublicApiV1AutomationsRulesVersionsListResponse = PublicApiV1AutomationsRulesVersionsListResponses[keyof PublicApiV1AutomationsRulesVersionsListResponses];
+
+export type PublicApiV1AutomationsRunsStepsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        run: string;
+    };
+    query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         */
+        ending_before?: string;
+    };
+    url: '/automations/runs/{run}/steps';
+};
+
+export type PublicApiV1AutomationsRunsStepsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRunsStepsListError = PublicApiV1AutomationsRunsStepsListErrors[keyof PublicApiV1AutomationsRunsStepsListErrors];
+
+export type PublicApiV1AutomationsRunsStepsListResponses = {
+    200: PaginatedList & {
+        data?: Array<AutomationStepRun>;
+    };
+};
+
+export type PublicApiV1AutomationsRunsStepsListResponse = PublicApiV1AutomationsRunsStepsListResponses[keyof PublicApiV1AutomationsRunsStepsListResponses];
+
+export type PublicApiV1AutomationsRunsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Automation rule ID (UUID v7) whose runs are listed.
+         */
+        automation_rule_id?: string;
+        /**
+         * Managed company ID (UUID v7) the run acted upon. Only companies you manage yield results.
+         */
+        subject_company_id?: string;
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         */
+        ending_before?: string;
+        /**
+         * Status of the run. `dead_lettered` and `failed` are the ones worth replaying; `blocked` means a guardrail stopped it before executing. Exact match on `status`.
+         */
+        status?: 'pending' | 'running' | 'completed' | 'failed' | 'dead_lettered' | 'blocked';
+        /**
+         * Creation date (ISO 8601). Greater than or equal to the given value.
+         */
+        'created[gte]'?: string;
+        /**
+         * Creation date (ISO 8601). Less than or equal to the given value.
+         */
+        'created[lte]'?: string;
+        /**
+         * Creation date (ISO 8601). Strictly greater than the given value.
+         */
+        'created[gt]'?: string;
+        /**
+         * Creation date (ISO 8601). Strictly less than the given value.
+         */
+        'created[lt]'?: string;
+    };
+    url: '/automations/runs';
+};
+
+export type PublicApiV1AutomationsRunsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRunsListError = PublicApiV1AutomationsRunsListErrors[keyof PublicApiV1AutomationsRunsListErrors];
+
+export type PublicApiV1AutomationsRunsListResponses = {
+    200: PaginatedList & {
+        data?: Array<AutomationRun>;
+    };
+};
+
+export type PublicApiV1AutomationsRunsListResponse = PublicApiV1AutomationsRunsListResponses[keyof PublicApiV1AutomationsRunsListResponses];
+
 export type PublicApiV1VerifactuCertificatesListData = {
     body?: never;
     headers?: {
@@ -32001,11 +38070,11 @@ export type PublicApiV1VerifactuCertificatesListResponse = PublicApiV1VerifactuC
 
 export type PublicApiV1VerifactuCertificatesUploadData = {
     body: UploadCompanyCertificateV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -32025,6 +38094,10 @@ export type PublicApiV1VerifactuCertificatesUploadErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -32371,11 +38444,11 @@ export type PublicApiV1EmployeeInvitationsListResponse = PublicApiV1EmployeeInvi
 
 export type PublicApiV1EmployeeInvitationsSendData = {
     body: SendEmployeeInvitationRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -32664,7 +38737,7 @@ export type PublicApiV1IntegrationsEventsListData = {
         /**
          * Payment gateway or integration that produced the event.
          */
-        provider?: 'stripe' | 'gocardless' | 'monei' | 'slack' | 'teams' | 'a3' | 'norma43' | 'norma19' | 'ubl';
+        provider?: 'stripe' | 'gocardless' | 'monei' | 'slack' | 'teams' | 'a3' | 'norma43' | 'norma19' | 'ubl' | 'woocommerce' | 'shopify' | 'prestashop';
         /**
          * Outcome of the event (success, skipped, failure).
          */
@@ -32676,7 +38749,7 @@ export type PublicApiV1IntegrationsEventsListData = {
         /**
          * Typed reason why the event was discarded, from the closed catalogue.
          */
-        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed';
+        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable';
         /**
          * Whether the event was parked with its content so it can be replayed.
          */
@@ -32897,7 +38970,11 @@ export type PublicApiV1InvoicesFaceSubmissionsListResponse = PublicApiV1Invoices
 
 export type PublicApiV1InvoicesFaceSubmissionsSubmitData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -32931,6 +39008,10 @@ export type PublicApiV1InvoicesFaceSubmissionsSubmitErrors = {
      * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -32997,7 +39078,7 @@ export type PublicApiV1InvoicesPaymentsListError = PublicApiV1InvoicesPaymentsLi
 
 export type PublicApiV1InvoicesPaymentsListResponses = {
     200: {
-        data: Invoice;
+        data: Array<InvoicePaymentDetail>;
     };
 };
 
@@ -33057,7 +39138,7 @@ export type PublicApiV1InvoicesPaymentsCreateError = PublicApiV1InvoicesPayments
 
 export type PublicApiV1InvoicesPaymentsCreateResponses = {
     201: {
-        data: Invoice;
+        data: InvoicePaymentDetail;
     };
 };
 
@@ -33399,6 +39480,367 @@ export type PublicApiV1PurchaseInvoicesPendingResponses = {
 
 export type PublicApiV1PurchaseInvoicesPendingResponse = PublicApiV1PurchaseInvoicesPendingResponses[keyof PublicApiV1PurchaseInvoicesPendingResponses];
 
+export type PublicApiV1PriceListsItemsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+    };
+    query?: {
+        limit?: number;
+        starting_after?: string | null;
+        search?: string | null;
+        status?: 'active' | 'retired' | 'all' | null;
+    };
+    url: '/price-lists/{priceList}/items';
+};
+
+export type PublicApiV1PriceListsItemsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsItemsListError = PublicApiV1PriceListsItemsListErrors[keyof PublicApiV1PriceListsItemsListErrors];
+
+export type PublicApiV1PriceListsItemsListResponses = {
+    200: PaginatedList & PriceListItemCollection;
+};
+
+export type PublicApiV1PriceListsItemsListResponse = PublicApiV1PriceListsItemsListResponses[keyof PublicApiV1PriceListsItemsListResponses];
+
+export type PublicApiV1PriceListsItemsUpsertData = {
+    body: UpsertPriceListItemRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+    };
+    query?: never;
+    url: '/price-lists/{priceList}/items';
+};
+
+export type PublicApiV1PriceListsItemsUpsertErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsItemsUpsertError = PublicApiV1PriceListsItemsUpsertErrors[keyof PublicApiV1PriceListsItemsUpsertErrors];
+
+export type PublicApiV1PriceListsItemsUpsertResponses = {
+    200: {
+        data: PriceListItem;
+    };
+};
+
+export type PublicApiV1PriceListsItemsUpsertResponse = PublicApiV1PriceListsItemsUpsertResponses[keyof PublicApiV1PriceListsItemsUpsertResponses];
+
+export type PublicApiV1PriceListsOptionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        limit?: number;
+    };
+    url: '/price-lists/options';
+};
+
+export type PublicApiV1PriceListsOptionsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsOptionsError = PublicApiV1PriceListsOptionsErrors[keyof PublicApiV1PriceListsOptionsErrors];
+
+export type PublicApiV1PriceListsOptionsResponses = {
+    200: {
+        data: Array<PriceList>;
+    };
+};
+
+export type PublicApiV1PriceListsOptionsResponse = PublicApiV1PriceListsOptionsResponses[keyof PublicApiV1PriceListsOptionsResponses];
+
+export type PublicApiV1ProductsConfigurationsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: {
+        limit?: number;
+        starting_after?: string | null;
+        active?: boolean;
+    };
+    url: '/products/{product}/configurations';
+};
+
+export type PublicApiV1ProductsConfigurationsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsConfigurationsListError = PublicApiV1ProductsConfigurationsListErrors[keyof PublicApiV1ProductsConfigurationsListErrors];
+
+export type PublicApiV1ProductsConfigurationsListResponses = {
+    200: PaginatedList & {
+        data?: Array<ProductConfiguration>;
+    };
+};
+
+export type PublicApiV1ProductsConfigurationsListResponse = PublicApiV1ProductsConfigurationsListResponses[keyof PublicApiV1ProductsConfigurationsListResponses];
+
+export type PublicApiV1ProductsOptionsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: {
+        limit?: number;
+        starting_after?: string | null;
+        active?: boolean;
+    };
+    url: '/products/{product}/options';
+};
+
+export type PublicApiV1ProductsOptionsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsOptionsListError = PublicApiV1ProductsOptionsListErrors[keyof PublicApiV1ProductsOptionsListErrors];
+
+export type PublicApiV1ProductsOptionsListResponses = {
+    200: PaginatedList & {
+        data?: Array<ProductOptionGroup>;
+    };
+};
+
+export type PublicApiV1ProductsOptionsListResponse = PublicApiV1ProductsOptionsListResponses[keyof PublicApiV1ProductsOptionsListResponses];
+
+export type PublicApiV1ProductsStockMovementsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: {
+        /**
+         * Máximo de movimientos por página (1-100, por defecto 25).
+         */
+        limit?: number;
+        /**
+         * Id del último movimiento ya recibido; la página empieza justo después.
+         */
+        starting_after?: string | null;
+        /**
+         * `in` = entradas (delta positivo), `out` = salidas (delta negativo). Ausente = el ledger completo.
+         */
+        direction?: 'in' | 'out' | null;
+    };
+    url: '/products/{product}/stock-movements';
+};
+
+export type PublicApiV1ProductsStockMovementsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsStockMovementsListError = PublicApiV1ProductsStockMovementsListErrors[keyof PublicApiV1ProductsStockMovementsListErrors];
+
+export type PublicApiV1ProductsStockMovementsListResponses = {
+    200: PaginatedList & {
+        data?: Array<StockMovement>;
+    };
+};
+
+export type PublicApiV1ProductsStockMovementsListResponse = PublicApiV1ProductsStockMovementsListResponses[keyof PublicApiV1ProductsStockMovementsListResponses];
+
 export type PublicApiV1ProformasStatusesData = {
     body?: never;
     headers?: {
@@ -33438,8 +39880,11 @@ export type PublicApiV1ProformasStatusesErrors = {
 export type PublicApiV1ProformasStatusesError = PublicApiV1ProformasStatusesErrors[keyof PublicApiV1ProformasStatusesErrors];
 
 export type PublicApiV1ProformasStatusesResponses = {
+    /**
+     * Complete public status catalog, with Spanish labels and color tokens.
+     */
     200: {
-        data: Proforma;
+        data: Array<PublicDocumentStatus>;
     };
 };
 
@@ -33490,8 +39935,11 @@ export type PublicApiV1PurchaseInvoicesListPaymentsErrors = {
 export type PublicApiV1PurchaseInvoicesListPaymentsError = PublicApiV1PurchaseInvoicesListPaymentsErrors[keyof PublicApiV1PurchaseInvoicesListPaymentsErrors];
 
 export type PublicApiV1PurchaseInvoicesListPaymentsResponses = {
+    /**
+     * All payments for the purchase invoice, including reversed payments. An invoice without payments returns an empty collection.
+     */
     200: {
-        data: PurchaseInvoice;
+        data: Array<PurchaseInvoicePayment>;
     };
 };
 
@@ -33550,8 +39998,11 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentErrors = {
 export type PublicApiV1PurchaseInvoicesRegisterPaymentError = PublicApiV1PurchaseInvoicesRegisterPaymentErrors[keyof PublicApiV1PurchaseInvoicesRegisterPaymentErrors];
 
 export type PublicApiV1PurchaseInvoicesRegisterPaymentResponses = {
+    /**
+     * The newly registered purchase-invoice payment.
+     */
     201: {
-        data: PurchaseInvoice;
+        data: PurchaseInvoicePayment;
     };
 };
 
@@ -33596,8 +40047,11 @@ export type PublicApiV1InvoicesQuarterlyAvailableErrors = {
 export type PublicApiV1InvoicesQuarterlyAvailableError = PublicApiV1InvoicesQuarterlyAvailableErrors[keyof PublicApiV1InvoicesQuarterlyAvailableErrors];
 
 export type PublicApiV1InvoicesQuarterlyAvailableResponses = {
+    /**
+     * Quarters with issued invoices and counts by invoice type.
+     */
     200: {
-        data: Invoice;
+        data: Array<AvailableInvoiceQuarter>;
     };
 };
 
@@ -33642,8 +40096,11 @@ export type PublicApiV1QuotesStatusesErrors = {
 export type PublicApiV1QuotesStatusesError = PublicApiV1QuotesStatusesErrors[keyof PublicApiV1QuotesStatusesErrors];
 
 export type PublicApiV1QuotesStatusesResponses = {
+    /**
+     * Complete public status catalog, with Spanish labels and color tokens.
+     */
     200: {
-        data: Quote;
+        data: Array<PublicDocumentStatus>;
     };
 };
 
@@ -33664,7 +40121,20 @@ export type PublicApiV1RecurringInvoicesActivitiesData = {
     path: {
         recurring_invoice: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+    };
     url: '/recurring_invoices/{recurring_invoice}/activities';
 };
 
@@ -33757,9 +40227,12 @@ export type PublicApiV1RecurringInvoicesLogsErrors = {
 export type PublicApiV1RecurringInvoicesLogsError = PublicApiV1RecurringInvoicesLogsErrors[keyof PublicApiV1RecurringInvoicesLogsErrors];
 
 export type PublicApiV1RecurringInvoicesLogsResponses = {
+    /**
+     * Cursor-paginated execution history for the recurring invoice.
+     */
     200: {
-        data: RecurringInvoice;
-        has_more: string;
+        data: Array<RecurringInvoiceLog>;
+        has_more: boolean;
         next_cursor: string | null;
     };
 };
@@ -33831,7 +40304,20 @@ export type PublicApiV1StripeAutoinvoicingCorrectivesListData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+    };
     url: '/stripe-autoinvoicing/correctives';
 };
 
@@ -33933,7 +40419,44 @@ export type PublicApiV1TaxReportsHistoryData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+        /**
+         * Optional type filter.
+         */
+        type?: string;
+        /**
+         * Optional year filter.
+         */
+        year?: string;
+        /**
+         * Optional quarter filter.
+         */
+        quarter?: string;
+        /**
+         * Optional format filter.
+         */
+        format?: string;
+        /**
+         * Optional generated after filter.
+         */
+        generated_after?: string;
+        /**
+         * Optional generated before filter.
+         */
+        generated_before?: string;
+    };
     url: '/tax_reports/history';
 };
 
@@ -33987,7 +40510,7 @@ export type PublicApiV1TimeCorrectionsListData = {
         /**
          * Status to filter by: pending / approved / rejected.
          */
-        status?: 'pending' | 'approved' | 'rejected';
+        status?: 'pending' | 'approved' | 'rejected' | null;
         /**
          * Employee ID (UUID v7) to filter by.
          */
@@ -34136,7 +40659,7 @@ export type PublicApiV1TimeEntriesListData = {
         /**
          * Clock event type to filter by.
          */
-        entry_type?: 'clock_in' | 'pause_start' | 'pause_end' | 'clock_out';
+        entry_type?: 'clock_in' | 'pause_start' | 'pause_end' | 'clock_out' | null;
         /**
          * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
@@ -34199,7 +40722,32 @@ export type PublicApiV1VerifactuEventsListData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+        /**
+         * Optional event type filter.
+         */
+        event_type?: string;
+        /**
+         * Optional date from filter.
+         */
+        date_from?: string;
+        /**
+         * Optional date to filter.
+         */
+        date_to?: string;
+    };
     url: '/verifactu/events';
 };
 
@@ -34249,7 +40797,44 @@ export type PublicApiV1VerifactuRecordsListData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of results.
+         */
+        limit?: number;
+        /**
+         * Page cursor returned by the previous response.
+         */
+        starting_after?: string;
+        /**
+         * Reverse cursor. Mutually exclusive with starting_after.
+         */
+        ending_before?: string;
+        /**
+         * Optional status filter.
+         */
+        status?: string;
+        /**
+         * Optional record type filter.
+         */
+        record_type?: string;
+        /**
+         * Optional invoice type filter.
+         */
+        invoice_type?: string;
+        /**
+         * Optional date from filter.
+         */
+        date_from?: string;
+        /**
+         * Optional date to filter.
+         */
+        date_to?: string;
+        /**
+         * Optional environment filter.
+         */
+        environment?: string;
+    };
     url: '/verifactu/records';
 };
 
@@ -34517,11 +41102,11 @@ export type PublicApiV1InvoicesMarkPaidResponse = PublicApiV1InvoicesMarkPaidRes
 
 export type PublicApiV1InvoicesMarkSentData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -34555,6 +41140,10 @@ export type PublicApiV1InvoicesMarkSentErrors = {
      * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -34752,6 +41341,66 @@ export type PublicApiV1SeriesShowResponses = {
 
 export type PublicApiV1SeriesShowResponse = PublicApiV1SeriesShowResponses[keyof PublicApiV1SeriesShowResponses];
 
+export type PublicApiV1AutomationsRulesPauseData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+    };
+    query?: never;
+    url: '/automations/rules/{rule}/pause';
+};
+
+export type PublicApiV1AutomationsRulesPauseErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesPauseError = PublicApiV1AutomationsRulesPauseErrors[keyof PublicApiV1AutomationsRulesPauseErrors];
+
+export type PublicApiV1AutomationsRulesPauseResponses = {
+    200: {
+        data: AutomationRule;
+    };
+};
+
+export type PublicApiV1AutomationsRulesPauseResponse = PublicApiV1AutomationsRulesPauseResponses[keyof PublicApiV1AutomationsRulesPauseResponses];
+
 export type PublicApiV1RecurringInvoicesPauseData = {
     body?: never;
     headers?: {
@@ -34872,11 +41521,11 @@ export type PublicApiV1TimeEntriesPauseResponse = PublicApiV1TimeEntriesPauseRes
 
 export type PublicApiV1WebhookEndpointsPingData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -34907,6 +41556,10 @@ export type PublicApiV1WebhookEndpointsPingErrors = {
      */
     404: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -34931,6 +41584,62 @@ export type PublicApiV1WebhookEndpointsPingResponses = {
 };
 
 export type PublicApiV1WebhookEndpointsPingResponse = PublicApiV1WebhookEndpointsPingResponses[keyof PublicApiV1WebhookEndpointsPingResponses];
+
+export type PublicApiV1ProductsConfigurationsImpactPreviewData = {
+    body: PreviewCatalogConfigurationImpactRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: never;
+    url: '/products/{product}/configurations/impact-preview';
+};
+
+export type PublicApiV1ProductsConfigurationsImpactPreviewErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsConfigurationsImpactPreviewError = PublicApiV1ProductsConfigurationsImpactPreviewErrors[keyof PublicApiV1ProductsConfigurationsImpactPreviewErrors];
+
+export type PublicApiV1ProductsConfigurationsImpactPreviewResponses = {
+    200: {
+        data: CatalogConfigurationImpact;
+    };
+};
+
+export type PublicApiV1ProductsConfigurationsImpactPreviewResponse = PublicApiV1ProductsConfigurationsImpactPreviewResponses[keyof PublicApiV1ProductsConfigurationsImpactPreviewResponses];
 
 export type PublicApiV1InvoicesPdfPreviewData = {
     body?: never;
@@ -34977,7 +41686,7 @@ export type PublicApiV1InvoicesPdfPreviewErrors = {
 export type PublicApiV1InvoicesPdfPreviewError = PublicApiV1InvoicesPdfPreviewErrors[keyof PublicApiV1InvoicesPdfPreviewErrors];
 
 export type PublicApiV1InvoicesPdfPreviewResponses = {
-    200: string;
+    200: Blob | File;
 };
 
 export type PublicApiV1InvoicesPdfPreviewResponse = PublicApiV1InvoicesPdfPreviewResponses[keyof PublicApiV1InvoicesPdfPreviewResponses];
@@ -35136,14 +41845,12 @@ export type PublicApiV1RecurringInvoicesPreviewErrors = {
 export type PublicApiV1RecurringInvoicesPreviewError = PublicApiV1RecurringInvoicesPreviewErrors[keyof PublicApiV1RecurringInvoicesPreviewErrors];
 
 export type PublicApiV1RecurringInvoicesPreviewResponses = {
+    /**
+     * Upcoming dates. When expand=document is supplied, next_invoice includes the computed lines and totals without persisting an invoice.
+     */
     200: {
-        data: RecurringInvoice;
-        next_invoice: {
-            lines: string;
-            totals: string;
-        };
-    } | {
-        data: RecurringInvoice;
+        data: Array<RecurringInvoicePreviewDate>;
+        next_invoice?: RecurringInvoicePreviewDocument;
     };
 };
 
@@ -35203,9 +41910,79 @@ export type PublicApiV1TaxReportsPreviewResponses = {
 
 export type PublicApiV1TaxReportsPreviewResponse = PublicApiV1TaxReportsPreviewResponses[keyof PublicApiV1TaxReportsPreviewResponses];
 
+export type PublicApiV1PriceListsItemsPurgeRetiredData = {
+    body: PurgeRetiredPriceListItemRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+        item: string;
+    };
+    query?: never;
+    url: '/price-lists/{priceList}/items/{item}/purge';
+};
+
+export type PublicApiV1PriceListsItemsPurgeRetiredErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsItemsPurgeRetiredError = PublicApiV1PriceListsItemsPurgeRetiredErrors[keyof PublicApiV1PriceListsItemsPurgeRetiredErrors];
+
+export type PublicApiV1PriceListsItemsPurgeRetiredResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1PriceListsItemsPurgeRetiredResponse = PublicApiV1PriceListsItemsPurgeRetiredResponses[keyof PublicApiV1PriceListsItemsPurgeRetiredResponses];
+
 export type PublicApiV1InvoicesQuarterlyDownloadZipData = {
     body: QuarterlyDownloadV1Request;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -35238,6 +42015,10 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipErrors = {
      */
     409: Error;
     /**
+     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     */
+    413: Error;
+    /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -35261,11 +42042,11 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipResponse = PublicApiV1Invoice
 
 export type PublicApiV1InvoicesQuarterlySendEmailData = {
     body: QuarterlyDownloadV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -35324,11 +42105,11 @@ export type PublicApiV1InvoicesQuarterlySendEmailResponse = PublicApiV1InvoicesQ
 
 export type PublicApiV1EmployeesReactivateData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -35351,7 +42132,7 @@ export type PublicApiV1EmployeesReactivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, or the account lacks the plan or add-on this operation bills against. Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -35366,6 +42147,10 @@ export type PublicApiV1EmployeesReactivateErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -35385,6 +42170,67 @@ export type PublicApiV1EmployeesReactivateResponses = {
 };
 
 export type PublicApiV1EmployeesReactivateResponse = PublicApiV1EmployeesReactivateResponses[keyof PublicApiV1EmployeesReactivateResponses];
+
+export type PublicApiV1PriceListsItemsReassignRetiredData = {
+    body: ReassignRetiredPriceListItemRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        priceList: string;
+        item: string;
+    };
+    query?: never;
+    url: '/price-lists/{priceList}/items/{item}/reassign';
+};
+
+export type PublicApiV1PriceListsItemsReassignRetiredErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsItemsReassignRetiredError = PublicApiV1PriceListsItemsReassignRetiredErrors[keyof PublicApiV1PriceListsItemsReassignRetiredErrors];
+
+export type PublicApiV1PriceListsItemsReassignRetiredResponses = {
+    201: {
+        data: PriceListItem;
+    };
+};
+
+export type PublicApiV1PriceListsItemsReassignRetiredResponse = PublicApiV1PriceListsItemsReassignRetiredResponses[keyof PublicApiV1PriceListsItemsReassignRetiredResponses];
 
 export type PublicApiV1TimeEntriesManualData = {
     body: RecordManualTimeEntryRequest;
@@ -35760,9 +42606,156 @@ export type PublicApiV1MonthlyTimeRecordClosesReopenResponses = {
 
 export type PublicApiV1MonthlyTimeRecordClosesReopenResponse = PublicApiV1MonthlyTimeRecordClosesReopenResponses[keyof PublicApiV1MonthlyTimeRecordClosesReopenResponses];
 
+export type PublicApiV1AutomationsRunsReplayData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        run: string;
+    };
+    query?: never;
+    url: '/automations/runs/{run}/replay';
+};
+
+export type PublicApiV1AutomationsRunsReplayErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRunsReplayError = PublicApiV1AutomationsRunsReplayErrors[keyof PublicApiV1AutomationsRunsReplayErrors];
+
+export type PublicApiV1AutomationsRunsReplayResponses = {
+    202: {
+        data: {
+            /**
+             * ID of the run whose parked steps were rearmed (UUID v7).
+             */
+            id: string;
+        };
+    };
+};
+
+export type PublicApiV1AutomationsRunsReplayResponse = PublicApiV1AutomationsRunsReplayResponses[keyof PublicApiV1AutomationsRunsReplayResponses];
+
+export type PublicApiV1AutomationsRunsStepsReplayData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        run: string;
+        step_index: string;
+    };
+    query?: never;
+    url: '/automations/runs/{run}/steps/{step_index}/replay';
+};
+
+export type PublicApiV1AutomationsRunsStepsReplayErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRunsStepsReplayError = PublicApiV1AutomationsRunsStepsReplayErrors[keyof PublicApiV1AutomationsRunsStepsReplayErrors];
+
+export type PublicApiV1AutomationsRunsStepsReplayResponses = {
+    202: {
+        data: {
+            /**
+             * ID of the run the rearmed step belongs to (UUID v7).
+             */
+            automation_run_id: string;
+            /**
+             * Index of the rearmed step within its run; it is the identity you replay.
+             */
+            step_index: number;
+        };
+    };
+};
+
+export type PublicApiV1AutomationsRunsStepsReplayResponse = PublicApiV1AutomationsRunsStepsReplayResponses[keyof PublicApiV1AutomationsRunsStepsReplayResponses];
+
 export type PublicApiV1IntegrationsEventsReplayData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -35826,11 +42819,11 @@ export type PublicApiV1IntegrationsEventsReplayResponse = PublicApiV1Integration
 
 export type PublicApiV1WebhookEndpointsDeliveriesReplayData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -35865,6 +42858,10 @@ export type PublicApiV1WebhookEndpointsDeliveriesReplayErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -35951,11 +42948,11 @@ export type PublicApiV1InvoicesRescheduleResponse = PublicApiV1InvoicesReschedul
 
 export type PublicApiV1EmployeeInvitationsResendData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -35989,6 +42986,10 @@ export type PublicApiV1EmployeeInvitationsResendErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -36067,6 +43068,174 @@ export type PublicApiV1HolidaysResolveResponses = {
 };
 
 export type PublicApiV1HolidaysResolveResponse = PublicApiV1HolidaysResolveResponses[keyof PublicApiV1HolidaysResolveResponses];
+
+export type PublicApiV1PriceListsResolveData = {
+    body: ResolveCatalogPriceRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/price-lists/resolve';
+};
+
+export type PublicApiV1PriceListsResolveErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsResolveError = PublicApiV1PriceListsResolveErrors[keyof PublicApiV1PriceListsResolveErrors];
+
+export type PublicApiV1PriceListsResolveResponses = {
+    200: {
+        data: ResolvedCatalogPrice;
+    };
+};
+
+export type PublicApiV1PriceListsResolveResponse = PublicApiV1PriceListsResolveResponses[keyof PublicApiV1PriceListsResolveResponses];
+
+export type PublicApiV1ProductsResolveSelectionData = {
+    body?: ResolveCatalogSelectionRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: never;
+    url: '/products/{product}/resolve-selection';
+};
+
+export type PublicApiV1ProductsResolveSelectionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsResolveSelectionError = PublicApiV1ProductsResolveSelectionErrors[keyof PublicApiV1ProductsResolveSelectionErrors];
+
+export type PublicApiV1ProductsResolveSelectionResponses = {
+    200: {
+        data: ResolvedCatalogSelection;
+    };
+};
+
+export type PublicApiV1ProductsResolveSelectionResponse = PublicApiV1ProductsResolveSelectionResponses[keyof PublicApiV1ProductsResolveSelectionResponses];
+
+export type PublicApiV1PriceListsResolveManyData = {
+    body: ResolveManyCatalogPricesRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/price-lists/resolve-many';
+};
+
+export type PublicApiV1PriceListsResolveManyErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PriceListsResolveManyError = PublicApiV1PriceListsResolveManyErrors[keyof PublicApiV1PriceListsResolveManyErrors];
+
+export type PublicApiV1PriceListsResolveManyResponses = {
+    200: {
+        data: ResolvedCatalogPriceList;
+    };
+};
+
+export type PublicApiV1PriceListsResolveManyResponse = PublicApiV1PriceListsResolveManyResponses[keyof PublicApiV1PriceListsResolveManyResponses];
 
 export type PublicApiV1RecurringInvoicesResumeData = {
     body?: never;
@@ -36188,11 +43357,11 @@ export type PublicApiV1TimeEntriesResumeResponse = PublicApiV1TimeEntriesResumeR
 
 export type PublicApiV1VerifactuEventsRetryData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36227,6 +43396,10 @@ export type PublicApiV1VerifactuEventsRetryErrors = {
      */
     409: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -36251,7 +43424,11 @@ export type PublicApiV1VerifactuEventsRetryResponse = PublicApiV1VerifactuEvents
 
 export type PublicApiV1VerifactuRecordsRetryData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36286,6 +43463,10 @@ export type PublicApiV1VerifactuRecordsRetryErrors = {
      */
     409: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -36308,13 +43489,78 @@ export type PublicApiV1VerifactuRecordsRetryResponses = {
 
 export type PublicApiV1VerifactuRecordsRetryResponse = PublicApiV1VerifactuRecordsRetryResponses[keyof PublicApiV1VerifactuRecordsRetryResponses];
 
+export type PublicApiV1InvoicesPaymentsRevertData = {
+    body: RevertInvoicePaymentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        invoice: string;
+        payment: string;
+    };
+    query?: never;
+    url: '/invoices/{invoice}/payments/{payment}/reversal';
+};
+
+export type PublicApiV1InvoicesPaymentsRevertErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesPaymentsRevertError = PublicApiV1InvoicesPaymentsRevertErrors[keyof PublicApiV1InvoicesPaymentsRevertErrors];
+
+export type PublicApiV1InvoicesPaymentsRevertResponses = {
+    200: {
+        data: InvoicePaymentDetail;
+    };
+};
+
+export type PublicApiV1InvoicesPaymentsRevertResponse = PublicApiV1InvoicesPaymentsRevertResponses[keyof PublicApiV1InvoicesPaymentsRevertResponses];
+
 export type PublicApiV1AccountApiKeysRevokeData = {
     body?: RevokeApiKeyV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36374,11 +43620,11 @@ export type PublicApiV1AccountApiKeysRevokeResponse = PublicApiV1AccountApiKeysR
 
 export type PublicApiV1CompaniesApiKeysRevokeData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36497,11 +43743,11 @@ export type PublicApiV1CompaniesApiKeysShowResponse = PublicApiV1CompaniesApiKey
 
 export type PublicApiV1VerifactuCertificatesRevokeData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36538,6 +43784,10 @@ export type PublicApiV1VerifactuCertificatesRevokeErrors = {
      */
     409: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -36560,11 +43810,11 @@ export type PublicApiV1VerifactuCertificatesRevokeResponse = PublicApiV1Verifact
 
 export type PublicApiV1AccountApiKeysRotateSecretData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36624,11 +43874,11 @@ export type PublicApiV1AccountApiKeysRotateSecretResponse = PublicApiV1AccountAp
 
 export type PublicApiV1CompaniesApiKeysRotateSecretData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36664,6 +43914,10 @@ export type PublicApiV1CompaniesApiKeysRotateSecretErrors = {
      */
     409: Error;
     /**
+     * Validation failed — e.g. the API key plan limit was reached, or an invoice language outside the allowed catalog (`es`, `en`, `ca`). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -36685,11 +43939,11 @@ export type PublicApiV1CompaniesApiKeysRotateSecretResponse = PublicApiV1Compani
 
 export type PublicApiV1WebhookEndpointsRotateSecretData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -36723,6 +43977,10 @@ export type PublicApiV1WebhookEndpointsRotateSecretErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -36857,11 +44115,11 @@ export type PublicApiV1MonthlyTimeRecordClosesSealShowResponse = PublicApiV1Mont
 
 export type PublicApiV1MonthlyTimeRecordClosesSealData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -37077,11 +44335,11 @@ export type PublicApiV1SuppliersSearchResponse = PublicApiV1SuppliersSearchRespo
 
 export type PublicApiV1DeliveryNotesSendData = {
     body: SendDeliveryNoteRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -37145,11 +44403,11 @@ export type PublicApiV1DeliveryNotesSendResponse = PublicApiV1DeliveryNotesSendR
 
 export type PublicApiV1InvoicesSendData = {
     body?: SendInvoiceRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -37209,11 +44467,11 @@ export type PublicApiV1InvoicesSendResponse = PublicApiV1InvoicesSendResponses[k
 
 export type PublicApiV1InvoicesSendReminderData = {
     body?: SendInvoiceReminderV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -37273,11 +44531,11 @@ export type PublicApiV1InvoicesSendReminderResponse = PublicApiV1InvoicesSendRem
 
 export type PublicApiV1ProformasSendData = {
     body?: SendProformaRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -37337,11 +44595,11 @@ export type PublicApiV1ProformasSendResponse = PublicApiV1ProformasSendResponses
 
 export type PublicApiV1QuotesSendData = {
     body?: SendQuoteRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -37401,7 +44659,11 @@ export type PublicApiV1QuotesSendResponse = PublicApiV1QuotesSendResponses[keyof
 
 export type PublicApiV1WebhookEndpointsTestEventData = {
     body?: SendTestEventRequest;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -37462,6 +44724,67 @@ export type PublicApiV1WebhookEndpointsTestEventResponses = {
 };
 
 export type PublicApiV1WebhookEndpointsTestEventResponse = PublicApiV1WebhookEndpointsTestEventResponses[keyof PublicApiV1WebhookEndpointsTestEventResponses];
+
+export type PublicApiV1ProductsSupplierOffersPreferredData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+        offer: string;
+    };
+    query?: never;
+    url: '/products/{product}/supplier-offers/{offer}/preferred';
+};
+
+export type PublicApiV1ProductsSupplierOffersPreferredErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsSupplierOffersPreferredError = PublicApiV1ProductsSupplierOffersPreferredErrors[keyof PublicApiV1ProductsSupplierOffersPreferredErrors];
+
+export type PublicApiV1ProductsSupplierOffersPreferredResponses = {
+    200: {
+        data: SupplierProductOffer;
+    };
+};
+
+export type PublicApiV1ProductsSupplierOffersPreferredResponse = PublicApiV1ProductsSupplierOffersPreferredResponses[keyof PublicApiV1ProductsSupplierOffersPreferredResponses];
 
 export type PublicApiV1TaxesSetDefaultData = {
     body?: never;
@@ -38075,6 +45398,111 @@ export type PublicApiV1DevelopersRequestLogsShowResponses = {
 };
 
 export type PublicApiV1DevelopersRequestLogsShowResponse = PublicApiV1DevelopersRequestLogsShowResponses[keyof PublicApiV1DevelopersRequestLogsShowResponses];
+
+export type PublicApiV1AutomationsRulesVersionsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        rule: string;
+        version: string;
+    };
+    query?: never;
+    url: '/automations/rules/{rule}/versions/{version}';
+};
+
+export type PublicApiV1AutomationsRulesVersionsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRulesVersionsShowError = PublicApiV1AutomationsRulesVersionsShowErrors[keyof PublicApiV1AutomationsRulesVersionsShowErrors];
+
+export type PublicApiV1AutomationsRulesVersionsShowResponses = {
+    200: {
+        data: AutomationRuleVersion;
+    };
+};
+
+export type PublicApiV1AutomationsRulesVersionsShowResponse = PublicApiV1AutomationsRulesVersionsShowResponses[keyof PublicApiV1AutomationsRulesVersionsShowResponses];
+
+export type PublicApiV1AutomationsRunsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        run: string;
+    };
+    query?: never;
+    url: '/automations/runs/{run}';
+};
+
+export type PublicApiV1AutomationsRunsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AutomationsRunsShowError = PublicApiV1AutomationsRunsShowErrors[keyof PublicApiV1AutomationsRunsShowErrors];
+
+export type PublicApiV1AutomationsRunsShowResponses = {
+    200: {
+        data: AutomationRun;
+    };
+};
+
+export type PublicApiV1AutomationsRunsShowResponse = PublicApiV1AutomationsRunsShowResponses[keyof PublicApiV1AutomationsRunsShowResponses];
 
 export type PublicApiV1EmailsShowData = {
     body?: never;
@@ -38831,11 +46259,11 @@ export type PublicApiV1WorkSchedulesUpdateResponse = PublicApiV1WorkSchedulesUpd
 
 export type PublicApiV1DeliveryNotesSignData = {
     body: SignDeliveryNoteRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -38857,6 +46285,10 @@ export type PublicApiV1DeliveryNotesSignErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -38951,7 +46383,11 @@ export type PublicApiV1RecurringInvoicesSkipResponse = PublicApiV1RecurringInvoi
 
 export type PublicApiV1VerifactuRecordsSubsanarData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -38986,6 +46422,10 @@ export type PublicApiV1VerifactuRecordsSubsanarErrors = {
      */
     409: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -39010,11 +46450,11 @@ export type PublicApiV1VerifactuRecordsSubsanarResponse = PublicApiV1VerifactuRe
 
 export type PublicApiV1EmployeeSeatsSubscribeData = {
     body?: never;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -39035,7 +46475,7 @@ export type PublicApiV1EmployeeSeatsSubscribeErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, or the account lacks the plan or add-on this operation bills against. Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -39046,6 +46486,10 @@ export type PublicApiV1EmployeeSeatsSubscribeErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -39068,11 +46512,11 @@ export type PublicApiV1EmployeeSeatsSubscribeResponse = PublicApiV1EmployeeSeats
 
 export type PublicApiV1InvoicesSubstituteSimplifiedData = {
     body: SubstituteSimplifiedV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -39130,6 +46574,134 @@ export type PublicApiV1InvoicesSubstituteSimplifiedResponses = {
 };
 
 export type PublicApiV1InvoicesSubstituteSimplifiedResponse = PublicApiV1InvoicesSubstituteSimplifiedResponses[keyof PublicApiV1InvoicesSubstituteSimplifiedResponses];
+
+export type PublicApiV1ShopifyStoresConnectionTestData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        store: string;
+    };
+    query?: never;
+    url: '/shopify/stores/{store}/connection-test';
+};
+
+export type PublicApiV1ShopifyStoresConnectionTestErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ShopifyStoresConnectionTestError = PublicApiV1ShopifyStoresConnectionTestErrors[keyof PublicApiV1ShopifyStoresConnectionTestErrors];
+
+export type PublicApiV1ShopifyStoresConnectionTestResponses = {
+    200: {
+        data: ShopifyConnectionCheck;
+    };
+};
+
+export type PublicApiV1ShopifyStoresConnectionTestResponse = PublicApiV1ShopifyStoresConnectionTestResponses[keyof PublicApiV1ShopifyStoresConnectionTestResponses];
+
+export type PublicApiV1WoocommerceStoresConnectionTestData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        store: string;
+    };
+    query?: never;
+    url: '/woocommerce/stores/{store}/connection-test';
+};
+
+export type PublicApiV1WoocommerceStoresConnectionTestErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1WoocommerceStoresConnectionTestError = PublicApiV1WoocommerceStoresConnectionTestErrors[keyof PublicApiV1WoocommerceStoresConnectionTestErrors];
+
+export type PublicApiV1WoocommerceStoresConnectionTestResponses = {
+    200: {
+        data: WooCommerceConnectionCheck;
+    };
+};
+
+export type PublicApiV1WoocommerceStoresConnectionTestResponse = PublicApiV1WoocommerceStoresConnectionTestResponses[keyof PublicApiV1WoocommerceStoresConnectionTestResponses];
 
 export type PublicApiV1ProductsToggleActiveData = {
     body?: never;
@@ -39917,11 +47489,11 @@ export type PublicApiV1ProductsUpdateStockResponse = PublicApiV1ProductsUpdateSt
 
 export type PublicApiV1VerifactuSettingsUpdateData = {
     body?: UpdateVeriFactuSettingsV1Request;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -39975,11 +47547,11 @@ export type PublicApiV1VerifactuSettingsUpdateResponse = PublicApiV1VerifactuSet
 
 export type PublicApiV1ProductsGalleryUploadData = {
     body: UploadProductGalleryImageRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -40149,7 +47721,11 @@ export type PublicApiV1VerifactuChainValidateResponse = PublicApiV1VerifactuChai
 
 export type PublicApiV1AccountVerifyCensusData = {
     body?: never;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -40178,6 +47754,10 @@ export type PublicApiV1AccountVerifyCensusErrors = {
      */
     409: Error;
     /**
+     * Validation failed — e.g. the API key plan limit was reached, or an invoice language outside the allowed catalog (`es`, `en`, `ca`). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -40199,7 +47779,11 @@ export type PublicApiV1AccountVerifyCensusResponse = PublicApiV1AccountVerifyCen
 
 export type PublicApiV1ClientsVerifyCensusData = {
     body: VerifyClientCensusRequest;
-    headers?: {
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -40313,11 +47897,11 @@ export type PublicApiV1CompaniesVerifyCreationResponse = PublicApiV1CompaniesVer
 
 export type PublicApiV1InvoicesVoidData = {
     body?: VoidInvoiceRequest;
-    headers?: {
+    headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
-        'Idempotency-Key'?: string;
+        'Idempotency-Key': string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */

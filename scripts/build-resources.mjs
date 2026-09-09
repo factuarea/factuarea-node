@@ -15,7 +15,13 @@
  * Run via `npm run generate:resources` (and as part of `npm run generate`).
  * Output is committed; it is regenerated only when the spec changes.
  */
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+  existsSync,
+} from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -28,7 +34,13 @@ const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
 
 function camel(segment) {
   const parts = segment.replace(/-/g, "_").split("_");
-  return parts[0] + parts.slice(1).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
+  return (
+    parts[0] +
+    parts
+      .slice(1)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join("")
+  );
 }
 
 function pascal(name) {
@@ -38,7 +50,11 @@ function pascal(name) {
 function isBinary(op) {
   for (const resp of Object.values(op.responses ?? {})) {
     for (const ct of Object.keys(resp.content ?? {})) {
-      if (ct.includes("pdf") || ct.includes("octet-stream") || ct.includes("zip")) {
+      if (
+        ct.includes("pdf") ||
+        ct.includes("octet-stream") ||
+        ct.includes("zip")
+      ) {
         return true;
       }
     }
@@ -56,7 +72,9 @@ function isMultipart(op) {
 }
 
 function cursorParam(op) {
-  const names = new Set((op.parameters ?? []).filter((p) => p.in === "query").map((p) => p.name));
+  const names = new Set(
+    (op.parameters ?? []).filter((p) => p.in === "query").map((p) => p.name)
+  );
   if (names.has("starting_after")) return "starting_after";
   if (names.has("cursor")) return "cursor";
   return null;
@@ -67,7 +85,9 @@ function hasQuery(op) {
 }
 
 function pathParams(op) {
-  return (op.parameters ?? []).filter((p) => p.in === "path").map((p) => p.name);
+  return (op.parameters ?? [])
+    .filter((p) => p.in === "path")
+    .map((p) => p.name);
 }
 
 function hasBody(op) {
@@ -78,20 +98,37 @@ function hasBody(op) {
 
 const spec = JSON.parse(readFileSync(specPath, "utf8"));
 
-/** Map: topResource -> { ops: [], children: Map<childName, [ops]> } */
+/**
+ * Map: topResource -> Node, where Node = { ops: [], children: Map<name, Node> }.
+ * Groups nest to any depth (`automations.rules.versions` → three levels): each
+ * segment after the top resource becomes a child namespace with its own class,
+ * so `rules.list` and `rules.versions.list` never collide on the same class.
+ */
 const tree = new Map();
+
+function childNode(node, name) {
+  if (!node.children.has(name)) {
+    node.children.set(name, { ops: [], children: new Map() });
+  }
+  return node.children.get(name);
+}
 
 for (const [path, methods] of Object.entries(spec.paths)) {
   for (const [method, op] of Object.entries(methods)) {
     if (!HTTP_METHODS.has(method)) continue;
     const group = op["x-speakeasy-group"];
     if (!group) continue;
-    const [top, child] = group.split(".");
+    const [top, ...rest] = group.split(".");
     if (!tree.has(top)) {
       tree.set(top, { ops: [], children: new Map() });
     }
-    const node = tree.get(top);
-    const action = camel(op.operationId.replace("public-api.v1.", "").split(".").pop());
+    let node = tree.get(top);
+    for (const segment of rest) {
+      node = childNode(node, segment);
+    }
+    const action = camel(
+      op.operationId.replace("public-api.v1.", "").split(".").pop()
+    );
     const entry = {
       action,
       method: method.toUpperCase(),
@@ -104,14 +141,7 @@ for (const [path, methods] of Object.entries(spec.paths)) {
       isMultipart: isMultipart(op),
       summary: op.summary ?? "",
     };
-    if (child) {
-      if (!node.children.has(child)) {
-        node.children.set(child, []);
-      }
-      node.children.get(child).push(entry);
-    } else {
-      node.ops.push(entry);
-    }
+    node.ops.push(entry);
   }
 }
 
@@ -126,7 +156,18 @@ function pathParamObject(params) {
 }
 
 function methodSource(entry) {
-  const { action, method, path, pathParams: pp, cursor, hasQuery: hq, hasBody: hb, isBinary: bin, isMultipart: mp, summary } = entry;
+  const {
+    action,
+    method,
+    path,
+    pathParams: pp,
+    cursor,
+    hasQuery: hq,
+    hasBody: hb,
+    isBinary: bin,
+    isMultipart: mp,
+    summary,
+  } = entry;
   const lines = [];
   const doc = summary ? summary.replace(/\n/g, " ") : `${method} ${path}`;
   lines.push(`  /** ${doc} */`);
@@ -144,12 +185,18 @@ function methodSource(entry) {
   // ---- Listing with cursor pagination -> Page<unknown>
   if (cursor) {
     sig.push("params?: Record<string, unknown>", "config?: RequestConfig");
-    lines.push(`  async ${action}(${sig.join(", ")}): Promise<Page<unknown>> {`);
+    lines.push(
+      `  async ${action}(${sig.join(", ")}): Promise<Page<unknown>> {`
+    );
     if (callPathParams) {
       lines.push(`    const path = ${pathExpr};`);
-      lines.push(`    return this._paginate<unknown>(path, params, "${cursor}");`);
+      lines.push(
+        `    return this._paginate<unknown>(path, params, "${cursor}");`
+      );
     } else {
-      lines.push(`    return this._paginate<unknown>(${pathExpr}, params, "${cursor}");`);
+      lines.push(
+        `    return this._paginate<unknown>(${pathExpr}, params, "${cursor}");`
+      );
     }
     lines.push(`  }`);
     return lines.join("\n");
@@ -160,11 +207,15 @@ function methodSource(entry) {
     if (hq) sig.push("params?: Record<string, unknown>");
     if (hb) sig.push("body?: unknown");
     sig.push("config?: RequestConfig");
-    lines.push(`  async ${action}(${sig.join(", ")}): Promise<BinaryResponse> {`);
+    lines.push(
+      `  async ${action}(${sig.join(", ")}): Promise<BinaryResponse> {`
+    );
     lines.push(`    const path = ${pathExpr};`);
     const q = hq ? "params" : "undefined";
     const b = hb ? "body" : "undefined";
-    lines.push(`    return this._binary(path, "${method}", ${q}, ${b}, config);`);
+    lines.push(
+      `    return this._binary(path, "${method}", ${q}, ${b}, config);`
+    );
     lines.push(`  }`);
     return lines.join("\n");
   }
@@ -202,26 +253,30 @@ function methodSource(entry) {
     lines.push(`    return this._delete<unknown>(path, params, config);`);
   } else {
     const b = hb ? "body" : "undefined";
-    lines.push(`    return this._send<unknown>("${method}", path, ${b}, config);`);
+    lines.push(
+      `    return this._send<unknown>("${method}", path, ${b}, config);`
+    );
   }
   lines.push(`  }`);
   return lines.join("\n");
 }
 
-function childClassSource(top, childName, ops) {
-  const className = `${pascal(top)}${pascal(childName)}Resource`;
-  const body = ops.map(methodSource).join("\n\n");
-  return { className, source: `export class ${className} extends BaseResource {\n${body}\n}` };
-}
-
-function topClassSource(top, node) {
-  const className = `${pascal(top)}Resource`;
-  const childClasses = [];
+/**
+ * Emits the class of a namespace node and, recursively, of every descendant.
+ * `nested` holds the descendant sources, which the file writes BEFORE this
+ * class because the class references them. Class names concatenate the
+ * PascalCased path (`AutomationsRulesVersionsResource`), so two-level names
+ * are unchanged from the previous generator.
+ */
+function classSource(prefix, node) {
+  const className = `${prefix}Resource`;
+  const nested = [];
   const childFields = [];
 
-  for (const [childName, ops] of node.children) {
-    const { className: childClassName } = childClassSource(top, childName, ops);
-    childFields.push({ name: camel(childName), className: childClassName });
+  for (const [childName, child] of node.children) {
+    const emitted = classSource(`${prefix}${pascal(childName)}`, child);
+    nested.push(...emitted.nested, emitted.source);
+    childFields.push({ name: camel(childName), className: emitted.className });
   }
 
   const methods = node.ops.map(methodSource).join("\n\n");
@@ -243,7 +298,7 @@ function topClassSource(top, node) {
   }
   if (methods) lines.push(methods);
   lines.push("}");
-  return { className, source: lines.join("\n") };
+  return { className, source: lines.join("\n"), nested };
 }
 
 // ---- Write files -------------------------------------------------------------
@@ -270,16 +325,17 @@ const sortedTops = [...tree.keys()].sort();
 for (const top of sortedTops) {
   const node = tree.get(top);
   const parts = [header];
-  // child classes first (referenced by the top class)
-  for (const [childName, ops] of node.children) {
-    parts.push(childClassSource(top, childName, ops).source);
-  }
-  const topClass = topClassSource(top, node);
-  parts.push(topClass.source);
+  // descendant classes first (referenced by their parents)
+  const topClass = classSource(pascal(top), node);
+  parts.push(...topClass.nested, topClass.source);
 
   const fileName = `${top}.ts`;
   writeFileSync(join(outDir, fileName), parts.join("\n\n") + "\n", "utf8");
-  indexExports.push({ file: top, className: topClass.className, field: camel(top) });
+  indexExports.push({
+    file: top,
+    className: topClass.className,
+    field: camel(top),
+  });
 }
 
 // Resource index: re-exports + a registry the client uses to wire namespaces.
@@ -302,7 +358,9 @@ for (const e of indexExports) {
 }
 indexLines.push("}");
 indexLines.push("");
-indexLines.push("export function createResources(client: HttpClient): ResourceNamespaces {");
+indexLines.push(
+  "export function createResources(client: HttpClient): ResourceNamespaces {"
+);
 indexLines.push("  return {");
 for (const e of indexExports) {
   indexLines.push(`    ${e.field}: new ${e.className}(client),`);
@@ -312,8 +370,16 @@ indexLines.push("}");
 
 writeFileSync(join(outDir, "index.ts"), indexLines.join("\n") + "\n", "utf8");
 
+function countOps(node) {
+  return (
+    node.ops.length +
+    [...node.children.values()].reduce((acc, child) => acc + countOps(child), 0)
+  );
+}
 const totalOps = [...tree.values()].reduce(
-  (acc, node) => acc + node.ops.length + [...node.children.values()].reduce((a, o) => a + o.length, 0),
-  0,
+  (acc, node) => acc + countOps(node),
+  0
 );
-console.log(`Generated ${sortedTops.length} resource files (${totalOps} operations) into src/resources/.`);
+console.log(
+  `Generated ${sortedTops.length} resource files (${totalOps} operations) into src/resources/.`
+);

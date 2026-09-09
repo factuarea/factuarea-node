@@ -40,15 +40,15 @@ export class SeriesResource extends BaseResource {
   }
 
   /** Get the default series for a document type */
-  async default(config?: RequestConfig): Promise<unknown> {
+  async default(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = "/series/default";
-    return this._get<unknown>(path, undefined, config);
+    return this._get<unknown>(path, params, config);
   }
 
   /** List series activity timeline */
-  async activities(series: string, config?: RequestConfig): Promise<unknown> {
+  async activities(series: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/series/{series}/activities", { "series": series });
-    return this._get<unknown>(path, undefined, config);
+    return this._paginate<unknown>(path, params, "starting_after");
   }
 
   /** Get series stats */

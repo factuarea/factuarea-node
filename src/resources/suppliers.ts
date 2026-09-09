@@ -64,9 +64,9 @@ export class SuppliersResource extends BaseResource {
   }
 
   /** List supplier activity timeline */
-  async activities(supplier: string, config?: RequestConfig): Promise<unknown> {
+  async activities(supplier: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/suppliers/{supplier}/activities", { "supplier": supplier });
-    return this._get<unknown>(path, undefined, config);
+    return this._paginate<unknown>(path, params, "starting_after");
   }
 
   /** Get supplier stats */
