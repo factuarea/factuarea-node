@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#5](https://github.com/factuarea/factuarea-node/pull/5) [`53510b2`](https://github.com/factuarea/factuarea-node/commit/53510b2d32c56a76f7d2cae98bd81e3f5f9df488) Thanks [@Chelu97](https://github.com/Chelu97)! - Regenerate the SDK from the public OpenAPI spec published with Factuarea v1.15.26
+  (+57 operations, -0 operations): the automation engine (`client.automations.*`,
+  18 operations), ecommerce stores, product options and configurations, price-list
+  resolution and stock-ledger audit.
+
+  The resource generator now nests namespaces to any depth
+  (`client.automations.rules.versions.list()`), which the three-level
+  `automations.rules.versions` and `automations.runs.steps` groups require: with
+  two levels their methods collided with `rules.list` / `runs.list`.
+
 ## 0.2.0
 
 ### Minor Changes
