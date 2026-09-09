@@ -13406,6 +13406,9 @@ export type UpdateProductVariantRequest = {
      */
     cost_override?: number | null;
     manage_stock: boolean;
+    /**
+     * Own balance of the variant, in the product base unit (up to 4 decimals). Send the current balance to leave it untouched — it may be negative when delivered documents ran ahead of the incoming stock. Any other value is a manual set and must be `>= 0` (422 otherwise); to move the balance use `PUT /v1/products/{uuid}/stock` with `variant_id`.
+     */
     stock: number;
     low_stock_threshold?: number | null;
     specifications?: {
