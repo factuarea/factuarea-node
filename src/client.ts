@@ -5,6 +5,7 @@ import { createResources } from "./resources/index.js";
 import type {
   AccountResource,
   ClientsResource,
+  ContactsResource,
   DeliveryNotesResource,
   EventCatalogResource,
   EventsResource,
@@ -41,6 +42,7 @@ export class Factuarea {
 
   readonly account: AccountResource;
   readonly clients: ClientsResource;
+  readonly contacts: ContactsResource;
   readonly deliveryNotes: DeliveryNotesResource;
   readonly eventCatalog: EventCatalogResource;
   readonly events: EventsResource;
@@ -71,6 +73,7 @@ export class Factuarea {
     const resources = createResources(this.http);
     this.account = resources.account;
     this.clients = resources.clients;
+    this.contacts = resources.contacts;
     this.deliveryNotes = resources.deliveryNotes;
     this.eventCatalog = resources.eventCatalog;
     this.events = resources.events;

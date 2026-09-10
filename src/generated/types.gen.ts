@@ -19093,6 +19093,402 @@ export type WorkdaySessionStatus = {
 };
 
 /**
+ * BulkChangeContactRoleStatusV1Request
+ */
+export type BulkChangeContactRoleStatusV1Request = {
+    ids: Array<string>;
+    role: 'customer' | 'supplier' | 'lead';
+    status: 'active' | 'inactive';
+};
+
+/**
+ * BusinessContactOptionsResource
+ */
+export type BusinessContactOptionsResource = {
+    data: Array<string>;
+    has_more: boolean;
+};
+
+/**
+ * UpdateSupplierProfileV1Request
+ */
+export type UpdateSupplierProfileV1Request = {
+    default_tax_uuid?: string | null;
+    discount?: number | null;
+    vat_rate?: number | null;
+    retention_rate?: number | null;
+    surcharge_subject?: boolean;
+    operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+    payment_method?: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other' | null;
+    payment_terms_days?: number | null;
+};
+
+/**
+ * ChangeContactRoleStatusV1Request
+ */
+export type ChangeContactRoleStatusV1Request = {
+    role: 'customer' | 'supplier' | 'lead';
+    status: 'active' | 'inactive';
+};
+
+/**
+ * BulkArchiveBusinessContactsV1Request
+ */
+export type BulkArchiveBusinessContactsV1Request = {
+    ids: Array<string>;
+};
+
+/**
+ * BusinessContactImportPreview
+ */
+export type BusinessContactImportPreview = {
+    rows: Array<{
+        row: number;
+        action: 'create' | 'update' | 'add_role' | 'merge_candidate' | 'conflict' | 'invalid';
+        target_uuid: string | null;
+        errors: Array<{
+            param: string | null;
+            code: string;
+            message: string;
+        }>;
+        warnings: Array<{
+            param: string | null;
+            code: string;
+            message: string;
+        }>;
+    }>;
+    total: number;
+    create: number;
+    update: number;
+    add_role: number;
+    merge_candidate: number;
+    conflict: number;
+    invalid: number;
+    dry_run: boolean;
+    queued: boolean;
+};
+
+/**
+ * ContactRoleV1Request
+ */
+export type ContactRoleV1Request = {
+    role: 'customer' | 'supplier' | 'lead';
+};
+
+/**
+ * UpdateCustomerProfileV1Request
+ */
+export type UpdateCustomerProfileV1Request = {
+    default_price_list_uuid?: string | null;
+    discount?: number | null;
+    vat_rate?: number | null;
+    retention_rate?: number | null;
+    surcharge_subject?: boolean;
+    operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+    payment_method?: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other' | null;
+    payment_terms_days?: number | null;
+    dir3_accounting_office?: string | null;
+    dir3_managing_body?: string | null;
+    dir3_processing_unit?: string | null;
+};
+
+/**
+ * UpdateBusinessContactBankAccountsV1Request
+ */
+export type UpdateBusinessContactBankAccountsV1Request = {
+    bank_accounts: Array<{
+        iban: string;
+        bic?: string | null;
+        notes?: string | null;
+        collection?: boolean;
+        payment?: boolean;
+        is_default_collection?: boolean;
+        is_default_payment?: boolean;
+    }>;
+};
+
+/**
+ * BusinessContactList
+ */
+export type BusinessContactList = {
+    data: Array<BusinessContact>;
+    has_more: boolean;
+    next_cursor: string | null;
+};
+
+/**
+ * ImportBusinessContactsV1Request
+ */
+export type ImportBusinessContactsV1Request = {
+    /**
+     * Maximum file size: 10240 kilobytes.
+     */
+    file: Blob | File;
+    mapping?: Array<string>;
+    target_roles?: Array<'customer' | 'supplier' | 'lead'>;
+    conflict_strategy?: 'reject' | 'update' | 'merge';
+    dry_run?: boolean;
+};
+
+/**
+ * PreviewBusinessContactImportV1Request
+ */
+export type PreviewBusinessContactImportV1Request = {
+    /**
+     * Maximum file size: 10240 kilobytes.
+     */
+    file: Blob | File;
+    mapping?: Array<string>;
+    target_roles?: Array<'customer' | 'supplier' | 'lead'>;
+    conflict_strategy?: 'reject' | 'update' | 'merge';
+};
+
+/**
+ * UpdateBusinessContactV1Request
+ */
+export type UpdateBusinessContactV1Request = {
+    name?: string;
+    kind?: 'person' | 'company';
+    tax_id?: string | null;
+    alternative_id_type?: 'nif_iva' | 'passport' | 'country_id' | 'residence_certificate' | 'other_document' | 'not_registered' | 'national_id' | 'tax_id_foreign' | null;
+    alternative_id_value?: string | null;
+    alternative_id_country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+    vat_id?: string | null;
+    business_name?: string | null;
+    commercial_name?: string | null;
+    address?: {
+        line_1?: string | null;
+        line_2?: string | null;
+        number?: string | null;
+        floor?: string | null;
+        door?: string | null;
+        staircase?: string | null;
+        city?: string | null;
+        province?: string | null;
+        postal_code?: string | null;
+        country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+    };
+    contact_person?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+    fax?: string | null;
+    website?: string | null;
+    billing_emails?: Array<string>;
+    tags?: Array<string>;
+    notes?: string | null;
+    metadata?: Metadata;
+    accumulate_347?: boolean;
+    external_id?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    roles?: string;
+    bank_accounts?: string;
+    customer_profile?: string;
+    supplier_profile?: string;
+};
+
+/**
+ * BusinessContact
+ *
+ * A canonical business contact with cumulative customer, supplier and fiscal lead roles, or no assigned role. The fiscal lead role requires the same fiscal identity as other contacts; pre-fiscal opportunities belong to the separately planned CRM.
+ */
+export type BusinessContact = {
+    /**
+     * Public UUID v7. Internal numeric keys are never exposed.
+     */
+    id: string;
+    object: 'contact';
+    kind: 'company' | 'person';
+    name: string;
+    business_name: string | null;
+    commercial_name: string | null;
+    tax_id: string | null;
+    vat_id: string | null;
+    alternative_id: AlternativeId | null;
+    address: {
+        line1: string | null;
+        line2: string | null;
+        number: string | null;
+        floor: string | null;
+        door: string | null;
+        staircase: string | null;
+        city: string | null;
+        province: string | null;
+        postal_code: string | null;
+        country: string;
+    };
+    contact_person: string | null;
+    email: string | null;
+    phone: PhoneString | null;
+    mobile: string | null;
+    fax: string | null;
+    website: string | null;
+    billing_emails: Array<string>;
+    tags: Array<string>;
+    /**
+     * Geographic coordinates. Each axis is nullable independently; the object is null only when neither axis is recorded.
+     */
+    coordinates: {
+        latitude: number | null;
+        longitude: number | null;
+    } | null;
+    notes: string | null;
+    metadata: Metadata;
+    accumulate_347: boolean;
+    external_id: string | null;
+    roles: Array<{
+        role: 'customer' | 'supplier' | 'lead';
+        status: 'active' | 'inactive';
+        assigned_at: string;
+        deactivated_at: string | null;
+    }>;
+    bank_accounts: Array<{
+        iban: string;
+        bic: string | null;
+        notes: string | null;
+        can_collect: boolean;
+        can_pay: boolean;
+        is_default_collection: boolean;
+        is_default_payment: boolean;
+    }>;
+    customer_profile: {
+        default_price_list_uuid: string | null;
+        default_discount: number | null;
+        default_vat_rate: number | null;
+        default_retention_rate: number | null;
+        is_surcharge_subject: boolean;
+        preferred_operation_regime: string | null;
+        payment_method: string | null;
+        payment_terms_days: number | null;
+        dir3_accounting_office: string | null;
+        dir3_managing_body: string | null;
+        dir3_processing_unit: string | null;
+    } | null;
+    supplier_profile: {
+        default_taxes_uuid: string | null;
+        default_discount: number | null;
+        default_vat_rate: number | null;
+        default_retention_rate: number | null;
+        is_surcharge_subject: boolean;
+        preferred_operation_regime: string | null;
+        payment_method: string | null;
+        payment_terms_days: number | null;
+    } | null;
+    /**
+     * Directional sales and purchases totals for this contact. Amounts use the currency declared in each direction.
+     */
+    financial_summary: {
+        sales: {
+            invoiced_amount: number;
+            collected_amount: number;
+            receivable_amount: number;
+            currency: string;
+        };
+        purchases: {
+            purchased_amount: number;
+            paid_amount: number;
+            payable_amount: number;
+            currency: string;
+        };
+    };
+    /**
+     * Most recent sales or purchases movement, or `null` when the contact has no financial activity.
+     */
+    latest_activity: {
+        type: 'sales_invoice' | 'collection' | 'purchase_invoice' | 'payment';
+        direction: 'sales' | 'purchases';
+        amount: number;
+        currency: string;
+        occurred_at: string;
+        related_resource_uuid: string;
+    } | null;
+    is_archived: boolean;
+    archived_at: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * CreateBusinessContactV1Request
+ */
+export type CreateBusinessContactV1Request = {
+    name: string;
+    kind: 'person' | 'company';
+    tax_id?: string | null;
+    alternative_id_type?: 'nif_iva' | 'passport' | 'country_id' | 'residence_certificate' | 'other_document' | 'not_registered' | 'national_id' | 'tax_id_foreign' | null;
+    alternative_id_value?: string | null;
+    alternative_id_country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+    vat_id?: string | null;
+    business_name?: string | null;
+    commercial_name?: string | null;
+    address?: {
+        line_1?: string | null;
+        line_2?: string | null;
+        number?: string | null;
+        floor?: string | null;
+        door?: string | null;
+        staircase?: string | null;
+        city?: string | null;
+        province?: string | null;
+        postal_code?: string | null;
+        country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+    };
+    contact_person?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+    fax?: string | null;
+    website?: string | null;
+    billing_emails?: Array<string>;
+    tags?: Array<string>;
+    notes?: string | null;
+    metadata?: Metadata;
+    accumulate_347?: boolean;
+    external_id?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    customer_profile?: {
+        /**
+         * Resolver `any`: estas reglas las consumen la SPA (usuario en sesión) y
+         * la v1 (API key sin usuario autenticado). Con `exists` —resolver
+         * `auth_user`— la v1 respondía 500 al recibir una tarifa.
+         */
+        default_price_list_uuid?: string | null;
+        discount?: number | null;
+        vat_rate?: number | null;
+        retention_rate?: number | null;
+        surcharge_subject?: boolean;
+        operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+        payment_method?: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other' | null;
+        payment_terms_days?: number | null;
+        dir3_accounting_office?: string | null;
+        dir3_managing_body?: string | null;
+        dir3_processing_unit?: string | null;
+    };
+    supplier_profile?: {
+        default_tax_uuid?: string | null;
+        discount?: number | null;
+        vat_rate?: number | null;
+        retention_rate?: number | null;
+        surcharge_subject?: boolean;
+        operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
+        payment_method?: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other' | null;
+        payment_terms_days?: number | null;
+    };
+    roles: Array<'customer' | 'supplier' | 'lead'>;
+    bank_accounts?: Array<{
+        iban: string;
+        bic?: string | null;
+        notes?: string | null;
+        collection?: boolean;
+        payment?: boolean;
+        is_default_collection?: boolean;
+        is_default_payment?: boolean;
+    }>;
+};
+
+/**
  * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
  */
 export type IdempotencyKey = string;
@@ -47961,6 +48357,1201 @@ export type PublicApiV1InvoicesVoidResponses = {
 };
 
 export type PublicApiV1InvoicesVoidResponse = PublicApiV1InvoicesVoidResponses[keyof PublicApiV1InvoicesVoidResponses];
+
+export type PublicApiV1ContactsRemoveContactRoleData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+        role: string;
+    };
+    query: {
+        role: 'customer' | 'supplier' | 'lead';
+    };
+    url: '/contacts/{contact}/roles/{role}';
+};
+
+export type PublicApiV1ContactsRemoveContactRoleErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsRemoveContactRoleError = PublicApiV1ContactsRemoveContactRoleErrors[keyof PublicApiV1ContactsRemoveContactRoleErrors];
+
+export type PublicApiV1ContactsRemoveContactRoleResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsRemoveContactRoleResponse = PublicApiV1ContactsRemoveContactRoleResponses[keyof PublicApiV1ContactsRemoveContactRoleResponses];
+
+export type PublicApiV1ContactsAssignContactRoleData = {
+    body: ContactRoleV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+        role: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}/roles/{role}';
+};
+
+export type PublicApiV1ContactsAssignContactRoleErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsAssignContactRoleError = PublicApiV1ContactsAssignContactRoleErrors[keyof PublicApiV1ContactsAssignContactRoleErrors];
+
+export type PublicApiV1ContactsAssignContactRoleResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsAssignContactRoleResponse = PublicApiV1ContactsAssignContactRoleResponses[keyof PublicApiV1ContactsAssignContactRoleResponses];
+
+export type PublicApiV1ContactsBulkArchiveData = {
+    body: BulkArchiveBusinessContactsV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/bulk/archive';
+};
+
+export type PublicApiV1ContactsBulkArchiveErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsBulkArchiveError = PublicApiV1ContactsBulkArchiveErrors[keyof PublicApiV1ContactsBulkArchiveErrors];
+
+export type PublicApiV1ContactsBulkArchiveResponses = {
+    /**
+     * `BulkPartialSuccessV1Resource`
+     */
+    200: {
+        data: BulkPartialSuccessResult;
+    };
+};
+
+export type PublicApiV1ContactsBulkArchiveResponse = PublicApiV1ContactsBulkArchiveResponses[keyof PublicApiV1ContactsBulkArchiveResponses];
+
+export type PublicApiV1ContactsBulkChangeContactRoleStatusData = {
+    body: BulkChangeContactRoleStatusV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/bulk/status';
+};
+
+export type PublicApiV1ContactsBulkChangeContactRoleStatusErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsBulkChangeContactRoleStatusError = PublicApiV1ContactsBulkChangeContactRoleStatusErrors[keyof PublicApiV1ContactsBulkChangeContactRoleStatusErrors];
+
+export type PublicApiV1ContactsBulkChangeContactRoleStatusResponses = {
+    /**
+     * `BulkPartialSuccessV1Resource`
+     */
+    200: {
+        data: BulkPartialSuccessResult;
+    };
+};
+
+export type PublicApiV1ContactsBulkChangeContactRoleStatusResponse = PublicApiV1ContactsBulkChangeContactRoleStatusResponses[keyof PublicApiV1ContactsBulkChangeContactRoleStatusResponses];
+
+export type PublicApiV1ContactsChangeContactRoleStatusData = {
+    body: ChangeContactRoleStatusV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+        role: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}/roles/{role}/status';
+};
+
+export type PublicApiV1ContactsChangeContactRoleStatusErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsChangeContactRoleStatusError = PublicApiV1ContactsChangeContactRoleStatusErrors[keyof PublicApiV1ContactsChangeContactRoleStatusErrors];
+
+export type PublicApiV1ContactsChangeContactRoleStatusResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsChangeContactRoleStatusResponse = PublicApiV1ContactsChangeContactRoleStatusResponses[keyof PublicApiV1ContactsChangeContactRoleStatusResponses];
+
+export type PublicApiV1ContactsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        limit?: number | null;
+        starting_after?: string | null;
+        search?: string | null;
+        'roles[]'?: 'customer' | 'supplier' | 'lead' | 'unassigned';
+        role_match?: 'any' | 'all' | null;
+        role_status?: 'active' | 'inactive' | null;
+        kind?: 'person' | 'company' | null;
+        fiscal_identity?: string | null;
+        external_id?: string | null;
+        'tags[]'?: Array<string>;
+        is_archived?: boolean | null;
+        /**
+         * Coincidencia exacta de ciudad y provincia; país ISO 3166-1 alpha-2 exacto.
+         */
+        city?: string | null;
+        province?: string | null;
+        country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+        has_email?: boolean | null;
+        /**
+         * Verdadero si hay teléfono fijo O móvil; falso si ambos están vacíos.
+         */
+        has_phone?: boolean | null;
+        created_from?: string | null;
+        created_to?: string | null;
+        'metadata[]'?: Array<string>;
+        sort_order?: 'asc' | 'desc' | null;
+    };
+    url: '/contacts';
+};
+
+export type PublicApiV1ContactsListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsListError = PublicApiV1ContactsListErrors[keyof PublicApiV1ContactsListErrors];
+
+export type PublicApiV1ContactsListResponses = {
+    200: PaginatedList & BusinessContactList;
+};
+
+export type PublicApiV1ContactsListResponse = PublicApiV1ContactsListResponses[keyof PublicApiV1ContactsListResponses];
+
+export type PublicApiV1ContactsCreateData = {
+    body: CreateBusinessContactV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts';
+};
+
+export type PublicApiV1ContactsCreateErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsCreateError = PublicApiV1ContactsCreateErrors[keyof PublicApiV1ContactsCreateErrors];
+
+export type PublicApiV1ContactsCreateResponses = {
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsCreateResponse = PublicApiV1ContactsCreateResponses[keyof PublicApiV1ContactsCreateResponses];
+
+export type PublicApiV1ContactsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}';
+};
+
+export type PublicApiV1ContactsDeleteErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsDeleteError = PublicApiV1ContactsDeleteErrors[keyof PublicApiV1ContactsDeleteErrors];
+
+export type PublicApiV1ContactsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'contact';
+            archived: boolean;
+        };
+    };
+};
+
+export type PublicApiV1ContactsDeleteResponse = PublicApiV1ContactsDeleteResponses[keyof PublicApiV1ContactsDeleteResponses];
+
+export type PublicApiV1ContactsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}';
+};
+
+export type PublicApiV1ContactsShowErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsShowError = PublicApiV1ContactsShowErrors[keyof PublicApiV1ContactsShowErrors];
+
+export type PublicApiV1ContactsShowResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsShowResponse = PublicApiV1ContactsShowResponses[keyof PublicApiV1ContactsShowResponses];
+
+export type PublicApiV1ContactsUpdateData = {
+    body?: UpdateBusinessContactV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}';
+};
+
+export type PublicApiV1ContactsUpdateErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsUpdateError = PublicApiV1ContactsUpdateErrors[keyof PublicApiV1ContactsUpdateErrors];
+
+export type PublicApiV1ContactsUpdateResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsUpdateResponse = PublicApiV1ContactsUpdateResponses[keyof PublicApiV1ContactsUpdateResponses];
+
+export type PublicApiV1ContactsOptionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * country = ISO catalogue for forms; country_code = countries present in this tenant.
+         */
+        field: 'country' | 'country_code' | 'province' | 'city' | 'tag';
+        search?: string | null;
+        country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+        province?: string | null;
+        limit?: number | null;
+    };
+    url: '/contacts/options';
+};
+
+export type PublicApiV1ContactsOptionsErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsOptionsError = PublicApiV1ContactsOptionsErrors[keyof PublicApiV1ContactsOptionsErrors];
+
+export type PublicApiV1ContactsOptionsResponses = {
+    /**
+     * `BusinessContactOptionsResource`
+     */
+    200: BusinessContactOptionsResource;
+};
+
+export type PublicApiV1ContactsOptionsResponse = PublicApiV1ContactsOptionsResponses[keyof PublicApiV1ContactsOptionsResponses];
+
+export type PublicApiV1ContactsImportData = {
+    body: ImportBusinessContactsV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/import';
+};
+
+export type PublicApiV1ContactsImportErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsImportError = PublicApiV1ContactsImportErrors[keyof PublicApiV1ContactsImportErrors];
+
+export type PublicApiV1ContactsImportResponses = {
+    /**
+     * `BusinessContactImportPreviewResource`
+     */
+    200: {
+        data: BusinessContactImportPreview;
+    };
+    202: {
+        data: BusinessContactImportPreview;
+    };
+};
+
+export type PublicApiV1ContactsImportResponse = PublicApiV1ContactsImportResponses[keyof PublicApiV1ContactsImportResponses];
+
+export type PublicApiV1ContactsPreviewImportData = {
+    body: PreviewBusinessContactImportV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/import/preview';
+};
+
+export type PublicApiV1ContactsPreviewImportErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsPreviewImportError = PublicApiV1ContactsPreviewImportErrors[keyof PublicApiV1ContactsPreviewImportErrors];
+
+export type PublicApiV1ContactsPreviewImportResponses = {
+    /**
+     * `BusinessContactImportPreviewResource`
+     */
+    200: {
+        data: BusinessContactImportPreview;
+    };
+};
+
+export type PublicApiV1ContactsPreviewImportResponse = PublicApiV1ContactsPreviewImportResponses[keyof PublicApiV1ContactsPreviewImportResponses];
+
+export type PublicApiV1ContactsRestoreData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}/restore';
+};
+
+export type PublicApiV1ContactsRestoreErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsRestoreError = PublicApiV1ContactsRestoreErrors[keyof PublicApiV1ContactsRestoreErrors];
+
+export type PublicApiV1ContactsRestoreResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsRestoreResponse = PublicApiV1ContactsRestoreResponses[keyof PublicApiV1ContactsRestoreResponses];
+
+export type PublicApiV1ContactsSearchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query: {
+        q: string;
+        'roles[]'?: 'customer' | 'supplier' | 'lead';
+        role_match?: 'any' | 'all' | null;
+        role_status?: 'active' | 'inactive' | null;
+        limit?: number | null;
+        starting_after?: string | null;
+    };
+    url: '/contacts/search';
+};
+
+export type PublicApiV1ContactsSearchErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsSearchError = PublicApiV1ContactsSearchErrors[keyof PublicApiV1ContactsSearchErrors];
+
+export type PublicApiV1ContactsSearchResponses = {
+    200: PaginatedList & BusinessContactList;
+};
+
+export type PublicApiV1ContactsSearchResponse = PublicApiV1ContactsSearchResponses[keyof PublicApiV1ContactsSearchResponses];
+
+export type PublicApiV1ContactsUpdateBankAccountsData = {
+    body: UpdateBusinessContactBankAccountsV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}/bank-accounts';
+};
+
+export type PublicApiV1ContactsUpdateBankAccountsErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsUpdateBankAccountsError = PublicApiV1ContactsUpdateBankAccountsErrors[keyof PublicApiV1ContactsUpdateBankAccountsErrors];
+
+export type PublicApiV1ContactsUpdateBankAccountsResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsUpdateBankAccountsResponse = PublicApiV1ContactsUpdateBankAccountsResponses[keyof PublicApiV1ContactsUpdateBankAccountsResponses];
+
+export type PublicApiV1ContactsUpdateCustomerProfileData = {
+    body?: UpdateCustomerProfileV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}/customer-profile';
+};
+
+export type PublicApiV1ContactsUpdateCustomerProfileErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsUpdateCustomerProfileError = PublicApiV1ContactsUpdateCustomerProfileErrors[keyof PublicApiV1ContactsUpdateCustomerProfileErrors];
+
+export type PublicApiV1ContactsUpdateCustomerProfileResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsUpdateCustomerProfileResponse = PublicApiV1ContactsUpdateCustomerProfileResponses[keyof PublicApiV1ContactsUpdateCustomerProfileResponses];
+
+export type PublicApiV1ContactsUpdateSupplierProfileData = {
+    body?: UpdateSupplierProfileV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}/supplier-profile';
+};
+
+export type PublicApiV1ContactsUpdateSupplierProfileErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsUpdateSupplierProfileError = PublicApiV1ContactsUpdateSupplierProfileErrors[keyof PublicApiV1ContactsUpdateSupplierProfileErrors];
+
+export type PublicApiV1ContactsUpdateSupplierProfileResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsUpdateSupplierProfileResponse = PublicApiV1ContactsUpdateSupplierProfileResponses[keyof PublicApiV1ContactsUpdateSupplierProfileResponses];
 
 export type WebhooksEventWebhookPayload = WebhookEventPayload;
 

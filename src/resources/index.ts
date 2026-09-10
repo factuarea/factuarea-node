@@ -10,6 +10,7 @@ import { AccountResource } from "./account.js";
 import { AutomationsResource } from "./automations.js";
 import { ClientsResource } from "./clients.js";
 import { CompaniesResource } from "./companies.js";
+import { ContactsResource } from "./contacts.js";
 import { DeliveryNotesResource } from "./deliveryNotes.js";
 import { DevelopersResource } from "./developers.js";
 import { EmailsResource } from "./emails.js";
@@ -60,6 +61,7 @@ export { AccountResource } from "./account.js";
 export { AutomationsResource } from "./automations.js";
 export { ClientsResource } from "./clients.js";
 export { CompaniesResource } from "./companies.js";
+export { ContactsResource } from "./contacts.js";
 export { DeliveryNotesResource } from "./deliveryNotes.js";
 export { DevelopersResource } from "./developers.js";
 export { EmailsResource } from "./emails.js";
@@ -111,6 +113,7 @@ export interface ResourceNamespaces {
   automations: AutomationsResource;
   clients: ClientsResource;
   companies: CompaniesResource;
+  contacts: ContactsResource;
   deliveryNotes: DeliveryNotesResource;
   developers: DevelopersResource;
   emails: EmailsResource;
@@ -164,6 +167,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     automations: new AutomationsResource(client),
     clients: new ClientsResource(client),
     companies: new CompaniesResource(client),
+    contacts: new ContactsResource(client),
     deliveryNotes: new DeliveryNotesResource(client),
     developers: new DevelopersResource(client),
     emails: new EmailsResource(client),
