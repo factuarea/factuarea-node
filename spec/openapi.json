@@ -183,6 +183,9 @@
   ],
   "security": [
     {
+      "http": []
+    },
+    {
       "BearerAuth": []
     },
     {
@@ -1230,6 +1233,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -25766,6 +25772,9 @@
         ],
         "parameters": [
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -31264,6 +31273,9 @@
           "Automations"
         ],
         "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
@@ -39038,6 +39050,9 @@
         ],
         "parameters": [
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -41099,6 +41114,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -41927,6 +41945,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -46244,6 +46265,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -49648,6 +49672,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -54188,6 +54215,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -57478,6 +57508,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -60102,6 +60135,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -63175,6 +63211,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -63990,6 +64029,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -69405,6 +69447,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -72866,6 +72911,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -75179,6 +75227,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -77471,6 +77522,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -127658,6 +127712,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -130630,6 +130687,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -133318,6 +133378,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -142017,6 +142080,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -147424,6 +147490,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -151713,6 +151782,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -159309,6 +159381,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -164796,6 +164871,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -175229,6 +175307,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -181660,6 +181741,9 @@
             }
           },
           {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
             "$ref": "#/components/parameters/FactuareaVersion"
           },
           {
@@ -182144,6 +182228,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -186665,6 +186752,10 @@
   },
   "components": {
     "securitySchemes": {
+      "http": {
+        "type": "http",
+        "scheme": "bearer"
+      },
       "BearerAuth": {
         "type": "http",
         "scheme": "bearer",
@@ -186680,9 +186771,9 @@
         "description": "OAuth 2.1 authorization-code flow with PKCE (`code_challenge_method=S256`).\nDiscovery metadata (RFC 8414) is published at `/.well-known/oauth-authorization-server`.\n\n## API key rotation policy\n\nAPI keys and OAuth client secrets are long-lived credentials and MUST be rotated periodically and immediately after any suspected leak.\n\n- **Prefixes**: every key carries an unambiguous environment prefix — `fact_live_` (production) and `fact_test_` (sandbox). The prefix is the source of truth for the environment; never mix them across environments.\n- **How to rotate**: rotate an API key from the Factuarea portal (or via the self-service `account:write` endpoints). Rotation issues a brand-new secret and returns it **once** — store it immediately, it is never shown again.\n- **Grace window (dual-secret)**: after a rotation the previous secret keeps working for a **24-hour grace window**, so you can roll out the new secret with zero downtime. During that window both the new and the previous secret are accepted; once the window expires the previous secret is rejected and purged.\n- **When to rotate**: on a regular schedule (e.g. every 90 days), whenever a teammate with access leaves, and **immediately** if a secret is ever exposed in logs, source control or a public client.\n- Secrets are bound to a single company (tenant) and MUST NEVER be embedded in browsers, mobile apps or any public client — keep them server-side only.",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "https://app.factuarea.com/api/oauth/authorize",
-            "tokenUrl": "https://app.factuarea.com/api/oauth/token",
-            "refreshUrl": "https://app.factuarea.com/api/oauth/token",
+            "authorizationUrl": "http://localhost:8000/api/oauth/authorize",
+            "tokenUrl": "http://localhost:8000/api/oauth/token",
+            "refreshUrl": "http://localhost:8000/api/oauth/token",
             "scopes": {
               "clients:read": "Read clients.",
               "clients:write": "Create and update clients.",
@@ -236440,25 +236531,6 @@
       }
     },
     "responses": {
-      "AuthorizationException": {
-        "description": "Authorization error",
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "message": {
-                  "type": "string",
-                  "description": "Error overview."
-                }
-              },
-              "required": [
-                "message"
-              ]
-            }
-          }
-        }
-      },
       "ModelNotFoundException": {
         "description": "Not found",
         "content": {
