@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#10](https://github.com/factuarea/factuarea-node/pull/10) [`271b9f7`](https://github.com/factuarea/factuarea-node/commit/271b9f7ea45fa1147b831829aca3f9b808f17765) Thanks [@fernandoc00](https://github.com/fernandoc00)! - Add canonical contacts, contact roles and preferences, and preserve array filters in Laravel-compatible query parameters.
+
 ## 0.3.1
 
 ### Patch Changes
