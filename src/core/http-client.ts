@@ -285,7 +285,7 @@ export class HttpClient {
         if (Array.isArray(value)) {
           for (const item of value) {
             if (item !== undefined && item !== null) {
-              url.searchParams.append(key, String(item));
+              url.searchParams.append(key.endsWith("[]") ? key : `${key}[]`, String(item));
             }
           }
         } else if (typeof value === "object") {
