@@ -63,12 +63,12 @@ export class VerifactuRecordsResource extends BaseResource {
   /** List VeriFactu record activity timeline */
   async activities(record: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/verifactu/records/{record}/activities", { "record": record });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** List VeriFactu records */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/verifactu/records", params, "starting_after");
+    return this._paginate<unknown>("/verifactu/records", params, "starting_after", config);
   }
 
   /** Retry VeriFactu transmission */
@@ -113,7 +113,7 @@ export class VerifactuEventsResource extends BaseResource {
 
   /** List VeriFactu events */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/verifactu/events", params, "starting_after");
+    return this._paginate<unknown>("/verifactu/events", params, "starting_after", config);
   }
 
   /** Retry a VeriFactu event */
@@ -132,7 +132,7 @@ export class VerifactuEventsResource extends BaseResource {
 export class VerifactuAeatAccessResource extends BaseResource {
   /** List AEAT access records */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/verifactu/aeat-access/records", params, "starting_after");
+    return this._paginate<unknown>("/verifactu/aeat-access/records", params, "starting_after", config);
   }
 
   /** Retrieve an AEAT access record */

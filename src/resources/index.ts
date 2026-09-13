@@ -33,6 +33,8 @@ import { PriceListsResource } from "./priceLists.js";
 import { ProductsResource } from "./products.js";
 import { ProformasResource } from "./proformas.js";
 import { PurchaseInvoicesResource } from "./purchaseInvoices.js";
+import { PurchaseScanEmailsResource } from "./purchaseScanEmails.js";
+import { PurchaseScansResource } from "./purchaseScans.js";
 import { QuotesResource } from "./quotes.js";
 import { RecurringInvoicesResource } from "./recurringInvoices.js";
 import { SeriesResource } from "./series.js";
@@ -84,6 +86,8 @@ export { PriceListsResource } from "./priceLists.js";
 export { ProductsResource } from "./products.js";
 export { ProformasResource } from "./proformas.js";
 export { PurchaseInvoicesResource } from "./purchaseInvoices.js";
+export { PurchaseScanEmailsResource } from "./purchaseScanEmails.js";
+export { PurchaseScansResource } from "./purchaseScans.js";
 export { QuotesResource } from "./quotes.js";
 export { RecurringInvoicesResource } from "./recurringInvoices.js";
 export { SeriesResource } from "./series.js";
@@ -136,6 +140,8 @@ export interface ResourceNamespaces {
   products: ProductsResource;
   proformas: ProformasResource;
   purchaseInvoices: PurchaseInvoicesResource;
+  purchaseScanEmails: PurchaseScanEmailsResource;
+  purchaseScans: PurchaseScansResource;
   quotes: QuotesResource;
   recurringInvoices: RecurringInvoicesResource;
   series: SeriesResource;
@@ -190,6 +196,8 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     products: new ProductsResource(client),
     proformas: new ProformasResource(client),
     purchaseInvoices: new PurchaseInvoicesResource(client),
+    purchaseScanEmails: new PurchaseScanEmailsResource(client),
+    purchaseScans: new PurchaseScansResource(client),
     quotes: new QuotesResource(client),
     recurringInvoices: new RecurringInvoicesResource(client),
     series: new SeriesResource(client),

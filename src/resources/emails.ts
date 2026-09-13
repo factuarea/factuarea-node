@@ -18,7 +18,7 @@ export class EmailsResource extends BaseResource {
 
   /** List sent emails */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/emails", params, "starting_after");
+    return this._paginate<unknown>("/emails", params, "starting_after", config);
   }
 
   /** Retrieve a sent email */

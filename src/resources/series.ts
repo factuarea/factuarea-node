@@ -30,7 +30,7 @@ export class SeriesResource extends BaseResource {
 
   /** List all series */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/series", params, "starting_after");
+    return this._paginate<unknown>("/series", params, "starting_after", config);
   }
 
   /** Find a series by code */
@@ -48,7 +48,7 @@ export class SeriesResource extends BaseResource {
   /** List series activity timeline */
   async activities(series: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/series/{series}/activities", { "series": series });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Get series stats */

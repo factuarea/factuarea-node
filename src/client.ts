@@ -13,6 +13,8 @@ import type {
   ProductsResource,
   ProformasResource,
   PurchaseInvoicesResource,
+  PurchaseScansResource,
+  PurchaseScanEmailsResource,
   QuotesResource,
   RecurringInvoicesResource,
   SeriesResource,
@@ -50,6 +52,8 @@ export class Factuarea {
   readonly products: ProductsResource;
   readonly proformas: ProformasResource;
   readonly purchaseInvoices: PurchaseInvoicesResource;
+  readonly purchaseScans: PurchaseScansResource;
+  readonly purchaseScanEmails: PurchaseScanEmailsResource;
   readonly quotes: QuotesResource;
   readonly recurringInvoices: RecurringInvoicesResource;
   readonly series: SeriesResource;
@@ -81,6 +85,8 @@ export class Factuarea {
     this.products = resources.products;
     this.proformas = resources.proformas;
     this.purchaseInvoices = resources.purchaseInvoices;
+    this.purchaseScans = resources.purchaseScans;
+    this.purchaseScanEmails = resources.purchaseScanEmails;
     this.quotes = resources.quotes;
     this.recurringInvoices = resources.recurringInvoices;
     this.series = resources.series;

@@ -30,7 +30,7 @@ export class SuppliersResource extends BaseResource {
 
   /** List all suppliers */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/suppliers", params, "starting_after");
+    return this._paginate<unknown>("/suppliers", params, "starting_after", config);
   }
 
   /** Delete a supplier */
@@ -66,7 +66,7 @@ export class SuppliersResource extends BaseResource {
   /** List supplier activity timeline */
   async activities(supplier: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/suppliers/{supplier}/activities", { "supplier": supplier });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Get supplier stats */

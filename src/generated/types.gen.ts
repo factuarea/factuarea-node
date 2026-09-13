@@ -3191,6 +3191,14 @@ export type ConvertProformaRequest = {
 };
 
 /**
+ * ConvertPurchaseScanRequest
+ */
+export type ConvertPurchaseScanRequest = {
+    expected_version: number;
+    allow_create_supplier?: boolean;
+};
+
+/**
  * ConvertQuoteRequest
  */
 export type ConvertQuoteRequest = {
@@ -5434,6 +5442,12 @@ export type Error = {
          */
         details?: {
             /**
+             * Review fields that must be corrected before a purchase scan can be converted. Keys use public identifiers, for example supplier_id or lines.0.tax_rate.
+             */
+            field_errors?: {
+                [key: string]: Array<string>;
+            };
+            /**
              * UUID of the pre-existing resource that triggered the conflict. Resolvable with a `GET /v1/{resource}/{id}` without an extra `find_by_*` call. Only present on 409 duplication conflicts.
              */
             existing_resource_id?: string;
@@ -7262,6 +7276,20 @@ export type EventDeletedObject = {
      */
     deleted: true;
 };
+
+/**
+ * ExpenseCategory
+ */
+export type ExpenseCategory = {
+    id: string;
+    object: 'expense_category';
+    name: string;
+};
+
+/**
+ * ExpenseCategoryList
+ */
+export type ExpenseCategoryList = Array<ExpenseCategory>;
 
 /**
  * ExportInvoicesExcelV1Request
@@ -9985,6 +10013,248 @@ export type PurchaseInvoiceStats = {
 };
 
 /**
+ * PurchaseScan
+ */
+export type PurchaseScan = {
+    id: string;
+    version: number;
+    source: 'upload' | 'email' | 'api';
+    status: 'received' | 'queued' | 'processing' | 'needs_review' | 'duplicate' | 'failed' | 'auto_created' | 'created' | 'archived';
+    original_filename: string;
+    mime_type: string;
+    page_count: number;
+    received_at: string;
+    uploaded_by: {
+        name: string | null;
+    };
+    supplier_id: string | null;
+    supplier_name: string | null;
+    document_number: string | null;
+    issue_date: string | null;
+    currency: string | null;
+    total: string | null;
+    issue_count: number;
+    available_actions: Array<'save_review' | 'convert' | 'link_existing' | 'override_duplicate' | 'retry' | 'replace_source' | 'archive' | 'restore' | 'download_source' | 'view_purchase_invoice'>;
+    purchase_invoice_id: string | null;
+    last_error: {
+        code: string;
+        recoverable: boolean;
+        message: string;
+    } | null;
+    file_revision: number;
+    extraction_revision: number | null;
+    bytes: number;
+    updated_at: string;
+    preview: {
+        url: string | null;
+        source_url: string;
+        page_count: number;
+    };
+    review: {
+        version: number;
+        extraction_revision: number | null;
+    };
+    extraction: {
+        supplier_id: PurchaseScanExtractedField;
+        supplier_name: PurchaseScanExtractedField;
+        supplier_tax_id: PurchaseScanExtractedField;
+        is_simplified: PurchaseScanExtractedField;
+        document_number: PurchaseScanExtractedField;
+        issue_date: PurchaseScanExtractedField;
+        reception_date: PurchaseScanExtractedField;
+        due_date: PurchaseScanExtractedField;
+        currency: PurchaseScanExtractedField;
+        payment_method: PurchaseScanExtractedField;
+        expense_category: PurchaseScanExtractedField;
+        operation_class: PurchaseScanExtractedField;
+        notes: PurchaseScanExtractedField;
+        issuer_tax_id: PurchaseScanExtractedField;
+        recipient_tax_id: PurchaseScanExtractedField;
+        totals: {
+            subtotal: PurchaseScanExtractedField;
+            tax: PurchaseScanExtractedField;
+            retention: PurchaseScanExtractedField;
+            surcharge: PurchaseScanExtractedField;
+            total: PurchaseScanExtractedField;
+        };
+    };
+    lines: Array<{
+        line_id: string;
+        fields: {
+            description: PurchaseScanExtractedField;
+            additional_description: PurchaseScanExtractedField;
+            quantity: PurchaseScanExtractedField;
+            unit_price: PurchaseScanExtractedField;
+            discount_rate: PurchaseScanExtractedField;
+            tax_rate: PurchaseScanExtractedField;
+            retention_rate: PurchaseScanExtractedField;
+            surcharge_rate: PurchaseScanExtractedField;
+            vat_deductible: PurchaseScanExtractedField;
+            indirect_tax_regime: PurchaseScanExtractedField;
+            exemption_reason: PurchaseScanExtractedField;
+            line_subtotal: PurchaseScanExtractedField;
+            tax_amount: PurchaseScanExtractedField;
+            retention_amount: PurchaseScanExtractedField;
+            surcharge_amount: PurchaseScanExtractedField;
+            line_total: PurchaseScanExtractedField;
+        };
+    }>;
+    issues: Array<{
+        code: string;
+        severity?: 'info' | 'warning' | 'error';
+        field?: string | null;
+        line_id?: string | null;
+        message?: string | null;
+    }>;
+    duplicate: {
+        type?: string;
+        candidate_id?: string | null;
+        candidate_purchase_invoice_id?: string | null;
+        matched_fields?: Array<string>;
+        override_authorized?: boolean;
+        linked?: boolean;
+        override_reason?: string | null;
+        resolved_at?: string | null;
+    } | null;
+    attempts: Array<{
+        id: string;
+        invocation_number?: number;
+        status: string;
+        started_at?: string;
+        finished_at?: string;
+        latency_ms?: number;
+        pages?: number;
+        cache_hit?: boolean;
+        error_code?: string;
+        error_recoverable?: boolean;
+    }>;
+    audit: Array<{
+        id: string;
+        action: string;
+        before_version?: number;
+        after_version?: number;
+        correlation_id?: string;
+        occurred_at?: string;
+    }>;
+    linked_purchase_invoice: {
+        id: string;
+    } | null;
+    can_save_review: boolean;
+    can_convert: boolean;
+    can_link_existing: boolean;
+    can_override_duplicate: boolean;
+    can_retry: boolean;
+    can_replace_source: boolean;
+    can_archive: boolean;
+    can_restore: boolean;
+    can_download_source: boolean;
+    can_view_purchase_invoice: boolean;
+};
+
+/**
+ * PurchaseScanEmail
+ */
+export type PurchaseScanEmail = {
+    id: string;
+    sender: string;
+    subject: string | null;
+    received_at: string;
+    result: string;
+    accepted_attachments: Array<{
+        filename: string;
+        sha256: string;
+        scan_id: string;
+    }>;
+    rejected_attachments: Array<{
+        filename: string;
+        code: string;
+        message?: string;
+    }>;
+};
+
+/**
+ * PurchaseScanExtractedField
+ */
+export type PurchaseScanExtractedField = {
+    original: string | null;
+    value: string | boolean | null;
+    confidence: string | null;
+    confidence_band: 'high' | 'medium' | 'low' | 'unknown';
+    issue_codes: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+    source: 'ocr' | 'human' | 'system';
+    evidence: Array<{
+        page: number;
+        bbox: {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        };
+    }>;
+};
+
+/**
+ * PurchaseScanListItem
+ */
+export type PurchaseScanListItem = {
+    id: string;
+    version: number;
+    source: 'upload' | 'email' | 'api';
+    status: 'received' | 'queued' | 'processing' | 'needs_review' | 'duplicate' | 'failed' | 'auto_created' | 'created' | 'archived';
+    original_filename: string;
+    mime_type: string;
+    page_count: number;
+    received_at: string;
+    uploaded_by: {
+        name: string | null;
+    };
+    supplier_id: string | null;
+    supplier_name: string | null;
+    document_number: string | null;
+    issue_date: string | null;
+    currency: string | null;
+    total: string | null;
+    issue_count: number;
+    available_actions: Array<'save_review' | 'convert' | 'link_existing' | 'override_duplicate' | 'retry' | 'replace_source' | 'archive' | 'restore' | 'download_source' | 'view_purchase_invoice'>;
+    purchase_invoice_id: string | null;
+    last_error: {
+        code: string;
+        recoverable: boolean;
+        message: string;
+    } | null;
+};
+
+/**
+ * PurchaseScanStats
+ */
+export type PurchaseScanStats = {
+    processing: number;
+    needs_review: number;
+    incidents: number;
+    received: number;
+    queued: number;
+    failed: number;
+    duplicate: number;
+};
+
+/**
+ * PurchaseScanUploadBatch
+ */
+export type PurchaseScanUploadBatch = {
+    accepted: Array<PurchaseScan & {
+        item_index: number;
+    }>;
+    rejected: Array<{
+        item_index: number;
+        filename: string;
+        code: string;
+        message: string;
+        field: string | null;
+    }>;
+    idempotent_replay: boolean;
+};
+
+/**
  * PurgeRetiredPriceListItemRequest
  */
 export type PurgeRetiredPriceListItemRequest = {
@@ -10844,6 +11114,18 @@ export type ResolveManyCatalogPricesRequest = {
 };
 
 /**
+ * ResolvePurchaseScanDuplicateV1Request
+ */
+export type ResolvePurchaseScanDuplicateV1Request = {
+    expected_version: number;
+    resolution: 'link_existing' | 'archive';
+    /**
+     * Required when resolution is link_existing.
+     */
+    purchase_invoice_id?: string | null;
+};
+
+/**
  * ResolvedCatalogPrice
  */
 export type ResolvedCatalogPrice = {
@@ -11071,6 +11353,285 @@ export type RevokeApiKeyV1Request = {
      * Optional reason for the revocation (recorded in the audit log).
      */
     reason?: string | null;
+};
+
+/**
+ * SavePurchaseScanReviewV1Request
+ */
+export type SavePurchaseScanReviewV1Request = {
+    expected_version: number;
+    fields?: {
+        supplier_id?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        supplier_name?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        supplier_tax_id?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        is_simplified?: {
+            value: boolean | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        document_number?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        issue_date?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        reception_date?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        due_date?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        currency?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        payment_method?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        expense_category?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        operation_class?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        notes?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        issuer_tax_id?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+        recipient_tax_id?: {
+            value: string | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+        };
+    };
+    /**
+     * Partial edits preserve omitted fields and lines. Add omits line_id (allocated by the server); update/remove use the existing line_id.
+     */
+    lines?: Array<{
+        line_id: string;
+        operation?: 'update';
+        fields: {
+            description?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            additional_description?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            unit_price?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            discount_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            tax_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            retention_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            surcharge_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            vat_deductible?: {
+                value: boolean | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            indirect_tax_regime?: {
+                value: 'iva' | 'igic' | 'ipsi' | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            exemption_reason?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            line_subtotal?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            tax_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            retention_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            surcharge_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            line_total?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+        };
+    } | {
+        operation: 'add';
+        fields: {
+            description?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            additional_description?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            unit_price?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            discount_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            tax_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            retention_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            surcharge_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            vat_deductible?: {
+                value: boolean | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            indirect_tax_regime?: {
+                value: 'iva' | 'igic' | 'ipsi' | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            exemption_reason?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            line_subtotal?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            tax_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            retention_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            surcharge_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            line_total?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+        };
+    } | {
+        line_id: string;
+        operation: 'remove';
+        fields?: {
+            description?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            additional_description?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            unit_price?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            discount_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            tax_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            retention_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            surcharge_rate?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            vat_deductible?: {
+                value: boolean | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            indirect_tax_regime?: {
+                value: 'iva' | 'igic' | 'ipsi' | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            exemption_reason?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            line_subtotal?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            tax_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            retention_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            surcharge_amount?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+            line_total?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            };
+        };
+    }>;
 };
 
 /**
@@ -14578,6 +15139,16 @@ export type UploadProductVideoRequest = {
 };
 
 /**
+ * UploadPurchaseScansRequest
+ */
+export type UploadPurchaseScansRequest = {
+    /**
+     * PDF, JPEG or PNG originals. At most 20 MiB per file and 100 MiB per batch. Send the Idempotency-Key header; per-file rejection results use the same batch envelope even when status is 422.
+     */
+    files: Array<Blob | File>;
+};
+
+/**
  * UpsertPriceListItemRequest
  */
 export type UpsertPriceListItemRequest = {
@@ -14879,6 +15450,13 @@ export type VerifyClientCensusRequest = {
      * Name or business name of the third party (the name + tax ID pair is verified together)
      */
     name: string;
+};
+
+/**
+ * VersionedPurchaseScanRequest
+ */
+export type VersionedPurchaseScanRequest = {
+    expected_version: number;
 };
 
 /**
@@ -20771,6 +21349,128 @@ export type PublicApiV1AbsenceTypesArchiveResponses = {
 
 export type PublicApiV1AbsenceTypesArchiveResponse = PublicApiV1AbsenceTypesArchiveResponses[keyof PublicApiV1AbsenceTypesArchiveResponses];
 
+export type PublicApiV1PurchaseScansArchiveData = {
+    body: VersionedPurchaseScanRequest;
+    headers: {
+        /**
+         * Stable key for this mutation (16–128 characters). Reuse it only with the same payload; after editing the review, start a new mutation with a new key.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}';
+};
+
+export type PublicApiV1PurchaseScansArchiveErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScansArchiveError = PublicApiV1PurchaseScansArchiveErrors[keyof PublicApiV1PurchaseScansArchiveErrors];
+
+export type PublicApiV1PurchaseScansArchiveResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: PurchaseScan;
+    };
+};
+
+export type PublicApiV1PurchaseScansArchiveResponse = PublicApiV1PurchaseScansArchiveResponses[keyof PublicApiV1PurchaseScansArchiveResponses];
+
+export type PublicApiV1PurchaseScansShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}';
+};
+
+export type PublicApiV1PurchaseScansShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScansShowError = PublicApiV1PurchaseScansShowErrors[keyof PublicApiV1PurchaseScansShowErrors];
+
+export type PublicApiV1PurchaseScansShowResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: PurchaseScan;
+    };
+};
+
+export type PublicApiV1PurchaseScansShowResponse = PublicApiV1PurchaseScansShowResponses[keyof PublicApiV1PurchaseScansShowResponses];
+
 export type PublicApiV1SeriesArchiveData = {
     body?: never;
     headers?: {
@@ -24381,6 +25081,77 @@ export type PublicApiV1ProformasConvertResponses = {
 };
 
 export type PublicApiV1ProformasConvertResponse = PublicApiV1ProformasConvertResponses[keyof PublicApiV1ProformasConvertResponses];
+
+export type PublicApiV1PurchaseScansConvertData = {
+    body: ConvertPurchaseScanRequest;
+    headers: {
+        /**
+         * Stable key for this mutation (16–128 characters). Reuse it only with the same payload; after editing the review, start a new mutation with a new key.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}/convert';
+};
+
+export type PublicApiV1PurchaseScansConvertErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Secure document storage or processing is temporarily unavailable.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PurchaseScansConvertError = PublicApiV1PurchaseScansConvertErrors[keyof PublicApiV1PurchaseScansConvertErrors];
+
+export type PublicApiV1PurchaseScansConvertResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: PurchaseScan;
+    };
+};
+
+export type PublicApiV1PurchaseScansConvertResponse = PublicApiV1PurchaseScansConvertResponses[keyof PublicApiV1PurchaseScansConvertResponses];
 
 export type PublicApiV1QuotesConvertData = {
     body: ConvertQuoteRequest;
@@ -33472,6 +34243,60 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptResponses = {
 
 export type PublicApiV1PurchaseInvoicesPaymentReceiptResponse = PublicApiV1PurchaseInvoicesPaymentReceiptResponses[keyof PublicApiV1PurchaseInvoicesPaymentReceiptResponses];
 
+export type PublicApiV1PurchaseScansSourceData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}/source';
+};
+
+export type PublicApiV1PurchaseScansSourceErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Secure document storage or processing is temporarily unavailable.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PurchaseScansSourceError = PublicApiV1PurchaseScansSourceErrors[keyof PublicApiV1PurchaseScansSourceErrors];
+
+export type PublicApiV1PurchaseScansSourceResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1PurchaseScansSourceResponse = PublicApiV1PurchaseScansSourceResponses[keyof PublicApiV1PurchaseScansSourceResponses];
+
 export type PublicApiV1QuotesPdfData = {
     body?: never;
     headers?: {
@@ -37569,6 +38394,55 @@ export type PublicApiV1PurchaseInvoicesStatsResponses = {
 
 export type PublicApiV1PurchaseInvoicesStatsResponse = PublicApiV1PurchaseInvoicesStatsResponses[keyof PublicApiV1PurchaseInvoicesStatsResponses];
 
+export type PublicApiV1PurchaseScansStatsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/purchase_scans/stats';
+};
+
+export type PublicApiV1PurchaseScansStatsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScansStatsError = PublicApiV1PurchaseScansStatsErrors[keyof PublicApiV1PurchaseScansStatsErrors];
+
+export type PublicApiV1PurchaseScansStatsResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: PurchaseScanStats;
+    };
+};
+
+export type PublicApiV1PurchaseScansStatsResponse = PublicApiV1PurchaseScansStatsResponses[keyof PublicApiV1PurchaseScansStatsResponses];
+
 export type PublicApiV1QuotesPublicLinkGetData = {
     body?: never;
     headers?: {
@@ -40433,6 +41307,52 @@ export type PublicApiV1EventsListResponses = {
 
 export type PublicApiV1EventsListResponse = PublicApiV1EventsListResponses[keyof PublicApiV1EventsListResponses];
 
+export type PublicApiV1PurchaseInvoicesExpenseCategoriesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/purchase_invoices/expense_categories';
+};
+
+export type PublicApiV1PurchaseInvoicesExpenseCategoriesErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseInvoicesExpenseCategoriesError = PublicApiV1PurchaseInvoicesExpenseCategoriesErrors[keyof PublicApiV1PurchaseInvoicesExpenseCategoriesErrors];
+
+export type PublicApiV1PurchaseInvoicesExpenseCategoriesResponses = {
+    200: {
+        data: ExpenseCategoryList;
+    };
+};
+
+export type PublicApiV1PurchaseInvoicesExpenseCategoriesResponse = PublicApiV1PurchaseInvoicesExpenseCategoriesResponses[keyof PublicApiV1PurchaseInvoicesExpenseCategoriesResponses];
+
 export type PublicApiV1HolidaysListData = {
     body?: never;
     headers?: {
@@ -41819,6 +42739,67 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentResponses = {
 };
 
 export type PublicApiV1PurchaseInvoicesRegisterPaymentResponse = PublicApiV1PurchaseInvoicesRegisterPaymentResponses[keyof PublicApiV1PurchaseInvoicesRegisterPaymentResponses];
+
+export type PublicApiV1PurchaseScanEmailsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        limit?: number;
+        starting_after?: string | null;
+        search?: string;
+        'created[gte]'?: string;
+        'created[lte]'?: string;
+    };
+    url: '/purchase_scan_emails';
+};
+
+export type PublicApiV1PurchaseScanEmailsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScanEmailsListError = PublicApiV1PurchaseScanEmailsListErrors[keyof PublicApiV1PurchaseScanEmailsListErrors];
+
+export type PublicApiV1PurchaseScanEmailsListResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: Array<PurchaseScanEmail>;
+        has_more: boolean;
+        next_cursor: string | null;
+    };
+};
+
+export type PublicApiV1PurchaseScanEmailsListResponse = PublicApiV1PurchaseScanEmailsListResponses[keyof PublicApiV1PurchaseScanEmailsListResponses];
 
 export type PublicApiV1InvoicesQuarterlyAvailableData = {
     body?: never;
@@ -45126,6 +46107,73 @@ export type PublicApiV1PriceListsResolveManyResponses = {
 
 export type PublicApiV1PriceListsResolveManyResponse = PublicApiV1PriceListsResolveManyResponses[keyof PublicApiV1PriceListsResolveManyResponses];
 
+export type PublicApiV1PurchaseScansDuplicateResolutionData = {
+    body: ResolvePurchaseScanDuplicateV1Request;
+    headers: {
+        /**
+         * Stable key for this mutation (16–128 characters). Reuse it only with the same payload; after editing the review, start a new mutation with a new key.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}/duplicate_resolution';
+};
+
+export type PublicApiV1PurchaseScansDuplicateResolutionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScansDuplicateResolutionError = PublicApiV1PurchaseScansDuplicateResolutionErrors[keyof PublicApiV1PurchaseScansDuplicateResolutionErrors];
+
+export type PublicApiV1PurchaseScansDuplicateResolutionResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: PurchaseScan;
+    };
+};
+
+export type PublicApiV1PurchaseScansDuplicateResolutionResponse = PublicApiV1PurchaseScansDuplicateResolutionResponses[keyof PublicApiV1PurchaseScansDuplicateResolutionResponses];
+
 export type PublicApiV1ContactsRestoreData = {
     body?: never;
     headers?: {
@@ -45192,6 +46240,73 @@ export type PublicApiV1ContactsRestoreResponses = {
 };
 
 export type PublicApiV1ContactsRestoreResponse = PublicApiV1ContactsRestoreResponses[keyof PublicApiV1ContactsRestoreResponses];
+
+export type PublicApiV1PurchaseScansRestoreData = {
+    body: VersionedPurchaseScanRequest;
+    headers: {
+        /**
+         * Stable key for this mutation (16–128 characters). Reuse it only with the same payload; after editing the review, start a new mutation with a new key.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}/restore';
+};
+
+export type PublicApiV1PurchaseScansRestoreErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScansRestoreError = PublicApiV1PurchaseScansRestoreErrors[keyof PublicApiV1PurchaseScansRestoreErrors];
+
+export type PublicApiV1PurchaseScansRestoreResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: PurchaseScan;
+    };
+};
+
+export type PublicApiV1PurchaseScansRestoreResponse = PublicApiV1PurchaseScansRestoreResponses[keyof PublicApiV1PurchaseScansRestoreResponses];
 
 export type PublicApiV1RecurringInvoicesResumeData = {
     body?: never;
@@ -45310,6 +46425,77 @@ export type PublicApiV1TimeEntriesResumeResponses = {
 };
 
 export type PublicApiV1TimeEntriesResumeResponse = PublicApiV1TimeEntriesResumeResponses[keyof PublicApiV1TimeEntriesResumeResponses];
+
+export type PublicApiV1PurchaseScansRetryData = {
+    body: VersionedPurchaseScanRequest;
+    headers: {
+        /**
+         * Stable key for this mutation (16–128 characters). Reuse it only with the same payload; after editing the review, start a new mutation with a new key.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}/retry';
+};
+
+export type PublicApiV1PurchaseScansRetryErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Secure document storage or processing is temporarily unavailable.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PurchaseScansRetryError = PublicApiV1PurchaseScansRetryErrors[keyof PublicApiV1PurchaseScansRetryErrors];
+
+export type PublicApiV1PurchaseScansRetryResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    202: {
+        data: PurchaseScan;
+    };
+};
+
+export type PublicApiV1PurchaseScansRetryResponse = PublicApiV1PurchaseScansRetryResponses[keyof PublicApiV1PurchaseScansRetryResponses];
 
 export type PublicApiV1VerifactuEventsRetryData = {
     body?: never;
@@ -45957,6 +47143,73 @@ export type PublicApiV1WebhookEndpointsRotateSecretResponses = {
 
 export type PublicApiV1WebhookEndpointsRotateSecretResponse = PublicApiV1WebhookEndpointsRotateSecretResponses[keyof PublicApiV1WebhookEndpointsRotateSecretResponses];
 
+export type PublicApiV1PurchaseScansReviewData = {
+    body: SavePurchaseScanReviewV1Request;
+    headers?: {
+        /**
+         * Stable key for this mutation (16–128 characters). Reuse it only with the same payload; after editing the review, start a new mutation with a new key.
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        purchase_scan: string;
+    };
+    query?: never;
+    url: '/purchase_scans/{purchase_scan}/review';
+};
+
+export type PublicApiV1PurchaseScansReviewErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScansReviewError = PublicApiV1PurchaseScansReviewErrors[keyof PublicApiV1PurchaseScansReviewErrors];
+
+export type PublicApiV1PurchaseScansReviewResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: PurchaseScan;
+    };
+};
+
+export type PublicApiV1PurchaseScansReviewResponse = PublicApiV1PurchaseScansReviewResponses[keyof PublicApiV1PurchaseScansReviewResponses];
+
 export type PublicApiV1InvoicesScheduleData = {
     body: ScheduleInvoiceRequest;
     headers?: {
@@ -46299,6 +47552,144 @@ export type PublicApiV1ProductsSearchResponses = {
 };
 
 export type PublicApiV1ProductsSearchResponse = PublicApiV1ProductsSearchResponses[keyof PublicApiV1ProductsSearchResponses];
+
+export type PublicApiV1PurchaseScansListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        limit?: number;
+        starting_after?: string | null;
+        ending_before?: string | null;
+        search?: string;
+        sort?: 'received_at' | '-received_at' | 'issue_date' | '-issue_date' | 'total' | '-total' | 'status' | '-status';
+        'filter[status]'?: 'received' | 'queued' | 'processing' | 'needs_review' | 'duplicate' | 'failed' | 'auto_created' | 'created' | 'archived';
+        'filter[source]'?: 'upload' | 'email' | 'api';
+        'filter[supplier_id]'?: string;
+        'filter[created][]'?: Array<string>;
+        'filter[issued_on][]'?: Array<string>;
+        'filter[total][]'?: Array<string>;
+    };
+    url: '/purchase_scans';
+};
+
+export type PublicApiV1PurchaseScansListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PurchaseScansListError = PublicApiV1PurchaseScansListErrors[keyof PublicApiV1PurchaseScansListErrors];
+
+export type PublicApiV1PurchaseScansListResponses = {
+    /**
+     * Successful scanner operation.
+     */
+    200: {
+        data: Array<PurchaseScanListItem>;
+        has_more: boolean;
+        next_cursor: string | null;
+    };
+};
+
+export type PublicApiV1PurchaseScansListResponse = PublicApiV1PurchaseScansListResponses[keyof PublicApiV1PurchaseScansListResponses];
+
+export type PublicApiV1PurchaseScansCreateData = {
+    body: UploadPurchaseScansRequest;
+    headers: {
+        /**
+         * Stable key for this mutation (16–128 characters). Reuse it only with the same payload; after editing the review, start a new mutation with a new key.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/purchase_scans';
+};
+
+export type PublicApiV1PurchaseScansCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * The upload exceeds a safe processing limit.
+     */
+    413: Error;
+    /**
+     * Validation failed, or every file was rejected. Per-file rejections retain their batch envelope.
+     */
+    422: Error | {
+        data: PurchaseScanUploadBatch;
+    };
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Secure document storage or processing is temporarily unavailable.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PurchaseScansCreateError = PublicApiV1PurchaseScansCreateErrors[keyof PublicApiV1PurchaseScansCreateErrors];
+
+export type PublicApiV1PurchaseScansCreateResponses = {
+    /**
+     * Files admitted for asynchronous processing, with any per-file rejections.
+     */
+    202: {
+        data: PurchaseScanUploadBatch;
+    };
+};
+
+export type PublicApiV1PurchaseScansCreateResponse = PublicApiV1PurchaseScansCreateResponses[keyof PublicApiV1PurchaseScansCreateResponses];
 
 export type PublicApiV1SuppliersSearchData = {
     body?: never;
