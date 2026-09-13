@@ -121,7 +121,7 @@ export class InvoicesResource extends BaseResource {
 
   /** List all invoices */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/invoices", params, "starting_after");
+    return this._paginate<unknown>("/invoices", params, "starting_after", config);
   }
 
   /** Force-create VeriFactu record for invoice */

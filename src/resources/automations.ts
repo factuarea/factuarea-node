@@ -13,7 +13,7 @@ export class AutomationsRulesVersionsResource extends BaseResource {
   /** List the versions of an automation rule */
   async list(rule: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/automations/rules/{rule}/versions", { "rule": rule });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve a version of an automation rule */
@@ -45,7 +45,7 @@ export class AutomationsRulesResource extends BaseResource {
 
   /** List your automation rules */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/automations/rules", params, "starting_after");
+    return this._paginate<unknown>("/automations/rules", params, "starting_after", config);
   }
 
   /** Delete an automation rule */
@@ -105,7 +105,7 @@ export class AutomationsRunsStepsResource extends BaseResource {
   /** List the steps of an automation run */
   async list(run: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/automations/runs/{run}/steps", { "run": run });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Replay one step of an automation run */
@@ -125,7 +125,7 @@ export class AutomationsRunsResource extends BaseResource {
 
   /** List automation runs */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/automations/runs", params, "starting_after");
+    return this._paginate<unknown>("/automations/runs", params, "starting_after", config);
   }
 
   /** Replay the parked steps of an automation run */

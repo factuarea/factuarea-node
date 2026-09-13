@@ -122,8 +122,9 @@ export abstract class BaseResource {
     path: string,
     query: Record<string, unknown> | undefined,
     cursorParam: CursorParam,
+    config?: RequestConfig,
   ): Promise<Page<T>> {
-    return fetchPage<T>(this.client, path, flattenQuery(query), cursorParam);
+    return fetchPage<T>(this.client, path, flattenQuery(query), cursorParam, config);
   }
 
   protected async _binary(

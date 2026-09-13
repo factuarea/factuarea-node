@@ -1,4 +1,5 @@
 import type { HttpClient, RequestOptions } from "./http-client.js";
+import type { RequestConfig } from "./resource.js";
 
 /** The cursor-paginated envelope every v1 listing returns. */
 export interface PaginatedList<T> {
@@ -98,8 +99,9 @@ export async function fetchPage<T>(
   path: string,
   query: Record<string, unknown> | undefined,
   cursorParam: CursorParam = "starting_after",
+  config?: RequestConfig,
 ): Promise<Page<T>> {
-  const options: RequestOptions = { method: "GET", path, query };
+  const options: RequestOptions = { method: "GET", path, query, ...config };
   const response = await client.request<PaginatedList<T>>(options);
   return new Page<T>(client, options, cursorParam, response.data, response.requestId);
 }

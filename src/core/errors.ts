@@ -42,6 +42,8 @@ export interface FactuareaErrorOptions {
   status?: number;
   headers?: Headers;
   cause?: unknown;
+  /** Structured response data, such as the per-file results of a rejected upload batch. */
+  data?: unknown;
 }
 
 /** Base class for every error thrown by the SDK. */
@@ -60,6 +62,7 @@ export class FactuareaError extends Error {
   readonly docUrl?: string | null;
   /** Request id for support (`error.request_id` / `X-Request-Id` header). */
   readonly requestId?: string | null;
+  readonly data?: unknown;
 
   constructor(options: FactuareaErrorOptions) {
     super(options.message, options.cause === undefined ? undefined : { cause: options.cause });
@@ -71,6 +74,7 @@ export class FactuareaError extends Error {
     this.param = options.param ?? null;
     this.docUrl = options.docUrl ?? null;
     this.requestId = options.requestId ?? null;
+    this.data = options.data;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -149,6 +153,8 @@ function extractFields(envelope: ErrorEnvelope, body: unknown): Record<string, s
 
   // Map-style payloads: { error: { ..., fields: { name: ["msg"] } } } or top-level errors map.
   const candidate =
+    (envelope as { field_errors?: unknown }).field_errors ??
+    (isRecord(body) && isRecord(body.error) && isRecord(body.error.details) ? body.error.details.field_errors : undefined) ??
     (envelope as { fields?: unknown }).fields ??
     (isRecord(body) && isRecord(body.error) ? (body.error as { fields?: unknown }).fields : undefined) ??
     (isRecord(body) ? (body as { errors?: unknown }).errors : undefined);
@@ -203,6 +209,7 @@ export function errorFromResponse(
     requestId,
     status,
     headers,
+    data: isRecord(body) ? body.data : undefined,
   };
 
   switch (status) {

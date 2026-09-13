@@ -12,7 +12,7 @@ import type { Page } from "../core/pagination.js";
 export class DevelopersRequestLogsResource extends BaseResource {
   /** List your API request logs */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/developers/request-logs", params, "starting_after");
+    return this._paginate<unknown>("/developers/request-logs", params, "starting_after", config);
   }
 
   /** Retrieve an API request log */

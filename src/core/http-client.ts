@@ -61,7 +61,7 @@ export interface RequestOptions {
   formData?: FormData;
   /** Per-request header overrides. */
   headers?: Record<string, string>;
-  /** Override the auto-generated `Idempotency-Key` for this POST. */
+  /** Override the auto-generated `Idempotency-Key` for this mutation. */
   idempotencyKey?: string;
   /** Per-request timeout override (ms). */
   timeout?: number;
@@ -91,7 +91,7 @@ export interface BinaryResponse {
   toBlob(): Blob;
 }
 
-const METHODS_WITH_IDEMPOTENCY = new Set<HttpMethod>(["POST"]);
+const METHODS_WITH_IDEMPOTENCY = new Set<HttpMethod>(["POST", "PUT", "PATCH", "DELETE"]);
 
 export class HttpClient {
   readonly #auth: AuthStrategy;

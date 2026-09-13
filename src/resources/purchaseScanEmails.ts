@@ -9,15 +9,9 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
-export class PayoutsResource extends BaseResource {
-  /** Retrieve a Stripe payout */
-  async show(payout: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/payouts/{payout}", { "payout": payout });
-    return this._get<unknown>(path, undefined, config);
-  }
-
-  /** List Stripe payouts */
+export class PurchaseScanEmailsResource extends BaseResource {
+  /** List purchase scanner emails */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/payouts", params, "starting_after", config);
+    return this._paginate<unknown>("/purchase_scan_emails", params, "starting_after", config);
   }
 }

@@ -6,7 +6,7 @@
 
 The official TypeScript SDK for the [Factuarea API](https://docs.factuarea.com) — Spanish e‑invoicing, VeriFactu, quotes, delivery notes and more.
 
-It wraps the full v1 REST API (234 operations across 17 resources) with a premium runtime: automatic retries, automatic idempotency keys, transparent cursor auto‑pagination, a typed error hierarchy, typed webhook verification and binary (PDF) downloads. Ships as dual ESM + CommonJS with full type declarations.
+It provides v1 REST API resource wrappers with a runtime supporting: automatic retries, automatic idempotency keys, transparent cursor auto‑pagination, a typed error hierarchy, typed webhook verification and binary (PDF) downloads. Ships as dual ESM + CommonJS with full type declarations.
 
 > **Status:** `0.x` (pre‑GA). The public surface is stable and SemVer‑protected, but minor breaking changes may occur before `1.0.0` (which tracks the API's GA event).
 
@@ -77,7 +77,7 @@ new Factuarea({
   baseUrl: "https://api.factuarea.com/v1", // override for self-hosted/staging
   timeout: 60_000,              // per-request timeout in ms (default 60s)
   maxRetries: 2,                // retry attempts after the first try (default 2)
-  factuareaVersion: "2026-06-04", // pinned API version header (default: this release's)
+  factuareaVersion: "2026-06-01", // pinned API version header (default: this release's)
   defaultHeaders: {},           // extra headers on every request
 });
 ```
@@ -86,7 +86,40 @@ The SDK pins the [`Factuarea-Version`](https://docs.factuarea.com/guides/version
 
 ## Resources
 
-Every operation is reachable as `factuarea.<resource>.<method>()`, following the [SDK method‑naming contract](https://docs.factuarea.com). Resources: `account`, `clients`, `suppliers`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`. Nested groups too (e.g. `factuarea.products.gallery.upload(...)`, `factuarea.deliveryNotes.publicLink.update(...)`).
+Every operation is reachable as `factuarea.<resource>.<method>()`, following the [SDK method‑naming contract](https://docs.factuarea.com). Resources: `account`, `clients`, `suppliers`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`. Nested groups too (e.g. `factuarea.products.gallery.upload(...)`, `factuarea.deliveryNotes.publicLink.update(...)`).
+
+## Document scanner
+
+`purchaseScans` supports `create` (multipart batch), `list`, `show`, `stats`, `review`, `convert`, `duplicateResolution`, `retry`, `archive`, `restore` and `source` (binary). `purchaseScanEmails.list` returns inbound messages and attachment outcomes. Read operations require `purchase_invoices:read`, mutations `purchase_invoices:write`, and archive `purchase_invoices:delete`; the company's scanner/OCR entitlement must also be active.
+
+```ts
+import { readFile, writeFile } from "node:fs/promises";
+import type { PurchaseScanUploadBatch, PurchaseScan } from "@factuarea/sdk";
+
+const form = new FormData();
+form.append("files[]", new Blob([await readFile("invoice.pdf")], {
+  type: "application/pdf",
+}), "invoice.pdf");
+const { data: batch } = await factuarea.purchaseScans.create(form, {
+  idempotencyKey: "purchase-upload-batch-001",
+}) as { data: PurchaseScanUploadBatch };
+console.log(batch.accepted, batch.rejected);
+
+// Processing is asynchronous. Read the current state before editing.
+const id = batch.accepted[0].id;
+const { data: scan } = await factuarea.purchaseScans.show(id) as { data: PurchaseScan };
+console.log(scan.status, scan.available_actions, scan.extraction, scan.issues);
+const original = await factuarea.purchaseScans.source(id);
+await writeFile("original.pdf", original.toBuffer());
+```
+
+An upload accepts up to 20 PDF/JPEG/PNG originals (20 MiB each, 100 MiB total). A partial rejection still returns `202`; if all files are rejected, `ValidationError.data` retains the batch result. Preserve the same idempotency key and file order when retrying that batch.
+
+Use `purchaseInvoices.expenseCategories()` to discover company category IDs for the review field `expense_category`; category names are not accepted as identifiers.
+
+Only edit when `can_save_review` is true. `review(id, { expected_version, fields, lines })` accepts partial field patches (`{ value: "..." }`), explicit `null` to clear, and line operations `update`, `add` (without `line_id`) or `remove`. Omitted values remain unchanged. Use the new returned version for the next mutation; a stale version returns `409`. On conversion failure, `ValidationError.fields` exposes the review fields that need correction.
+
+`convert(id, { expected_version }, { idempotencyKey })` creates a **purchase draft**, including its original attachment; it does not issue a sales invoice or mark the purchase paid. Follow `purchase_invoice_id` to the created purchase. EUR and resolved fiscal data are required. `retry` also starts a received document when automatic scanning is disabled. Respect `available_actions`; duplicate override and supplier creation are reserved for an interactive administrator. The public duplicate resolutions are `link_existing` (with `purchase_invoice_id`) and `archive`.
 
 ## Pagination
 
@@ -118,7 +151,7 @@ Transient failures — `429` (rate limit), `5xx` and network errors — are retr
 
 ## Idempotency
 
-Every `POST` automatically gets an `Idempotency-Key` (UUID), so a retried request never double‑creates a resource. The same key is reused across the retries of one logical call. Override per request:
+Every `POST`, `PUT`, `PATCH` and `DELETE` automatically gets an `Idempotency-Key` (UUID), so a retried request never double‑creates a resource. The same key is reused across the retries of one logical call. Override per request:
 
 ```ts
 await factuarea.invoices.create(body, { idempotencyKey: "order-4711" });
@@ -241,7 +274,7 @@ for the date of the latest run.
 
 ## Contributing & spec
 
-The typed surface in [`src/generated/`](./src/generated) is generated from the OpenAPI spec; the hand‑written runtime lives in [`src/core/`](./src/core). The pinned spec is committed at [`spec/openapi.json`](./spec/openapi.json) (frozen against the private spec at commit `e822661bc`). Do not edit `src/generated/` by hand — run `npm run generate`.
+The typed surface in [`src/generated/`](./src/generated) is generated from the OpenAPI spec; the hand‑written runtime lives in [`src/core/`](./src/core). The pinned spec is committed at [`spec/openapi.json`](./spec/openapi.json). Do not edit `src/generated/` by hand — run `npm run generate`.
 
 ## License
 

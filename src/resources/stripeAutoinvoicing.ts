@@ -52,7 +52,7 @@ export class StripeAutoinvoicingConfigResource extends BaseResource {
 export class StripeAutoinvoicingCorrectivesResource extends BaseResource {
   /** List Stripe autoinvoiced correctives */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/stripe-autoinvoicing/correctives", params, "starting_after");
+    return this._paginate<unknown>("/stripe-autoinvoicing/correctives", params, "starting_after", config);
   }
 }
 

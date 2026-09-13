@@ -13,7 +13,7 @@ export class WebhookEndpointsDeliveriesResource extends BaseResource {
   /** List webhook deliveries */
   async list(webhookEndpoint: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/deliveries", { "webhook_endpoint": webhookEndpoint });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Replay webhook delivery */
@@ -45,7 +45,7 @@ export class WebhookEndpointsResource extends BaseResource {
 
   /** List all webhook endpoints */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/webhook_endpoints", params, "starting_after");
+    return this._paginate<unknown>("/webhook_endpoints", params, "starting_after", config);
   }
 
   /** Delete a webhook endpoint */
