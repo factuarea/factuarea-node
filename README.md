@@ -77,7 +77,7 @@ new Factuarea({
   baseUrl: "https://api.factuarea.com/v1", // override for self-hosted/staging
   timeout: 60_000,              // per-request timeout in ms (default 60s)
   maxRetries: 2,                // retry attempts after the first try (default 2)
-  factuareaVersion: "2026-06-04", // pinned API version header (default: this release's)
+  factuareaVersion: "2026-06-01", // pinned API version header (default: this release's)
   defaultHeaders: {},           // extra headers on every request
 });
 ```
