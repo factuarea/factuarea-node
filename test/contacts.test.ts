@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import type { PreviewBusinessContactImportV1Request } from "../src/index.js";
+import type { BusinessContactImportPreview, PreviewBusinessContactImportV1Request } from "../src/index.js";
 import { describe, expect, it } from "vitest";
 import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
 
@@ -87,6 +87,15 @@ describe("canonical contacts", () => {
     const client = testClient();
     expect(await client.contacts.delete(contactId)).toEqual({ data: { ...contact, is_archived: true } });
     expect(await client.contacts.restore(contactId)).toEqual({ data: { id: contactId, roles: contact.roles, is_archived: false } });
+  });
+
+  it("exposes source headers from a dry-run preview before mapping localized columns", async () => {
+    const preview: BusinessContactImportPreview = { source_headers: ["Nombre", "Identificación fiscal"], rows: [], total: 1, create: 0, update: 0, add_role: 0, merge_candidate: 0, conflict: 0, invalid: 1, dry_run: true, queued: false };
+    server.use(http.post(`${BASE_URL}/contacts/import/preview`, () => HttpResponse.json({ data: preview })));
+    const body = new FormData();
+    body.append("file", new Blob(["Nombre,Identificación fiscal\nContact,B12345674\n"], { type: "text/csv" }), "contacts.csv");
+    const result = await testClient().contacts.previewImport(body);
+    expect(result).toEqual({ data: preview });
   });
 
   it.each(["previewImport", "import"] as const)("sends a named-column mapping and cumulative roles to %s", async (method) => {

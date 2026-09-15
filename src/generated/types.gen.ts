@@ -2230,6 +2230,7 @@ export type BusinessContact = {
  * BusinessContactImportPreview
  */
 export type BusinessContactImportPreview = {
+    source_headers: Array<string>;
     rows: Array<{
         row: number;
         action: 'create' | 'update' | 'add_role' | 'merge_candidate' | 'conflict' | 'invalid';
