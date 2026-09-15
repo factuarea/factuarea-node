@@ -18,7 +18,7 @@ export class MonthlyTimeRecordClosesResource extends BaseResource {
 
   /** List all monthly time record closes */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/monthly-time-record-closes", params, "cursor");
+    return this._paginate<unknown>("/monthly-time-record-closes", params, "cursor", config);
   }
 
   /** Download the closed register (RD-ley 8/2019) */

@@ -12,7 +12,7 @@ import type { Page } from "../core/pagination.js";
 export class AbsenceBalancesResource extends BaseResource {
   /** List all absence balances */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/absence-balances", params, "starting_after");
+    return this._paginate<unknown>("/absence-balances", params, "starting_after", config);
   }
 
   /** Retrieve an absence balance */

@@ -19,7 +19,7 @@ export class ProductsPresentationsResource extends BaseResource {
   /** List product presentations */
   async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/products/{product}/presentations", { "product": product });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a product presentation */
@@ -45,7 +45,7 @@ export class ProductsVariantsResource extends BaseResource {
   /** List product variants */
   async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/products/{product}/variants", { "product": product });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a product variant */
@@ -71,7 +71,7 @@ export class ProductsSupplierOffersResource extends BaseResource {
   /** List supplier offers */
   async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/products/{product}/supplier-offers", { "product": product });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a supplier offer */
@@ -137,7 +137,7 @@ export class ProductsConfigurationsResource extends BaseResource {
   /** List product commercial combinations */
   async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/products/{product}/configurations", { "product": product });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Preview the impact of restricting a catalog */
@@ -151,7 +151,7 @@ export class ProductsOptionsResource extends BaseResource {
   /** List product option groups */
   async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/products/{product}/options", { "product": product });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }
 
@@ -159,7 +159,7 @@ export class ProductsStockMovementsResource extends BaseResource {
   /** List stock movements of a product */
   async list(product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/products/{product}/stock-movements", { "product": product });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }
 
@@ -211,7 +211,7 @@ export class ProductsResource extends BaseResource {
 
   /** List all products */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/products", params, "starting_after");
+    return this._paginate<unknown>("/products", params, "starting_after", config);
   }
 
   /** Delete a product */

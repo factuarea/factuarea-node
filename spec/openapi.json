@@ -201400,7 +201400,35 @@
           "kind",
           "roles"
         ],
-        "title": "CreateBusinessContactV1Request"
+        "title": "CreateBusinessContactV1Request",
+        "example": {
+          "name": "Distribuciones Ejemplo SL",
+          "kind": "company",
+          "roles": [
+            "customer",
+            "supplier"
+          ],
+          "tax_id": "B12345674",
+          "address": {
+            "line_1": "Calle Mayor",
+            "country_code": "ES"
+          }
+        },
+        "examples": [
+          {
+            "name": "Distribuciones Ejemplo SL",
+            "kind": "company",
+            "roles": [
+              "customer",
+              "supplier"
+            ],
+            "tax_id": "B12345674",
+            "address": {
+              "line_1": "Calle Mayor",
+              "country_code": "ES"
+            }
+          }
+        ]
       },
       "CreateChildApiKeyV1Request": {
         "type": "object",
@@ -213983,12 +214011,17 @@
             "description": "Maximum file size: 10240 kilobytes."
           },
           "mapping": {
-            "type": "array",
-            "items": {
+            "type": "object",
+            "additionalProperties": {
               "type": "string",
               "maxLength": 255
             },
-            "maxItems": 54
+            "maxProperties": 54,
+            "example": {
+              "name": "Name",
+              "tax_id": "VAT number",
+              "external_id": "Id"
+            }
           },
           "target_roles": {
             "type": "array",
@@ -217259,12 +217292,17 @@
             "description": "Maximum file size: 10240 kilobytes."
           },
           "mapping": {
-            "type": "array",
-            "items": {
+            "type": "object",
+            "additionalProperties": {
               "type": "string",
               "maxLength": 255
             },
-            "maxItems": 54
+            "maxProperties": 54,
+            "example": {
+              "name": "Name",
+              "tax_id": "VAT number",
+              "external_id": "Id"
+            }
           },
           "target_roles": {
             "type": "array",

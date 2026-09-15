@@ -48,7 +48,7 @@ export class ContactsResource extends BaseResource {
 
   /** List contacts */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/contacts", params, "starting_after");
+    return this._paginate<unknown>("/contacts", params, "starting_after", config);
   }
 
   /** Archive a contact */
@@ -95,7 +95,7 @@ export class ContactsResource extends BaseResource {
 
   /** Search contacts */
   async search(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/contacts/search", params, "starting_after");
+    return this._paginate<unknown>("/contacts/search", params, "starting_after", config);
   }
 
   /** Replace the bank accounts of a contact */

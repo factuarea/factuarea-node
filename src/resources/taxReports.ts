@@ -43,7 +43,7 @@ export class TaxReportsResource extends BaseResource {
   /** List tax report activities */
   async activities(taxReport: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/tax_reports/{tax_report}/activities", { "tax_report": taxReport });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve tax report stats */
@@ -54,7 +54,7 @@ export class TaxReportsResource extends BaseResource {
 
   /** List tax report history */
   async history(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/tax_reports/history", params, "starting_after");
+    return this._paginate<unknown>("/tax_reports/history", params, "starting_after", config);
   }
 
   /** Preview a tax report */

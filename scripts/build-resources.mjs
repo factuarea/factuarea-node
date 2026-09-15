@@ -191,11 +191,11 @@ function methodSource(entry) {
     if (callPathParams) {
       lines.push(`    const path = ${pathExpr};`);
       lines.push(
-        `    return this._paginate<unknown>(path, params, "${cursor}");`
+        `    return this._paginate<unknown>(path, params, "${cursor}", config);`
       );
     } else {
       lines.push(
-        `    return this._paginate<unknown>(${pathExpr}, params, "${cursor}");`
+        `    return this._paginate<unknown>(${pathExpr}, params, "${cursor}", config);`
       );
     }
     lines.push(`  }`);

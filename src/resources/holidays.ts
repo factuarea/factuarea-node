@@ -12,7 +12,7 @@ import type { Page } from "../core/pagination.js";
 export class HolidaysResource extends BaseResource {
   /** List all holidays */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/holidays", params, "starting_after");
+    return this._paginate<unknown>("/holidays", params, "starting_after", config);
   }
 
   /** Resolve applicable holidays */
