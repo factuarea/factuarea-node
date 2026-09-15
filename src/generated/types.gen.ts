@@ -2230,6 +2230,7 @@ export type BusinessContact = {
  * BusinessContactImportPreview
  */
 export type BusinessContactImportPreview = {
+    source_headers: Array<string>;
     rows: Array<{
         row: number;
         action: 'create' | 'update' | 'add_role' | 'merge_candidate' | 'conflict' | 'invalid';
@@ -7688,7 +7689,9 @@ export type ImportBusinessContactsV1Request = {
      * Maximum file size: 10240 kilobytes.
      */
     file: Blob | File;
-    mapping?: Array<string>;
+    mapping?: {
+        [key: string]: string;
+    };
     target_roles?: Array<'customer' | 'supplier' | 'lead'>;
     conflict_strategy?: 'reject' | 'update' | 'merge';
     dry_run?: boolean;
@@ -8900,7 +8903,9 @@ export type PreviewBusinessContactImportV1Request = {
      * Maximum file size: 10240 kilobytes.
      */
     file: Blob | File;
-    mapping?: Array<string>;
+    mapping?: {
+        [key: string]: string;
+    };
     target_roles?: Array<'customer' | 'supplier' | 'lead'>;
     conflict_strategy?: 'reject' | 'update' | 'merge';
 };

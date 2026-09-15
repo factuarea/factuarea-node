@@ -43,7 +43,9 @@ export class Factuarea {
   readonly environment: Environment;
 
   readonly account: AccountResource;
+  /** @deprecated Legacy customer projection. Use contacts for contact identity and CRUD. */
   readonly clients: ClientsResource;
+  /** Canonical identities with cumulative customer, supplier and lead roles. */
   readonly contacts: ContactsResource;
   readonly deliveryNotes: DeliveryNotesResource;
   readonly eventCatalog: EventCatalogResource;
@@ -57,6 +59,7 @@ export class Factuarea {
   readonly quotes: QuotesResource;
   readonly recurringInvoices: RecurringInvoicesResource;
   readonly series: SeriesResource;
+  /** @deprecated Legacy supplier projection. Use contacts for contact identity and CRUD. */
   readonly suppliers: SuppliersResource;
   readonly taxReports: TaxReportsResource;
   readonly taxes: TaxesResource;

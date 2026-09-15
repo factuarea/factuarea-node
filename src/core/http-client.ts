@@ -285,14 +285,14 @@ export class HttpClient {
         if (Array.isArray(value)) {
           for (const item of value) {
             if (item !== undefined && item !== null) {
-              url.searchParams.append(key.endsWith("[]") ? key : `${key}[]`, String(item));
+              url.searchParams.append(key.endsWith("[]") ? key : `${key}[]`, String(typeof item === "boolean" ? Number(item) : item));
             }
           }
         } else if (typeof value === "object") {
           // Bracketed filters (`created[gte]`) are passed pre-flattened by callers.
           continue;
         } else {
-          url.searchParams.set(key, String(value));
+          url.searchParams.set(key, String(typeof value === "boolean" ? Number(value) : value));
         }
       }
     }

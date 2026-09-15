@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#13](https://github.com/factuarea/factuarea-node/pull/13) [`ecf8c54`](https://github.com/factuarea/factuarea-node/commit/ecf8c544697dc9a34a38a2a0232e1bf792f98d7d) Thanks [@fernandoc00](https://github.com/fernandoc00)! - Export the canonical contact and request types, make contacts the default in examples and documentation, and mark legacy client/supplier projections as compatibility resources. Cover contact role, profile, import and archive/restore operations against the public contract.
+
+  Preserve per-request headers (including the active company profile), timeouts and abort signals across paginated requests. Encode boolean query filters as 0/1 for Laravel validation and expose import mappings as named-column objects instead of arrays.
+
 ## 0.4.0
 
 ### Minor Changes
