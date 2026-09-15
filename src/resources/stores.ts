@@ -18,7 +18,7 @@ export class StoresResource extends BaseResource {
 
   /** List connected stores */
   async index(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/stores", params, "starting_after");
+    return this._paginate<unknown>("/stores", params, "starting_after", config);
   }
 
   /** Disconnect a store */

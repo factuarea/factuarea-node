@@ -36,7 +36,7 @@ export class PurchaseInvoicesResource extends BaseResource {
 
   /** List all purchase invoices */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/purchase_invoices", params, "starting_after");
+    return this._paginate<unknown>("/purchase_invoices", params, "starting_after", config);
   }
 
   /** Delete a purchase invoice */
@@ -89,12 +89,12 @@ export class PurchaseInvoicesResource extends BaseResource {
 
   /** List overdue purchase invoices */
   async overdue(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/purchase_invoices/overdue", params, "cursor");
+    return this._paginate<unknown>("/purchase_invoices/overdue", params, "cursor", config);
   }
 
   /** List pending purchase invoices */
   async pending(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/purchase_invoices/pending", params, "cursor");
+    return this._paginate<unknown>("/purchase_invoices/pending", params, "cursor", config);
   }
 
   /** List purchase invoice payments */

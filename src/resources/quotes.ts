@@ -54,7 +54,7 @@ export class QuotesResource extends BaseResource {
 
   /** List all quotes */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/quotes", params, "starting_after");
+    return this._paginate<unknown>("/quotes", params, "starting_after", config);
   }
 
   /** Delete a quote */

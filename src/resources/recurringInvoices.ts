@@ -36,7 +36,7 @@ export class RecurringInvoicesResource extends BaseResource {
 
   /** List all recurring invoices */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/recurring_invoices", params, "starting_after");
+    return this._paginate<unknown>("/recurring_invoices", params, "starting_after", config);
   }
 
   /** Delete a recurring invoice */
@@ -78,13 +78,13 @@ export class RecurringInvoicesResource extends BaseResource {
   /** List recurring invoice activity */
   async activities(recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/recurring_invoices/{recurring_invoice}/activities", { "recurring_invoice": recurringInvoice });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** List recurring invoice execution logs */
   async logs(recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/recurring_invoices/{recurring_invoice}/logs", { "recurring_invoice": recurringInvoice });
-    return this._paginate<unknown>(path, params, "cursor");
+    return this._paginate<unknown>(path, params, "cursor", config);
   }
 
   /** Pause recurring invoice */

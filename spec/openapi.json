@@ -121093,7 +121093,12 @@
                         "conflict": 0,
                         "invalid": 0,
                         "dry_run": false,
-                        "queued": false
+                        "queued": false,
+                        "source_headers": [
+                          "Name",
+                          "VAT number",
+                          "Email"
+                        ]
                       }
                     }
                   }
@@ -121176,7 +121181,8 @@
                         "conflict": 0,
                         "invalid": 0,
                         "dry_run": false,
-                        "queued": true
+                        "queued": true,
+                        "source_headers": []
                       }
                     }
                   }
@@ -146915,7 +146921,12 @@
                         "conflict": 0,
                         "invalid": 0,
                         "dry_run": true,
-                        "queued": false
+                        "queued": false,
+                        "source_headers": [
+                          "Name",
+                          "VAT number",
+                          "Email"
+                        ]
                       }
                     }
                   }
@@ -197681,6 +197692,12 @@
       "BusinessContactImportPreview": {
         "type": "object",
         "properties": {
+          "source_headers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "rows": {
             "type": "array",
             "items": {
@@ -197796,6 +197813,7 @@
           }
         },
         "required": [
+          "source_headers",
           "rows",
           "total",
           "create",
@@ -197808,6 +197826,11 @@
           "queued"
         ],
         "example": {
+          "source_headers": [
+            "Name",
+            "VAT number",
+            "Email"
+          ],
           "rows": [
             {
               "row": 2,
@@ -201400,7 +201423,35 @@
           "kind",
           "roles"
         ],
-        "title": "CreateBusinessContactV1Request"
+        "title": "CreateBusinessContactV1Request",
+        "example": {
+          "name": "Distribuciones Ejemplo SL",
+          "kind": "company",
+          "roles": [
+            "customer",
+            "supplier"
+          ],
+          "tax_id": "B12345674",
+          "address": {
+            "line_1": "Calle Mayor",
+            "country_code": "ES"
+          }
+        },
+        "examples": [
+          {
+            "name": "Distribuciones Ejemplo SL",
+            "kind": "company",
+            "roles": [
+              "customer",
+              "supplier"
+            ],
+            "tax_id": "B12345674",
+            "address": {
+              "line_1": "Calle Mayor",
+              "country_code": "ES"
+            }
+          }
+        ]
       },
       "CreateChildApiKeyV1Request": {
         "type": "object",
@@ -213983,12 +214034,17 @@
             "description": "Maximum file size: 10240 kilobytes."
           },
           "mapping": {
-            "type": "array",
-            "items": {
+            "type": "object",
+            "additionalProperties": {
               "type": "string",
               "maxLength": 255
             },
-            "maxItems": 54
+            "maxProperties": 54,
+            "example": {
+              "name": "Name",
+              "tax_id": "VAT number",
+              "external_id": "Id"
+            }
           },
           "target_roles": {
             "type": "array",
@@ -217259,12 +217315,17 @@
             "description": "Maximum file size: 10240 kilobytes."
           },
           "mapping": {
-            "type": "array",
-            "items": {
+            "type": "object",
+            "additionalProperties": {
               "type": "string",
               "maxLength": 255
             },
-            "maxItems": 54
+            "maxProperties": 54,
+            "example": {
+              "name": "Name",
+              "tax_id": "VAT number",
+              "external_id": "Id"
+            }
           },
           "target_roles": {
             "type": "array",

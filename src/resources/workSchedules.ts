@@ -30,7 +30,7 @@ export class WorkSchedulesResource extends BaseResource {
 
   /** List all work schedules */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/work-schedules", params, "starting_after");
+    return this._paginate<unknown>("/work-schedules", params, "starting_after", config);
   }
 
   /** Get an employee’s current schedule */

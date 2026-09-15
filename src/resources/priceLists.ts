@@ -19,7 +19,7 @@ export class PriceListsItemsResource extends BaseResource {
   /** List price list items */
   async list(priceList: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/price-lists/{priceList}/items", { "priceList": priceList });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Upsert a price list item */
@@ -57,7 +57,7 @@ export class PriceListsResource extends BaseResource {
 
   /** List price lists */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/price-lists", params, "starting_after");
+    return this._paginate<unknown>("/price-lists", params, "starting_after", config);
   }
 
   /** Delete a price list */

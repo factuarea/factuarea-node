@@ -24,6 +24,6 @@ export class PresenceResource extends BaseResource {
 
   /** List office/remote presence declarations */
   async daily(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/presence/daily", params, "starting_after");
+    return this._paginate<unknown>("/presence/daily", params, "starting_after", config);
   }
 }

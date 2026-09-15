@@ -30,7 +30,7 @@ export class ClientsResource extends BaseResource {
 
   /** List all clients */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/clients", params, "starting_after");
+    return this._paginate<unknown>("/clients", params, "starting_after", config);
   }
 
   /** Delete a client */
