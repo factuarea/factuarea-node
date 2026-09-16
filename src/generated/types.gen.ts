@@ -42762,6 +42762,7 @@ export type PublicApiV1PurchaseScanEmailsListData = {
         limit?: number;
         starting_after?: string | null;
         search?: string;
+        result?: 'processed' | 'partially_processed' | 'no_compatible_attachments' | 'rejected';
         'created[gte]'?: string;
         'created[lte]'?: string;
     };
