@@ -9,7 +9,34 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
+export class PurchaseInvoicesMatchResource extends BaseResource {
+  /** Accept the deviation of a purchase invoice match */
+  async accept(company: string, purchaseInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/purchase-invoices/{purchase_invoice}/match/accept", { "company": company, "purchase_invoice": purchaseInvoice });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Link a purchase invoice to a purchase order */
+  async link(company: string, purchaseInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/purchase-invoices/{purchase_invoice}/match/link", { "company": company, "purchase_invoice": purchaseInvoice });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Reject a purchase invoice match */
+  async reject(company: string, purchaseInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/purchase-invoices/{purchase_invoice}/match/reject", { "company": company, "purchase_invoice": purchaseInvoice });
+    return this._send<unknown>("POST", path, body, config);
+  }
+}
+
 export class PurchaseInvoicesResource extends BaseResource {
+  readonly match: PurchaseInvoicesMatchResource;
+
+  constructor(client: HttpClient) {
+    super(client);
+    this.match = new PurchaseInvoicesMatchResource(client);
+  }
+
   /** Attach a file to a purchase invoice */
   async attachFile(purchaseInvoice: string, formData: FormData, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/attach-file", { "purchase_invoice": purchaseInvoice });

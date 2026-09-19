@@ -47,6 +47,48 @@ function pascal(name) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+/**
+ * Identifiers that cannot be used as a BINDING name in an ES module (reserved
+ * words, plus the strict-mode and module-context reservations). Method names
+ * and class fields are property names and may be reserved words — `async
+ * delete(...)` is legal — but a parameter name cannot, and esbuild/tsc reject
+ * the file outright, so the whole SDK stops transforming.
+ *
+ * Measured 2026-09-18 against the frozen contract of the ERP wave: two path
+ * params hit this list — `{return}` (8 operations of the returns family) and
+ * `{package}` (2 of the delivery-note packages). The previous pinned spec had
+ * none, which is why the generator got this far without the guard.
+ */
+const RESERVED_IDENTIFIERS = new Set([
+  "await", "break", "case", "catch", "class", "const", "continue", "debugger",
+  "default", "delete", "do", "else", "enum", "export", "extends", "false",
+  "finally", "for", "function", "if", "implements", "import", "in",
+  "instanceof", "interface", "let", "new", "null", "package", "private",
+  "protected", "public", "return", "static", "super", "switch", "this",
+  "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield",
+  "arguments", "eval",
+]);
+
+/**
+ * The binding name a path parameter gets in the generated signature. Reserved
+ * words are escaped with a `Param` suffix (`{return}` → `returnParam`); the
+ * SPEC name is still what goes into the path template, so the escape is purely
+ * lexical. Collisions with another parameter of the same operation are broken
+ * with underscores, so the escape can never shadow a sibling.
+ */
+function paramIdentifier(name, siblings = []) {
+  let identifier = camel(name);
+  if (!RESERVED_IDENTIFIERS.has(identifier) && !/^[0-9]/.test(identifier)) {
+    return identifier;
+  }
+  identifier = /^[0-9]/.test(identifier) ? `p${identifier}` : `${identifier}Param`;
+  const taken = new Set(siblings.filter((s) => s !== name).map((s) => camel(s)));
+  while (taken.has(identifier)) {
+    identifier = `${identifier}_`;
+  }
+  return identifier;
+}
+
 function isBinary(op) {
   for (const resp of Object.values(op.responses ?? {})) {
     for (const ct of Object.keys(resp.content ?? {})) {
@@ -148,11 +190,11 @@ for (const [path, methods] of Object.entries(spec.paths)) {
 // ---- Emit per-method TS source ----------------------------------------------
 
 function pathParamSignature(params) {
-  return params.map((p) => `${camel(p)}: string`);
+  return params.map((p) => `${paramIdentifier(p, params)}: string`);
 }
 
 function pathParamObject(params) {
-  return params.map((p) => `"${p}": ${camel(p)}`).join(", ");
+  return params.map((p) => `"${p}": ${paramIdentifier(p, params)}`).join(", ");
 }
 
 function methodSource(entry) {
@@ -174,9 +216,7 @@ function methodSource(entry) {
 
   const sig = [];
   const callPathParams = pp.length > 0;
-  for (const p of pp) {
-    sig.push(`${camel(p)}: string`);
-  }
+  sig.push(...pathParamSignature(pp));
 
   const pathExpr = callPathParams
     ? `this.buildPath("${path}", { ${pathParamObject(pp)} })`

@@ -9,7 +9,28 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
+export class StoresProductLinksResource extends BaseResource {
+  /** List the product links of a store */
+  async list(company: string, store: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/stores/{store}/product-links", { "company": company, "store": store });
+    return this._paginate<unknown>(path, params, "starting_after");
+  }
+
+  /** Retrieve a product link of a store */
+  async show(company: string, store: string, link: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stores/{store}/product-links/{link}", { "company": company, "store": store, "link": link });
+    return this._get<unknown>(path, undefined, config);
+  }
+}
+
 export class StoresResource extends BaseResource {
+  readonly productLinks: StoresProductLinksResource;
+
+  constructor(client: HttpClient) {
+    super(client);
+    this.productLinks = new StoresProductLinksResource(client);
+  }
+
   /** Connect a store */
   async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/stores";

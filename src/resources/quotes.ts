@@ -46,6 +46,12 @@ export class QuotesResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Convert quote to sales order */
+  async convertToSalesOrder(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/quotes/{quote}/convert-to-sales-order", { "quote": quote });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Create a quote */
   async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/quotes";

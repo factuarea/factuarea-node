@@ -10,7 +10,9 @@ name: Spec Sync
 #     CI when the public spec is republished. The emitter is the `SDK Spec
 #     Dispatch` workflow in that repo (wired 2026-08-06); see docs/SPEC_SYNC.md.
 #   • workflow_dispatch — manual trigger.
-#   • schedule (daily) — fallback if the dispatch never arrives.
+#   • schedule (daily) — fallback if the dispatch never arrives. PAUSED on
+#     2026-09-18; the note at the end of this comment says under what
+#     measurable condition it goes back.
 #
 # When the published spec differs CANONICALLY from the committed copy (parsed
 # JSON, key-order/whitespace-insensitive, x-codeSamples ignored — see
@@ -19,13 +21,41 @@ name: Spec Sync
 #
 # `schedule` restored 2026-08-06: published spec 345 paths vs 192 pinned, which
 # satisfies the `docs == prod` condition it was paused under on 2026-06-07.
+#
+# PAUSED schedule since 2026-09-18; reactivate when: the spec published at $SPEC_URL
+# declares the same number of operations as the copy pinned in spec/openapi.json
+# `schedule` paused again 2026-09-18 (ERP omnichannel sync wave): the document
+# published at $SPEC_URL declares 470 operations over 386 paths, and this wave
+# has re-pinned `spec/openapi.json` to a frozen contract that declares 654
+# operations over 532 paths (+184). That contract is not deployed yet, so a scheduled run
+# in the meantime would compare the regenerated SDK against the older
+# published document, call it drift and open a PR that REMOVES those 184
+# operations — undoing the regeneration instead of syncing it.
+#
+# Reactivation condition, contrastable without knowing any of this: the spec
+# published at $SPEC_URL declares the SAME number of operations as the copy
+# pinned in this repo (654 on both sides once the wave has landed and the
+# contract is deployed). Count both and compare — nothing else authorises the
+# restore:
+#
+#   curl -fsSL "https://docs.factuarea.com/api/openapi" -o /tmp/published.json
+#   node -e 'const M=["get","post","put","patch","delete"],c=f=>Object.values(JSON.parse(require("fs").readFileSync(f,"utf8")).paths).flatMap(p=>Object.keys(p).filter(m=>M.includes(m))).length;console.log(c("/tmp/published.json"),c("spec/openapi.json"))'
+#
+# Measured 2026-09-18: published 470, pinned 654 ⇒ different ⇒ stays paused.
+# Equal counts ⇒ put the block
+# back under `on:`, exactly as it was:
+#
+#   schedule:
+#     - cron: "17 6 * * *" # daily at 06:17 UTC
+#
+# Different counts ⇒ it stays paused. Nothing was disabled from the Actions
+# UI: that leaves no trace in the repo, is not reviewed in a PR and does not
+# survive a restore. Reactivating is the repository owner's call.
 
 on:
   repository_dispatch:
     types: [spec-updated]
   workflow_dispatch:
-  schedule:
-    - cron: "17 6 * * *" # daily at 06:17 UTC
 
 permissions:
   contents: write # create the sync branch

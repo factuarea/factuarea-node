@@ -37,6 +37,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./storefront": {
+      "import": {
+        "types": "./dist/storefront.d.ts",
+        "default": "./dist/storefront.js"
+      },
+      "require": {
+        "types": "./dist/storefront.d.cts",
+        "default": "./dist/storefront.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -57,7 +67,7 @@
   "scripts": {
     "generate": "openapi-ts && npm run generate:resources",
     "generate:resources": "node scripts/build-resources.mjs",
-    "build": "tsup",
+    "build": "rm -rf dist && tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

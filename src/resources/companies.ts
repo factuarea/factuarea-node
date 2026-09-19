@@ -68,9 +68,8 @@ export class CompaniesResource extends BaseResource {
   }
 
   /** List your managed companies */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/companies";
-    return this._get<unknown>(path, params, config);
+  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    return this._paginate<unknown>("/companies", params, "cursor");
   }
 
   /** Deactivate a managed company */

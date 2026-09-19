@@ -1,26 +1,26 @@
 import { HttpClient, type FactuareaConfig } from "./core/http-client.js";
 import type { Environment } from "./core/auth.js";
 import { Webhooks } from "./core/webhooks.js";
-import { createResources } from "./resources/index.js";
-import type {
-  AccountResource,
-  ClientsResource,
-  DeliveryNotesResource,
-  EventCatalogResource,
-  EventsResource,
-  InvoicesResource,
-  ProductsResource,
-  ProformasResource,
-  PurchaseInvoicesResource,
-  QuotesResource,
-  RecurringInvoicesResource,
-  SeriesResource,
-  SuppliersResource,
-  TaxReportsResource,
-  TaxesResource,
-  VerifactuResource,
-  WebhookEndpointsResource,
-} from "./resources/index.js";
+import { createResources, type ResourceNamespaces } from "./resources/index.js";
+
+/**
+ * Every namespace the generated registry builds is a field of the client.
+ *
+ * Declaration merging, and not a hand-written list of fields, because the list
+ * is exactly what broke: `createResources()` has always built one namespace per
+ * resource file, while this class enumerated its fields by hand and had drifted
+ * to 17 of 62 — measured 2026-09-18 — so `factuarea.salesOrders.list(...)` and
+ * the other 44 namespaces existed in the resource layer and were unreachable
+ * from `new Factuarea(...)`. Neither `tsc --noEmit` nor `tsup` sees that: a
+ * field nobody declared is simply a field nobody can use.
+ *
+ * Extending the registry's own interface makes the drift impossible instead of
+ * merely caught: regenerating `src/resources/` with a new resource adds it to
+ * `ResourceNamespaces`, and the client gains it in the same commit, in types
+ * and at runtime. `Readonly` keeps the namespaces non-reassignable, as the
+ * enumerated fields were.
+ */
+export interface Factuarea extends Readonly<ResourceNamespaces> {}
 
 /**
  * The Factuarea API client.
@@ -34,28 +34,14 @@ import type {
  *
  * The environment (sandbox vs production) is selected by the key prefix
  * (`fact_test_` / `fact_live_`); no environment flag is needed.
+ *
+ * This client is for SERVERS. Its API key is a secret bound to the company and
+ * must never be shipped to a browser; the anonymous shopper lane has its own
+ * browser client with a publishable credential in `@factuarea/sdk/storefront`.
  */
 export class Factuarea {
   /** The environment derived from the API key prefix. */
   readonly environment: Environment;
-
-  readonly account: AccountResource;
-  readonly clients: ClientsResource;
-  readonly deliveryNotes: DeliveryNotesResource;
-  readonly eventCatalog: EventCatalogResource;
-  readonly events: EventsResource;
-  readonly invoices: InvoicesResource;
-  readonly products: ProductsResource;
-  readonly proformas: ProformasResource;
-  readonly purchaseInvoices: PurchaseInvoicesResource;
-  readonly quotes: QuotesResource;
-  readonly recurringInvoices: RecurringInvoicesResource;
-  readonly series: SeriesResource;
-  readonly suppliers: SuppliersResource;
-  readonly taxReports: TaxReportsResource;
-  readonly taxes: TaxesResource;
-  readonly verifactu: VerifactuResource;
-  readonly webhookEndpoints: WebhookEndpointsResource;
 
   /** Webhook signature verification (stateless). */
   readonly webhooks: Webhooks;
@@ -68,23 +54,7 @@ export class Factuarea {
     this.environment = this.http.environment;
     this.webhooks = new Webhooks();
 
-    const resources = createResources(this.http);
-    this.account = resources.account;
-    this.clients = resources.clients;
-    this.deliveryNotes = resources.deliveryNotes;
-    this.eventCatalog = resources.eventCatalog;
-    this.events = resources.events;
-    this.invoices = resources.invoices;
-    this.products = resources.products;
-    this.proformas = resources.proformas;
-    this.purchaseInvoices = resources.purchaseInvoices;
-    this.quotes = resources.quotes;
-    this.recurringInvoices = resources.recurringInvoices;
-    this.series = resources.series;
-    this.suppliers = resources.suppliers;
-    this.taxReports = resources.taxReports;
-    this.taxes = resources.taxes;
-    this.verifactu = resources.verifactu;
-    this.webhookEndpoints = resources.webhookEndpoints;
+    // Wires every namespace the registry builds — all of them, always.
+    Object.assign(this, createResources(this.http));
   }
 }
