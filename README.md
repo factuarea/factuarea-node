@@ -128,9 +128,9 @@ Filter `list` and `search` with `roles`, `tags`, `search` or `is_archived`. Arra
 
 `BusinessContact`, the contact list/import response types and contact request types are exported from `@factuarea/sdk`. The resource wrappers return `unknown` in 0.x, so use the exported types for request validation and response casts.
 
-### Compatibility resources
+### Migrating from `clients` and `suppliers`
 
-`clients` and `suppliers` remain available for integrations using the published legacy routes and their role-specific analytics. They are deprecated for identity management: use `contacts` for new CRUD, searches and examples. Compatibility IDs may differ from the canonical contact UUID; do not join the two namespaces by assuming UUID equality.
+The legacy `/v1/clients` and `/v1/suppliers` routes were retired from the public API on 2026-09-16, so the `clients` and `suppliers` resources were removed from the SDK in 0.6.0. Every operation has a `contacts` equivalent: filter by `roles: ["customer"]` or `roles: ["supplier"]` where the legacy resource implied the role, and use `contacts.stats`, `contacts.activities`, `contacts.bulkCreate`, `contacts.bulkDelete`, `contacts.import`, `contacts.verifyCensus`, `contacts.findByTaxId` and `contacts.findByExternalId` for the role-specific helpers. Legacy client/supplier IDs are not contact UUIDs; resolve them through the [Contact migration guide](https://docs.factuarea.com/guides/contact-migration) instead of assuming equality.
 
 ## Pagination
 
