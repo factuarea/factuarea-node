@@ -10,6 +10,12 @@ import type { Page } from "../core/pagination.js";
 
 
 export class ContactsResource extends BaseResource {
+  /** Archive a contact */
+  async archive(contact: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/contacts/{contact}/archive", { "contact": contact });
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+
   /** Assign a contact role */
   async assignContactRole(contact: string, role: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/contacts/{contact}/roles/{role}", { "contact": contact, "role": role });
@@ -34,6 +40,18 @@ export class ContactsResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Create contacts in bulk */
+  async bulkCreate(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/contacts/bulk-create";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Delete contacts in bulk */
+  async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/contacts/bulk-delete";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Change a contact role status */
   async changeContactRoleStatus(contact: string, role: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/contacts/{contact}/roles/{role}/status", { "contact": contact, "role": role });
@@ -51,7 +69,7 @@ export class ContactsResource extends BaseResource {
     return this._paginate<unknown>("/contacts", params, "starting_after", config);
   }
 
-  /** Archive a contact */
+  /** Delete a contact */
   async delete(contact: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/contacts/{contact}", { "contact": contact });
     return this._send<unknown>("DELETE", path, undefined, config);
@@ -69,10 +87,40 @@ export class ContactsResource extends BaseResource {
     return this._send<unknown>("PUT", path, body, config);
   }
 
+  /** Download the contact import template */
+  async importTemplate(config?: RequestConfig): Promise<unknown> {
+    const path = "/contacts/import/template";
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Find a contact by external ID */
+  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/contacts/find-by-external-id";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Find a contact by tax ID */
+  async findByTaxId(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/contacts/find-by-tax-id";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** List contact activity */
+  async activities(contact: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/contacts/{contact}/activities", { "contact": contact });
+    return this._get<unknown>(path, params, config);
+  }
+
   /** List contact filter options */
   async options(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = "/contacts/options";
     return this._get<unknown>(path, params, config);
+  }
+
+  /** Get contact statistics */
+  async stats(config?: RequestConfig): Promise<unknown> {
+    const path = "/contacts/stats";
+    return this._get<unknown>(path, undefined, config);
   }
 
   /** Import contacts */
@@ -114,5 +162,11 @@ export class ContactsResource extends BaseResource {
   async updateSupplierProfile(contact: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/contacts/{contact}/supplier-profile", { "contact": contact });
     return this._send<unknown>("PUT", path, body, config);
+  }
+
+  /** Verify a contact against the AEAT census */
+  async verifyCensus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/contacts/census-verification";
+    return this._send<unknown>("POST", path, body, config);
   }
 }

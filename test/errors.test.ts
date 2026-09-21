@@ -51,28 +51,28 @@ describe("error envelope mapping", () => {
 
   it("ValidationError exposes per-field messages from param", async () => {
     server.use(
-      http.post(`${BASE_URL}/clients`, () =>
+      http.post(`${BASE_URL}/contacts`, () =>
         HttpResponse.json(
           { error: { type: "invalid_request_error", code: "parameter_invalid", param: "tax_id", message: "NIF inválido", request_id: "r1" } },
           { status: 422 },
         ),
       ),
     );
-    const error = (await testClient().clients.create({}).catch((e) => e)) as ValidationError;
+    const error = (await testClient().contacts.create({}).catch((e) => e)) as ValidationError;
     expect(error).toBeInstanceOf(ValidationError);
     expect(error.fields).toEqual({ tax_id: ["NIF inválido"] });
   });
 
   it("ValidationError exposes a fields map when present", async () => {
     server.use(
-      http.post(`${BASE_URL}/clients`, () =>
+      http.post(`${BASE_URL}/contacts`, () =>
         HttpResponse.json(
           { error: { type: "invalid_request_error", code: "validation_failed", message: "Invalid", fields: { name: ["Required"], email: ["Bad format"] } } },
           { status: 422 },
         ),
       ),
     );
-    const error = (await testClient().clients.create({}).catch((e) => e)) as ValidationError;
+    const error = (await testClient().contacts.create({}).catch((e) => e)) as ValidationError;
     expect(error.fields.name).toEqual(["Required"]);
     expect(error.fields.email).toEqual(["Bad format"]);
   });
@@ -112,11 +112,11 @@ describe("error envelope mapping", () => {
 
   it("never leaks the API key in error messages", async () => {
     server.use(
-      http.post(`${BASE_URL}/clients`, () =>
+      http.post(`${BASE_URL}/contacts`, () =>
         HttpResponse.json(envelope("invalid_request_error", "parameter_invalid"), { status: 422 }),
       ),
     );
-    const error = (await testClient({ apiKey: "fact_test_supersecret" }).clients.create({}).catch((e) => e)) as Error;
+    const error = (await testClient({ apiKey: "fact_test_supersecret" }).contacts.create({}).catch((e) => e)) as Error;
     expect(JSON.stringify({ message: error.message, stack: error.stack })).not.toContain("supersecret");
   });
 });

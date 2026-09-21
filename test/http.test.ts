@@ -64,13 +64,13 @@ describe("Idempotency-Key", () => {
   it("adds a UUID Idempotency-Key to POST requests", async () => {
     let key: string | null = null;
     server.use(
-      http.post(`${BASE_URL}/clients`, ({ request }) => {
+      http.post(`${BASE_URL}/contacts`, ({ request }) => {
         key = request.headers.get("idempotency-key");
         return HttpResponse.json({ id: "c1" }, { status: 201 });
       }),
     );
 
-    await testClient().clients.create({ name: "ACME" });
+    await testClient().contacts.create({ name: "ACME" });
     expect(key).toMatch(/^[0-9a-f-]{36}$/);
   });
 
@@ -90,13 +90,13 @@ describe("Idempotency-Key", () => {
   it("respects a user-provided Idempotency-Key", async () => {
     let key: string | null = null;
     server.use(
-      http.post(`${BASE_URL}/clients`, ({ request }) => {
+      http.post(`${BASE_URL}/contacts`, ({ request }) => {
         key = request.headers.get("idempotency-key");
         return HttpResponse.json({ id: "c1" }, { status: 201 });
       }),
     );
 
-    await testClient().clients.create({ name: "ACME" }, { idempotencyKey: "my-key-123" });
+    await testClient().contacts.create({ name: "ACME" }, { idempotencyKey: "my-key-123" });
     expect(key).toBe("my-key-123");
   });
 
@@ -104,7 +104,7 @@ describe("Idempotency-Key", () => {
     const seenKeys: string[] = [];
     let calls = 0;
     server.use(
-      http.post(`${BASE_URL}/clients`, ({ request }) => {
+      http.post(`${BASE_URL}/contacts`, ({ request }) => {
         seenKeys.push(request.headers.get("idempotency-key") ?? "");
         calls += 1;
         if (calls === 1) {
@@ -114,7 +114,7 @@ describe("Idempotency-Key", () => {
       }),
     );
 
-    await testClient({ maxRetries: 1 }).clients.create({ name: "ACME" });
+    await testClient({ maxRetries: 1 }).contacts.create({ name: "ACME" });
     expect(seenKeys).toHaveLength(2);
     expect(seenKeys[0]).toBe(seenKeys[1]);
   });
