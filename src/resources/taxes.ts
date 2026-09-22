@@ -11,103 +11,104 @@ import type { Page } from "../core/pagination.js";
 
 export class TaxesResource extends BaseResource {
   /** Calculate a tax over a base amount */
-  async calculate(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes/calculate";
+  async calculate(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/calculate", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Calculate totals for a set of lines */
-  async calculateTotals(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes/calculate-totals";
+  async calculateTotals(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/calculate-totals", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Check whether a tax is in use */
-  async isInUse(tax: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/{tax}/is-in-use", { "tax": tax });
+  async isInUse(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/{tax}/is-in-use", { "company": company, "tax": tax });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Create a tax */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all taxes */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/taxes", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/taxes", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a tax */
-  async delete(tax: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/{tax}", { "tax": tax });
+  async delete(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/{tax}", { "company": company, "tax": tax });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a tax */
-  async show(tax: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/{tax}", { "tax": tax });
+  async show(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/{tax}", { "company": company, "tax": tax });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a tax */
-  async update(tax: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/{tax}", { "tax": tax });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, tax: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/{tax}", { "company": company, "tax": tax });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** List active taxes */
-  async active(config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes/active";
+  async active(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/active", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Get default taxes for a document type */
-  async defaults(docType: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/defaults/{docType}", { "docType": docType });
+  async defaults(company: string, docType: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/defaults/{docType}", { "company": company, "docType": docType });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Get tax stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List taxes filtered by type */
-  async byType(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes/by-type";
+  async byType(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/by-type", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** List taxes applicable to purchases */
-  async forPurchases(config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes/for-purchases";
+  async forPurchases(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/for-purchases", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List taxes applicable to sales */
-  async forSales(config?: RequestConfig): Promise<unknown> {
-    const path = "/taxes/for-sales";
+  async forSales(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/for-sales", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Mark a tax as the default for its type */
-  async setDefault(tax: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/{tax}/set-default", { "tax": tax });
+  async setDefault(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/{tax}/set-default", { "company": company, "tax": tax });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Set tax default for a document type */
-  async setDefaultForDocument(tax: string, docType: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/{tax}/set-default/{docType}", { "tax": tax, "docType": docType });
-    return this._send<unknown>("PUT", path, undefined, config);
+  async setDefaultForDocument(company: string, tax: string, docType: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/{tax}/set-default/{docType}", { "company": company, "tax": tax, "docType": docType });
+    return this._send<unknown>("PATCH", path, undefined, config);
   }
 
   /** Toggle tax active state */
-  async toggle(tax: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/taxes/{tax}/toggle", { "tax": tax });
+  async toggle(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/taxes/{tax}/toggle", { "company": company, "tax": tax });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

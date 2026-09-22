@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
+import { COMPANY, COMPANY_URL, server, testClient, useMockServer } from "./helpers.js";
 import { Page } from "../src/index.js";
 
 useMockServer();
@@ -11,7 +11,7 @@ interface Row {
 
 function pageHandler() {
   // Three-page dataset keyed by starting_after.
-  return http.get(`${BASE_URL}/invoices`, ({ request }) => {
+  return http.get(`${COMPANY_URL}/invoices`, ({ request }) => {
     const url = new URL(request.url);
     const after = url.searchParams.get("starting_after");
     if (after === null) {
@@ -27,7 +27,7 @@ function pageHandler() {
 describe("auto-pagination", () => {
   it("returns a Page with the first page of data", async () => {
     server.use(pageHandler());
-    const page = (await testClient().invoices.list()) as Page<Row>;
+    const page = (await testClient().invoices.list(COMPANY)) as Page<Row>;
     expect(page).toBeInstanceOf(Page);
     expect(page.data.map((r) => r.id)).toEqual(["1", "2"]);
     expect(page.hasMore).toBe(true);
@@ -36,7 +36,7 @@ describe("auto-pagination", () => {
 
   it("iterates every element across all pages with for await", async () => {
     server.use(pageHandler());
-    const page = (await testClient().invoices.list()) as Page<Row>;
+    const page = (await testClient().invoices.list(COMPANY)) as Page<Row>;
     const ids: string[] = [];
     for await (const row of page) {
       ids.push(row.id);
@@ -46,7 +46,7 @@ describe("auto-pagination", () => {
 
   it("walks pages manually via getNextPage", async () => {
     server.use(pageHandler());
-    const first = (await testClient().invoices.list()) as Page<Row>;
+    const first = (await testClient().invoices.list(COMPANY)) as Page<Row>;
     const second = await first.getNextPage();
     expect(second?.data.map((r) => r.id)).toEqual(["3", "4"]);
     const third = await second?.getNextPage();
@@ -58,7 +58,7 @@ describe("auto-pagination", () => {
 
   it("toArray() collects all elements", async () => {
     server.use(pageHandler());
-    const page = (await testClient().invoices.list()) as Page<Row>;
+    const page = (await testClient().invoices.list(COMPANY)) as Page<Row>;
     const all = await page.toArray();
     expect(all).toHaveLength(5);
   });
@@ -67,7 +67,7 @@ describe("auto-pagination", () => {
     const seenCursors: Array<string | null> = [];
     let sawStatusFilter = false;
     server.use(
-      http.get(`${BASE_URL}/invoices`, ({ request }) => {
+      http.get(`${COMPANY_URL}/invoices`, ({ request }) => {
         const url = new URL(request.url);
         seenCursors.push(url.searchParams.get("starting_after"));
         if (url.searchParams.get("status") === "paid") {
@@ -81,7 +81,7 @@ describe("auto-pagination", () => {
       }),
     );
 
-    const page = (await testClient().invoices.list({ status: "paid" })) as Page<Row>;
+    const page = (await testClient().invoices.list(COMPANY, { status: "paid" })) as Page<Row>;
     await page.toArray();
     expect(sawStatusFilter).toBe(true);
     expect(seenCursors).toEqual([null, "1"]);
@@ -90,7 +90,7 @@ describe("auto-pagination", () => {
   it("supports the `cursor` param style for purchase-invoice listings", async () => {
     const seen: Array<string | null> = [];
     server.use(
-      http.get(`${BASE_URL}/purchase_invoices/overdue`, ({ request }) => {
+      http.get(`${COMPANY_URL}/purchase-invoices/overdue`, ({ request }) => {
         const url = new URL(request.url);
         seen.push(url.searchParams.get("cursor"));
         if (url.searchParams.get("cursor") === null) {
@@ -100,7 +100,7 @@ describe("auto-pagination", () => {
       }),
     );
 
-    const page = (await testClient().purchaseInvoices.overdue()) as Page<Row>;
+    const page = (await testClient().purchaseInvoices.overdue(COMPANY)) as Page<Row>;
     const all = await page.toArray();
     expect(all.map((r) => r.id)).toEqual(["p1", "p2"]);
     expect(seen).toEqual([null, "p1"]);

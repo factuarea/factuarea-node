@@ -11,23 +11,23 @@ import type { Page } from "../core/pagination.js";
 
 export class DeliveryNotesSignatureAuditsResource extends BaseResource {
   /** Forget delivery note signature PII */
-  async forget(auditId: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/signature-audits/{auditId}/forget", { "auditId": auditId });
+  async forget(company: string, auditId: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/signature-audits/{auditId}/forget", { "company": company, "auditId": auditId });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }
 
 export class DeliveryNotesPublicLinkResource extends BaseResource {
   /** Retrieve a delivery note public link */
-  async get(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/public-link", { "delivery_note": deliveryNote });
+  async get(company: string, deliveryNote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/public-link", { "company": company, "delivery_note": deliveryNote });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a delivery note public link */
-  async update(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/public-link", { "delivery_note": deliveryNote });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/public-link", { "company": company, "delivery_note": deliveryNote });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 }
 
@@ -42,115 +42,116 @@ export class DeliveryNotesResource extends BaseResource {
   }
 
   /** Bulk delete delivery notes */
-  async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/delivery_notes/bulk-delete";
+  async bulkDelete(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/bulk-delete", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk download delivery note PDFs */
-  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = "/delivery_notes/bulk-pdf";
+  async bulkPdf(company: string, body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/bulk-pdf", { "company": company });
     return this._binary(path, "POST", undefined, body, config);
   }
 
   /** Bulk send delivery notes */
-  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/delivery_notes/bulk-send";
+  async bulkSend(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/bulk-send", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk change delivery note status */
-  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/delivery_notes/bulk-status";
+  async bulkStatus(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/bulk-status", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Cancel a delivery note */
-  async cancel(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/cancel", { "delivery_note": deliveryNote });
+  async cancel(company: string, deliveryNote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/cancel", { "company": company, "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Convert delivery note to invoice */
-  async convert(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/convert", { "delivery_note": deliveryNote });
+  async convert(company: string, deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/convert", { "company": company, "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Create a delivery note */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/delivery_notes";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all delivery notes */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/delivery_notes", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/delivery-notes", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a delivery note */
-  async delete(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}", { "delivery_note": deliveryNote });
+  async delete(company: string, deliveryNote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}", { "company": company, "delivery_note": deliveryNote });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a delivery note */
-  async show(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}", { "delivery_note": deliveryNote });
+  async show(company: string, deliveryNote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}", { "company": company, "delivery_note": deliveryNote });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a delivery note */
-  async update(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}", { "delivery_note": deliveryNote });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}", { "company": company, "delivery_note": deliveryNote });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Download delivery note PDF */
-  async pdf(deliveryNote: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/pdf", { "delivery_note": deliveryNote });
+  async pdf(company: string, deliveryNote: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/pdf", { "company": company, "delivery_note": deliveryNote });
     return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Duplicate a delivery note */
-  async duplicate(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/duplicate", { "delivery_note": deliveryNote });
+  async duplicate(company: string, deliveryNote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/duplicate", { "company": company, "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Find a delivery note by external ID */
-  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/delivery_notes/find-by-external-id";
+  async findByExternalId(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/find-by-external-id", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve delivery note stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/delivery_notes/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List delivery note statuses */
-  async statuses(config?: RequestConfig): Promise<unknown> {
-    const path = "/delivery_notes/statuses";
+  async statuses(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/statuses", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Mark delivery note as delivered */
-  async markDelivered(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/mark-delivered", { "delivery_note": deliveryNote });
+  async markDelivered(company: string, deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/mark-delivered", { "company": company, "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Send a delivery note */
-  async send(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/send", { "delivery_note": deliveryNote });
+  async send(company: string, deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/send", { "company": company, "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Sign a delivery note */
-  async sign(deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/delivery_notes/{delivery_note}/sign", { "delivery_note": deliveryNote });
+  async sign(company: string, deliveryNote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/delivery-notes/{delivery_note}/sign", { "company": company, "delivery_note": deliveryNote });
     return this._send<unknown>("POST", path, body, config);
   }
 }

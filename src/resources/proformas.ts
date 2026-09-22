@@ -11,121 +11,122 @@ import type { Page } from "../core/pagination.js";
 
 export class ProformasResource extends BaseResource {
   /** Accept a proforma */
-  async accept(proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}/accept", { "proforma": proforma });
+  async accept(company: string, proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/accept", { "company": company, "proforma": proforma });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk delete proformas */
-  async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/proformas/bulk-delete";
+  async bulkDelete(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/bulk-delete", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk download proforma PDFs */
-  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = "/proformas/bulk-pdf";
+  async bulkPdf(company: string, body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/proformas/bulk-pdf", { "company": company });
     return this._binary(path, "POST", undefined, body, config);
   }
 
   /** Bulk send proformas */
-  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/proformas/bulk-send";
+  async bulkSend(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/bulk-send", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk change proforma status */
-  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/proformas/bulk-status";
+  async bulkStatus(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/bulk-status", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Convert proforma to invoice */
-  async convert(proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}/convert", { "proforma": proforma });
+  async convert(company: string, proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/convert", { "company": company, "proforma": proforma });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Create a proforma */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/proformas";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all proformas */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/proformas", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/proformas", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a proforma */
-  async delete(proforma: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}", { "proforma": proforma });
+  async delete(company: string, proforma: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}", { "company": company, "proforma": proforma });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a proforma */
-  async show(proforma: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}", { "proforma": proforma });
+  async show(company: string, proforma: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}", { "company": company, "proforma": proforma });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a proforma */
-  async update(proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}", { "proforma": proforma });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}", { "company": company, "proforma": proforma });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Download proforma PDF */
-  async pdf(proforma: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/proformas/{proforma}/pdf", { "proforma": proforma });
+  async pdf(company: string, proforma: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/pdf", { "company": company, "proforma": proforma });
     return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Duplicate a proforma */
-  async duplicate(proforma: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}/duplicate", { "proforma": proforma });
+  async duplicate(company: string, proforma: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/duplicate", { "company": company, "proforma": proforma });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Find a proforma by external ID */
-  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/proformas/find-by-external-id";
+  async findByExternalId(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/find-by-external-id", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve proforma public link */
-  async publicLinkGet(proforma: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}/public-link", { "proforma": proforma });
+  async publicLinkGet(company: string, proforma: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/public-link", { "company": company, "proforma": proforma });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update proforma public link */
-  async publicLinkUpdate(proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}/public-link", { "proforma": proforma });
-    return this._send<unknown>("PUT", path, body, config);
+  async publicLinkUpdate(company: string, proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/public-link", { "company": company, "proforma": proforma });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Get proforma stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/proformas/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List proforma statuses */
-  async statuses(config?: RequestConfig): Promise<unknown> {
-    const path = "/proformas/statuses";
+  async statuses(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/statuses", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Reject a proforma */
-  async reject(proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}/reject", { "proforma": proforma });
+  async reject(company: string, proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/reject", { "company": company, "proforma": proforma });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Send proforma by email */
-  async send(proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/proformas/{proforma}/send", { "proforma": proforma });
+  async send(company: string, proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/send", { "company": company, "proforma": proforma });
     return this._send<unknown>("POST", path, body, config);
   }
 }

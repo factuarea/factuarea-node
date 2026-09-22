@@ -11,31 +11,32 @@ import type { Page } from "../core/pagination.js";
 
 export class StoresResource extends BaseResource {
   /** Connect a store */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/stores";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stores", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List connected stores */
-  async index(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/stores", params, "starting_after", config);
+  async index(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/stores", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Disconnect a store */
-  async disconnect(store: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/stores/{store}", { "store": store });
+  async disconnect(company: string, store: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stores/{store}", { "company": company, "store": store });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a connected store */
-  async show(store: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/stores/{store}", { "store": store });
+  async show(company: string, store: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stores/{store}", { "company": company, "store": store });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update store settings */
-  async update(store: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/stores/{store}", { "store": store });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, store: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stores/{store}", { "company": company, "store": store });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 }

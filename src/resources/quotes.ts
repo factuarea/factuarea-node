@@ -11,121 +11,122 @@ import type { Page } from "../core/pagination.js";
 
 export class QuotesResource extends BaseResource {
   /** Accept a quote */
-  async accept(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}/accept", { "quote": quote });
+  async accept(company: string, quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/accept", { "company": company, "quote": quote });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk delete quotes */
-  async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/quotes/bulk-delete";
+  async bulkDelete(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/bulk-delete", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk download quote PDFs */
-  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = "/quotes/bulk-pdf";
+  async bulkPdf(company: string, body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/quotes/bulk-pdf", { "company": company });
     return this._binary(path, "POST", undefined, body, config);
   }
 
   /** Bulk send quotes */
-  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/quotes/bulk-send";
+  async bulkSend(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/bulk-send", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk change quote status */
-  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/quotes/bulk-status";
+  async bulkStatus(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/bulk-status", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Convert quote to invoice */
-  async convert(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}/convert", { "quote": quote });
+  async convert(company: string, quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/convert", { "company": company, "quote": quote });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Create a quote */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/quotes";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all quotes */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/quotes", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/quotes", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a quote */
-  async delete(quote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}", { "quote": quote });
+  async delete(company: string, quote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}", { "company": company, "quote": quote });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a quote */
-  async show(quote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}", { "quote": quote });
+  async show(company: string, quote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}", { "company": company, "quote": quote });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a quote */
-  async update(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}", { "quote": quote });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}", { "company": company, "quote": quote });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Download quote PDF */
-  async pdf(quote: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/quotes/{quote}/pdf", { "quote": quote });
+  async pdf(company: string, quote: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/pdf", { "company": company, "quote": quote });
     return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Duplicate a quote */
-  async duplicate(quote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}/duplicate", { "quote": quote });
+  async duplicate(company: string, quote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/duplicate", { "company": company, "quote": quote });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Find a quote by external ID */
-  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/quotes/find-by-external-id";
+  async findByExternalId(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/find-by-external-id", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve quote public link */
-  async publicLinkGet(quote: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}/public-link", { "quote": quote });
+  async publicLinkGet(company: string, quote: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/public-link", { "company": company, "quote": quote });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update quote public link */
-  async publicLinkUpdate(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}/public-link", { "quote": quote });
-    return this._send<unknown>("PUT", path, body, config);
+  async publicLinkUpdate(company: string, quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/public-link", { "company": company, "quote": quote });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Get quote stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/quotes/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List quote statuses */
-  async statuses(config?: RequestConfig): Promise<unknown> {
-    const path = "/quotes/statuses";
+  async statuses(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/statuses", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Reject a quote */
-  async reject(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}/reject", { "quote": quote });
+  async reject(company: string, quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/reject", { "company": company, "quote": quote });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Send quote by email */
-  async send(quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/quotes/{quote}/send", { "quote": quote });
+  async send(company: string, quote: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/quotes/{quote}/send", { "company": company, "quote": quote });
     return this._send<unknown>("POST", path, body, config);
   }
 }

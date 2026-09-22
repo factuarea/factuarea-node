@@ -11,34 +11,34 @@ import type { Page } from "../core/pagination.js";
 
 export class InvoicesFaceSubmissionsResource extends BaseResource {
   /** List invoice FACe submissions */
-  async list(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/face-submissions", { "invoice": invoice });
+  async list(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/face-submissions", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Submit invoice to FACe */
-  async submit(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/face-submissions", { "invoice": invoice });
+  async submit(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/face-submissions", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }
 
 export class InvoicesQuarterlyResource extends BaseResource {
   /** List quarters with invoices */
-  async available(config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/quarterly/available-quarters";
+  async available(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/quarterly/available-quarters", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Generate quarterly ZIP archive */
-  async downloadZip(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = "/invoices/quarterly/download-zip";
+  async downloadZip(company: string, body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/invoices/quarterly/download-zip", { "company": company });
     return this._binary(path, "POST", undefined, body, config);
   }
 
   /** Email quarterly ZIP to accountant */
-  async sendEmail(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/quarterly/send-email";
+  async sendEmail(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/quarterly/send-email", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 }
@@ -54,283 +54,284 @@ export class InvoicesResource extends BaseResource {
   }
 
   /** Annul an invoice */
-  async annul(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/annul", { "invoice": invoice });
+  async annul(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/annul", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Assign a real invoice number */
-  async assignRealNumber(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/assign-real-number", { "invoice": invoice });
+  async assignRealNumber(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/assign-real-number", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Bulk create invoices */
-  async bulkCreate(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/bulk-create";
+  async bulkCreate(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/bulk-create", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk delete invoices */
-  async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/bulk-delete";
+  async bulkDelete(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/bulk-delete", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk download invoice PDFs */
-  async bulkPdf(body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = "/invoices/bulk-pdf";
+  async bulkPdf(company: string, body?: unknown, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/invoices/bulk-pdf", { "company": company });
     return this._binary(path, "POST", undefined, body, config);
   }
 
   /** Bulk send invoices */
-  async bulkSend(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/bulk-send";
+  async bulkSend(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/bulk-send", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk change invoice status */
-  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/bulk-status";
+  async bulkStatus(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/bulk-status", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Check annulment eligibility */
-  async canAnnul(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/can-annul", { "invoice": invoice });
+  async canAnnul(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/can-annul", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Check simplified invoice eligibility */
-  async simplifiedEligibility(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/simplified-eligibility";
+  async simplifiedEligibility(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/simplified-eligibility", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Generate corrective invoice */
-  async corrective(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/corrective", { "invoice": invoice });
+  async corrective(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/corrective", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Create an invoice */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all invoices */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/invoices", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/invoices", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Force-create VeriFactu record for invoice */
-  async verifactuCreate(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/verifactu", { "invoice": invoice });
+  async verifactuCreate(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/verifactu", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve invoice VeriFactu record */
-  async verifactuGet(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/verifactu", { "invoice": invoice });
+  async verifactuGet(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/verifactu", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Create a recurring invoice from an invoice */
-  async createRecurring(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/create-recurring", { "invoice": invoice });
+  async createRecurring(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/create-recurring", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Delete an invoice */
-  async delete(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}", { "invoice": invoice });
+  async delete(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}", { "company": company, "invoice": invoice });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve an invoice */
-  async show(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}", { "invoice": invoice });
+  async show(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update an invoice */
-  async update(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}", { "invoice": invoice });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}", { "company": company, "invoice": invoice });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Download FacturaE XML */
-  async facturae(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/facturae", { "invoice": invoice });
+  async facturae(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/facturae", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Download invoice PDF */
-  async pdf(invoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/invoices/{invoice}/pdf", { "invoice": invoice });
+  async pdf(company: string, invoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/pdf", { "company": company, "invoice": invoice });
     return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Duplicate an invoice */
-  async duplicate(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/duplicate", { "invoice": invoice });
+  async duplicate(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/duplicate", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Export invoices to a spreadsheet */
-  async exportExcel(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/export/excel";
+  async exportExcel(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/export/excel", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find an invoice by external ID */
-  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/find-by-external-id";
+  async findByExternalId(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/find-by-external-id", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find an invoice by number */
-  async findByNumber(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/find-by-number";
+  async findByNumber(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/find-by-number", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Generate temporary PDF link */
-  async pdfLink(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/pdf-link", { "invoice": invoice });
+  async pdfLink(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/pdf-link", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Retrieve invoice public link */
-  async publicLinkGet(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/public-link", { "invoice": invoice });
+  async publicLinkGet(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/public-link", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update invoice public link */
-  async publicLinkUpdate(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/public-link", { "invoice": invoice });
-    return this._send<unknown>("PUT", path, body, config);
+  async publicLinkUpdate(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/public-link", { "company": company, "invoice": invoice });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Get invoice statistics */
-  async stats(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/stats";
+  async stats(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/stats", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** List invoice activity */
-  async activities(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/activities", { "invoice": invoice });
+  async activities(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/activities", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List corrective invoices */
-  async correctives(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/correctives", { "invoice": invoice });
+  async correctives(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/correctives", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List invoice payments */
-  async paymentsList(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/payments", { "invoice": invoice });
+  async paymentsList(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/payments", { "company": company, "invoice": invoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Register a payment */
-  async paymentsCreate(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/payments", { "invoice": invoice });
+  async paymentsCreate(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/payments", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List invoice statuses */
-  async statuses(config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/statuses";
+  async statuses(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/statuses", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Mark invoice as paid */
-  async markPaid(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/mark-paid", { "invoice": invoice });
+  async markPaid(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/mark-paid", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Mark an invoice as sent */
-  async markSent(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/mark-sent", { "invoice": invoice });
+  async markSent(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/mark-sent", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Preview an invoice draft PDF */
-  async pdfPreview(invoice: string, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/invoices/{invoice}/pdf/preview", { "invoice": invoice });
+  async pdfPreview(company: string, invoice: string, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/pdf/preview", { "company": company, "invoice": invoice });
     return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Preview a payment reminder email */
-  async reminderPreview(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/reminder-preview", { "invoice": invoice });
+  async reminderPreview(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/reminder-preview", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Download payment receipt PDF */
-  async paymentReceipt(invoice: string, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/invoices/{invoice}/payment-receipt", { "invoice": invoice });
+  async paymentReceipt(company: string, invoice: string, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/payment-receipt", { "company": company, "invoice": invoice });
     return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Reschedule an invoice */
-  async reschedule(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/reschedule", { "invoice": invoice });
+  async reschedule(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/reschedule", { "company": company, "invoice": invoice });
     return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Revert an invoice payment */
-  async paymentsRevert(invoice: string, payment: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/payments/{payment}/reversal", { "invoice": invoice, "payment": payment });
+  async paymentsRevert(company: string, invoice: string, payment: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/payments/{payment}/reversal", { "company": company, "invoice": invoice, "payment": payment });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Schedule an invoice */
-  async schedule(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/schedule", { "invoice": invoice });
+  async schedule(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/schedule", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Send invoice by email */
-  async send(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/send", { "invoice": invoice });
+  async send(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/send", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Send a payment reminder */
-  async sendReminder(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/send-reminder", { "invoice": invoice });
+  async sendReminder(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/send-reminder", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Substitute simplified invoices with full invoice */
-  async substituteSimplified(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/invoices/substitute-simplified";
+  async substituteSimplified(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/substitute-simplified", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Unschedule an invoice */
-  async unschedule(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/unschedule", { "invoice": invoice });
+  async unschedule(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/unschedule", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Unsend an invoice */
-  async unsend(invoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/unsend", { "invoice": invoice });
+  async unsend(company: string, invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/unsend", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Void an invoice */
-  async void(invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/invoices/{invoice}/void", { "invoice": invoice });
+  async void(company: string, invoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/invoices/{invoice}/void", { "company": company, "invoice": invoice });
     return this._send<unknown>("POST", path, body, config);
   }
 }

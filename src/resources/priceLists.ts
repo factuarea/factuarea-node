@@ -11,32 +11,32 @@ import type { Page } from "../core/pagination.js";
 
 export class PriceListsItemsResource extends BaseResource {
   /** Delete a price list item */
-  async delete(priceList: string, item: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/price-lists/{priceList}/items/{item}", { "priceList": priceList, "item": item });
+  async delete(company: string, priceList: string, item: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}/items/{item}", { "company": company, "priceList": priceList, "item": item });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** List price list items */
-  async list(priceList: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/price-lists/{priceList}/items", { "priceList": priceList });
+  async list(company: string, priceList: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}/items", { "company": company, "priceList": priceList });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Upsert a price list item */
-  async upsert(priceList: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/price-lists/{priceList}/items", { "priceList": priceList });
+  async upsert(company: string, priceList: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}/items", { "company": company, "priceList": priceList });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Permanently delete a retired price list item */
-  async purgeRetired(priceList: string, item: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/price-lists/{priceList}/items/{item}/purge", { "priceList": priceList, "item": item });
+  async purgeRetired(company: string, priceList: string, item: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}/items/{item}/purge", { "company": company, "priceList": priceList, "item": item });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Reassign a retired price list item */
-  async reassignRetired(priceList: string, item: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/price-lists/{priceList}/items/{item}/reassign", { "priceList": priceList, "item": item });
+  async reassignRetired(company: string, priceList: string, item: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}/items/{item}/reassign", { "company": company, "priceList": priceList, "item": item });
     return this._send<unknown>("POST", path, body, config);
   }
 }
@@ -50,49 +50,50 @@ export class PriceListsResource extends BaseResource {
   }
 
   /** Create a price list */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/price-lists";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List price lists */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/price-lists", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/price-lists", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a price list */
-  async delete(priceList: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/price-lists/{priceList}", { "priceList": priceList });
+  async delete(company: string, priceList: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}", { "company": company, "priceList": priceList });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a price list */
-  async show(priceList: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/price-lists/{priceList}", { "priceList": priceList });
+  async show(company: string, priceList: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}", { "company": company, "priceList": priceList });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a price list */
-  async update(priceList: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/price-lists/{priceList}", { "priceList": priceList });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, priceList: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/{priceList}", { "company": company, "priceList": priceList });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** List active price list options */
-  async options(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/price-lists/options";
+  async options(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/options", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** Resolve a catalog price */
-  async resolve(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/price-lists/resolve";
+  async resolve(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/resolve", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Resolve many catalog prices */
-  async resolveMany(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/price-lists/resolve-many";
+  async resolveMany(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/price-lists/resolve-many", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 }

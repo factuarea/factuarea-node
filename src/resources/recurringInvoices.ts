@@ -11,103 +11,110 @@ import type { Page } from "../core/pagination.js";
 
 export class RecurringInvoicesResource extends BaseResource {
   /** Activate recurring invoice */
-  async activate(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/activate", { "recurring_invoice": recurringInvoice });
+  async activate(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/activate", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Bulk delete recurring invoices */
-  async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/recurring_invoices/bulk-delete";
+  async bulkDelete(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/bulk-delete", { "company": company });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Bulk change recurring invoice status */
+  async bulkStatus(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/bulk-status", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Cancel recurring invoice */
-  async cancel(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/cancel", { "recurring_invoice": recurringInvoice });
+  async cancel(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/cancel", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Create a recurring invoice */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/recurring_invoices";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all recurring invoices */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/recurring_invoices", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a recurring invoice */
-  async delete(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}", { "recurring_invoice": recurringInvoice });
+  async delete(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a recurring invoice */
-  async show(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}", { "recurring_invoice": recurringInvoice });
+  async show(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}", { "company": company, "recurring_invoice": recurringInvoice });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a recurring invoice */
-  async update(recurringInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}", { "recurring_invoice": recurringInvoice });
+  async update(company: string, recurringInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("PUT", path, body, config);
   }
 
   /** Find a recurring invoice by external ID */
-  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/recurring_invoices/find-by-external-id";
+  async findByExternalId(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/find-by-external-id", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Generate an invoice from a recurring template */
-  async generate(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/generate", { "recurring_invoice": recurringInvoice });
+  async generate(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/generate", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve recurring invoice stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/recurring_invoices/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List recurring invoice activity */
-  async activities(recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/activities", { "recurring_invoice": recurringInvoice });
+  async activities(company: string, recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/activities", { "company": company, "recurring_invoice": recurringInvoice });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** List recurring invoice execution logs */
-  async logs(recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/logs", { "recurring_invoice": recurringInvoice });
+  async logs(company: string, recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/logs", { "company": company, "recurring_invoice": recurringInvoice });
     return this._paginate<unknown>(path, params, "cursor", config);
   }
 
   /** Pause recurring invoice */
-  async pause(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/pause", { "recurring_invoice": recurringInvoice });
+  async pause(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/pause", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Preview upcoming recurring invoice dates */
-  async preview(recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/preview", { "recurring_invoice": recurringInvoice });
+  async preview(company: string, recurringInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/preview", { "company": company, "recurring_invoice": recurringInvoice });
     return this._get<unknown>(path, params, config);
   }
 
   /** Resume recurring invoice */
-  async resume(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/resume", { "recurring_invoice": recurringInvoice });
+  async resume(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/resume", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Skip the next recurring invoice generation */
-  async skip(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/recurring_invoices/{recurring_invoice}/skip", { "recurring_invoice": recurringInvoice });
+  async skip(company: string, recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}/skip", { "company": company, "recurring_invoice": recurringInvoice });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

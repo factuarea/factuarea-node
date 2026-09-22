@@ -11,14 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class AutomationsRulesVersionsResource extends BaseResource {
   /** List the versions of an automation rule */
-  async list(rule: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/automations/rules/{rule}/versions", { "rule": rule });
+  async list(company: string, rule: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}/versions", { "company": company, "rule": rule });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve a version of an automation rule */
-  async show(rule: string, version: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/rules/{rule}/versions/{version}", { "rule": rule, "version": version });
+  async show(company: string, rule: string, version: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}/versions/{version}", { "company": company, "rule": rule, "version": version });
     return this._get<unknown>(path, undefined, config);
   }
 }
@@ -32,85 +32,86 @@ export class AutomationsRulesResource extends BaseResource {
   }
 
   /** Activate an automation rule */
-  async activate(rule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/rules/{rule}/activate", { "rule": rule });
+  async activate(company: string, rule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}/activate", { "company": company, "rule": rule });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Create an automation rule */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/automations/rules";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List your automation rules */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/automations/rules", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/automations/rules", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete an automation rule */
-  async delete(rule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/rules/{rule}", { "rule": rule });
+  async delete(company: string, rule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}", { "company": company, "rule": rule });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve an automation rule */
-  async show(rule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/rules/{rule}", { "rule": rule });
+  async show(company: string, rule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}", { "company": company, "rule": rule });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update an automation rule */
-  async update(rule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/rules/{rule}", { "rule": rule });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, rule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}", { "company": company, "rule": rule });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Dry-run an automation rule */
-  async dryRun(rule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/rules/{rule}/dry_run", { "rule": rule });
+  async dryRun(company: string, rule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}/dry-run", { "company": company, "rule": rule });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Pause an automation rule */
-  async pause(rule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/rules/{rule}/pause", { "rule": rule });
+  async pause(company: string, rule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/rules/{rule}/pause", { "company": company, "rule": rule });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }
 
 export class AutomationsCatalogResource extends BaseResource {
   /** Retrieve the automation catalog */
-  async show(config?: RequestConfig): Promise<unknown> {
-    const path = "/automations/catalog";
+  async show(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/catalog", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Retrieve the evaluable fields of a trigger */
-  async triggerFields(trigger: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/catalog/triggers/{trigger}/fields", { "trigger": trigger });
+  async triggerFields(company: string, trigger: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/catalog/triggers/{trigger}/fields", { "company": company, "trigger": trigger });
     return this._get<unknown>(path, undefined, config);
   }
 }
 
 export class AutomationsUsageResource extends BaseResource {
   /** Retrieve automation usage */
-  async show(config?: RequestConfig): Promise<unknown> {
-    const path = "/automations/usage";
+  async show(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/usage", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 }
 
 export class AutomationsRunsStepsResource extends BaseResource {
   /** List the steps of an automation run */
-  async list(run: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/automations/runs/{run}/steps", { "run": run });
+  async list(company: string, run: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/automations/runs/{run}/steps", { "company": company, "run": run });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Replay one step of an automation run */
-  async replay(run: string, stepIndex: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/runs/{run}/steps/{step_index}/replay", { "run": run, "step_index": stepIndex });
+  async replay(company: string, run: string, stepIndex: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/runs/{run}/steps/{step_index}/replay", { "company": company, "run": run, "step_index": stepIndex });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }
@@ -124,19 +125,20 @@ export class AutomationsRunsResource extends BaseResource {
   }
 
   /** List automation runs */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/automations/runs", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/automations/runs", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Replay the parked steps of an automation run */
-  async replay(run: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/runs/{run}/replay", { "run": run });
+  async replay(company: string, run: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/runs/{run}/replay", { "company": company, "run": run });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve an automation run */
-  async show(run: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/automations/runs/{run}", { "run": run });
+  async show(company: string, run: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/automations/runs/{run}", { "company": company, "run": run });
     return this._get<unknown>(path, undefined, config);
   }
 }

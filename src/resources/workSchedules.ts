@@ -11,67 +11,68 @@ import type { Page } from "../core/pagination.js";
 
 export class WorkSchedulesResource extends BaseResource {
   /** Archive a work schedule */
-  async archive(schedule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/{schedule}/archive", { "schedule": schedule });
+  async archive(company: string, schedule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/{schedule}/archive", { "company": company, "schedule": schedule });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Assign a schedule to an employee */
-  async assign(schedule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/{schedule}/assign", { "schedule": schedule });
+  async assign(company: string, schedule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/{schedule}/assign", { "company": company, "schedule": schedule });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Create a work schedule */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/work-schedules";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all work schedules */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/work-schedules", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/work-schedules", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Get an employee’s current schedule */
-  async employeeSchedule(employee: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/employee/{employee}", { "employee": employee });
+  async employeeSchedule(company: string, employee: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/employee/{employee}", { "company": company, "employee": employee });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Get work schedule stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/work-schedules/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List a schedule’s assignments */
-  async assignments(schedule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/{schedule}/assignments", { "schedule": schedule });
+  async assignments(company: string, schedule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/{schedule}/assignments", { "company": company, "schedule": schedule });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Retrieve a work schedule */
-  async show(schedule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/{schedule}", { "schedule": schedule });
+  async show(company: string, schedule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/{schedule}", { "company": company, "schedule": schedule });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a work schedule */
-  async update(schedule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/{schedule}", { "schedule": schedule });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, schedule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/{schedule}", { "company": company, "schedule": schedule });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Unarchive a work schedule */
-  async unarchive(schedule: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/{schedule}/unarchive", { "schedule": schedule });
+  async unarchive(company: string, schedule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/{schedule}/unarchive", { "company": company, "schedule": schedule });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Unassign a schedule from an employee */
-  async unassign(schedule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/work-schedules/{schedule}/unassign", { "schedule": schedule });
+  async unassign(company: string, schedule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/work-schedules/{schedule}/unassign", { "company": company, "schedule": schedule });
     return this._send<unknown>("POST", path, body, config);
   }
 }

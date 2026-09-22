@@ -11,73 +11,74 @@ import type { Page } from "../core/pagination.js";
 
 export class SeriesResource extends BaseResource {
   /** Archive a series */
-  async archive(series: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/series/{series}/archive", { "series": series });
+  async archive(company: string, series: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/{series}/archive", { "company": company, "series": series });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Bootstrap the default series of a company */
-  async bootstrap(config?: RequestConfig): Promise<unknown> {
-    const path = "/series/bootstrap";
+  async bootstrap(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/bootstrap", { "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Create a series */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/series";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all series */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/series", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/series", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Find a series by code */
-  async findByCode(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/series/find-by-code";
+  async findByCode(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/find-by-code", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Get the default series for a document type */
-  async default(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/series/default";
+  async default(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/default", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** List series activity timeline */
-  async activities(series: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/series/{series}/activities", { "series": series });
+  async activities(company: string, series: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/series/{series}/activities", { "company": company, "series": series });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Get series stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/series/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List active series by document type */
-  async active(config?: RequestConfig): Promise<unknown> {
-    const path = "/series/active";
+  async active(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/active", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Mark a series as default for its type */
-  async setDefault(series: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/series/{series}/default", { "series": series });
+  async setDefault(company: string, series: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/{series}/default", { "company": company, "series": series });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve a series */
-  async show(series: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/series/{series}", { "series": series });
+  async show(company: string, series: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/{series}", { "company": company, "series": series });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Unarchive a series */
-  async unarchive(series: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/series/{series}/unarchive", { "series": series });
+  async unarchive(company: string, series: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/series/{series}/unarchive", { "company": company, "series": series });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }
