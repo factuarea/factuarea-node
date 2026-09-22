@@ -20060,10 +20060,7 @@ export type PublicApiV1AccountClaimTokensAcceptData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta RECEPTORA, YA resuelto y
-         * comparado contra la cuenta de la credencial por el
-         * middleware del eje de cuenta. Es el PRIMER parámetro escalar
-         * y el único de esta operación; aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -20125,7 +20122,13 @@ export type PublicApiV1ProformasAcceptData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -20186,7 +20189,13 @@ export type PublicApiV1QuotesAcceptData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -20247,7 +20256,13 @@ export type PublicApiV1AutomationsRulesActivateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
     };
     query?: never;
@@ -20309,9 +20324,7 @@ export type PublicApiV1CompaniesActivateBatchData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -20377,7 +20390,13 @@ export type PublicApiV1VerifactuCertificatesActivateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu certificate, as returned in `id` by its list and detail responses.
+         */
         certificate: string;
     };
     query?: never;
@@ -20439,14 +20458,11 @@ export type PublicApiV1CompaniesActivateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la empresa (UUID v7), cuyo guard
-         * de pertenencia al ámbito administrable aplica el Command.
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -20512,7 +20528,13 @@ export type PublicApiV1RecurringInvoicesActivateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -20570,10 +20592,7 @@ export type PublicApiV1AccountMembersListData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -20633,9 +20652,7 @@ export type PublicApiV1AccountMembersCreateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -20697,7 +20714,13 @@ export type PublicApiV1InvoicesAnnulData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -20758,7 +20781,13 @@ export type PublicApiV1AbsenceRequestsApproveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         */
         absence_request: string;
     };
     query?: never;
@@ -20819,7 +20848,13 @@ export type PublicApiV1TimeCorrectionsApproveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the time correction request, as returned in `id` by its list and detail responses.
+         */
         time_correction: string;
     };
     query?: never;
@@ -20880,7 +20915,13 @@ export type PublicApiV1AbsencePoliciesArchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -20937,7 +20978,13 @@ export type PublicApiV1AbsenceTypesArchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         */
         absence_type: string;
     };
     query?: never;
@@ -20994,7 +21041,13 @@ export type PublicApiV1ContactsArchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -21058,7 +21111,13 @@ export type PublicApiV1SeriesArchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         */
         series: string;
     };
     query?: never;
@@ -21116,7 +21175,13 @@ export type PublicApiV1WorkSchedulesArchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         */
         schedule: string;
     };
     query?: never;
@@ -21173,7 +21238,13 @@ export type PublicApiV1AbsencePoliciesAssignData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -21234,11 +21305,23 @@ export type PublicApiV1ContactsRemoveContactRoleData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
+        /**
+         * Contact role key: `customer`, `supplier` or `lead`.
+         */
         role: string;
     };
     query: {
+        /**
+         * Role to remove: `customer`, `supplier` or `lead`. It is always read from the `{role}` path segment, so you do not need to repeat it here; a value sent as a query parameter is ignored.
+         */
         role: 'customer' | 'supplier' | 'lead';
     };
     url: '/companies/{company}/contacts/{contact}/roles/{role}';
@@ -21305,8 +21388,17 @@ export type PublicApiV1ContactsAssignContactRoleData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
+        /**
+         * Contact role key: `customer`, `supplier` or `lead`.
+         */
         role: string;
     };
     query?: never;
@@ -21374,7 +21466,13 @@ export type PublicApiV1InvoicesAssignRealNumberData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -21435,7 +21533,13 @@ export type PublicApiV1WorkSchedulesAssignData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         */
         schedule: string;
     };
     query?: never;
@@ -21496,7 +21600,13 @@ export type PublicApiV1PurchaseInvoicesAttachFileData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -21561,6 +21671,9 @@ export type PublicApiV1SeriesBootstrapData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -21617,6 +21730,9 @@ export type PublicApiV1ContactsBulkArchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -21684,6 +21800,9 @@ export type PublicApiV1ContactsBulkChangeContactRoleStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -21751,6 +21870,9 @@ export type PublicApiV1ContactsBulkCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -21815,6 +21937,9 @@ export type PublicApiV1InvoicesBulkCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -21875,6 +22000,9 @@ export type PublicApiV1ContactsBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -21942,6 +22070,9 @@ export type PublicApiV1DeliveryNotesBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22002,6 +22133,9 @@ export type PublicApiV1InvoicesBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22062,6 +22196,9 @@ export type PublicApiV1ProductsBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22122,6 +22259,9 @@ export type PublicApiV1ProformasBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22182,6 +22322,9 @@ export type PublicApiV1PurchaseInvoicesBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22242,6 +22385,9 @@ export type PublicApiV1QuotesBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22302,6 +22448,9 @@ export type PublicApiV1RecurringInvoicesBulkDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22362,6 +22511,9 @@ export type PublicApiV1DeliveryNotesBulkPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22424,6 +22576,9 @@ export type PublicApiV1InvoicesBulkPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22486,6 +22641,9 @@ export type PublicApiV1ProformasBulkPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22548,6 +22706,9 @@ export type PublicApiV1QuotesBulkPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22610,6 +22771,9 @@ export type PublicApiV1DeliveryNotesBulkSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22670,6 +22834,9 @@ export type PublicApiV1InvoicesBulkSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22730,6 +22897,9 @@ export type PublicApiV1ProformasBulkSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22790,6 +22960,9 @@ export type PublicApiV1QuotesBulkSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22850,6 +23023,9 @@ export type PublicApiV1DeliveryNotesBulkStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22910,6 +23086,9 @@ export type PublicApiV1InvoicesBulkStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -22970,6 +23149,9 @@ export type PublicApiV1ProductsBulkStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23030,6 +23212,9 @@ export type PublicApiV1ProformasBulkStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23090,6 +23275,9 @@ export type PublicApiV1PurchaseInvoicesBulkStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23150,6 +23338,9 @@ export type PublicApiV1QuotesBulkStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23210,6 +23401,9 @@ export type PublicApiV1RecurringInvoicesBulkStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23270,6 +23464,9 @@ export type PublicApiV1ProductsBulkUpdateStockData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23329,6 +23526,9 @@ export type PublicApiV1TaxesCalculateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23381,6 +23581,9 @@ export type PublicApiV1TaxesCalculateTotalsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -23433,7 +23636,13 @@ export type PublicApiV1InvoicesCanAnnulData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -23486,7 +23695,13 @@ export type PublicApiV1AbsenceRequestsCancelData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         */
         absence_request: string;
     };
     query?: never;
@@ -23544,14 +23759,11 @@ export type PublicApiV1AccountInvitationsCancelData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público opaco de la invitación. NO se
-         * resuelve aquí: lo localiza el manejador dentro del ámbito.
+         * Public identifier (UUID v7) of the account invitation, as returned in `id` by its list and detail responses.
          */
         invitation: string;
     };
@@ -23610,7 +23822,13 @@ export type PublicApiV1DeliveryNotesCancelData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -23671,7 +23889,13 @@ export type PublicApiV1EmployeeInvitationsCancelData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee invitation, as returned in `id` by its list and detail responses.
+         */
         invitation: string;
     };
     query?: never;
@@ -23730,9 +23954,7 @@ export type PublicApiV1EmployeeSeatsCancelData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -23794,7 +24016,13 @@ export type PublicApiV1FaceSubmissionsCancelData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the FACe submission, as returned in `id` by its list and detail responses.
+         */
         faceSubmission: string;
     };
     query?: never;
@@ -23855,7 +24083,13 @@ export type PublicApiV1RecurringInvoicesCancelData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -23917,14 +24151,11 @@ export type PublicApiV1AccountMembersDeleteData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público del miembro (la PERSONA, no una fila de
-         * pertenencia).
+         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
          */
         member: string;
     };
@@ -23988,14 +24219,11 @@ export type PublicApiV1AccountMembersUpdateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público del miembro (la PERSONA, no una fila de
-         * pertenencia).
+         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
          */
         member: string;
     };
@@ -24057,8 +24285,17 @@ export type PublicApiV1ContactsChangeContactRoleStatusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
+        /**
+         * Contact role key: `customer`, `supplier` or `lead`.
+         */
         role: string;
     };
     query?: never;
@@ -24127,9 +24364,7 @@ export type PublicApiV1EmployeeSeatsChangeQuantityData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -24187,6 +24422,9 @@ export type PublicApiV1InvoicesSimplifiedEligibilityData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -24239,7 +24477,13 @@ export type PublicApiV1TaxesIsInUseData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         */
         tax: string;
     };
     query?: never;
@@ -24296,6 +24540,9 @@ export type PublicApiV1TimeEntriesClockInData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -24356,6 +24603,9 @@ export type PublicApiV1TimeEntriesClockOutData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -24412,6 +24662,9 @@ export type PublicApiV1MonthlyTimeRecordClosesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -24481,6 +24734,9 @@ export type PublicApiV1MonthlyTimeRecordClosesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -24541,7 +24797,13 @@ export type PublicApiV1AbsencePoliciesCarryoverData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -24598,6 +24860,9 @@ export type PublicApiV1StoresIndexData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -24606,11 +24871,11 @@ export type PublicApiV1StoresIndexData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -24665,6 +24930,9 @@ export type PublicApiV1StoresCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -24725,7 +24993,13 @@ export type PublicApiV1DeliveryNotesConvertData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -24786,7 +25060,13 @@ export type PublicApiV1ProformasConvertData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -24847,7 +25127,13 @@ export type PublicApiV1QuotesConvertData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -24904,6 +25190,9 @@ export type PublicApiV1AbsencePoliciesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -24912,11 +25201,11 @@ export type PublicApiV1AbsencePoliciesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -24993,6 +25282,9 @@ export type PublicApiV1AbsencePoliciesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -25049,6 +25341,9 @@ export type PublicApiV1AbsenceRequestsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -25077,11 +25372,11 @@ export type PublicApiV1AbsenceRequestsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -25138,6 +25433,9 @@ export type PublicApiV1AbsenceRequestsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -25194,6 +25492,9 @@ export type PublicApiV1AbsenceTypesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -25202,11 +25503,11 @@ export type PublicApiV1AbsenceTypesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -25283,6 +25584,9 @@ export type PublicApiV1AbsenceTypesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -25340,16 +25644,13 @@ export type PublicApiV1AccountClaimTokensListData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Es el PRIMER parámetro escalar y el único de esta
-         * operación; aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
     query?: {
         /**
-         * Estado del vale por el que filtrar: active, expired o consumed.
+         * Only claim tokens in this status: `active`, `expired` or `consumed`.
          */
         status?: 'active' | 'expired' | 'consumed';
     };
@@ -25408,10 +25709,7 @@ export type PublicApiV1AccountClaimTokensCreateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Es el PRIMER parámetro escalar y el único de esta
-         * operación; aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -25470,10 +25768,7 @@ export type PublicApiV1AccountApiKeysListData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -25529,11 +25824,7 @@ export type PublicApiV1AccountApiKeysCreateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: el alta cuelga de la
-         * cuenta que el handler deriva de la empresa emisora, que es la
-         * misma por construcción.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -25591,6 +25882,9 @@ export type PublicApiV1AutomationsRulesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -25599,11 +25893,11 @@ export type PublicApiV1AutomationsRulesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -25692,6 +25986,9 @@ export type PublicApiV1AutomationsRulesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -25748,34 +26045,91 @@ export type PublicApiV1ContactsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number | null;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
+        /**
+         * Free-text search (up to 255 characters): partial, case-insensitive match against the name, commercial name, tax identifiers, email and external ID of the contact, and against its phone numbers when the term is numeric. Combined with the other filters (AND).
+         */
         search?: string | null;
+        /**
+         * Only contacts with these roles: `customer`, `supplier`, `lead` or `unassigned` (no role at all). Repeat the parameter or send a comma-separated list; combine it with `role_match` and `role_status`.
+         */
         'roles[]'?: 'customer' | 'supplier' | 'lead' | 'unassigned';
+        /**
+         * `any` (default) returns contacts with at least one of the requested `roles[]`; `all` requires every one of them.
+         */
         role_match?: 'any' | 'all' | null;
+        /**
+         * Only roles in this status: `active` or `inactive`. Applies to the requested `roles[]`, or to any role when none is requested.
+         */
         role_status?: 'active' | 'inactive' | null;
+        /**
+         * Contact kind: `person` (an individual) or `company` (a legal entity).
+         */
         kind?: 'person' | 'company' | null;
+        /**
+         * Exact match on any tax identifier of the contact: its tax ID (NIF/NIE/CIF), its EU VAT number or its alternative identification document.
+         */
         fiscal_identity?: string | null;
+        /**
+         * Exact match on `external_id`, the identifier you assigned in your own system.
+         */
         external_id?: string | null;
+        /**
+         * Only contacts carrying ALL these tags (case-insensitive). Repeat the parameter or send a comma-separated list; up to 50 tags.
+         */
         'tags[]'?: Array<string>;
+        /**
+         * `true` returns only archived contacts and `false` only the ones not archived. Omit it to return both.
+         */
         is_archived?: boolean | null;
         /**
-         * Coincidencia exacta de ciudad y provincia; país ISO 3166-1 alpha-2 exacto.
+         * City name; exact match (surrounding and repeated whitespace is ignored).
          */
         city?: string | null;
+        /**
+         * Province name; exact match (surrounding and repeated whitespace is ignored).
+         */
         province?: string | null;
+        /**
+         * ISO 3166-1 alpha-2 country code (e.g. `ES`); exact match.
+         */
         country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+        /**
+         * `true` returns only contacts with an email address and `false` only the ones without it.
+         */
         has_email?: boolean | null;
         /**
-         * Verdadero si hay teléfono fijo O móvil; falso si ambos están vacíos.
+         * `true` returns only contacts with a landline or mobile phone number and `false` only the ones with neither.
          */
         has_phone?: boolean | null;
+        /**
+         * Only records created on or after this date (`YYYY-MM-DD`, inclusive).
+         */
         created_from?: string | null;
+        /**
+         * Only records created on or before this date (`YYYY-MM-DD`, inclusive). Must not be earlier than `created_from`.
+         */
         created_to?: string | null;
+        /**
+         * Filter by metadata as `metadata[key]=value` (exact match); when several pairs are sent, all of them must match. Up to 20 pairs.
+         */
         'metadata[]'?: Array<string>;
+        /**
+         * Sort direction by creation order: `asc` (default, oldest first) or `desc`.
+         */
         sort_order?: 'asc' | 'desc' | null;
     };
     url: '/companies/{company}/contacts';
@@ -25833,6 +26187,9 @@ export type PublicApiV1ContactsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -25897,7 +26254,13 @@ export type PublicApiV1InvoicesCorrectiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -25958,6 +26321,9 @@ export type PublicApiV1DeliveryNotesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -25966,11 +26332,11 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -26173,6 +26539,9 @@ export type PublicApiV1DeliveryNotesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -26232,6 +26601,9 @@ export type PublicApiV1EmployeesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -26240,11 +26612,11 @@ export type PublicApiV1EmployeesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -26329,6 +26701,9 @@ export type PublicApiV1EmployeesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -26389,21 +26764,30 @@ export type PublicApiV1InvoicesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Public identifier (UUID v7) of an original invoice: returns the corrective invoices that rectify it. An unknown identifier returns an empty page.
+         */
         original_invoice_id?: string | null;
+        /**
+         * VeriFactu status of the invoice: `no_verifactu` (no VeriFactu record), `pending` (queued or submitted to the AEAT), `accepted` or `rejected` (rejected or failed).
+         */
         verifactu_status?: 'no_verifactu' | 'pending' | 'accepted' | 'rejected' | null;
         /**
          * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -26582,6 +26966,9 @@ export type PublicApiV1InvoicesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -26641,7 +27028,13 @@ export type PublicApiV1InvoicesVerifactuGetData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -26698,7 +27091,13 @@ export type PublicApiV1InvoicesVerifactuCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -26758,13 +27157,31 @@ export type PublicApiV1PriceListsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Page number (starting at 1) for page-based navigation. Ignored when `starting_after` is sent, which takes precedence.
+         */
         page?: number;
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 20.
+         */
         limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
+        /**
+         * Partial match against the price list name (up to 120 characters).
+         */
         search?: string;
+        /**
+         * Only price lists in this status: `active` or `inactive`.
+         */
         status?: 'active' | 'inactive';
     };
     url: '/companies/{company}/price-lists';
@@ -26818,6 +27235,9 @@ export type PublicApiV1PriceListsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -26874,6 +27294,9 @@ export type PublicApiV1ProductsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -26882,11 +27305,11 @@ export type PublicApiV1ProductsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -27025,6 +27448,9 @@ export type PublicApiV1ProductsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -27084,12 +27510,27 @@ export type PublicApiV1ProductsPresentationsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
+        /**
+         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         */
         active?: boolean;
     };
     url: '/companies/{company}/products/{product}/presentations';
@@ -27145,7 +27586,13 @@ export type PublicApiV1ProductsPresentationsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -27202,12 +27649,27 @@ export type PublicApiV1ProductsVariantsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
+        /**
+         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         */
         active?: boolean;
     };
     url: '/companies/{company}/products/{product}/variants';
@@ -27263,7 +27725,13 @@ export type PublicApiV1ProductsVariantsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -27320,6 +27788,9 @@ export type PublicApiV1ProformasListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -27328,11 +27799,11 @@ export type PublicApiV1ProformasListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -27475,6 +27946,9 @@ export type PublicApiV1ProformasCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -27534,6 +28008,9 @@ export type PublicApiV1PurchaseInvoicesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -27542,11 +28019,11 @@ export type PublicApiV1PurchaseInvoicesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -27705,6 +28182,9 @@ export type PublicApiV1PurchaseInvoicesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -27764,6 +28244,9 @@ export type PublicApiV1QuotesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -27772,11 +28255,11 @@ export type PublicApiV1QuotesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -27935,6 +28418,9 @@ export type PublicApiV1QuotesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -27998,7 +28484,13 @@ export type PublicApiV1InvoicesCreateRecurringData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -28058,6 +28550,9 @@ export type PublicApiV1RecurringInvoicesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -28066,11 +28561,11 @@ export type PublicApiV1RecurringInvoicesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -28197,6 +28692,9 @@ export type PublicApiV1RecurringInvoicesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -28256,6 +28754,9 @@ export type PublicApiV1SeriesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -28264,11 +28765,11 @@ export type PublicApiV1SeriesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -28333,6 +28834,9 @@ export type PublicApiV1SeriesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -28392,15 +28896,39 @@ export type PublicApiV1ProductsSupplierOffersListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
+        /**
+         * Supplier ID (UUID v7). Exact match on `supplier_id`.
+         */
         supplier_id?: string;
+        /**
+         * Only records for this product variant (UUID v7).
+         */
         variant_id?: string;
+        /**
+         * Only offers with this availability: `available`, `unavailable`, `unknown`, `seasonal` or `store_dependent`.
+         */
         availability?: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
+        /**
+         * `true` returns only the preferred offer and `false` only the ones not preferred.
+         */
         preferred?: boolean;
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
     };
     url: '/companies/{company}/products/{product}/supplier-offers';
@@ -28456,7 +28984,13 @@ export type PublicApiV1ProductsSupplierOffersCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -28513,6 +29047,9 @@ export type PublicApiV1TaxesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -28521,11 +29058,11 @@ export type PublicApiV1TaxesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -28638,6 +29175,9 @@ export type PublicApiV1TaxesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -28697,6 +29237,9 @@ export type PublicApiV1WebhookEndpointsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -28705,11 +29248,11 @@ export type PublicApiV1WebhookEndpointsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -28766,6 +29309,9 @@ export type PublicApiV1WebhookEndpointsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -28829,6 +29375,9 @@ export type PublicApiV1WorkSchedulesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -28837,11 +29386,11 @@ export type PublicApiV1WorkSchedulesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -28918,6 +29467,9 @@ export type PublicApiV1WorkSchedulesCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -28979,14 +29531,11 @@ export type PublicApiV1CompaniesDeactivateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la empresa (UUID v7), cuyo guard
-         * de pertenencia al ámbito administrable aplica el Command.
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -29044,7 +29593,13 @@ export type PublicApiV1EmployeesDeactivateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         */
         employee: string;
     };
     query?: never;
@@ -29105,7 +29660,13 @@ export type PublicApiV1AutomationsRulesDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
     };
     query?: never;
@@ -29163,7 +29724,13 @@ export type PublicApiV1AutomationsRulesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
     };
     query?: never;
@@ -29216,7 +29783,13 @@ export type PublicApiV1AutomationsRulesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
     };
     query?: never;
@@ -29277,7 +29850,13 @@ export type PublicApiV1ContactsDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -29342,7 +29921,13 @@ export type PublicApiV1ContactsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -29402,7 +29987,13 @@ export type PublicApiV1ContactsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -29471,14 +30062,11 @@ export type PublicApiV1CompaniesDeleteData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la empresa HIJA (UUID v7).
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -29534,14 +30122,11 @@ export type PublicApiV1CompaniesShowData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público del NIF consultado (UUID v7).
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -29596,14 +30181,11 @@ export type PublicApiV1CompaniesUpdateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la empresa HIJA (UUID v7).
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -29665,7 +30247,13 @@ export type PublicApiV1DeliveryNotesDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -29723,7 +30311,13 @@ export type PublicApiV1DeliveryNotesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -29776,7 +30370,13 @@ export type PublicApiV1DeliveryNotesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -29837,7 +30437,13 @@ export type PublicApiV1InvoicesDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -29895,7 +30501,13 @@ export type PublicApiV1InvoicesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -29948,7 +30560,13 @@ export type PublicApiV1InvoicesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -30009,7 +30627,13 @@ export type PublicApiV1PriceListsDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
     };
     query?: never;
@@ -30067,7 +30691,13 @@ export type PublicApiV1PriceListsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
     };
     query?: never;
@@ -30120,7 +30750,13 @@ export type PublicApiV1PriceListsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
     };
     query?: never;
@@ -30181,8 +30817,17 @@ export type PublicApiV1PriceListsItemsDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
+        /**
+         * Public identifier (UUID v7) of the price list item, as returned in `id` by its list and detail responses.
+         */
         item: string;
     };
     query?: never;
@@ -30244,7 +30889,13 @@ export type PublicApiV1ProductsDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -30302,14 +30953,18 @@ export type PublicApiV1ProductsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
         /**
-         * Recursos anidados a incluir, separados por comas. Hoy solo
-         * `configurable_catalog`, que adjunta los grupos de opciones
-         * vendibles y las combinaciones comerciales del producto.
+         * Comma-separated list of related data to embed in the product (up to 200 characters). Currently only `configurable_catalog`, which adds the sellable option groups and the commercial combinations of the product.
          */
         include?: string | null;
     };
@@ -30366,7 +31021,13 @@ export type PublicApiV1ProductsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -30427,8 +31088,17 @@ export type PublicApiV1ProductsGalleryDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Zero-based position of the image in the product `gallery` list (an integer, not a UUID). After a deletion the following images move up one position.
+         */
         index: number;
     };
     query?: never;
@@ -30490,8 +31160,17 @@ export type PublicApiV1ProductsPresentationsDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Public identifier (UUID v7) of the product presentation, as returned in `id` by its list and detail responses.
+         */
         presentation: string;
     };
     query?: never;
@@ -30553,8 +31232,17 @@ export type PublicApiV1ProductsPresentationsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Public identifier (UUID v7) of the product presentation, as returned in `id` by its list and detail responses.
+         */
         presentation: string;
     };
     query?: never;
@@ -30615,8 +31303,17 @@ export type PublicApiV1ProductsVariantsDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Public identifier (UUID v7) of the product variant, as returned in `id` by its list and detail responses.
+         */
         variant: string;
     };
     query?: never;
@@ -30678,8 +31375,17 @@ export type PublicApiV1ProductsVariantsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Public identifier (UUID v7) of the product variant, as returned in `id` by its list and detail responses.
+         */
         variant: string;
     };
     query?: never;
@@ -30740,7 +31446,13 @@ export type PublicApiV1ProductsVideoDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -30798,7 +31510,13 @@ export type PublicApiV1ProductsVideoUploadData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -30859,7 +31577,13 @@ export type PublicApiV1ProformasDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -30917,7 +31641,13 @@ export type PublicApiV1ProformasShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -30970,7 +31700,13 @@ export type PublicApiV1ProformasUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -31031,7 +31767,13 @@ export type PublicApiV1PurchaseInvoicesDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -31089,7 +31831,13 @@ export type PublicApiV1PurchaseInvoicesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -31142,7 +31890,13 @@ export type PublicApiV1PurchaseInvoicesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -31203,7 +31957,13 @@ export type PublicApiV1PurchaseInvoicesDeleteFileData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -31257,7 +32017,13 @@ export type PublicApiV1PurchaseInvoicesFileData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -31308,7 +32074,13 @@ export type PublicApiV1QuotesDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -31366,7 +32138,13 @@ export type PublicApiV1QuotesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -31419,7 +32197,13 @@ export type PublicApiV1QuotesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -31480,7 +32264,13 @@ export type PublicApiV1RecurringInvoicesDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -31538,7 +32328,13 @@ export type PublicApiV1RecurringInvoicesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -31591,7 +32387,13 @@ export type PublicApiV1RecurringInvoicesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -31652,8 +32454,17 @@ export type PublicApiV1ProductsSupplierOffersDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Public identifier (UUID v7) of the supplier offer, as returned in `id` by its list and detail responses.
+         */
         offer: string;
     };
     query?: never;
@@ -31715,8 +32526,17 @@ export type PublicApiV1ProductsSupplierOffersUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Public identifier (UUID v7) of the supplier offer, as returned in `id` by its list and detail responses.
+         */
         offer: string;
     };
     query?: never;
@@ -31777,7 +32597,13 @@ export type PublicApiV1TaxesDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         */
         tax: string;
     };
     query?: never;
@@ -31835,7 +32661,13 @@ export type PublicApiV1TaxesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         */
         tax: string;
     };
     query?: never;
@@ -31888,7 +32720,13 @@ export type PublicApiV1TaxesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         */
         tax: string;
     };
     query?: never;
@@ -31949,7 +32787,13 @@ export type PublicApiV1WebhookEndpointsDeleteData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
     };
     query?: never;
@@ -32007,7 +32851,13 @@ export type PublicApiV1WebhookEndpointsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
     };
     query?: never;
@@ -32060,7 +32910,13 @@ export type PublicApiV1WebhookEndpointsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
     };
     query?: never;
@@ -32121,7 +32977,13 @@ export type PublicApiV1StripeAutoinvoicingAccountsDisconnectData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account, as returned in `id` by its list and detail responses. It is not your Factuarea account.
+         */
         account: string;
     };
     query?: never;
@@ -32179,7 +33041,13 @@ export type PublicApiV1StripeAutoinvoicingAccountsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account, as returned in `id` by its list and detail responses. It is not your Factuarea account.
+         */
         account: string;
     };
     query?: never;
@@ -32232,7 +33100,13 @@ export type PublicApiV1StripeAutoinvoicingAccountsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account, as returned in `id` by its list and detail responses. It is not your Factuarea account.
+         */
         account: string;
     };
     query?: never;
@@ -32293,7 +33167,13 @@ export type PublicApiV1StoresDisconnectData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         */
         store: string;
     };
     query?: never;
@@ -32351,7 +33231,13 @@ export type PublicApiV1StoresShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         */
         store: string;
     };
     query?: never;
@@ -32404,7 +33290,13 @@ export type PublicApiV1StoresUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         */
         store: string;
     };
     query?: never;
@@ -32461,6 +33353,9 @@ export type PublicApiV1ContactsImportTemplateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -32514,7 +33409,13 @@ export type PublicApiV1MonthlyTimeRecordClosesExportData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         */
         monthly_time_record_close: string;
     };
     query?: {
@@ -32570,12 +33471,18 @@ export type PublicApiV1DeliveryNotesPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: {
         /**
-         * Cuando es truthy (`1`/`true`), fuerza `Content-Disposition: attachment` (descarga de fichero) en lugar de `inline`.
+         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
          */
         download?: string;
     };
@@ -32625,7 +33532,13 @@ export type PublicApiV1InvoicesFacturaeData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -32676,10 +33589,19 @@ export type PublicApiV1InvoicesPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: {
+        /**
+         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
+         */
         download?: string;
     };
     url: '/companies/{company}/invoices/{invoice}/pdf';
@@ -32725,7 +33647,13 @@ export type PublicApiV1MonthlyTimeRecordClosesPayrollExportData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         */
         monthly_time_record_close: string;
     };
     query?: {
@@ -32781,8 +33709,17 @@ export type PublicApiV1ProductsGalleryDownloadData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Zero-based position of the image in the product `gallery` list (an integer, not a UUID). After a deletion the following images move up one position.
+         */
         index: number;
     };
     query?: never;
@@ -32829,7 +33766,13 @@ export type PublicApiV1ProductsVideoDownloadData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -32876,10 +33819,19 @@ export type PublicApiV1ProformasPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: {
+        /**
+         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
+         */
         download?: string;
     };
     url: '/companies/{company}/proformas/{proforma}/pdf';
@@ -32929,7 +33881,13 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -32976,10 +33934,19 @@ export type PublicApiV1QuotesPdfData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: {
+        /**
+         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
+         */
         download?: string;
     };
     url: '/companies/{company}/quotes/{quote}/pdf';
@@ -33029,7 +33996,13 @@ export type PublicApiV1TaxReportsDownloadData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax report, as returned in `id` by its list and detail responses.
+         */
         tax_report: string;
     };
     query?: never;
@@ -33076,7 +34049,13 @@ export type PublicApiV1AutomationsRulesDryRunData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
     };
     query?: never;
@@ -33137,7 +34116,13 @@ export type PublicApiV1DeliveryNotesDuplicateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -33194,7 +34179,13 @@ export type PublicApiV1InvoicesDuplicateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -33254,7 +34245,13 @@ export type PublicApiV1ProformasDuplicateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -33311,7 +34308,13 @@ export type PublicApiV1QuotesDuplicateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -33368,6 +34371,9 @@ export type PublicApiV1InvoicesExportExcelData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33426,6 +34432,9 @@ export type PublicApiV1ContactsFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33486,6 +34495,9 @@ export type PublicApiV1ContactsFindByTaxIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33542,6 +34554,9 @@ export type PublicApiV1DeliveryNotesFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33598,6 +34613,9 @@ export type PublicApiV1EmployeesFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33654,6 +34672,9 @@ export type PublicApiV1InvoicesFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33710,6 +34731,9 @@ export type PublicApiV1InvoicesFindByNumberData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33766,6 +34790,9 @@ export type PublicApiV1ProductsFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33822,6 +34849,9 @@ export type PublicApiV1ProductsFindBySkuData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33874,6 +34904,9 @@ export type PublicApiV1ProformasFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33930,6 +34963,9 @@ export type PublicApiV1PurchaseInvoicesFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -33986,6 +35022,9 @@ export type PublicApiV1QuotesFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34044,6 +35083,9 @@ export type PublicApiV1VerifactuRecordsFindByCsvData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34098,6 +35140,9 @@ export type PublicApiV1VerifactuRecordsFindByHuellaData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34157,6 +35202,9 @@ export type PublicApiV1VerifactuRecordsFindByInvoiceNumberData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34209,6 +35257,9 @@ export type PublicApiV1RecurringInvoicesFindByExternalIdData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34265,6 +35316,9 @@ export type PublicApiV1SeriesFindByCodeData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34317,6 +35371,9 @@ export type PublicApiV1TaxReportsFindByPeriodData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34377,7 +35434,13 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Numeric identifier (an integer, not a UUID) of the delivery-note signature audit record whose personal data is erased.
+         */
         auditId: string;
     };
     query?: never;
@@ -34441,6 +35504,9 @@ export type PublicApiV1TaxReportsGenerate130Data = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34504,6 +35570,9 @@ export type PublicApiV1TaxReportsGenerate303Data = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34567,6 +35636,9 @@ export type PublicApiV1TaxReportsGenerate347Data = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34630,7 +35702,13 @@ export type PublicApiV1RecurringInvoicesGenerateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -34691,6 +35769,9 @@ export type PublicApiV1AccountBillingData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34740,14 +35821,11 @@ export type PublicApiV1AccountMembersModuleAccessShowData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público del miembro (la PERSONA, no una fila de
-         * pertenencia).
+         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
          */
         member: string;
     };
@@ -34806,14 +35884,11 @@ export type PublicApiV1AccountMembersModuleAccessUpdateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público del miembro (la PERSONA, no una fila de
-         * pertenencia).
+         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
          */
         member: string;
     };
@@ -34872,9 +35947,7 @@ export type PublicApiV1AccountUsageData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Es el PRIMER y ÚNICO escalar de la firma.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -34924,6 +35997,9 @@ export type PublicApiV1VerifactuCertificatesActiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -34972,6 +36048,9 @@ export type PublicApiV1TaxesActiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -35020,6 +36099,9 @@ export type PublicApiV1AutomationsCatalogShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -35068,7 +36150,13 @@ export type PublicApiV1AutomationsCatalogTriggerFieldsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Trigger key: a dotted event name such as `invoice.created`, as listed by the automation catalog (`GET /v1/companies/{company}/automations/catalog`).
+         */
         trigger: string;
     };
     query?: never;
@@ -35117,6 +36205,9 @@ export type PublicApiV1AutomationsUsageShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -35165,11 +36256,23 @@ export type PublicApiV1ContactsActivitiesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query: {
+        /**
+         * Only activity about this kind of record: `contact` (the contact itself), `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice`, `recurring_invoice` or `contract`.
+         */
         category?: 'contact' | 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'purchase_invoice' | 'recurring_invoice' | 'contract' | null;
+        /**
+         * Only activity in these directions: `sales` (documents where the contact is your customer), `purchases` (documents where it is your supplier) and `relationship` (changes to the contact itself). Omit it to include all three.
+         */
         'direction[]': 'sales' | 'purchases' | 'relationship';
     };
     url: '/companies/{company}/contacts/{contact}/activities';
@@ -35225,6 +36328,9 @@ export type PublicApiV1ContactsOptionsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
@@ -35232,9 +36338,21 @@ export type PublicApiV1ContactsOptionsData = {
          * country = ISO catalogue for forms; country_code = countries present in this tenant.
          */
         field: 'country' | 'country_code' | 'province' | 'city' | 'tag';
+        /**
+         * Narrows the returned values by partial match (up to 100 characters). Ignored when `field` is `country`.
+         */
         search?: string | null;
+        /**
+         * Only values from contacts in this country (ISO 3166-1 alpha-2 code, e.g. `ES`). Ignored when `field` is `country`.
+         */
         country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
+        /**
+         * Only values from contacts in this province (exact match). Ignored when `field` is `country`.
+         */
         province?: string | null;
+        /**
+         * Maximum number of values to return. Integer between 1 and 250. Defaults to 50. Ignored when `field` is `country`.
+         */
         limit?: number | null;
     };
     url: '/companies/{company}/contacts/options';
@@ -35291,6 +36409,9 @@ export type PublicApiV1ContactsStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -35344,14 +36465,11 @@ export type PublicApiV1CompaniesCreationStatusData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la empresa HIJA (UUID v7), cuyo
-         * guard master→hija sigue aplicándolo la Query.
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -35402,9 +36520,7 @@ export type PublicApiV1GestoriaWorkforceSummaryData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -35454,6 +36570,9 @@ export type PublicApiV1TimeEntriesCurrentData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
@@ -35511,6 +36630,9 @@ export type PublicApiV1VerifactuDeclaracionHistoryData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -35560,6 +36682,9 @@ export type PublicApiV1VerifactuDeclaracionCurrentData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -35608,6 +36733,9 @@ export type PublicApiV1SeriesDefaultData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
@@ -35665,7 +36793,13 @@ export type PublicApiV1DeliveryNotesPublicLinkGetData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -35718,7 +36852,13 @@ export type PublicApiV1DeliveryNotesPublicLinkUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -35778,6 +36918,9 @@ export type PublicApiV1DeliveryNotesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -35826,6 +36969,9 @@ export type PublicApiV1EmailsIndicatorsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
@@ -35892,7 +37038,13 @@ export type PublicApiV1PresenceShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         */
         employee: string;
     };
     query?: never;
@@ -35941,7 +37093,13 @@ export type PublicApiV1WorkSchedulesEmployeeScheduleData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         */
         employee: string;
     };
     query?: never;
@@ -35991,9 +37149,7 @@ export type PublicApiV1EmployeeSeatsStatusData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -36044,9 +37200,7 @@ export type PublicApiV1EmployeeSeatsPreviewData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -36055,6 +37209,9 @@ export type PublicApiV1EmployeeSeatsPreviewData = {
          * Number of employees that would be activated in bulk (at least 1, default 1).
          */
         count?: number | null;
+        /**
+         * Public identifiers (UUID v7) of specific employees to preview. When sent, the preview is coverage-aware: employees still covered by a paid seat cost nothing and only the uncovered ones are prorated. Omit it to preview `count` employees activated in bulk.
+         */
         'employee_ids[]'?: Array<string>;
     };
     url: '/accounts/{account}/employee-seats/preview';
@@ -36106,6 +37263,9 @@ export type PublicApiV1EmployeesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -36160,7 +37320,13 @@ export type PublicApiV1TimeBalancesEmployeeData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         */
         employee: string;
     };
     query: {
@@ -36222,7 +37388,13 @@ export type PublicApiV1FaceSubmissionsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the FACe submission, as returned in `id` by its list and detail responses.
+         */
         faceSubmission: string;
     };
     query?: never;
@@ -36271,7 +37443,13 @@ export type PublicApiV1InvoicesPdfLinkData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -36339,7 +37517,13 @@ export type PublicApiV1InvoicesPublicLinkGetData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -36392,7 +37576,13 @@ export type PublicApiV1InvoicesPublicLinkUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -36449,10 +37639,19 @@ export type PublicApiV1InvoicesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Start of the period to aggregate, compared against the invoice issue date (`YYYY-MM-DD`, inclusive). Omit it for no lower bound.
+         */
         date_from?: string | null;
+        /**
+         * End of the period to aggregate, compared against the invoice issue date (`YYYY-MM-DD`, inclusive). Omit it for no upper bound.
+         */
         date_to?: string | null;
     };
     url: '/companies/{company}/invoices/stats';
@@ -36505,16 +37704,11 @@ export type PublicApiV1CompaniesIssuingReadinessData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público del NIF consultado. Va SEGUNDO porque
-         * ése es su orden en el camino, y confundirlo con el anterior
-         * devolvería 200 con el recurso equivocado.
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -36564,6 +37758,9 @@ export type PublicApiV1PresenceLiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -36612,6 +37809,9 @@ export type PublicApiV1ProductsLowStockReportData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -36706,7 +37906,13 @@ export type PublicApiV1MonthlyTimeRecordClosesReportData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         */
         monthly_time_record_close: string;
     };
     query?: never;
@@ -36755,6 +37961,9 @@ export type PublicApiV1TimeBalancesMonthlySheetData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
@@ -36816,7 +38025,13 @@ export type PublicApiV1PayoutsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the payout, as returned in `id` by its list and detail responses.
+         */
         payout: string;
     };
     query?: never;
@@ -36865,11 +38080,23 @@ export type PublicApiV1ProductsActivitiesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
+        /**
+         * Number of activity entries per page. Integer between 1 and 200. Defaults to 50.
+         */
         per_page?: number;
+        /**
+         * Page number to return, starting at 1.
+         */
         page?: number;
     };
     url: '/companies/{company}/products/{product}/activities';
@@ -36944,7 +38171,13 @@ export type PublicApiV1ProductsSalesAnalyticsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -36996,6 +38229,9 @@ export type PublicApiV1ProductsStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37044,7 +38280,13 @@ export type PublicApiV1ProformasPublicLinkGetData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -37097,7 +38339,13 @@ export type PublicApiV1ProformasPublicLinkUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -37154,6 +38402,9 @@ export type PublicApiV1ProformasStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37202,6 +38453,9 @@ export type PublicApiV1PurchaseInvoicesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37250,7 +38504,13 @@ export type PublicApiV1QuotesPublicLinkGetData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -37303,7 +38563,13 @@ export type PublicApiV1QuotesPublicLinkUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -37360,6 +38626,9 @@ export type PublicApiV1QuotesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37408,6 +38677,9 @@ export type PublicApiV1RecurringInvoicesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37457,17 +38729,18 @@ export type PublicApiV1CompaniesSeatChargePreviewData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
     query: {
         /**
-         * Número de empresas hijas que se activarían en bloque (≥1, default 1).
+         * Number of companies to preview activating in bulk. Integer between 1 and 1000. Defaults to 1. Used when `company_ids[]` is not sent.
          */
         count?: number | null;
+        /**
+         * Public identifiers (UUID) of specific companies of your account to preview. When sent, the preview is coverage-aware: companies still covered by a paid seat cost nothing and only the uncovered ones are prorated. Omit it to preview `count` companies activated in bulk.
+         */
         'company_ids[]': Array<string>;
     };
     url: '/accounts/{account}/companies/seat-charge-preview';
@@ -37522,7 +38795,13 @@ export type PublicApiV1SeriesActivitiesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         */
         series: string;
     };
     query?: {
@@ -37588,6 +38867,9 @@ export type PublicApiV1SeriesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37642,6 +38924,9 @@ export type PublicApiV1StripeAutoinvoicingConfigShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37694,6 +38979,9 @@ export type PublicApiV1StripeAutoinvoicingConfigUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37792,7 +39080,13 @@ export type PublicApiV1TaxesDefaultsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Document type the tax defaults apply to: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice` or `recurring_invoice`. Any other value returns 422.
+         */
         docType: string;
     };
     query?: never;
@@ -37837,7 +39131,13 @@ export type PublicApiV1TaxReportsActivitiesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax report, as returned in `id` by its list and detail responses.
+         */
         tax_report: string;
     };
     query?: {
@@ -37903,6 +39203,9 @@ export type PublicApiV1TaxReportsStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37951,6 +39254,9 @@ export type PublicApiV1TaxesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -37999,9 +39305,15 @@ export type PublicApiV1TaxesByTypeData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Tax type to list: `vat`, `retention`, `surcharge` or `other`. Defaults to `vat`.
+         */
         type?: string;
     };
     url: '/companies/{company}/taxes/by-type';
@@ -38049,6 +39361,9 @@ export type PublicApiV1TaxesForPurchasesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38097,6 +39412,9 @@ export type PublicApiV1TaxesForSalesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38145,6 +39463,9 @@ export type PublicApiV1AbsenceCalendarShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
@@ -38210,6 +39531,9 @@ export type PublicApiV1TimeBalancesTeamSummaryData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -38267,6 +39591,9 @@ export type PublicApiV1TimeTrackingSettingsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38319,6 +39646,9 @@ export type PublicApiV1TimeTrackingSettingsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38375,7 +39705,13 @@ export type PublicApiV1VerifactuRecordsActivitiesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         */
         record: string;
     };
     query?: {
@@ -38441,6 +39777,9 @@ export type PublicApiV1VerifactuConfigData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38489,6 +39828,9 @@ export type PublicApiV1VerifactuEventsSummaryData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38537,6 +39879,9 @@ export type PublicApiV1VerifactuStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -38610,6 +39955,9 @@ export type PublicApiV1WorkSchedulesStatsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38669,6 +40017,9 @@ export type PublicApiV1ContactsImportData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -38736,16 +40087,13 @@ export type PublicApiV1AccountInvitationsListData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
     query?: {
         /**
-         * Estado de la invitación por el que filtrar: pending, accepted, canceled o expired.
+         * Only invitations in this status: `pending`, `accepted`, `canceled` or `expired`.
          */
         status?: 'pending' | 'accepted' | 'canceled' | 'expired';
     };
@@ -38804,9 +40152,7 @@ export type PublicApiV1AccountInvitationsCreateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -38864,6 +40210,9 @@ export type PublicApiV1AbsenceBalancesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -38884,11 +40233,11 @@ export type PublicApiV1AbsenceBalancesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -38941,7 +40290,13 @@ export type PublicApiV1AbsencePoliciesAssignmentsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -38990,6 +40345,9 @@ export type PublicApiV1AccountPersonalizationTemplatesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -39038,6 +40396,9 @@ export type PublicApiV1SeriesActiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -39089,6 +40450,9 @@ export type PublicApiV1VerifactuAeatAccessListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -39162,6 +40526,9 @@ export type PublicApiV1DevelopersRequestLogsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -39260,7 +40627,13 @@ export type PublicApiV1AutomationsRulesVersionsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
     };
     query?: {
@@ -39326,7 +40699,13 @@ export type PublicApiV1AutomationsRunsStepsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         */
         run: string;
     };
     query?: {
@@ -39335,11 +40714,11 @@ export type PublicApiV1AutomationsRunsStepsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -39392,6 +40771,9 @@ export type PublicApiV1AutomationsRunsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -39408,11 +40790,11 @@ export type PublicApiV1AutomationsRunsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -39486,16 +40868,13 @@ export type PublicApiV1CompaniesListData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver: repetir la búsqueda
-         * abriría una segunda fuente de verdad del sujeto.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
     query?: {
         /**
-         * Filtrar por estado del vínculo de gestoría. Sin filtro se ocultan las archivadas (solo `active` e `inactive`).
+         * Only companies in this status: `active`, `inactive` or `archived`. Without it, archived companies are hidden and only `active` and `inactive` ones are returned.
          */
         status?: 'active' | 'inactive' | 'archived' | null;
         /**
@@ -39566,10 +40945,7 @@ export type PublicApiV1CompaniesCreateData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Es el PRIMER parámetro escalar y el único de esta
-         * operación.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -39631,6 +41007,9 @@ export type PublicApiV1VerifactuCertificatesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -39683,6 +41062,9 @@ export type PublicApiV1VerifactuCertificatesUploadData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -39746,6 +41128,9 @@ export type PublicApiV1StripeAutoinvoicingAccountsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -39794,6 +41179,9 @@ export type PublicApiV1PresenceDailyData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -39818,11 +41206,11 @@ export type PublicApiV1PresenceDailyData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -39875,6 +41263,9 @@ export type PublicApiV1DeliveryNotesStatusesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -39923,6 +41314,9 @@ export type PublicApiV1EmailsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -40017,6 +41411,9 @@ export type PublicApiV1EmployeeInvitationsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -40069,6 +41466,9 @@ export type PublicApiV1EmployeeInvitationsSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -40167,6 +41567,9 @@ export type PublicApiV1EventsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -40175,11 +41578,11 @@ export type PublicApiV1EventsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -40256,6 +41659,9 @@ export type PublicApiV1HolidaysListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -40264,11 +41670,11 @@ export type PublicApiV1HolidaysListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -40345,6 +41751,9 @@ export type PublicApiV1IntegrationsEventsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -40439,7 +41848,13 @@ export type PublicApiV1InvoicesActivitiesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -40488,7 +41903,13 @@ export type PublicApiV1InvoicesCorrectivesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -40537,7 +41958,13 @@ export type PublicApiV1InvoicesFaceSubmissionsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -40590,7 +42017,13 @@ export type PublicApiV1InvoicesFaceSubmissionsSubmitData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -40647,7 +42080,13 @@ export type PublicApiV1InvoicesPaymentsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -40700,7 +42139,13 @@ export type PublicApiV1InvoicesPaymentsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -40757,6 +42202,9 @@ export type PublicApiV1InvoicesStatusesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -40805,16 +42253,23 @@ export type PublicApiV1PurchaseInvoicesOverdueData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Page size. Alias of `limit` (integer between 1 and 100, defaults to 25).
+         */
         per_page?: string;
         /**
-         * Default `'25'` (string) por consistencia OpenAPI: Scramble infiere
-         * schema.type=string para `request->input()` y el default debe ser
-         * string (Spectral rechaza `default: 25` int con `type: string`).
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
         limit?: string;
+        /**
+         * Opaque pagination cursor. NON-STANDARD for this API: unlike the cursor lists (`starting_after`/`ending_before`), this endpoint wraps an offset paginator, so the cursor encodes the next page number. Use the `next_cursor` value returned by the previous page.
+         */
         cursor?: string;
     };
     url: '/companies/{company}/purchase-invoices/overdue';
@@ -40904,6 +42359,9 @@ export type PublicApiV1PayoutsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -40912,11 +42370,11 @@ export type PublicApiV1PayoutsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -41038,14 +42496,23 @@ export type PublicApiV1PurchaseInvoicesPendingData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Page size. Alias of `limit` (integer between 1 and 100, defaults to 25).
+         */
         per_page?: string;
         /**
-         * Default `'25'` (string) por consistencia OpenAPI/Spectral.
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
         limit?: string;
+        /**
+         * Opaque pagination cursor. NON-STANDARD for this API: unlike the cursor lists (`starting_after`/`ending_before`), this endpoint wraps an offset paginator, so the cursor encodes the next page number. Use the `next_cursor` value returned by the previous page.
+         */
         cursor?: string;
     };
     url: '/companies/{company}/purchase-invoices/pending';
@@ -41093,13 +42560,31 @@ export type PublicApiV1PriceListsItemsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
     };
     query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
+        /**
+         * Partial, case-insensitive match against the name of the priced product, variant, presentation or configuration (up to 120 characters).
+         */
         search?: string | null;
+        /**
+         * Lifecycle of the items to return: `active` (default, the current ones), `retired` (the history of items whose catalog target was deleted) or `all`.
+         */
         status?: 'active' | 'retired' | 'all' | null;
     };
     url: '/companies/{company}/price-lists/{priceList}/items';
@@ -41153,7 +42638,13 @@ export type PublicApiV1PriceListsItemsUpsertData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
     };
     query?: never;
@@ -41210,10 +42701,19 @@ export type PublicApiV1PriceListsOptionsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Partial match against the price list name (up to 120 characters).
+         */
         search?: string;
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 50.
+         */
         limit?: number;
     };
     url: '/companies/{company}/price-lists/options';
@@ -41265,12 +42765,27 @@ export type PublicApiV1ProductsConfigurationsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
+        /**
+         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         */
         active?: boolean;
     };
     url: '/companies/{company}/products/{product}/configurations';
@@ -41322,12 +42837,27 @@ export type PublicApiV1ProductsOptionsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
+        /**
+         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         */
         active?: boolean;
     };
     url: '/companies/{company}/products/{product}/options';
@@ -41379,20 +42909,26 @@ export type PublicApiV1ProductsStockMovementsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: {
         /**
-         * Máximo de movimientos por página (1-100, por defecto 25).
+         * Number of stock movements per page. Integer between 1 and 100. Defaults to 25.
          */
         limit?: number;
         /**
-         * Id del último movimiento ya recibido; la página empieza justo después.
+         * Cursor for forward pagination: pass the `id` of the last stock movement you already received; the page starts right after it.
          */
         starting_after?: string | null;
         /**
-         * `in` = entradas (delta positivo), `out` = salidas (delta negativo). Ausente = el ledger completo.
+         * `in` returns only incoming movements (positive quantity change) and `out` only outgoing ones (negative quantity change). Omit it to return the whole stock ledger.
          */
         direction?: 'in' | 'out' | null;
     };
@@ -41445,6 +42981,9 @@ export type PublicApiV1ProformasStatusesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -41496,7 +43035,13 @@ export type PublicApiV1PurchaseInvoicesListPaymentsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -41552,7 +43097,13 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -41612,6 +43163,9 @@ export type PublicApiV1InvoicesQuarterlyAvailableData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -41663,6 +43217,9 @@ export type PublicApiV1QuotesStatusesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -41714,7 +43271,13 @@ export type PublicApiV1RecurringInvoicesActivitiesData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: {
@@ -41780,15 +43343,27 @@ export type PublicApiV1RecurringInvoicesLogsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: {
+        /**
+         * Page size. Alias of `limit` (integer between 1 and 100, defaults to 25).
+         */
         per_page?: string;
         /**
-         * Default `'25'` (string) por consistencia OpenAPI/Spectral.
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
         limit?: string;
+        /**
+         * Opaque pagination cursor: pass the `next_cursor` value returned by the previous page.
+         */
         cursor?: string;
     };
     url: '/companies/{company}/recurring-invoices/{recurring_invoice}/logs';
@@ -41841,7 +43416,13 @@ export type PublicApiV1WorkSchedulesAssignmentsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         */
         schedule: string;
     };
     query?: never;
@@ -41890,6 +43471,9 @@ export type PublicApiV1StripeAutoinvoicingCorrectivesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -41955,9 +43539,15 @@ export type PublicApiV1StripeAutoinvoicingPaymentsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
+        /**
+         * Only payments of this origin: `subscription` (subscription billing cycles) or `oneshot` (one-off charges).
+         */
         origin?: 'subscription' | 'oneshot';
     };
     url: '/companies/{company}/stripe-autoinvoicing/payments';
@@ -42009,6 +43599,9 @@ export type PublicApiV1TaxReportsHistoryData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -42098,6 +43691,9 @@ export type PublicApiV1TimeCorrectionsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -42122,11 +43718,11 @@ export type PublicApiV1TimeCorrectionsListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -42183,6 +43779,9 @@ export type PublicApiV1TimeCorrectionsCreateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -42239,6 +43838,9 @@ export type PublicApiV1TimeEntriesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -42263,11 +43865,11 @@ export type PublicApiV1TimeEntriesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
     };
@@ -42320,6 +43922,9 @@ export type PublicApiV1VerifactuEventsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -42397,6 +44002,9 @@ export type PublicApiV1VerifactuRecordsListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: {
@@ -42486,7 +44094,13 @@ export type PublicApiV1WebhookEndpointsDeliveriesListData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
     };
     query?: {
@@ -42495,11 +44109,11 @@ export type PublicApiV1WebhookEndpointsDeliveriesListData = {
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
          */
         ending_before?: string;
         /**
@@ -42588,7 +44202,13 @@ export type PublicApiV1DeliveryNotesMarkDeliveredData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -42649,7 +44269,13 @@ export type PublicApiV1InvoicesMarkPaidData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -42710,7 +44336,13 @@ export type PublicApiV1InvoicesMarkSentData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -42771,7 +44403,13 @@ export type PublicApiV1PurchaseInvoicesMarkPaidData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         */
         purchase_invoice: string;
     };
     query?: never;
@@ -42832,7 +44470,13 @@ export type PublicApiV1SeriesSetDefaultData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         */
         series: string;
     };
     query?: never;
@@ -42886,7 +44530,13 @@ export type PublicApiV1SeriesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         */
         series: string;
     };
     query?: never;
@@ -42939,7 +44589,13 @@ export type PublicApiV1AutomationsRulesPauseData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
     };
     query?: never;
@@ -43000,7 +44656,13 @@ export type PublicApiV1RecurringInvoicesPauseData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -43057,6 +44719,9 @@ export type PublicApiV1TimeEntriesPauseData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -43117,7 +44782,13 @@ export type PublicApiV1WebhookEndpointsPingData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
     };
     query?: never;
@@ -43180,6 +44851,9 @@ export type PublicApiV1ContactsPreviewImportData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -43243,7 +44917,13 @@ export type PublicApiV1ProductsConfigurationsImpactPreviewData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -43296,7 +44976,13 @@ export type PublicApiV1InvoicesPdfPreviewData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -43343,7 +45029,13 @@ export type PublicApiV1InvoicesReminderPreviewData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -43396,7 +45088,13 @@ export type PublicApiV1InvoicesPaymentReceiptData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -43443,11 +45141,23 @@ export type PublicApiV1RecurringInvoicesPreviewData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: {
+        /**
+         * Number of upcoming occurrences to preview. Integer between 1 and 36. Defaults to 5; larger values are capped at 36.
+         */
         count?: string;
+        /**
+         * Set to `document` to also return `next_invoice`, a full preview of the next invoice the template will generate.
+         */
         expand?: string;
     };
     url: '/companies/{company}/recurring-invoices/{recurring_invoice}/preview';
@@ -43499,6 +45209,9 @@ export type PublicApiV1TaxReportsPreviewData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -43559,8 +45272,17 @@ export type PublicApiV1PriceListsItemsPurgeRetiredData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
+        /**
+         * Public identifier (UUID v7) of the price list item, as returned in `id` by its list and detail responses.
+         */
         item: string;
     };
     query?: never;
@@ -43622,6 +45344,9 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -43684,6 +45409,9 @@ export type PublicApiV1InvoicesQuarterlySendEmailData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -43749,7 +45477,13 @@ export type PublicApiV1EmployeesReactivateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         */
         employee: string;
     };
     query?: never;
@@ -43814,8 +45548,17 @@ export type PublicApiV1PriceListsItemsReassignRetiredData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         */
         priceList: string;
+        /**
+         * Public identifier (UUID v7) of the price list item, as returned in `id` by its list and detail responses.
+         */
         item: string;
     };
     query?: never;
@@ -43876,6 +45619,9 @@ export type PublicApiV1TimeEntriesManualData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -43936,7 +45682,13 @@ export type PublicApiV1AbsenceRequestsRejectData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         */
         absence_request: string;
     };
     query?: never;
@@ -43997,7 +45749,13 @@ export type PublicApiV1ProformasRejectData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -44058,7 +45816,13 @@ export type PublicApiV1QuotesRejectData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -44119,7 +45883,13 @@ export type PublicApiV1TimeCorrectionsRejectData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the time correction request, as returned in `id` by its list and detail responses.
+         */
         time_correction: string;
     };
     query?: never;
@@ -44180,7 +45950,13 @@ export type PublicApiV1MonthlyTimeRecordClosesReopenData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         */
         monthly_time_record_close: string;
     };
     query?: never;
@@ -44237,7 +46013,13 @@ export type PublicApiV1AutomationsRunsReplayData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         */
         run: string;
     };
     query?: never;
@@ -44303,8 +46085,17 @@ export type PublicApiV1AutomationsRunsStepsReplayData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         */
         run: string;
+        /**
+         * Index of the step within the run (an integer, not a UUID), as returned in `step_index` by `GET /v1/companies/{company}/automations/runs/{run}/steps`. It is not the position of the step in that list.
+         */
         step_index: string;
     };
     query?: never;
@@ -44374,7 +46165,13 @@ export type PublicApiV1IntegrationsEventsReplayData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the integration event, as returned in `id` by its list and detail responses.
+         */
         event: string;
     };
     query?: never;
@@ -44439,8 +46236,17 @@ export type PublicApiV1WebhookEndpointsDeliveriesReplayData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
+        /**
+         * Public identifier (UUID v7) of the webhook delivery, as returned in `id` by its list and detail responses.
+         */
         delivery: string;
     };
     query?: never;
@@ -44505,7 +46311,13 @@ export type PublicApiV1InvoicesRescheduleData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -44567,14 +46379,11 @@ export type PublicApiV1AccountInvitationsResendData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público opaco de la invitación. NO se
-         * resuelve aquí: lo localiza el manejador dentro del ámbito.
+         * Public identifier (UUID v7) of the account invitation, as returned in `id` by its list and detail responses.
          */
         invitation: string;
     };
@@ -44637,7 +46446,13 @@ export type PublicApiV1EmployeeInvitationsResendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee invitation, as returned in `id` by its list and detail responses.
+         */
         invitation: string;
     };
     query?: never;
@@ -44694,6 +46509,9 @@ export type PublicApiV1HolidaysResolveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
@@ -44755,6 +46573,9 @@ export type PublicApiV1PriceListsResolveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -44811,7 +46632,13 @@ export type PublicApiV1ProductsResolveSelectionData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -44868,6 +46695,9 @@ export type PublicApiV1PriceListsResolveManyData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -44928,7 +46758,13 @@ export type PublicApiV1ContactsRestoreData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -44992,7 +46828,13 @@ export type PublicApiV1RecurringInvoicesResumeData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -45053,6 +46895,9 @@ export type PublicApiV1TimeEntriesResumeData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -45113,7 +46958,13 @@ export type PublicApiV1VerifactuEventsRetryData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu event, as returned in `id` by its list and detail responses.
+         */
         event: string;
     };
     query?: never;
@@ -45177,7 +47028,13 @@ export type PublicApiV1VerifactuRecordsRetryData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         */
         record: string;
     };
     query?: never;
@@ -45241,8 +47098,17 @@ export type PublicApiV1InvoicesPaymentsRevertData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
+        /**
+         * Public identifier (UUID v7) of the invoice payment, as returned in `id` by its list and detail responses.
+         */
         payment: string;
     };
     query?: never;
@@ -45304,13 +47170,11 @@ export type PublicApiV1AccountApiKeysRevokeData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la credencial (UUID v7).
+         * Public identifier (UUID v7) of the API key, as returned in `id` by its list and detail responses. The key making the request finds its own in `GET /v1/me` (`data.api_key.id`).
          */
         api_key: string;
     };
@@ -45372,10 +47236,19 @@ export type PublicApiV1VerifactuCertificatesRevokeData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu certificate, as returned in `id` by its list and detail responses.
+         */
         certificate: string;
     };
     query?: {
+        /**
+         * Optional reason for the revocation, kept in the audit trail of the certificate.
+         */
         reason?: string;
     };
     url: '/companies/{company}/verifactu/certificates/{certificate}';
@@ -45437,13 +47310,11 @@ export type PublicApiV1AccountApiKeysRotateSecretData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la credencial (UUID v7).
+         * Public identifier (UUID v7) of the API key, as returned in `id` by its list and detail responses. The key making the request finds its own in `GET /v1/me` (`data.api_key.id`).
          */
         api_key: string;
     };
@@ -45505,7 +47376,13 @@ export type PublicApiV1WebhookEndpointsRotateSecretData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
     };
     query?: never;
@@ -45566,7 +47443,13 @@ export type PublicApiV1InvoicesScheduleData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -45623,7 +47506,13 @@ export type PublicApiV1MonthlyTimeRecordClosesSealShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         */
         monthly_time_record_close: string;
     };
     query?: never;
@@ -45676,7 +47565,13 @@ export type PublicApiV1MonthlyTimeRecordClosesSealData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         */
         monthly_time_record_close: string;
     };
     query?: never;
@@ -45733,14 +47628,35 @@ export type PublicApiV1ContactsSearchData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
+        /**
+         * Search term (2 to 255 characters) over the name, commercial name, tax identifiers, email and external ID of the contact, and its phone numbers when the term is numeric. Results are ranked: exact matches first, then prefix matches, then partial matches.
+         */
         q: string;
+        /**
+         * Only contacts with these roles: `customer`, `supplier` or `lead`. Repeat the parameter or send a comma-separated list; combine it with `role_match` and `role_status`.
+         */
         'roles[]'?: 'customer' | 'supplier' | 'lead';
+        /**
+         * `any` (default) returns contacts with at least one of the requested `roles[]`; `all` requires every one of them.
+         */
         role_match?: 'any' | 'all' | null;
+        /**
+         * Only roles in this status: `active` or `inactive`. Applies to the requested `roles[]`, or to any role when none is requested.
+         */
         role_status?: 'active' | 'inactive' | null;
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
         limit?: number | null;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
         starting_after?: string | null;
     };
     url: '/companies/{company}/contacts/search';
@@ -45794,9 +47710,15 @@ export type PublicApiV1ProductsSearchData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query: {
+        /**
+         * Search term (1 to 120 characters) matched against the product `sku` and `name`. Results are ranked: exact matches first, then prefix matches, then partial matches; up to 50 are returned.
+         */
         q: string;
     };
     url: '/companies/{company}/products/search';
@@ -45852,7 +47774,13 @@ export type PublicApiV1DeliveryNotesSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -45917,7 +47845,13 @@ export type PublicApiV1InvoicesSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -45978,7 +47912,13 @@ export type PublicApiV1InvoicesSendReminderData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -46039,7 +47979,13 @@ export type PublicApiV1ProformasSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         */
         proforma: string;
     };
     query?: never;
@@ -46100,7 +48046,13 @@ export type PublicApiV1QuotesSendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         */
         quote: string;
     };
     query?: never;
@@ -46161,7 +48113,13 @@ export type PublicApiV1WebhookEndpointsTestEventData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
     };
     query?: never;
@@ -46226,8 +48184,17 @@ export type PublicApiV1ProductsSupplierOffersPreferredData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
+        /**
+         * Public identifier (UUID v7) of the supplier offer, as returned in `id` by its list and detail responses.
+         */
         offer: string;
     };
     query?: never;
@@ -46288,7 +48255,13 @@ export type PublicApiV1TaxesSetDefaultData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         */
         tax: string;
     };
     query?: never;
@@ -46345,8 +48318,17 @@ export type PublicApiV1TaxesSetDefaultForDocumentData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         */
         tax: string;
+        /**
+         * Document type the tax defaults apply to: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice` or `recurring_invoice`. Any other value returns 422.
+         */
         docType: string;
     };
     query?: never;
@@ -46399,7 +48381,13 @@ export type PublicApiV1AbsenceBalancesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence balance, as returned in `id` by its list and detail responses.
+         */
         absence_balance: string;
     };
     query?: never;
@@ -46448,7 +48436,13 @@ export type PublicApiV1AbsencePoliciesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -46501,7 +48495,13 @@ export type PublicApiV1AbsencePoliciesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -46558,7 +48558,13 @@ export type PublicApiV1AbsenceRequestsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         */
         absence_request: string;
     };
     query?: never;
@@ -46607,7 +48613,13 @@ export type PublicApiV1AbsenceTypesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         */
         absence_type: string;
     };
     query?: never;
@@ -46660,7 +48672,13 @@ export type PublicApiV1AbsenceTypesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         */
         absence_type: string;
     };
     query?: never;
@@ -46717,7 +48735,13 @@ export type PublicApiV1VerifactuAeatAccessShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the AEAT access record, as returned in `id` by its list and detail responses.
+         */
         record: string;
     };
     query?: never;
@@ -46767,13 +48791,11 @@ export type PublicApiV1AccountApiKeysShowData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la credencial (UUID v7).
+         * Public identifier (UUID v7) of the API key, as returned in `id` by its list and detail responses. The key making the request finds its own in `GET /v1/me` (`data.api_key.id`).
          */
         api_key: string;
     };
@@ -46823,7 +48845,13 @@ export type PublicApiV1DevelopersRequestLogsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Identifier of the logged request (`req_…`, not a UUID), as returned in the `X-Request-Id` response header and in `request_id` by the request log list. Request logs are kept for 30 days.
+         */
         request_id: string;
     };
     query?: never;
@@ -46872,8 +48900,17 @@ export type PublicApiV1AutomationsRulesVersionsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         */
         rule: string;
+        /**
+         * Version number of the rule (an integer, not a UUID), as returned in `version` by `GET /v1/companies/{company}/automations/rules/{rule}/versions`.
+         */
         version: string;
     };
     query?: never;
@@ -46922,7 +48959,13 @@ export type PublicApiV1AutomationsRunsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         */
         run: string;
     };
     query?: never;
@@ -46971,7 +49014,13 @@ export type PublicApiV1EmailsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the email delivery, as returned in `id` by its list and detail responses.
+         */
         email: string;
     };
     query?: never;
@@ -47020,7 +49069,13 @@ export type PublicApiV1EmployeesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         */
         employee: string;
     };
     query?: never;
@@ -47073,7 +49128,13 @@ export type PublicApiV1EmployeesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         */
         employee: string;
     };
     query?: never;
@@ -47130,7 +49191,13 @@ export type PublicApiV1EventsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the event, as returned in `id` by its list and detail responses.
+         */
         event: string;
     };
     query?: never;
@@ -47179,7 +49246,13 @@ export type PublicApiV1HolidaysShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the holiday, as returned in `id` by its list and detail responses.
+         */
         holiday: string;
     };
     query?: never;
@@ -47228,7 +49301,13 @@ export type PublicApiV1IntegrationsEventsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the integration event, as returned in `id` by its list and detail responses.
+         */
         event: string;
     };
     query?: never;
@@ -47277,7 +49356,13 @@ export type PublicApiV1MonthlyTimeRecordClosesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         */
         monthly_time_record_close: string;
     };
     query?: never;
@@ -47326,7 +49411,13 @@ export type PublicApiV1TimeCorrectionsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the time correction request, as returned in `id` by its list and detail responses.
+         */
         time_correction: string;
     };
     query?: never;
@@ -47375,7 +49466,13 @@ export type PublicApiV1TimeEntriesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the time entry, as returned in `id` by its list and detail responses.
+         */
         time_entry: string;
     };
     query?: never;
@@ -47424,7 +49521,13 @@ export type PublicApiV1VerifactuEventsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu event, as returned in `id` by its list and detail responses.
+         */
         event: string;
     };
     query?: never;
@@ -47473,7 +49576,13 @@ export type PublicApiV1VerifactuRecordsShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         */
         record: string;
     };
     query?: never;
@@ -47522,8 +49631,17 @@ export type PublicApiV1WebhookEndpointsDeliveriesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         */
         webhook_endpoint: string;
+        /**
+         * Public identifier (UUID v7) of the webhook delivery, as returned in `id` by its list and detail responses.
+         */
         delivery: string;
     };
     query?: never;
@@ -47572,7 +49690,13 @@ export type PublicApiV1WorkSchedulesShowData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         */
         schedule: string;
     };
     query?: never;
@@ -47625,7 +49749,13 @@ export type PublicApiV1WorkSchedulesUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         */
         schedule: string;
     };
     query?: never;
@@ -47686,7 +49816,13 @@ export type PublicApiV1DeliveryNotesSignData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         */
         delivery_note: string;
     };
     query?: never;
@@ -47751,7 +49887,13 @@ export type PublicApiV1RecurringInvoicesSkipData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         */
         recurring_invoice: string;
     };
     query?: never;
@@ -47808,7 +49950,13 @@ export type PublicApiV1VerifactuRecordsSubsanarData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         */
         record: string;
     };
     query?: never;
@@ -47873,9 +50021,7 @@ export type PublicApiV1EmployeeSeatsSubscribeData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -47941,6 +50087,9 @@ export type PublicApiV1InvoicesSubstituteSimplifiedData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -48004,7 +50153,13 @@ export type PublicApiV1ShopifyStoresConnectionTestData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         */
         store: string;
     };
     query?: never;
@@ -48065,7 +50220,13 @@ export type PublicApiV1WoocommerceStoresConnectionTestData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         */
         store: string;
     };
     query?: never;
@@ -48126,7 +50287,13 @@ export type PublicApiV1ProductsToggleActiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -48183,7 +50350,13 @@ export type PublicApiV1TaxesToggleData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         */
         tax: string;
     };
     query?: never;
@@ -48241,10 +50414,7 @@ export type PublicApiV1AccountOwnerTransferData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Es el PRIMER parámetro escalar y el único de esta
-         * operación; aquí no se vuelve a resolver ni se usa como dato.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
     };
@@ -48306,7 +50476,13 @@ export type PublicApiV1AbsencePoliciesUnarchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -48363,7 +50539,13 @@ export type PublicApiV1AbsenceTypesUnarchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         */
         absence_type: string;
     };
     query?: never;
@@ -48420,7 +50602,13 @@ export type PublicApiV1SeriesUnarchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         */
         series: string;
     };
     query?: never;
@@ -48478,7 +50666,13 @@ export type PublicApiV1WorkSchedulesUnarchiveData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         */
         schedule: string;
     };
     query?: never;
@@ -48535,7 +50729,13 @@ export type PublicApiV1AbsencePoliciesUnassignData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         */
         absence_policy: string;
     };
     query?: never;
@@ -48596,7 +50796,13 @@ export type PublicApiV1WorkSchedulesUnassignData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         */
         schedule: string;
     };
     query?: never;
@@ -48658,7 +50864,13 @@ export type PublicApiV1InvoicesUnscheduleData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -48715,7 +50927,13 @@ export type PublicApiV1InvoicesUnsendData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
@@ -48772,6 +50990,9 @@ export type PublicApiV1AccountPersonalizationUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -48832,7 +51053,13 @@ export type PublicApiV1ContactsUpdateBankAccountsData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -48900,7 +51127,13 @@ export type PublicApiV1ContactsUpdateCustomerProfileData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -48968,7 +51201,13 @@ export type PublicApiV1ProductsUpdateStockData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -49029,7 +51268,13 @@ export type PublicApiV1ContactsUpdateSupplierProfileData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         */
         contact: string;
     };
     query?: never;
@@ -49097,6 +51342,9 @@ export type PublicApiV1VerifactuSettingsUpdateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -49157,7 +51405,13 @@ export type PublicApiV1ProductsGalleryUploadData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         */
         product: string;
     };
     query?: never;
@@ -49232,6 +51486,9 @@ export type PublicApiV1TimeEntriesChainValidateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -49280,6 +51537,9 @@ export type PublicApiV1VerifactuChainValidateData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -49332,6 +51592,9 @@ export type PublicApiV1AccountVerifyCensusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -49392,6 +51655,9 @@ export type PublicApiV1ContactsVerifyCensusData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
     };
     query?: never;
@@ -49457,15 +51723,11 @@ export type PublicApiV1CompaniesVerifyCreationData = {
     };
     path: {
         /**
-         * Identificador público de la cuenta, YA resuelto y comparado
-         * contra la cuenta de la credencial por el middleware del eje
-         * de cuenta. Aquí no se vuelve a resolver.
+         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
          */
         account: string;
         /**
-         * Identificador público de la empresa HIJA (UUID v7), cuyo
-         * guard master→hija sigue aplicándolo la Query previa al
-         * dispatch.
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
          */
         company: string;
     };
@@ -49523,7 +51785,13 @@ export type PublicApiV1InvoicesVoidData = {
         'Factuarea-Version'?: string;
     };
     path: {
+        /**
+         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         */
         company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         */
         invoice: string;
     };
     query?: never;
