@@ -24,7 +24,13 @@ Requires **Node 20 or newer**. The SDK is runtime‑agnostic (built on the Web `
 import { Factuarea, type BusinessContact } from "@factuarea/sdk";
 
 const factuarea = new Factuarea({ apiKey: process.env.FACTUAREA_API_KEY! });
-const { data: contact } = (await factuarea.contacts.create({
+
+// Company axis: every company resource hangs off `/v1/companies/{company}/…`,
+// so the company id is the FIRST argument of the call. It is the `id` that
+// `factuarea.account.show()` returns in `data.scope[].id` — never the tax ID.
+const company = process.env.FACTUAREA_COMPANY_ID!;
+
+const { data: contact } = (await factuarea.contacts.create(company, {
   name: "Cliente Demo SL",
   kind: "company",
   tax_id: "B12345674",
@@ -34,7 +40,7 @@ const { data: contact } = (await factuarea.contacts.create({
 // Create an invoice. Single-resource calls (create/show/update) return the API
 // envelope `{ data, ... }`; read `.data` to get the resource. Operation
 // results are typed `unknown` in 0.x, so cast to the shape you expect.
-const created = (await factuarea.invoices.create({
+const created = (await factuarea.invoices.create(company, {
   // client_id is the invoice field; its value is the canonical contact UUID.
   client_id: contact.id,
   series_id: "01931b3e-7c4a-7f2e-9a8b-000000000001",
@@ -48,12 +54,12 @@ const created = (await factuarea.invoices.create({
 const invoice = created.data;
 
 // List with transparent auto-pagination (list yields the resources directly).
-for await (const inv of await factuarea.invoices.list({ status: "paid" })) {
+for await (const inv of await factuarea.invoices.list(company, { status: "paid" })) {
   console.log((inv as { id: string }).id);
 }
 
 // Download a PDF
-const pdf = await factuarea.invoices.pdf(invoice.id);
+const pdf = await factuarea.invoices.pdf(company, invoice.id);
 await require("node:fs/promises").writeFile("invoice.pdf", pdf.toBuffer());
 ```
 
@@ -165,7 +171,7 @@ Transient failures — `429` (rate limit), `5xx` and network errors — are retr
 Every `POST` automatically gets an `Idempotency-Key` (UUID), so a retried request never double‑creates a resource. The same key is reused across the retries of one logical call. Override per request:
 
 ```ts
-await factuarea.invoices.create(body, { idempotencyKey: "order-4711" });
+await factuarea.invoices.create(company, body, { idempotencyKey: "order-4711" });
 ```
 
 ## Typed errors
@@ -185,7 +191,7 @@ import {
 } from "@factuarea/sdk";
 
 try {
-  await factuarea.invoices.create(body);
+  await factuarea.invoices.create(company, body);
 } catch (error) {
   if (error instanceof ValidationError) {
     console.error(error.fields);     // { tax_id: ["NIF inválido"], … }
@@ -233,7 +239,7 @@ Verification uses HMAC‑SHA256 with a constant‑time comparison and a configur
 PDF and other binary endpoints return a `BinaryResponse` (not JSON):
 
 ```ts
-const pdf = await factuarea.invoices.pdf(invoiceId);
+const pdf = await factuarea.invoices.pdf(company, invoiceId);
 pdf.contentType;     // "application/pdf"
 pdf.toBuffer();      // Node Buffer
 pdf.toBlob();        // Blob (type preserved)

@@ -11,32 +11,32 @@ import type { Page } from "../core/pagination.js";
 
 export class EmployeeSeatsResource extends BaseResource {
   /** Cancel the employee seat add-on */
-  async cancel(config?: RequestConfig): Promise<unknown> {
-    const path = "/employee-seats/cancel";
+  async cancel(account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/employee-seats/cancel", { "account": account });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Sync the employee seat quantity */
-  async changeQuantity(config?: RequestConfig): Promise<unknown> {
-    const path = "/employee-seats/change-quantity";
+  async changeQuantity(account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/employee-seats/change-quantity", { "account": account });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve employee seat billing status */
-  async status(config?: RequestConfig): Promise<unknown> {
-    const path = "/employee-seats";
+  async status(account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/employee-seats", { "account": account });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Preview the employee seat charge */
-  async preview(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/employee-seats/preview";
+  async preview(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/employee-seats/preview", { "account": account });
     return this._get<unknown>(path, params, config);
   }
 
   /** Subscribe to the employee seat add-on */
-  async subscribe(config?: RequestConfig): Promise<unknown> {
-    const path = "/employee-seats/subscribe";
+  async subscribe(account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/employee-seats/subscribe", { "account": account });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

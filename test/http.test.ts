@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
+import { BASE_URL, COMPANY, COMPANY_URL, server, testClient, useMockServer } from "./helpers.js";
 import { DEFAULT_FACTUAREA_VERSION } from "../src/index.js";
 
 useMockServer();
@@ -9,7 +9,7 @@ describe("HttpClient auth & headers", () => {
   it("sends the API key as a Bearer token", async () => {
     let authHeader: string | null = null;
     server.use(
-      http.get(`${BASE_URL}/account`, ({ request }) => {
+      http.get(`${BASE_URL}/me`, ({ request }) => {
         authHeader = request.headers.get("authorization");
         return HttpResponse.json({ object: "account" });
       }),
@@ -29,7 +29,7 @@ describe("HttpClient auth & headers", () => {
     let version: string | null = null;
     let userAgent: string | null = null;
     server.use(
-      http.get(`${BASE_URL}/account`, ({ request }) => {
+      http.get(`${BASE_URL}/me`, ({ request }) => {
         version = request.headers.get("factuarea-version");
         userAgent = request.headers.get("user-agent");
         return HttpResponse.json({ object: "account" });
@@ -48,13 +48,13 @@ describe("HttpClient auth & headers", () => {
 
   it("requestId is surfaced from the X-Request-Id header on success", async () => {
     server.use(
-      http.get(`${BASE_URL}/account`, () =>
+      http.get(`${BASE_URL}/me`, () =>
         HttpResponse.json({ object: "account" }, { headers: { "X-Request-Id": "req_123" } }),
       ),
     );
     const response = await testClient().http.request<{ object: string }>({
       method: "GET",
-      path: "/account",
+      path: "/me",
     });
     expect(response.requestId).toBe("req_123");
   });
@@ -64,20 +64,20 @@ describe("Idempotency-Key", () => {
   it("adds a UUID Idempotency-Key to POST requests", async () => {
     let key: string | null = null;
     server.use(
-      http.post(`${BASE_URL}/contacts`, ({ request }) => {
+      http.post(`${COMPANY_URL}/contacts`, ({ request }) => {
         key = request.headers.get("idempotency-key");
         return HttpResponse.json({ id: "c1" }, { status: 201 });
       }),
     );
 
-    await testClient().contacts.create({ name: "ACME" });
+    await testClient().contacts.create(COMPANY, { name: "ACME" });
     expect(key).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("does NOT add an Idempotency-Key to GET requests", async () => {
     let key: string | null = "unset";
     server.use(
-      http.get(`${BASE_URL}/account`, ({ request }) => {
+      http.get(`${BASE_URL}/me`, ({ request }) => {
         key = request.headers.get("idempotency-key");
         return HttpResponse.json({ object: "account" });
       }),
@@ -90,13 +90,13 @@ describe("Idempotency-Key", () => {
   it("respects a user-provided Idempotency-Key", async () => {
     let key: string | null = null;
     server.use(
-      http.post(`${BASE_URL}/contacts`, ({ request }) => {
+      http.post(`${COMPANY_URL}/contacts`, ({ request }) => {
         key = request.headers.get("idempotency-key");
         return HttpResponse.json({ id: "c1" }, { status: 201 });
       }),
     );
 
-    await testClient().contacts.create({ name: "ACME" }, { idempotencyKey: "my-key-123" });
+    await testClient().contacts.create(COMPANY, { name: "ACME" }, { idempotencyKey: "my-key-123" });
     expect(key).toBe("my-key-123");
   });
 
@@ -104,7 +104,7 @@ describe("Idempotency-Key", () => {
     const seenKeys: string[] = [];
     let calls = 0;
     server.use(
-      http.post(`${BASE_URL}/contacts`, ({ request }) => {
+      http.post(`${COMPANY_URL}/contacts`, ({ request }) => {
         seenKeys.push(request.headers.get("idempotency-key") ?? "");
         calls += 1;
         if (calls === 1) {
@@ -114,7 +114,7 @@ describe("Idempotency-Key", () => {
       }),
     );
 
-    await testClient({ maxRetries: 1 }).contacts.create({ name: "ACME" });
+    await testClient({ maxRetries: 1 }).contacts.create(COMPANY, { name: "ACME" });
     expect(seenKeys).toHaveLength(2);
     expect(seenKeys[0]).toBe(seenKeys[1]);
   });

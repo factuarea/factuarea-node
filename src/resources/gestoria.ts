@@ -11,8 +11,8 @@ import type { Page } from "../core/pagination.js";
 
 export class GestoriaResource extends BaseResource {
   /** Retrieve the consolidated workforce compliance overview */
-  async workforceSummary(config?: RequestConfig): Promise<unknown> {
-    const path = "/gestoria/workforce-summary";
+  async workforceSummary(account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/gestoria/workforce-summary", { "account": account });
     return this._get<unknown>(path, undefined, config);
   }
 }

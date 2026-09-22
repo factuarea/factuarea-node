@@ -11,31 +11,32 @@ import type { Page } from "../core/pagination.js";
 
 export class TimeCorrectionsResource extends BaseResource {
   /** Approve a time entry correction */
-  async approve(timeCorrection: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/time-corrections/{time_correction}/approve", { "time_correction": timeCorrection });
+  async approve(company: string, timeCorrection: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-corrections/{time_correction}/approve", { "company": company, "time_correction": timeCorrection });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all time entry corrections */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/time-corrections", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/time-corrections", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Request a time entry correction */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-corrections";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-corrections", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Reject a time entry correction */
-  async reject(timeCorrection: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/time-corrections/{time_correction}/reject", { "time_correction": timeCorrection });
+  async reject(company: string, timeCorrection: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-corrections/{time_correction}/reject", { "company": company, "time_correction": timeCorrection });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve a time entry correction */
-  async show(timeCorrection: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/time-corrections/{time_correction}", { "time_correction": timeCorrection });
+  async show(company: string, timeCorrection: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-corrections/{time_correction}", { "company": company, "time_correction": timeCorrection });
     return this._get<unknown>(path, undefined, config);
   }
 }

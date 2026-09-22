@@ -11,19 +11,20 @@ import type { Page } from "../core/pagination.js";
 
 export class EmailsResource extends BaseResource {
   /** Summarize email delivery per document */
-  async indicators(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/emails/indicators";
+  async indicators(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/emails/indicators", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** List sent emails */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/emails", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/emails", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve a sent email */
-  async show(email: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/emails/{email}", { "email": email });
+  async show(company: string, email: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/emails/{email}", { "company": company, "email": email });
     return this._get<unknown>(path, undefined, config);
   }
 }

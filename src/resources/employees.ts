@@ -11,49 +11,50 @@ import type { Page } from "../core/pagination.js";
 
 export class EmployeesResource extends BaseResource {
   /** Create an employee */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/employees";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employees", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all employees */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/employees", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/employees", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Deactivate an employee */
-  async deactivate(employee: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employees/{employee}/deactivate", { "employee": employee });
+  async deactivate(company: string, employee: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employees/{employee}/deactivate", { "company": company, "employee": employee });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find an employee by external ID */
-  async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/employees/find-by-external-id";
+  async findByExternalId(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employees/find-by-external-id", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Get employee stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/employees/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employees/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Reactivate an employee */
-  async reactivate(employee: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employees/{employee}/reactivate", { "employee": employee });
+  async reactivate(company: string, employee: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employees/{employee}/reactivate", { "company": company, "employee": employee });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve an employee */
-  async show(employee: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employees/{employee}", { "employee": employee });
+  async show(company: string, employee: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employees/{employee}", { "company": company, "employee": employee });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update an employee */
-  async update(employee: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employees/{employee}", { "employee": employee });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, employee: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employees/{employee}", { "company": company, "employee": employee });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 }

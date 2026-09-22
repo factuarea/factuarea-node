@@ -11,20 +11,20 @@ import type { Page } from "../core/pagination.js";
 
 export class WebhookEndpointsDeliveriesResource extends BaseResource {
   /** List webhook deliveries */
-  async list(webhookEndpoint: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/deliveries", { "webhook_endpoint": webhookEndpoint });
+  async list(company: string, webhookEndpoint: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/deliveries", { "company": company, "webhook_endpoint": webhookEndpoint });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Replay webhook delivery */
-  async replay(webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/deliveries/{delivery}/replay", { "webhook_endpoint": webhookEndpoint, "delivery": delivery });
+  async replay(company: string, webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/deliveries/{delivery}/replay", { "company": company, "webhook_endpoint": webhookEndpoint, "delivery": delivery });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve webhook delivery */
-  async show(webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/deliveries/{delivery}", { "webhook_endpoint": webhookEndpoint, "delivery": delivery });
+  async show(company: string, webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/deliveries/{delivery}", { "company": company, "webhook_endpoint": webhookEndpoint, "delivery": delivery });
     return this._get<unknown>(path, undefined, config);
   }
 }
@@ -38,49 +38,50 @@ export class WebhookEndpointsResource extends BaseResource {
   }
 
   /** Create a webhook endpoint */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/webhook_endpoints";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all webhook endpoints */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/webhook_endpoints", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a webhook endpoint */
-  async delete(webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}", { "webhook_endpoint": webhookEndpoint });
+  async delete(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}", { "company": company, "webhook_endpoint": webhookEndpoint });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
   /** Retrieve a webhook endpoint */
-  async show(webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}", { "webhook_endpoint": webhookEndpoint });
+  async show(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}", { "company": company, "webhook_endpoint": webhookEndpoint });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a webhook endpoint */
-  async update(webhookEndpoint: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}", { "webhook_endpoint": webhookEndpoint });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, webhookEndpoint: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}", { "company": company, "webhook_endpoint": webhookEndpoint });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Ping webhook endpoint */
-  async ping(webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/ping", { "webhook_endpoint": webhookEndpoint });
+  async ping(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/ping", { "company": company, "webhook_endpoint": webhookEndpoint });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Rotate webhook secret */
-  async rotateSecret(webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/rotate_secret", { "webhook_endpoint": webhookEndpoint });
+  async rotateSecret(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/rotate-secret", { "company": company, "webhook_endpoint": webhookEndpoint });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Send a test event */
-  async testEvent(webhookEndpoint: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/webhook_endpoints/{webhook_endpoint}/test_event", { "webhook_endpoint": webhookEndpoint });
+  async testEvent(company: string, webhookEndpoint: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/test-event", { "company": company, "webhook_endpoint": webhookEndpoint });
     return this._send<unknown>("POST", path, body, config);
   }
 }
