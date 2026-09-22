@@ -4015,6 +4015,9 @@ export type CreateProductRequest = {
     external_id?: string | null;
     catalog_availability_mode?: 'open' | 'closed';
     option_groups?: Array<{
+        /**
+         * Public identifier (UUID v7) of the option group. A new group sent with another UUID version is rejected with 422.
+         */
         id: string;
         name: string;
         required?: boolean;
@@ -4022,6 +4025,9 @@ export type CreateProductRequest = {
         scope_id?: string | null;
         active?: boolean;
         values: Array<{
+            /**
+             * Public identifier (UUID v7) of the option value. A new value sent with another UUID version is rejected with 422.
+             */
             id: string;
             name: string;
             position?: number;
@@ -4030,6 +4036,9 @@ export type CreateProductRequest = {
         }>;
     }> | null;
     configurations?: Array<{
+        /**
+         * Public identifier (UUID v7) of the configuration. A new configuration sent with another UUID version is rejected with 422.
+         */
         id: string;
         variant_id?: string | null;
         presentation_id?: string | null;
@@ -13899,6 +13908,9 @@ export type UpdateProductRequest = {
     external_id?: string | null;
     catalog_availability_mode?: 'open' | 'closed';
     option_groups?: Array<{
+        /**
+         * Public identifier (UUID v7) of the option group. A new group must be a UUID v7 (422 otherwise); an existing one keeps its identifier.
+         */
         id: string;
         name: string;
         required?: boolean;
@@ -13906,6 +13918,9 @@ export type UpdateProductRequest = {
         scope_id?: string | null;
         active?: boolean;
         values: Array<{
+            /**
+             * Public identifier (UUID v7) of the option value. A new value must be a UUID v7 (422 otherwise); an existing one keeps its identifier.
+             */
             id: string;
             name: string;
             position?: number;
@@ -13914,6 +13929,9 @@ export type UpdateProductRequest = {
         }>;
     }> | null;
     configurations?: Array<{
+        /**
+         * Public identifier (UUID v7) of the configuration. A new configuration must be a UUID v7 (422 otherwise); an existing one keeps its identifier.
+         */
         id: string;
         variant_id?: string | null;
         presentation_id?: string | null;
