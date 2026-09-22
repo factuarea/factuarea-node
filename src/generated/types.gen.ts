@@ -294,7 +294,7 @@ export type AbsenceType = {
  */
 export type AcceptAccountClaimTokenV1Request = {
     /**
-     * Secreto EN CLARO del vale, tal como lo entregó la respuesta de su emisión.
+     * Plaintext secret of the claim token, exactly as its issuance response returned it.
      */
     secret: string;
 };
@@ -312,7 +312,7 @@ export type AcceptProformaRequest = {
 /**
  * AcceptQuoteRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/quotes/{uuid}/accept.
+ * Public REST API v1 — POST /v1/companies/{company}/quotes/{quote}/accept.
  *
  * Optional body: `accepted_on` (date, defaults to today), `notes`.
  * The controller performs the cross-field validation for `quote_expired`
@@ -865,23 +865,23 @@ export type ActivateCompaniesBatchV1Request = {
  */
 export type AddAccountMemberV1Request = {
     /**
-     * Identificador público (uuid) del NIF de la cuenta donde se da de alta a la persona.
+     * Public identifier (UUID v7) of the company of your account the person is added to.
      */
     company_id: string;
     /**
-     * Nombre completo de la persona.
+     * Full name of the person.
      */
     name: string;
     /**
-     * Dirección de correo de la persona; recibirá el correo de verificación.
+     * Email address of the person; the verification email is sent there.
      */
     email: string;
     /**
-     * Contraseña inicial, con la misma política que la aplicación web.
+     * Initial password, with the same policy as the web application.
      */
     password: string;
     /**
-     * Rol de membresía en ese NIF: owner, admin, member o employee.
+     * Membership role on that company: `owner`, `admin`, `member` or `employee`.
      */
     role: 'owner' | 'admin' | 'member' | 'employee';
 };
@@ -930,7 +930,7 @@ export type Address = {
  */
 export type AeatAccessRecord = {
     /**
-     * UUID (v7) of the underlying billing record (used only for ordering/cursoring).
+     * UUID v7 of the underlying billing record (used only for ordering/cursoring).
      */
     id: string | null;
     object: 'verifactu_aeat_access_record';
@@ -976,7 +976,7 @@ export type AlternativeId = {
 /**
  * AnnulInvoiceV1Request
  *
- * Public REST API v1 — POST /v1/companies/{company}/invoices/{uuid}/annul.
+ * Public REST API v1 — POST /v1/companies/{company}/invoices/{invoice}/annul.
  *
  * Body: `reason` (string, required, max. 500). The reason is persisted
  * on the Invoice aggregate and included in the VeriFactu cancellation record
@@ -1963,7 +1963,7 @@ export type AvailableInvoiceQuarter = {
 /**
  * BankAccount
  *
- * Cuenta bancaria de un cliente. El IBAN es obligatorio; el resto de campos son opcionales.
+ * Bank account of a client. The IBAN is required; the other fields are optional.
  */
 export type BankAccount = {
     object: 'bank_account';
@@ -1978,7 +1978,7 @@ export type BankAccount = {
 /**
  * BicString
  *
- * Bank Identifier Code / SWIFT (ISO 9362), 8 u 11 caracteres en mayúsculas.
+ * Bank Identifier Code / SWIFT (ISO 9362), 8 or 11 uppercase characters.
  */
 export type BicString = string;
 
@@ -2161,7 +2161,7 @@ export type BulkDeleteRecurringInvoicesRequest = {
 /**
  * BulkPartialSuccessResult
  *
- * Result of a bulk or import operation that reports per-resource status. `total` is how many rows/resources were processed (`successful + failed`), `successful` how many were applied (deleted, created or validated) and `failed` how many could not be processed. `failures[]` carries one item per failed row. Shape shared by every bulk endpoint of the public API (the `/v1/{resource}/bulk-delete` endpoints emit it today). Anchored integrators before `2026-09-01` keep receiving the previous `{object, deleted, failed[{id, reason}]}` shape via `Factuarea-Version`.
+ * Result of a bulk or import operation that reports per-resource status. `total` is how many rows/resources were processed (`successful + failed`), `successful` how many were applied (deleted, created or validated) and `failed` how many could not be processed. `failures[]` carries one item per failed row. Shape shared by every bulk endpoint of the public API (the bulk-delete endpoints emit it today). Anchored integrators before `2026-09-01` keep receiving the previous `{object, deleted, failed[{id, reason}]}` shape via `Factuarea-Version`.
  */
 export type BulkPartialSuccessResult = {
     /**
@@ -2181,7 +2181,7 @@ export type BulkPartialSuccessResult = {
      */
     failures: Array<{
         /**
-         * UUID (v7) of the existing resource that could not be processed. Present for bulk operations over existing resources (e.g. bulk-delete).
+         * UUID v7 of the existing resource that could not be processed. Present for bulk operations over existing resources (e.g. bulk-delete).
          */
         id?: string;
         /**
@@ -2626,11 +2626,7 @@ export type BusinessContactStats = {
 /**
  * CalculateTaxRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/taxes/calculate.
- *
- * Body: `{ base: float, taxes_id: string }`. `taxes_id` es la FK a la tabla
- * global `taxes` (valor UUID v7) — plural (D1), NUNCA `tax_id` (NIF/CIF fiscal).
- * Devuelve `{ base, tax_rate, tax_amount, total_amount, tax }`.
+ * Calculate a tax on a base amount. Body: `base` (number) and `taxes_id`, the public identifier (UUID v7) of the tax, never the tax ID of a company. Returns `base`, `tax_rate`, `tax_amount`, `total_amount` and `tax`.
  */
 export type CalculateTaxRequest = {
     base: number;
@@ -2787,7 +2783,7 @@ export type ChainValidation = {
      */
     validated_records: number;
     /**
-     * UUID (v7) of the first invalid record, or `null` if the chain is intact.
+     * UUID v7 of the first invalid record, or `null` if the chain is intact.
      */
     first_invalid_record_id: string | null;
     /**
@@ -2805,11 +2801,11 @@ export type ChainValidation = {
  */
 export type ChangeAccountMemberRoleV1Request = {
     /**
-     * Identificador público (uuid) del NIF de la cuenta donde se cambia el rol.
+     * Public identifier (UUID v7) of the company of your account where the role changes.
      */
     company_id: string;
     /**
-     * Nuevo rol de membresía en ese NIF: owner, admin, member o employee.
+     * New membership role on that company: `owner`, `admin`, `member` or `employee`.
      */
     role: 'owner' | 'admin' | 'member' | 'employee';
 };
@@ -2892,7 +2888,7 @@ export type Client = {
      */
     default_retention_rate?: number | null;
     /**
-     * Indica si al cliente se le aplica recargo de equivalencia.
+     * Whether the equivalence surcharge (recargo de equivalencia) applies to the client.
      */
     is_surcharge_subject?: boolean;
     /**
@@ -2926,7 +2922,7 @@ export type Client = {
      */
     external_id?: string | null;
     /**
-     * UUID (v7) of the default price list assigned to the client.
+     * UUID v7 of the default price list assigned to the client.
      */
     default_price_list_id: string | null;
     /**
@@ -3063,7 +3059,7 @@ export type Company = {
  */
 export type CompanyCertificate = {
     /**
-     * UUID (v7) of the certificate.
+     * UUID v7 of the certificate.
      */
     id: string;
     object: 'verifactu_certificate';
@@ -3283,11 +3279,11 @@ export type ConnectStoreV1Request = {
 /**
  * ConnectedAccount
  *
- * A connected Stripe account (Stripe Connect, multi-store) for your company. The public `id` is the account UUID (v7). `external_account_id` (`acct_xxx`) is the external Stripe id, not a foreign key. `series_id` is the UUID (v7) of the auto-invoicing document series (`null` means the company default series). The configuration fields are the effective per-account auto-invoicing settings.
+ * A connected Stripe account (Stripe Connect, multi-store) for your company. The public `id` is the account UUID v7. `external_account_id` (`acct_xxx`) is the external Stripe id, not a foreign key. `series_id` is the UUID v7 of the auto-invoicing document series (`null` means the company default series). The configuration fields are the effective per-account auto-invoicing settings.
  */
 export type ConnectedAccount = {
     /**
-     * UUID (v7) of the connected account. Public identity (KEY `id`).
+     * UUID v7 of the connected account. Public identity (KEY `id`).
      */
     id: string;
     /**
@@ -3307,7 +3303,7 @@ export type ConnectedAccount = {
      */
     external_account_name: string | null;
     /**
-     * UUID (v7) of the document series used for invoices auto-created from this account. `null` means the company default series is used.
+     * UUID v7 of the document series used for invoices auto-created from this account. `null` means the company default series is used.
      */
     series_id: string | null;
     /**
@@ -3406,7 +3402,7 @@ export type ConvertDeliveryNoteRequest = {
 /**
  * ConvertProformaRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/proformas/{uuid}/convert.
+ * Public REST API v1 — POST /v1/companies/{company}/proformas/{proforma}/convert.
  *
  * Required body: `target` ∈ {invoice}. Only conversion to invoice is
  * supported — other targets (`proforma`, `delivery_note`) do NOT apply
@@ -3514,11 +3510,11 @@ export type CreateAbsenceTypeRequest = {
  */
 export type CreateAccountClaimTokenV1Request = {
     /**
-     * Identificador público (uuid) del NIF de la cuenta que se cede con este vale.
+     * Public identifier (UUID v7) of the company of your account that this token gives away.
      */
     company_id: string;
     /**
-     * Caducidad PEDIDA para el vale, en ISO 8601. Opcional: sin ella se aplica el plazo por defecto. El techo lo aplica el producto.
+     * REQUESTED expiry of the claim token (ISO 8601). Optional: without it the default period applies, and the product enforces the ceiling.
      */
     expires_at?: string | null;
 };
@@ -3550,7 +3546,7 @@ export type CreateApiKeyV1Request = {
      */
     environment?: 'live' | 'test' | null;
     /**
-     * Lista opcional de empresas (uuid) que la key alcanzará; si se omite, solo la empresa titular.
+     * Optional public identifiers (UUID v7) of the companies of your account the key will reach; when omitted, only the holder company.
      */
     scoped_company_ids?: Array<string> | null;
 };
@@ -3628,9 +3624,7 @@ export type CreateBusinessContactV1Request = {
     longitude?: number | null;
     customer_profile?: {
         /**
-         * Resolver `any`: estas reglas las consumen la SPA (usuario en sesión) y
-         * la v1 (API key sin usuario autenticado). Con `exists` —resolver
-         * `auth_user`— la v1 respondía 500 al recibir una tarifa.
+         * Public identifier (UUID v7) of an active price list of your company applied by default to this customer, or `null`.
          */
         default_price_list_uuid?: string | null;
         discount?: number | null;
@@ -3998,7 +3992,7 @@ export type CreateProductRequest = {
     tags?: Array<string> | null;
     specifications?: Array<string | null> | null;
     /**
-     * Initial stock. Absent → defaults to 0. Later you can set it absolutely with `stock` on `PATCH /v1/companies/{company}/products/{uuid}`, or move it with `PATCH /v1/companies/{company}/products/{uuid}/stock` (`set`/`increase`/`decrease`).
+     * Initial stock. Absent → defaults to 0. Later you can set it absolutely with `stock` on `PATCH /v1/companies/{company}/products/{product}`, or move it with `PATCH /v1/companies/{company}/products/{product}/stock` (`set`/`increase`/`decrease`).
      */
     stock?: number | null;
     low_stock_threshold?: number | null;
@@ -4058,22 +4052,21 @@ export type CreateProductVariantRequest = {
     sku?: string | null;
     barcode?: string | null;
     /**
-     * Precio propio de la variante POR UNIDAD BASE. `null` = la variante
-     * no altera el precio del producto.
+     * Own price of the variant PER BASE UNIT; `null` keeps the price of the product.
      */
     base_price_override?: number | null;
     /**
-     * Coste propio de la variante POR UNIDAD BASE.
+     * Own cost of the variant PER BASE UNIT.
      */
     unit_cost_override?: number | null;
     /**
-     * Alias publicado de `base_price_override`.
+     * Published alias of `base_price_override`.
      *
      * @deprecated
      */
     price_override?: number | null;
     /**
-     * Alias publicado de `unit_cost_override`.
+     * Published alias of `unit_cost_override`.
      *
      * @deprecated
      */
@@ -4621,7 +4614,7 @@ export type DeactivateEmployeeRequest = {
  */
 export type DeclaracionResponsable = {
     /**
-     * UUID (v7) of the declaration.
+     * UUID v7 of the declaration.
      */
     id: string;
     object: 'verifactu_declaracion_responsable';
@@ -4809,7 +4802,7 @@ export type DeliveryNote = {
      */
     custom_fields: Array<CustomField>;
     /**
-     * UUID (v7) of the invoice this delivery note was converted into.
+     * UUID v7 of the invoice this delivery note was converted into.
      */
     converted_to_id: string | null;
     created_at: string | null;
@@ -4912,7 +4905,7 @@ export type DeliveryNoteLine = {
 /**
  * DeliveryNoteStats
  *
- * Resumen agregado de los albaranes de la empresa autenticada: total, importe acumulado, desglose por estado interno, pendientes de firma y convertidos a factura este mes. Devuelto por `GET /v1/companies/{company}/delivery-notes/stats`.
+ * Aggregated summary of the delivery notes of the company: total, accumulated amount, breakdown by internal status, pending signature and converted to an invoice this month. Returned by `GET /v1/companies/{company}/delivery-notes/stats`.
  */
 export type DeliveryNoteStats = {
     /**
@@ -5521,7 +5514,7 @@ export type Error = {
              */
             message: string;
             /**
-             * Expected format hint (e.g. `YYYY-MM-DD`, `uuid`, `email`, `url`). Only present when the failure is a format error.
+             * Expected format hint, as emitted: `YYYY-MM-DD`, `UUID`, `email`, `URL`… Only present when the failure is a format error.
              */
             expected_format?: string;
             /**
@@ -5534,7 +5527,7 @@ export type Error = {
          */
         details?: {
             /**
-             * UUID of the pre-existing resource that triggered the conflict. Resolvable with a `GET /v1/{resource}/{id}` without an extra `find_by_*` call. Only present on 409 duplication conflicts.
+             * Public identifier (UUID v7) of the resource that already exists, so you can fetch it with a `GET` and no extra `find_by_*` call. Only present on 409 duplication conflicts.
              */
             existing_resource_id?: string;
             /**
@@ -7417,7 +7410,7 @@ export type ExportInvoicesExcelV1Request = {
      */
     format?: 'SUMMARY' | 'ITEMS' | null;
     /**
-     * Formato de fichero: xlsx o csv.
+     * File format: `xlsx` or `csv`.
      */
     file_format?: 'xlsx' | 'csv' | null;
 };
@@ -7429,12 +7422,12 @@ export type ExportInvoicesExcelV1Request = {
  */
 export type FaceSubmission = {
     /**
-     * UUID (v7) of the FACe submission.
+     * UUID v7 of the FACe submission.
      */
     id: string;
     object: 'face_submission';
     /**
-     * UUID (v7) of the submitted invoice.
+     * UUID v7 of the submitted invoice.
      */
     invoice_id: string;
     /**
@@ -7554,7 +7547,7 @@ export type FindInvoiceByNumberRequest = {
     number: string;
     year?: number | null;
     /**
-     * Identificador de la serie que emitió la factura. Desambigua cuando dos series comparten número.
+     * Public identifier (UUID v7) of the series that issued the invoice; it tells apart two series that share a number.
      */
     series_id?: string | null;
 };
@@ -7661,9 +7654,7 @@ export type GenerateModelo130V1Request = {
     resultado_complementaria_centimos?: number | null;
     pagos_fraccionados_anteriores_override_centimos?: number | null;
     /**
-     * [13] Rendimiento neto del EJERCICIO ANTERIOR (base de la minoración
-     * del art. 110.3.c RIRPF). SIN `min:0`: el ejercicio anterior puede
-     * haber cerrado en pérdidas y un valor negativo es fiscalmente válido.
+     * Box [13]: net income of the PREVIOUS fiscal year, in cents (base of the reduction of art. 110.3.c RIRPF). It can be negative, because that year may have closed with a loss.
      */
     rendimiento_neto_ejercicio_anterior_centimos?: number | null;
 };
@@ -7741,7 +7732,7 @@ export type Holiday = {
 /**
  * IbanString
  *
- * International Bank Account Number (IBAN), forma canónica normalizada sin espacios y en mayúsculas (ISO 13616, longitud total 15..34). En entrada se toleran espacios y minúsculas.
+ * International Bank Account Number (IBAN) in canonical form, without spaces and in uppercase (ISO 13616, 15 to 34 characters). Spaces and lowercase are accepted on input.
  */
 export type IbanString = string;
 
@@ -7850,15 +7841,15 @@ export type IntegrationEventList = {
  */
 export type InviteAccountMemberV1Request = {
     /**
-     * Identificador público (uuid) del NIF de la cuenta al que se invita.
+     * Public identifier (UUID v7) of the company of your account the person is invited to.
      */
     company_id: string;
     /**
-     * Dirección de correo a la que se envía la invitación.
+     * Email address the invitation is sent to.
      */
     email: string;
     /**
-     * Rol de membresía con el que entraría: owner, admin, member o employee.
+     * Membership role the person would join with: `owner`, `admin`, `member` or `employee`.
      */
     role: 'owner' | 'admin' | 'member' | 'employee';
 };
@@ -7876,11 +7867,11 @@ export type Invoice = {
      */
     number: string | null;
     /**
-     * Whether the invoice has a definitive number assigned. `false` for drafts (where `number` is `null`); becomes `true` after `POST /v1/companies/{company}/invoices/{uuid}/assign-real-number`, or automatically on send/payment.
+     * Whether the invoice has a definitive number assigned. `false` for drafts (where `number` is `null`); becomes `true` after `POST /v1/companies/{company}/invoices/{invoice}/assign-real-number`, or automatically on send/payment.
      */
     is_number_assigned: boolean;
     /**
-     * AEAT invoice type code: `F1` (ordinaria), `F2` (simplificada), `F3` (sustitutiva de simplificadas), `R1`–`R5` (rectificativa).
+     * AEAT invoice type code: `F1` (standard), `F2` (simplified), `F3` (replaces simplified invoices), `R1`–`R5` (corrective).
      */
     type: string;
     series: SeriesRef;
@@ -7976,7 +7967,7 @@ export type Invoice = {
      */
     pending_amount: string;
     /**
-     * Payment ledger summary, ALWAYS present (never `null`). `total` mirrors `paid_amount`, `pending` mirrors `pending_amount`. `detail` lists the individual payments and is materialized ONLY on the show endpoint (`GET /v1/companies/{company}/invoices/{id}`); in list responses `detail` is `[]` (by cost) while `total`/`pending` stay populated. The detail is also available via `GET /v1/companies/{company}/invoices/{id}/payments`.
+     * Payment ledger summary, ALWAYS present (never `null`). `total` mirrors `paid_amount`, `pending` mirrors `pending_amount`. `detail` lists the individual payments and is materialized ONLY on the show endpoint (`GET /v1/companies/{company}/invoices/{invoice}`); in list responses `detail` is `[]` (by cost) while `total`/`pending` stay populated. The detail is also available via `GET /v1/companies/{company}/invoices/{invoice}/payments`.
      */
     payments: {
         /**
@@ -8019,7 +8010,7 @@ export type Invoice = {
      */
     channel: string | null;
     /**
-     * UUID (v7) of the connected store whose order produced this invoice, or `null` when it was not created from a store order. A store order is not a resource of its own on this API, so `channel` and `source_store_id` are the traceability from the order to the invoice.
+     * UUID v7 of the connected store whose order produced this invoice, or `null` when it was not created from a store order. A store order is not a resource of its own on this API, so `channel` and `source_store_id` are the traceability from the order to the invoice.
      */
     source_store_id: string | null;
     created_at: string;
@@ -8034,7 +8025,7 @@ export type Invoice = {
 export type InvoiceActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `invoice.created`, `invoice.paid`).
+     * Domain event type (e.g. `invoice.created`, `invoice.paid`).
      */
     event_type: string;
     /**
@@ -8056,7 +8047,7 @@ export type InvoiceActivity = {
          */
         type: 'user' | 'api_key';
         /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
+         * UUID v7 of the actor: the user when `type=user`, or the API key when `type=api_key`.
          */
         id: string;
         /**
@@ -8077,7 +8068,7 @@ export type InvoiceActivity = {
  */
 export type InvoiceCorrective = {
     /**
-     * UUID (v7) of the original corrected invoice.
+     * UUID v7 of the original corrected invoice.
      */
     original_id: string | null;
     /**
@@ -8101,11 +8092,11 @@ export type InvoiceCorrective = {
      */
     correction_nature: string | null;
     /**
-     * Base imponible rectificada.
+     * Corrected taxable base.
      */
     base_rectificada: string | null;
     /**
-     * Cuota (IVA) rectificada.
+     * Corrected tax amount (VAT).
      */
     cuota_rectificada: string | null;
     /**
@@ -8242,7 +8233,7 @@ export type InvoiceLine = {
 /**
  * InvoicePayment
  *
- * Datos del cobro de la factura. Presente (objeto) cuando `status` es `paid`, `null` en otro caso.
+ * Payment data of the invoice: an object when `status` is `paid`, otherwise `null`.
  */
 export type InvoicePayment = {
     /**
@@ -8262,11 +8253,11 @@ export type InvoicePayment = {
 /**
  * InvoicePaymentDetail
  *
- * A single payment recorded against an invoice (partial payment ledger entry). Listed in `payments.detail[]` (materialized only on the show endpoint) and in the standalone sub-resource `GET /v1/companies/{company}/invoices/{id}/payments`.
+ * A single payment recorded against an invoice (partial payment ledger entry). Listed in `payments.detail[]` (materialized only on the show endpoint) and in the standalone sub-resource `GET /v1/companies/{company}/invoices/{invoice}/payments`.
  */
 export type InvoicePaymentDetail = {
     /**
-     * Opaque UUID (v7) of the payment.
+     * Opaque UUID v7 of the payment.
      */
     id: string;
     /**
@@ -8274,7 +8265,7 @@ export type InvoicePaymentDetail = {
      */
     object: 'payment';
     /**
-     * UUID (v7) of the invoice this payment belongs to.
+     * UUID v7 of the invoice this payment belongs to.
      */
     invoice_id: string;
     /**
@@ -8338,7 +8329,7 @@ export type InvoicePaymentDetail = {
  */
 export type InvoiceRecurring = {
     /**
-     * UUID (v7) of the parent recurring invoice.
+     * UUID v7 of the parent recurring invoice.
      */
     id: string;
 };
@@ -8426,7 +8417,7 @@ export type InvoiceReminderPreview = {
  */
 export type InvoiceReminderSent = {
     /**
-     * UUID (v7) of the invoice the reminder was sent to.
+     * UUID v7 of the invoice the reminder was sent to.
      */
     id: string;
     /**
@@ -8518,7 +8509,7 @@ export type InvoiceStatusItem = {
  */
 export type InvoiceSubstitutedBy = {
     /**
-     * UUID (v7) of the substitute full invoice.
+     * UUID v7 of the substitute full invoice.
      */
     id: string | null;
     /**
@@ -8570,7 +8561,7 @@ export type IssuingReadiness = {
 /**
  * MarkDeliveredRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/delivery-notes/{uuid}/mark-delivered.
+ * Public REST API v1 — POST /v1/companies/{company}/delivery-notes/{delivery_note}/mark-delivered.
  *
  * REST sub-resource that transitions the delivery note `draft → delivered`. Optional
  * body: `delivery_date` (ISO 8601 `YYYY-MM-DD`). If omitted, the BC uses
@@ -9094,7 +9085,7 @@ export type PdfCapabilities = {
 /**
  * PhoneString
  *
- * Número de teléfono internacional permisivo: `+` opcional, dígitos, espacios, guiones y paréntesis (6..20 caracteres).
+ * International phone number, permissive: optional `+`, digits, spaces, hyphens and parentheses (6 to 20 characters).
  */
 export type PhoneString = string;
 
@@ -9273,7 +9264,7 @@ export type Product = {
          */
         url: string;
         /**
-         * MIME type de la imagen (e.g. `image/jpeg`).
+         * MIME type of the image (e.g. `image/jpeg`).
          */
         content_type: string;
     }>;
@@ -9335,7 +9326,7 @@ export type Product = {
      */
     is_low_stock: boolean;
     /**
-     * Indica si hay stock disponible (> 0).
+     * Whether there is stock available (> 0).
      */
     is_in_stock: boolean;
     /**
@@ -9360,7 +9351,7 @@ export type Product = {
  */
 export type ProductActivity = {
     /**
-     * Tipo de evento de dominio (p. ej. `product.updated`, `invoice.created`).
+     * Domain event type (e.g. `product.updated`, `invoice.created`).
      */
     event_type: string;
     /**
@@ -9382,7 +9373,7 @@ export type ProductActivity = {
          */
         type: 'user' | 'api_key';
         /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
+         * UUID v7 of the actor: the user when `type=user`, or the API key when `type=api_key`.
          */
         id: string;
         /**
@@ -9565,11 +9556,11 @@ export type ProductStats = {
      */
     total_products: number;
     /**
-     * Productos marcados como activos.
+     * Products marked as active.
      */
     active_products: number;
     /**
-     * Productos sin stock disponible (stock = 0).
+     * Products without available stock (stock = 0).
      */
     out_of_stock_count: number;
     /**
@@ -9636,7 +9627,7 @@ export type Proforma = {
      */
     reference: string | null;
     /**
-     * UUID (v7) of the invoice this proforma was converted into, if applicable.
+     * UUID v7 of the invoice this proforma was converted into, if applicable.
      */
     converted_to_id: string | null;
     /**
@@ -9682,7 +9673,7 @@ export type Proforma = {
      */
     payment_terms_days: number | null;
     /**
-     * Condiciones de entrega en formato libre.
+     * Free-text delivery terms.
      */
     delivery_terms: string | null;
     /**
@@ -9877,7 +9868,7 @@ export type PublicLink = {
      */
     url: string;
     /**
-     * UUID (v7) of the document the link points to.
+     * UUID v7 of the document the link points to.
      */
     id: string;
     /**
@@ -9971,11 +9962,11 @@ export type PurchaseInvoice = {
      */
     bank_account: null;
     /**
-     * Cuenta contable de gasto asociada, o `null`.
+     * Associated expense ledger account, or `null`.
      */
     expense_account: string | null;
     /**
-     * UUID (v7) of the associated expense category, or `null`.
+     * UUID v7 of the associated expense category, or `null`.
      */
     expense_category_id: string | null;
     /**
@@ -10021,7 +10012,7 @@ export type PurchaseInvoice = {
 /**
  * PurchaseInvoiceAttachment
  *
- * Fichero adjunto (PDF/imagen) de la factura de compra. `null` cuando no hay adjunto.
+ * File attached to the purchase invoice (PDF or image), or `null` when there is none.
  */
 export type PurchaseInvoiceAttachment = {
     /**
@@ -10037,7 +10028,7 @@ export type PurchaseInvoiceAttachment = {
      */
     size_bytes: number;
     /**
-     * Relative download URL of the attachment (`/v1/companies/{company}/purchase-invoices/{id}/file`).
+     * Relative download URL of the attachment (`/v1/companies/{company}/purchase-invoices/{purchase_invoice}/file`).
      */
     download_url: string;
 };
@@ -10199,11 +10190,11 @@ export type PurchaseInvoiceLine = {
 /**
  * PurchaseInvoicePayment
  *
- * A single payment recorded against a purchase invoice (payment ledger entry). Listed by `GET /v1/companies/{company}/purchase-invoices/{id}/payments` and returned by `POST` on the same path.
+ * A single payment recorded against a purchase invoice (payment ledger entry). Listed by `GET /v1/companies/{company}/purchase-invoices/{purchase_invoice}/payments` and returned by `POST` on the same path.
  */
 export type PurchaseInvoicePayment = {
     /**
-     * Opaque UUID (v7) of the payment.
+     * Opaque UUID v7 of the payment.
      */
     id: string;
     /**
@@ -10363,7 +10354,7 @@ export type Quote = {
     accepted_at: string | null;
     rejected_at: string | null;
     /**
-     * UUID (v7) of the invoice this quote was converted into, if any.
+     * UUID v7 of the invoice this quote was converted into, if any.
      */
     converted_to_id: string | null;
     /**
@@ -10519,7 +10510,7 @@ export type QuoteLine = {
 /**
  * QuoteStats
  *
- * Resumen agregado de los presupuestos de la empresa autenticada: total, importe acumulado, conteo por estado, expirados y convertidos a factura. Devuelto por `GET /v1/companies/{company}/quotes/stats`.
+ * Aggregated summary of the quotes of the company: total, accumulated amount, count by status, expired and converted to an invoice. Returned by `GET /v1/companies/{company}/quotes/stats`.
  */
 export type QuoteStats = {
     /**
@@ -10748,7 +10739,7 @@ export type RecurringInvoice = {
 export type RecurringInvoiceActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `recurring_invoice.activated`, `recurring_invoice.executed`, `recurring_invoice.cancelled`).
+     * Domain event type (e.g. `recurring_invoice.activated`, `recurring_invoice.executed`, `recurring_invoice.cancelled`).
      */
     event_type: string;
     /**
@@ -10770,7 +10761,7 @@ export type RecurringInvoiceActivity = {
          */
         type: 'user' | 'api_key';
         /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
+         * UUID v7 of the actor: the user when `type=user`, or the API key when `type=api_key`.
          */
         id: string;
         /**
@@ -10963,7 +10954,7 @@ export type RecurringInvoicePreviewDocument = {
 export type RecurringInvoiceStats = {
     object: 'recurring_invoice_stats';
     /**
-     * Total de recurrencias registradas.
+     * Total number of recurring invoices.
      */
     total: number;
     /**
@@ -10971,11 +10962,11 @@ export type RecurringInvoiceStats = {
      */
     active: number;
     /**
-     * Recurrencias pausadas (reanudables).
+     * Paused recurring invoices (they can be resumed).
      */
     paused: number;
     /**
-     * Recurrencias canceladas (estado terminal irreversible).
+     * Cancelled recurring invoices (final, irreversible status).
      */
     cancelled: number;
     /**
@@ -10995,7 +10986,7 @@ export type RecurringInvoiceStats = {
      */
     generated_this_month: number;
     /**
-     * Ejecuciones de recurrencia fallidas durante el mes en curso.
+     * Failed recurring invoice runs in the current month.
      */
     failed_this_month: number;
     /**
@@ -11009,7 +11000,7 @@ export type RecurringInvoiceStats = {
      */
     next_scheduled: Array<{
         /**
-         * UUID (v7) de la recurrencia.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         id: string | null;
         /**
@@ -11144,9 +11135,7 @@ export type ResolveCatalogSelectionRequest = {
     variant_id?: string | null;
     presentation_id?: string | null;
     /**
-     * Opciones ya elegidas: un ÚNICO valor por grupo. La selección
-     * múltiple queda fuera de alcance y dos valores del mismo grupo son
-     * una petición inválida, no una selección parcial.
+     * Options already chosen, ONE value per group: two values of the same group are an invalid request, not a partial selection.
      */
     options?: Array<{
         group_id: string;
@@ -11179,15 +11168,15 @@ export type ResolvedCatalogPrice = {
     variant_id: string | null;
     presentation_id: string | null;
     /**
-     * Combinación comercial contra la que se resolvió el precio. Puede venir informada aunque la petición solo enviase la firma: una firma que casa con una combinación materializada se normaliza a su identidad antes de valorar.
+     * Commercial combination the price was resolved against. It can be set even when the request only sent the signature: a signature that matches a materialized combination is normalized to its identity before pricing.
      */
     configuration_id: string | null;
     /**
-     * Firma canónica (64 hexadecimales) de la selección resuelta.
+     * Canonical signature (64 hexadecimal characters) of the resolved selection.
      */
     selection_signature: string | null;
     /**
-     * Tarifa CONSULTADA, no la fuente del precio: viene informada aunque `source` sea `product`. Para saber de dónde salió el importe, mira `source`.
+     * Price list that was CONSULTED, not the source of the price: it is set even when `source` is `product`. Check `source` to know where the amount came from.
      */
     price_list_id: string | null;
     price_list_name: string | null;
@@ -11197,19 +11186,19 @@ export type ResolvedCatalogPrice = {
     base_unit: string;
     source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
     /**
-     * Semántica del importe de la fuente ganadora. `per_base_unit` se convierte una vez por el factor de la presentación; `per_commercial_unit` nunca se convierte.
+     * Semantics of the amount of the winning source: `per_base_unit` is converted once by the presentation factor; `per_commercial_unit` is never converted.
      */
     unit_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
     /**
-     * Importe de la fuente ganadora, ya convertido a `price_unit` y ANTES de los ajustes de opción: `source_amount + option_adjustment_total = unit_price`.
+     * Amount of the winning source, already converted to `price_unit` and BEFORE option adjustments: `source_amount + option_adjustment_total = unit_price`.
      */
     source_amount: string | null;
     /**
-     * Suma de los ajustes de los valores de opción elegidos, por unidad comercial.
+     * Sum of the adjustments of the chosen option values, per commercial unit.
      */
     option_adjustment_total: string | null;
     /**
-     * Si la fuente ganadora ya incluía los ajustes de opción. `null` significa que el resolvedor no se pronunció, nunca `false`.
+     * Whether the winning source already included the option adjustments; `null` means the resolver did not say, never `false`.
      */
     option_adjustments_absorbed: boolean | null;
 };
@@ -11217,19 +11206,19 @@ export type ResolvedCatalogPrice = {
 /**
  * ResolvedCatalogPriceList
  *
- * Precios resueltos del lote, uno por selección enviada. El orden no es contrato: emparéjalos por `index`.
+ * Resolved prices of the batch, one per selection sent. The order is not guaranteed: match them by `index`.
  */
 export type ResolvedCatalogPriceList = Array<ResolvedCatalogPricePreview>;
 
 /**
  * ResolvedCatalogPricePreview
  *
- * Una línea del repricing: el precio que resuelve hoy la selección, el que la línea tiene congelado y la diferencia entre los dos.
+ * One repricing line: the price the selection resolves to today, the price frozen on the line and the difference between them.
  */
 export type ResolvedCatalogPricePreview = {
     object: 'resolved_catalog_price_preview';
     /**
-     * Posición de la selección en `targets`. Es lo que empareja cada precio con su línea sin depender del orden de la respuesta.
+     * Position of the selection in `targets`; it matches each price with its line regardless of the order of the response.
      */
     index: number;
     product_id: string;
@@ -11245,31 +11234,31 @@ export type ResolvedCatalogPricePreview = {
     base_unit: string;
     source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
     /**
-     * Semántica del importe de la fuente ganadora. `per_base_unit` se convierte una vez por el factor de la presentación; `per_commercial_unit` nunca se convierte.
+     * Semantics of the amount of the winning source: `per_base_unit` is converted once by the presentation factor; `per_commercial_unit` is never converted.
      */
     unit_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
     /**
-     * Importe de la fuente ganadora, ya convertido a `price_unit` y ANTES de los ajustes de opción: `source_amount + option_adjustment_total = unit_price`.
+     * Amount of the winning source, already converted to `price_unit` and BEFORE option adjustments: `source_amount + option_adjustment_total = unit_price`.
      */
     source_amount: string | null;
     /**
-     * Suma de los ajustes de los valores de opción elegidos, por unidad comercial.
+     * Sum of the adjustments of the chosen option values, per commercial unit.
      */
     option_adjustment_total: string | null;
     /**
-     * Si la fuente ganadora ya incluía los ajustes de opción. `null` significa que el resolvedor no se pronunció, nunca `false`.
+     * Whether the winning source already included the option adjustments; `null` means the resolver did not say, never `false`.
      */
     option_adjustments_absorbed: boolean | null;
     /**
-     * Precio unitario que la línea tiene congelado hoy, tal y como se envió.
+     * Unit price currently frozen on the line, as it was sent.
      */
     current_unit_price: string | null;
     /**
-     * `null` cuando no se envió `current_unit_price`: sin él no hay nada que comparar.
+     * `null` when `current_unit_price` was not sent: without it there is nothing to compare.
      */
     changed: boolean | null;
     /**
-     * `unit_price - current_unit_price`. `null` cuando no se envió `current_unit_price`.
+     * `unit_price - current_unit_price`, or `null` when `current_unit_price` was not sent.
      */
     difference: string | null;
 };
@@ -11449,15 +11438,7 @@ export type ScheduleInvoiceRequest = {
 /**
  * SendDeliveryNoteRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/delivery-notes/{uuid}/send.
- *
- * Required body: `email`. Optional: `subject`, `message` (max 2000 chars),
- * `template_id` (catalog id of the email template).
- *
- * `template_id` is the integer identifier of the global system table
- * `templates` (shared catalog, without `company_id` or `uuid` column). It is
- * validated against the PK `id`, like the internal SPA endpoint. That is why
- * it does NOT follow the public UUID convention of the other FKs.
+ * Email a delivery note. Required: `email`. Optional: `subject`, `message` (up to 2,000 characters) and `template_id`, the integer identifier of an email template of the global catalog (a shared system catalog, so it is not a UUID v7).
  */
 export type SendDeliveryNoteRequest = {
     email: string;
@@ -11483,8 +11464,8 @@ export type SendEmployeeInvitationRequest = {
 /**
  * SendInvoiceReminderV1Request
  *
- * Public REST API v1 — POST /v1/companies/{company}/invoices/{uuid}/send-reminder
- * and POST /v1/companies/{company}/invoices/{uuid}/reminder-preview (same fields).
+ * Public REST API v1 — POST /v1/companies/{company}/invoices/{invoice}/send-reminder
+ * and POST /v1/companies/{company}/invoices/{invoice}/reminder-preview (same fields).
  *
  * All fields are optional — without overrides the handler uses the
  * canonical payment reminder template.
@@ -11503,11 +11484,11 @@ export type SendInvoiceReminderV1Request = {
      */
     message?: string | null;
     /**
-     * Direcciones en copia.
+     * Carbon copy addresses.
      */
     cc?: Array<string> | null;
     /**
-     * Direcciones en copia oculta.
+     * Blind carbon copy addresses.
      */
     bcc?: Array<string> | null;
     /**
@@ -11523,7 +11504,7 @@ export type SendInvoiceReminderV1Request = {
 /**
  * SendInvoiceRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/invoices/{uuid}/send.
+ * Public REST API v1 — POST /v1/companies/{company}/invoices/{invoice}/send.
  *
  * Optional body: `to` (string), `cc[]`, `bcc[]` (arrays of emails),
  * `subject` (max 200), `body` (string). The controller performs the
@@ -11541,7 +11522,7 @@ export type SendInvoiceRequest = {
 /**
  * SendProformaRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/proformas/{uuid}/send.
+ * Public REST API v1 — POST /v1/companies/{company}/proformas/{proforma}/send.
  *
  * Optional body: `to` (string), `cc[]`, `bcc[]` (arrays of emails),
  * `subject` (max 200), `body` (string). The controller performs the
@@ -11559,7 +11540,7 @@ export type SendProformaRequest = {
 /**
  * SendQuoteRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/quotes/{uuid}/send.
+ * Public REST API v1 — POST /v1/companies/{company}/quotes/{quote}/send.
  *
  * Optional body: `to` (string), `cc[]`, `bcc[]` (arrays of emails),
  * `subject` (max 200), `body` (string). The controller performs the
@@ -11641,7 +11622,7 @@ export type Series = {
 export type SeriesActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `series.created`, `series.archived`, `series.number_consumed`).
+     * Domain event type (e.g. `series.created`, `series.archived`, `series.number_consumed`).
      */
     event_type: string;
     /**
@@ -11663,7 +11644,7 @@ export type SeriesActivity = {
          */
         type: 'user' | 'api_key';
         /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
+         * UUID v7 of the actor: the user when `type=user`, or the API key when `type=api_key`.
          */
         id: string;
         /**
@@ -11684,7 +11665,7 @@ export type SeriesActivity = {
  */
 export type SeriesBootstrapCandidate = {
     /**
-     * Opaque identifier (UUID v7) of the series. Pass it to `POST /v1/companies/{company}/series/{id}/default` to promote it.
+     * Opaque identifier (UUID v7) of the series. Pass it to `POST /v1/companies/{company}/series/{series}/default` to promote it.
      */
     id: string;
     /**
@@ -11746,11 +11727,11 @@ export type SeriesRef = {
  */
 export type SetAccountMemberModuleAccessV1Request = {
     /**
-     * Identificador público del NIF sobre el que se fija el nivel de acceso.
+     * Public identifier (UUID v7) of the company the access level is set on.
      */
     company_id: string;
     /**
-     * Mapa de sección a capacidades RETIRADAS. Obligatorio, y puede venir vacío.
+     * Map of section to WITHDRAWN capabilities. Required; it can be empty.
      */
     restrictions: Array<Array<'access' | 'delete' | 'send' | 'export'>>;
 };
@@ -11758,11 +11739,11 @@ export type SetAccountMemberModuleAccessV1Request = {
 /**
  * ShopifyConnectionCheck
  *
- * The outcome of testing the connection with one of your connected Shopify stores. The public `id` is the UUID (v7) of the STORE that was tested, so you can tell which shop this diagnosis is about. Nothing is stored: this resource is a diagnosis, not a record. Read `reachable` and `credential_accepted` together — `reachable: false` means the shop did not answer, while `reachable: true` with `credential_accepted: false` means it answered and rejected the access token — and read `failure_code` for the concrete cause, which is what tells «your token is no longer valid» apart from «the Admin API version we speak has expired».
+ * The outcome of testing the connection with one of your connected Shopify stores. The public `id` is the UUID v7 of the STORE that was tested, so you can tell which shop this diagnosis is about. Nothing is stored: this resource is a diagnosis, not a record. Read `reachable` and `credential_accepted` together — `reachable: false` means the shop did not answer, while `reachable: true` with `credential_accepted: false` means it answered and rejected the access token — and read `failure_code` for the concrete cause, which is what tells «your token is no longer valid» apart from «the Admin API version we speak has expired».
  */
 export type ShopifyConnectionCheck = {
     /**
-     * UUID (v7) of the store that was tested. Public identity (KEY `id`).
+     * UUID v7 of the store that was tested. Public identity (KEY `id`).
      */
     id: string;
     /**
@@ -11802,7 +11783,7 @@ export type ShopifyConnectionCheck = {
 /**
  * SignDeliveryNoteRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/delivery-notes/{uuid}/sign.
+ * Public REST API v1 — POST /v1/companies/{company}/delivery-notes/{delivery_note}/sign.
  *
  * Optional body: `signed_by` (alias of `recipient_name`, BC invariant),
  * `recipient_dni` (BC invariant — Spanish DNI/NIE, required by
@@ -11930,11 +11911,11 @@ export type StockMovement = {
 /**
  * Store
  *
- * A connected e-commerce store of your company. The public `id` is the store UUID (v7). `integration_id` is the UUID of the provider connection that backs it, and `external_store_id` is the identifier the provider gives to the shop — an opaque string, not a foreign key of ours. The settings decide how the orders of the store become invoices.
+ * A connected e-commerce store of your company. The public `id` is the store UUID v7. `integration_id` is the UUID of the provider connection that backs it, and `external_store_id` is the identifier the provider gives to the shop — an opaque string, not a foreign key of ours. The settings decide how the orders of the store become invoices.
  */
 export type Store = {
     /**
-     * UUID (v7) of the store. Public identity (KEY `id`).
+     * UUID v7 of the store. Public identity (KEY `id`).
      */
     id: string;
     /**
@@ -11998,11 +11979,11 @@ export type Store = {
 /**
  * StripeAutoinvoicedCorrective
  *
- * A corrective invoice automatically generated from a Stripe refund (`charge.refunded`). The public `id` is the UUID (v7) of the corrective invoice; `original_invoice_id` links to the original invoice.
+ * A corrective invoice automatically generated from a Stripe refund (`charge.refunded`). The public `id` is the UUID v7 of the corrective invoice; `original_invoice_id` links to the original invoice.
  */
 export type StripeAutoinvoicedCorrective = {
     /**
-     * UUID (v7) of the corrective invoice. Public identity (KEY `id`).
+     * UUID v7 of the corrective invoice. Public identity (KEY `id`).
      */
     id: string;
     /**
@@ -12010,7 +11991,7 @@ export type StripeAutoinvoicedCorrective = {
      */
     object: 'stripe_autoinvoiced_corrective';
     /**
-     * UUID (v7) of the original invoice that was corrected by the refund.
+     * UUID v7 of the original invoice that was corrected by the refund.
      */
     original_invoice_id: string;
     /**
@@ -12038,11 +12019,11 @@ export type StripeAutoinvoicedCorrective = {
 /**
  * StripeAutoinvoicedPayment
  *
- * A Stripe charge that generated an invoice (one-shot flows A/B and subscription cycles). The public `id` is the UUID (v7) of the payment; `invoice_id`/`client_id` link to the generated invoice and client. Subscription-origin context (`subscription_id`, `stripe_invoice_id`, `period_start`, `period_end`) is `null` for one-shot charges.
+ * A Stripe charge that generated an invoice (one-shot flows A/B and subscription cycles). The public `id` is the UUID v7 of the payment; `invoice_id`/`client_id` link to the generated invoice and client. Subscription-origin context (`subscription_id`, `stripe_invoice_id`, `period_start`, `period_end`) is `null` for one-shot charges.
  */
 export type StripeAutoinvoicedPayment = {
     /**
-     * UUID (v7) of the payment record. Public identity (KEY `id`).
+     * UUID v7 of the payment record. Public identity (KEY `id`).
      */
     id: string;
     /**
@@ -12050,11 +12031,11 @@ export type StripeAutoinvoicedPayment = {
      */
     object: 'stripe_autoinvoiced_payment';
     /**
-     * UUID (v7) of the invoice generated by this charge.
+     * UUID v7 of the invoice generated by this charge.
      */
     invoice_id: string;
     /**
-     * UUID (v7) of the invoice client, or `null` if not available.
+     * UUID v7 of the invoice client, or `null` if not available.
      */
     client_id: string | null;
     /**
@@ -12122,7 +12103,7 @@ export type StripeAutoinvoicingConfig = {
      */
     enabled: boolean;
     /**
-     * UUID (v7) of the document series used for auto-created invoices. `null` means the company default series is used.
+     * UUID v7 of the document series used for auto-created invoices. `null` means the company default series is used.
      */
     series_id: string | null;
     /**
@@ -12158,11 +12139,11 @@ export type StripeAutoinvoicingConfig = {
 /**
  * StripePayout
  *
- * A Stripe payout ingested from `payout.paid`, together with its bank-reconciliation state. The public `id` is the payout UUID (v7). `connected_account_id` (`acct_xxx`) and `stripe_payout_id` (`po_xxx`) are external Stripe ids, not foreign keys. `bank_transaction_ref` is the UUID (v7) of the reconciled bank statement transaction (`null` while `status` is `ingested`). `composition` is the informative breakdown reported by Stripe (component charges + fees), referencing opaque Stripe ids — payouts are read-only on the public API; reconciliation happens in the dashboard.
+ * A Stripe payout ingested from `payout.paid`, together with its bank-reconciliation state. The public `id` is the payout UUID v7. `connected_account_id` (`acct_xxx`) and `stripe_payout_id` (`po_xxx`) are external Stripe ids, not foreign keys. `bank_transaction_ref` is the UUID v7 of the reconciled bank statement transaction (`null` while `status` is `ingested`). `composition` is the informative breakdown reported by Stripe (component charges + fees), referencing opaque Stripe ids — payouts are read-only on the public API; reconciliation happens in the dashboard.
  */
 export type StripePayout = {
     /**
-     * UUID (v7) of the payout. Public identity (KEY `id`).
+     * UUID v7 of the payout. Public identity (KEY `id`).
      */
     id: string;
     /**
@@ -12206,7 +12187,7 @@ export type StripePayout = {
      */
     reconciled_at: string | null;
     /**
-     * UUID (v7) of the reconciled bank statement transaction, or `null` while `ingested`.
+     * UUID v7 of the reconciled bank statement transaction, or `null` while `ingested`.
      */
     bank_transaction_ref: string | null;
     /**
@@ -12361,7 +12342,7 @@ export type Tax = {
 /**
  * TaxCalculation
  *
- * Resultado de aplicar un tax a un importe base. Devuelto por `POST /v1/companies/{company}/taxes/calculate`.
+ * Result of applying a tax to a base amount. Returned by `POST /v1/companies/{company}/taxes/calculate`.
  */
 export type TaxCalculation = {
     /**
@@ -12588,11 +12569,11 @@ export type TaxRateRef = {
 /**
  * TaxReport
  *
- * A generated Spanish tax declaration (Modelo 303 quarterly VAT, or Modelo 347 yearly informational). Downloadable via `GET /v1/companies/{company}/tax-reports/{uuid}/download`.
+ * A generated Spanish tax declaration (Modelo 303 quarterly VAT, or Modelo 347 yearly informational). Downloadable via `GET /v1/companies/{company}/tax-reports/{tax_report}/download`.
  */
 export type TaxReport = {
     /**
-     * Opaque UUID (v7) of the generated report.
+     * Opaque UUID v7 of the generated report.
      */
     id: string;
     object: 'tax_report';
@@ -12636,11 +12617,11 @@ export type TaxReport = {
     size_bytes: number;
     generated_at: string;
     /**
-     * UUID (v7) of the user who generated the declaration (audit trail).
+     * UUID v7 of the user who generated the declaration (audit trail).
      */
     generated_by_id: string;
     /**
-     * Relative download URL of the generated resource (`/v1/companies/{company}/tax-reports/{uuid}/download`).
+     * Relative download URL of the generated resource (`/v1/companies/{company}/tax-reports/{tax_report}/download`).
      */
     download_url: string;
     /**
@@ -12661,7 +12642,7 @@ export type TaxReport = {
 export type TaxReportActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `tax_report.generated`).
+     * Domain event type (e.g. `tax_report.generated`).
      */
     event_type: string;
     /**
@@ -12683,7 +12664,7 @@ export type TaxReportActivity = {
          */
         type: 'user' | 'api_key';
         /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
+         * UUID v7 of the actor: the user when `type=user`, or the API key when `type=api_key`.
          */
         id: string;
         /**
@@ -12826,15 +12807,15 @@ export type TaxReportStats = {
      */
     by_type: {
         /**
-         * Declaraciones Modelo 303 generadas.
+         * Generated Modelo 303 declarations.
          */
         modelo_303: number;
         /**
-         * Declaraciones Modelo 347 generadas.
+         * Generated Modelo 347 declarations.
          */
         modelo_347: number;
         /**
-         * Declaraciones Modelo 130 generadas.
+         * Generated Modelo 130 declarations.
          */
         modelo_130: number;
     };
@@ -12843,15 +12824,15 @@ export type TaxReportStats = {
      */
     by_format: {
         /**
-         * Ficheros en formato oficial AEAT.
+         * Files in the official AEAT format.
          */
         txt_aeat: number;
         /**
-         * Ficheros PDF.
+         * PDF files.
          */
         pdf: number;
         /**
-         * Ficheros Excel.
+         * Excel files.
          */
         excel: number;
     };
@@ -12860,7 +12841,7 @@ export type TaxReportStats = {
      */
     total_size_bytes: number;
     /**
-     * Trimestre fiscal en curso (UTC).
+     * Current fiscal quarter (UTC).
      */
     current_quarter: {
         year: number;
@@ -12875,7 +12856,7 @@ export type TaxReportStats = {
 /**
  * TaxStats
  *
- * Aggregated KPIs over the company tax catalog (includes global system taxes). Breakdown por `type` y por `external_reference` AEAT.
+ * Aggregated KPIs over the company tax catalog (includes global system taxes). Breakdown by `type` and by AEAT `external_reference`.
  */
 export type TaxStats = {
     object: 'tax_stats';
@@ -12979,16 +12960,16 @@ export type TaxTotalsLine = {
 /**
  * TaxUsage
  *
- * Desglose del uso de un tax across bounded contexts. Permite decidir si es seguro borrar o desactivar un tax (`in_use=false` ⇒ delete seguro).
+ * Where a tax is in use, broken down by document type. It tells whether the tax can be safely deleted or deactivated (`in_use=false` means it can be deleted).
  */
 export type TaxUsage = {
     object: 'tax_usage';
     /**
-     * UUID (v7) of the requested tax.
+     * UUID v7 of the requested tax.
      */
     taxes_id: string;
     /**
-     * true si `total_count > 0`.
+     * `true` when `total_count > 0`.
      */
     in_use: boolean;
     /**
@@ -13310,7 +13291,7 @@ export type TimeRecordChainValidation = {
      */
     validated_records: number;
     /**
-     * UUID (v7) of the first invalid entry, or `null` if the chain is intact.
+     * UUID v7 of the first invalid entry, or `null` if the chain is intact.
      */
     first_invalid_record_id: string | null;
     /**
@@ -13368,7 +13349,7 @@ export type TimeTrackingSettings = {
  */
 export type TransferAccountOwnershipV1Request = {
     /**
-     * Identificador público (uuid) de la persona que pasa a ser titular de la cuenta.
+     * Public identifier (UUID v7) of the person who becomes the account owner.
      */
     owner_user_id: string;
 };
@@ -13460,7 +13441,7 @@ export type UpdateAbsenceTypeRequest = {
  */
 export type UpdateAccountPersonalizationRequest = {
     /**
-     * Account issuing language (es, en or ca).
+     * Account issuing language: `es`, `en` or `ca`.
      */
     language?: 'es' | 'en' | 'ca' | null;
     /**
@@ -13644,7 +13625,7 @@ export type UpdateCustomerProfileV1Request = {
 /**
  * UpdateDeliveryNotePublicLinkRequest
  *
- * Public REST API v1 — PATCH /v1/companies/{company}/delivery-notes/{uuid}/public-link.
+ * Public REST API v1 — PATCH /v1/companies/{company}/delivery-notes/{delivery_note}/public-link.
  *
  * Required body: `action` ∈ {revoke, activate, extend, reset}. `extend_days`
  * is required when `action=extend`.
@@ -13657,7 +13638,7 @@ export type UpdateDeliveryNotePublicLinkRequest = {
 /**
  * UpdateDeliveryNoteRequest
  *
- * Public REST API v1 — PATCH /v1/companies/{company}/delivery-notes/{uuid}.
+ * Public REST API v1 — PATCH /v1/companies/{company}/delivery-notes/{delivery_note}.
  *
  * Partial update: omitted fields are kept. Only allowed when
  * the delivery note is in `draft` status (the controller maps the
@@ -13774,7 +13755,7 @@ export type UpdateEmployeeRequest = {
 /**
  * UpdateInvoicePublicLinkRequest
  *
- * Public REST API v1 — PATCH /v1/companies/{company}/invoices/{uuid}/public-link.
+ * Public REST API v1 — PATCH /v1/companies/{company}/invoices/{invoice}/public-link.
  *
  * `SchemaName` sets a unique, clean OpenAPI schema name
  * (`UpdateInvoicePublicLinkRequest`), consistent with Quote/Proforma/DeliveryNote
@@ -13973,29 +13954,28 @@ export type UpdateProductVariantRequest = {
     sku?: string | null;
     barcode?: string | null;
     /**
-     * Precio propio de la variante POR UNIDAD BASE. `null` = la variante
-     * no altera el precio del producto.
+     * Own price of the variant PER BASE UNIT; `null` keeps the price of the product.
      */
     base_price_override?: number | null;
     /**
-     * Coste propio de la variante POR UNIDAD BASE.
+     * Own cost of the variant PER BASE UNIT.
      */
     unit_cost_override?: number | null;
     /**
-     * Alias publicado de `base_price_override`.
+     * Published alias of `base_price_override`.
      *
      * @deprecated
      */
     price_override?: number | null;
     /**
-     * Alias publicado de `unit_cost_override`.
+     * Published alias of `unit_cost_override`.
      *
      * @deprecated
      */
     cost_override?: number | null;
     manage_stock: boolean;
     /**
-     * Own balance of the variant, in the product base unit (up to 4 decimals). Send the current balance to leave it untouched — it may be negative when delivered documents ran ahead of the incoming stock. Any other value is a manual set and must be `>= 0` (422 otherwise); to move the balance use `PATCH /v1/companies/{company}/products/{uuid}/stock` with `variant_id`.
+     * Own balance of the variant, in the product base unit (up to 4 decimals). Send the current balance to leave it untouched — it may be negative when delivered documents ran ahead of the incoming stock. Any other value is a manual set and must be `>= 0` (422 otherwise); to move the balance use `PATCH /v1/companies/{company}/products/{product}/stock` with `variant_id`.
      */
     stock: number;
     low_stock_threshold?: number | null;
@@ -14008,7 +13988,7 @@ export type UpdateProductVariantRequest = {
 /**
  * UpdateProformaPublicLinkRequest
  *
- * Public REST API v1 — PATCH /v1/companies/{company}/proformas/{uuid}/public-link.
+ * Public REST API v1 — PATCH /v1/companies/{company}/proformas/{proforma}/public-link.
  *
  * `SchemaName` disambiguates the OpenAPI schema: Quote and Proforma declare
  * structurally identical request bodies, so without a unique name they would
@@ -14022,7 +14002,7 @@ export type UpdateProformaPublicLinkRequest = {
 /**
  * UpdateProformaRequest
  *
- * Public REST API v1 — PATCH /v1/companies/{company}/proformas/{uuid}.
+ * Public REST API v1 — PATCH /v1/companies/{company}/proformas/{proforma}.
  *
  * Partial update: omitted fields are kept. Only allowed when
  * the proforma is in `draft` status (the controller maps the
@@ -14170,7 +14150,7 @@ export type UpdatePurchaseInvoiceRequest = {
 /**
  * UpdateQuotePublicLinkRequest
  *
- * Public REST API v1 — PATCH /v1/companies/{company}/quotes/{uuid}/public-link.
+ * Public REST API v1 — PATCH /v1/companies/{company}/quotes/{quote}/public-link.
  *
  * `SchemaName` disambiguates the OpenAPI schema: Quote and Proforma declare
  * structurally identical request bodies, so without a unique name they would
@@ -14184,7 +14164,7 @@ export type UpdateQuotePublicLinkRequest = {
 /**
  * UpdateQuoteRequest
  *
- * Public REST API v1 — PATCH /v1/companies/{company}/quotes/{uuid}.
+ * Public REST API v1 — PATCH /v1/companies/{company}/quotes/{quote}.
  *
  * Partial update: omitted fields are kept. Only allowed when
  * the quote is in `draft` status (the controller maps the
@@ -14366,7 +14346,7 @@ export type UpdateStoreV1Request = {
 /**
  * UpdateStripeAutoinvoicingConfigRequest
  *
- * Update the Stripe auto-invoicing configuration. `enabled` toggles auto-invoicing; `series_id` (UUID, nullable) sets the series for auto-created invoices (`null` uses the company default); `simplified_threshold_cents` (0-300000), `require_nif`, `refunds_enabled` and `subscription_autoinvoicing_enabled` are optional partial fields.
+ * Update the Stripe auto-invoicing configuration. `enabled` toggles auto-invoicing; `series_id` (UUID v7, nullable) sets the series for auto-created invoices (`null` uses the company default); `simplified_threshold_cents` (0-300000), `require_nif`, `refunds_enabled` and `subscription_autoinvoicing_enabled` are optional partial fields.
  */
 export type UpdateStripeAutoinvoicingConfigRequest = {
     enabled: boolean;
@@ -14556,7 +14536,7 @@ export type UploadCompanyCertificateV1Request = {
 /**
  * UploadProductGalleryImageRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/products/{uuid}/gallery.
+ * Public REST API v1 — POST /v1/companies/{company}/products/{product}/gallery.
  *
  * Multipart upload: `photo` or `image` (alias) field — jpeg/png/jpg/gif/webp,
  * max 3 MB.
@@ -14575,9 +14555,9 @@ export type UploadProductGalleryImageRequest = {
 /**
  * UploadProductVideoRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/products/{uuid}/video.
+ * Public REST API v1 — POST /v1/companies/{company}/products/{product}/video.
  *
- * Multipart upload: campo `video` (mp4/mov/avi/webm, max 50 MB).
+ * Multipart upload: field `video` (mp4/mov/avi/webm, max 50 MB).
  */
 export type UploadProductVideoRequest = {
     /**
@@ -14608,7 +14588,7 @@ export type UpsertPriceListItemRequest = {
 export type VeriFactuActivity = {
     object: 'verifactu_activity';
     /**
-     * Tipo de evento de dominio (p. ej. `verifactu.record_created`, `verifactu.transmission_accepted`).
+     * Domain event type (e.g. `verifactu.record_created`, `verifactu.transmission_accepted`).
      */
     event_type: string;
     /**
@@ -14630,7 +14610,7 @@ export type VeriFactuActivity = {
          */
         type: 'user' | 'api_key';
         /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
+         * UUID v7 of the actor: the user when `type=user`, or the API key when `type=api_key`.
          */
         id: string;
         /**
@@ -14676,11 +14656,11 @@ export type VeriFactuConfig = {
      */
     is_locked_until: string | null;
     /**
-     * Indica si hay un certificado activo configurado.
+     * Whether an active certificate is configured.
      */
     has_active_certificate: boolean;
     /**
-     * UUID (v7) of the active certificate, or `null` if there is none.
+     * UUID v7 of the active certificate, or `null` if there is none.
      */
     active_certificate_id: string | null;
     updated_at: string | null;
@@ -14693,7 +14673,7 @@ export type VeriFactuConfig = {
  */
 export type VeriFactuEvent = {
     /**
-     * UUID (v7) of the event.
+     * UUID v7 of the event.
      */
     id: string;
     object: 'verifactu_event';
@@ -14729,12 +14709,12 @@ export type VeriFactuEvent = {
 /**
  * VeriFactuEventSummary
  *
- * Resumen agregado de los eventos del SIF de la empresa: total y desglose por tipo y por estado. Devuelto por `GET /v1/companies/{company}/verifactu/events/summary`.
+ * Aggregated summary of the invoicing system (SIF) events of the company: total and breakdown by type and by status. Returned by `GET /v1/companies/{company}/verifactu/events/summary`.
  */
 export type VeriFactuEventSummary = {
     object: 'verifactu_event_summary';
     /**
-     * Total de eventos registrados.
+     * Total number of recorded events.
      */
     total_events: number;
     /**
@@ -14762,12 +14742,12 @@ export type VeriFactuEventSummary = {
  */
 export type VeriFactuRecord = {
     /**
-     * UUID (v7) of the VeriFactu record.
+     * UUID v7 of the VeriFactu record.
      */
     id: string;
     object: 'verifactu_record';
     /**
-     * Tipo de registro (`alta` / `anulacion`).
+     * Record type: `alta` (registration) or `anulacion` (cancellation).
      */
     type: string;
     /**
@@ -14824,12 +14804,12 @@ export type VeriFactuRecord = {
 /**
  * VeriFactuStats
  *
- * Resumen agregado de los registros VeriFactu de la empresa autenticada: conteos por estado y desglose por tipo. Devuelto por `GET /v1/companies/{company}/verifactu/stats`.
+ * Aggregated summary of the VeriFactu records of the company: counts by status and breakdown by type. Returned by `GET /v1/companies/{company}/verifactu/stats`.
  */
 export type VeriFactuStats = {
     object: 'verifactu_stats';
     /**
-     * Total de registros VeriFactu.
+     * Total number of VeriFactu records.
      */
     total_records: number;
     /**
@@ -14849,7 +14829,7 @@ export type VeriFactuStats = {
      */
     rejected: number;
     /**
-     * Registros en estado de error.
+     * Records in error status.
      */
     error: number;
     /**
@@ -14883,7 +14863,7 @@ export type VerifyBusinessContactCensusV1Request = {
 /**
  * VoidInvoiceRequest
  *
- * Public REST API v1 — POST /v1/companies/{company}/invoices/{uuid}/void.
+ * Public REST API v1 — POST /v1/companies/{company}/invoices/{invoice}/void.
  *
  * Optional body: `reason` (string). If the API client does not send a
  * reason, a placeholder is persisted ("Anulada via API v1.").
@@ -19975,11 +19955,11 @@ export type WeeklySchedule = {
 /**
  * WooCommerceConnectionCheck
  *
- * The outcome of testing the connection with one of your connected WooCommerce stores. The public `id` is the UUID (v7) of the STORE that was tested, so you can tell which shop this diagnosis is about. Nothing is stored: this resource is a diagnosis, not a record. Read `reachable` and `credential_accepted` together — `reachable: false` means the shop did not answer, while `reachable: true` with `credential_accepted: false` means it answered and rejected the credential — and read `failure_code` for the concrete cause, which is what tells «your key is not valid» apart from «your REST API is not published».
+ * The outcome of testing the connection with one of your connected WooCommerce stores. The public `id` is the UUID v7 of the STORE that was tested, so you can tell which shop this diagnosis is about. Nothing is stored: this resource is a diagnosis, not a record. Read `reachable` and `credential_accepted` together — `reachable: false` means the shop did not answer, while `reachable: true` with `credential_accepted: false` means it answered and rejected the credential — and read `failure_code` for the concrete cause, which is what tells «your key is not valid» apart from «your REST API is not published».
  */
 export type WooCommerceConnectionCheck = {
     /**
-     * UUID (v7) of the store that was tested. Public identity (KEY `id`).
+     * UUID v7 of the store that was tested. Public identity (KEY `id`).
      */
     id: string;
     /**
@@ -20060,7 +20040,7 @@ export type PublicApiV1AccountClaimTokensAcceptData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -20123,11 +20103,11 @@ export type PublicApiV1ProformasAcceptData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -20190,11 +20170,11 @@ export type PublicApiV1QuotesAcceptData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -20257,11 +20237,11 @@ export type PublicApiV1AutomationsRulesActivateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
     };
@@ -20324,7 +20304,7 @@ export type PublicApiV1CompaniesActivateBatchData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -20391,11 +20371,11 @@ export type PublicApiV1VerifactuCertificatesActivateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu certificate, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu certificate.
          */
         certificate: string;
     };
@@ -20458,11 +20438,11 @@ export type PublicApiV1CompaniesActivateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -20529,11 +20509,11 @@ export type PublicApiV1RecurringInvoicesActivateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -20592,7 +20572,7 @@ export type PublicApiV1AccountMembersListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -20652,7 +20632,7 @@ export type PublicApiV1AccountMembersCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -20715,11 +20695,11 @@ export type PublicApiV1InvoicesAnnulData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -20782,11 +20762,11 @@ export type PublicApiV1AbsenceRequestsApproveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence request.
          */
         absence_request: string;
     };
@@ -20849,11 +20829,11 @@ export type PublicApiV1TimeCorrectionsApproveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the time correction request, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the time correction request.
          */
         time_correction: string;
     };
@@ -20916,11 +20896,11 @@ export type PublicApiV1AbsencePoliciesArchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -20979,11 +20959,11 @@ export type PublicApiV1AbsenceTypesArchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence type.
          */
         absence_type: string;
     };
@@ -21042,11 +21022,11 @@ export type PublicApiV1ContactsArchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -21112,11 +21092,11 @@ export type PublicApiV1SeriesArchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the document series.
          */
         series: string;
     };
@@ -21176,11 +21156,11 @@ export type PublicApiV1WorkSchedulesArchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the work schedule.
          */
         schedule: string;
     };
@@ -21239,11 +21219,11 @@ export type PublicApiV1AbsencePoliciesAssignData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -21306,21 +21286,21 @@ export type PublicApiV1ContactsRemoveContactRoleData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
         /**
-         * Contact role key: `customer`, `supplier` or `lead`.
+         * Contact role: `customer`, `supplier` or `lead`.
          */
         role: string;
     };
     query: {
         /**
-         * Role to remove: `customer`, `supplier` or `lead`. It is always read from the `{role}` path segment, so you do not need to repeat it here; a value sent as a query parameter is ignored.
+         * Ignored: the role is always read from the `{role}` path segment.
          */
         role: 'customer' | 'supplier' | 'lead';
     };
@@ -21389,15 +21369,15 @@ export type PublicApiV1ContactsAssignContactRoleData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
         /**
-         * Contact role key: `customer`, `supplier` or `lead`.
+         * Contact role: `customer`, `supplier` or `lead`.
          */
         role: string;
     };
@@ -21467,11 +21447,11 @@ export type PublicApiV1InvoicesAssignRealNumberData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -21534,11 +21514,11 @@ export type PublicApiV1WorkSchedulesAssignData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the work schedule.
          */
         schedule: string;
     };
@@ -21601,11 +21581,11 @@ export type PublicApiV1PurchaseInvoicesAttachFileData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -21672,7 +21652,7 @@ export type PublicApiV1SeriesBootstrapData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -21731,7 +21711,7 @@ export type PublicApiV1ContactsBulkArchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -21801,7 +21781,7 @@ export type PublicApiV1ContactsBulkChangeContactRoleStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -21871,7 +21851,7 @@ export type PublicApiV1ContactsBulkCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -21938,7 +21918,7 @@ export type PublicApiV1InvoicesBulkCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22001,7 +21981,7 @@ export type PublicApiV1ContactsBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22071,7 +22051,7 @@ export type PublicApiV1DeliveryNotesBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22134,7 +22114,7 @@ export type PublicApiV1InvoicesBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22197,7 +22177,7 @@ export type PublicApiV1ProductsBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22260,7 +22240,7 @@ export type PublicApiV1ProformasBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22323,7 +22303,7 @@ export type PublicApiV1PurchaseInvoicesBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22386,7 +22366,7 @@ export type PublicApiV1QuotesBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22449,7 +22429,7 @@ export type PublicApiV1RecurringInvoicesBulkDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22512,7 +22492,7 @@ export type PublicApiV1DeliveryNotesBulkPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22577,7 +22557,7 @@ export type PublicApiV1InvoicesBulkPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22642,7 +22622,7 @@ export type PublicApiV1ProformasBulkPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22707,7 +22687,7 @@ export type PublicApiV1QuotesBulkPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22772,7 +22752,7 @@ export type PublicApiV1DeliveryNotesBulkSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22835,7 +22815,7 @@ export type PublicApiV1InvoicesBulkSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22898,7 +22878,7 @@ export type PublicApiV1ProformasBulkSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -22961,7 +22941,7 @@ export type PublicApiV1QuotesBulkSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23024,7 +23004,7 @@ export type PublicApiV1DeliveryNotesBulkStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23087,7 +23067,7 @@ export type PublicApiV1InvoicesBulkStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23150,7 +23130,7 @@ export type PublicApiV1ProductsBulkStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23213,7 +23193,7 @@ export type PublicApiV1ProformasBulkStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23276,7 +23256,7 @@ export type PublicApiV1PurchaseInvoicesBulkStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23339,7 +23319,7 @@ export type PublicApiV1QuotesBulkStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23402,7 +23382,7 @@ export type PublicApiV1RecurringInvoicesBulkStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23465,7 +23445,7 @@ export type PublicApiV1ProductsBulkUpdateStockData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23527,7 +23507,7 @@ export type PublicApiV1TaxesCalculateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23582,7 +23562,7 @@ export type PublicApiV1TaxesCalculateTotalsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -23637,11 +23617,11 @@ export type PublicApiV1InvoicesCanAnnulData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -23696,11 +23676,11 @@ export type PublicApiV1AbsenceRequestsCancelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence request.
          */
         absence_request: string;
     };
@@ -23759,11 +23739,11 @@ export type PublicApiV1AccountInvitationsCancelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the account invitation, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the account invitation.
          */
         invitation: string;
     };
@@ -23823,11 +23803,11 @@ export type PublicApiV1DeliveryNotesCancelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -23890,11 +23870,11 @@ export type PublicApiV1EmployeeInvitationsCancelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee invitation, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee invitation.
          */
         invitation: string;
     };
@@ -23954,7 +23934,7 @@ export type PublicApiV1EmployeeSeatsCancelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -24017,11 +23997,11 @@ export type PublicApiV1FaceSubmissionsCancelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the FACe submission, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the FACe submission.
          */
         faceSubmission: string;
     };
@@ -24084,11 +24064,11 @@ export type PublicApiV1RecurringInvoicesCancelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -24151,11 +24131,11 @@ export type PublicApiV1AccountMembersDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
+         * Public identifier (UUID v7) of the account member.
          */
         member: string;
     };
@@ -24219,11 +24199,11 @@ export type PublicApiV1AccountMembersUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
+         * Public identifier (UUID v7) of the account member.
          */
         member: string;
     };
@@ -24286,15 +24266,15 @@ export type PublicApiV1ContactsChangeContactRoleStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
         /**
-         * Contact role key: `customer`, `supplier` or `lead`.
+         * Contact role: `customer`, `supplier` or `lead`.
          */
         role: string;
     };
@@ -24364,7 +24344,7 @@ export type PublicApiV1EmployeeSeatsChangeQuantityData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -24423,7 +24403,7 @@ export type PublicApiV1InvoicesSimplifiedEligibilityData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -24478,11 +24458,11 @@ export type PublicApiV1TaxesIsInUseData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax.
          */
         tax: string;
     };
@@ -24541,7 +24521,7 @@ export type PublicApiV1TimeEntriesClockInData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -24604,7 +24584,7 @@ export type PublicApiV1TimeEntriesClockOutData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -24663,21 +24643,21 @@ export type PublicApiV1MonthlyTimeRecordClosesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Page size. Alias of `limit` (integer between 1 and 100, defaults to 25).
+         * Page size, alias of `limit` (1 to 100, default 25).
          */
         per_page?: number;
         /**
-         * Page size. Integer between 1 and 100. Defaults to 25. Alias of `per_page`; if both are sent, `limit` wins.
+         * Page size, between 1 and 100 (default 25); alias of `per_page` (`limit` wins when both are sent).
          */
         limit?: number;
         /**
-         * Opaque pagination cursor. NON-STANDARD for this API: unlike the cursor lists (`starting_after`/`ending_before`), this endpoint wraps an offset paginator, so the cursor encodes the next page number. Use the `next_cursor` value returned by the previous page.
+         * Pagination cursor (it encodes the next page number): the `next_cursor` of the previous page.
          */
         cursor?: string;
         /**
@@ -24735,7 +24715,7 @@ export type PublicApiV1MonthlyTimeRecordClosesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -24798,11 +24778,11 @@ export type PublicApiV1AbsencePoliciesCarryoverData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -24861,13 +24841,13 @@ export type PublicApiV1StoresIndexData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -24931,7 +24911,7 @@ export type PublicApiV1StoresCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -24994,11 +24974,11 @@ export type PublicApiV1DeliveryNotesConvertData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -25061,11 +25041,11 @@ export type PublicApiV1ProformasConvertData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -25128,11 +25108,11 @@ export type PublicApiV1QuotesConvertData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -25191,13 +25171,13 @@ export type PublicApiV1AbsencePoliciesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -25283,7 +25263,7 @@ export type PublicApiV1AbsencePoliciesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -25342,7 +25322,7 @@ export type PublicApiV1AbsenceRequestsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -25368,7 +25348,7 @@ export type PublicApiV1AbsenceRequestsListData = {
          */
         to?: string | null;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -25434,7 +25414,7 @@ export type PublicApiV1AbsenceRequestsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -25493,13 +25473,13 @@ export type PublicApiV1AbsenceTypesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -25585,7 +25565,7 @@ export type PublicApiV1AbsenceTypesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -25644,7 +25624,7 @@ export type PublicApiV1AccountClaimTokensListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -25709,7 +25689,7 @@ export type PublicApiV1AccountClaimTokensCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -25768,7 +25748,7 @@ export type PublicApiV1AccountApiKeysListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -25824,7 +25804,7 @@ export type PublicApiV1AccountApiKeysCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -25883,13 +25863,13 @@ export type PublicApiV1AutomationsRulesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -25905,7 +25885,7 @@ export type PublicApiV1AutomationsRulesListData = {
          */
         status?: 'draft' | 'active' | 'paused';
         /**
-         * Trigger that puts the rule in motion, in `resource.action` form (for example `invoice.paid`). Discover the values visible to your company with `GET /v1/companies/{company}/automations/catalog`. Exact match on `trigger_type`.
+         * Trigger of the rule in `resource.action` form (e.g. `invoice.paid`), as listed by `GET /v1/companies/{company}/automations/catalog`. Exact match on `trigger_type`.
          */
         trigger_type?: string;
         /**
@@ -25987,7 +25967,7 @@ export type PublicApiV1AutomationsRulesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -26046,13 +26026,13 @@ export type PublicApiV1ContactsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number | null;
         /**
@@ -26060,75 +26040,75 @@ export type PublicApiV1ContactsListData = {
          */
         starting_after?: string | null;
         /**
-         * Free-text search (up to 255 characters): partial, case-insensitive match against the name, commercial name, tax identifiers, email and external ID of the contact, and against its phone numbers when the term is numeric. Combined with the other filters (AND).
+         * Free-text search (up to 255 characters) over name, commercial name, tax identifiers, email, external ID and phone numbers.
          */
         search?: string | null;
         /**
-         * Only contacts with these roles: `customer`, `supplier`, `lead` or `unassigned` (no role at all). Repeat the parameter or send a comma-separated list; combine it with `role_match` and `role_status`.
+         * Only contacts with these roles: `customer`, `supplier`, `lead` or `unassigned` (repeat it or send a comma-separated list).
          */
         'roles[]'?: 'customer' | 'supplier' | 'lead' | 'unassigned';
         /**
-         * `any` (default) returns contacts with at least one of the requested `roles[]`; `all` requires every one of them.
+         * `any` (default) matches at least one of the `roles[]`; `all` requires all of them.
          */
         role_match?: 'any' | 'all' | null;
         /**
-         * Only roles in this status: `active` or `inactive`. Applies to the requested `roles[]`, or to any role when none is requested.
+         * Only roles in this status: `active` or `inactive`.
          */
         role_status?: 'active' | 'inactive' | null;
         /**
-         * Contact kind: `person` (an individual) or `company` (a legal entity).
+         * Contact kind: `person` or `company`.
          */
         kind?: 'person' | 'company' | null;
         /**
-         * Exact match on any tax identifier of the contact: its tax ID (NIF/NIE/CIF), its EU VAT number or its alternative identification document.
+         * Exact match on any tax identifier of the contact (NIF/NIE/CIF, EU VAT number or alternative ID document).
          */
         fiscal_identity?: string | null;
         /**
-         * Exact match on `external_id`, the identifier you assigned in your own system.
+         * Exact match on the `external_id` you assigned.
          */
         external_id?: string | null;
         /**
-         * Only contacts carrying ALL these tags (case-insensitive). Repeat the parameter or send a comma-separated list; up to 50 tags.
+         * Only contacts carrying all these tags (case-insensitive, up to 50).
          */
         'tags[]'?: Array<string>;
         /**
-         * `true` returns only archived contacts and `false` only the ones not archived. Omit it to return both.
+         * `true` returns only archived contacts and `false` only the rest; omit it to return both.
          */
         is_archived?: boolean | null;
         /**
-         * City name; exact match (surrounding and repeated whitespace is ignored).
+         * City name, exact match.
          */
         city?: string | null;
         /**
-         * Province name; exact match (surrounding and repeated whitespace is ignored).
+         * Province name, exact match.
          */
         province?: string | null;
         /**
-         * ISO 3166-1 alpha-2 country code (e.g. `ES`); exact match.
+         * ISO 3166-1 alpha-2 country code (e.g. `ES`), exact match.
          */
         country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
         /**
-         * `true` returns only contacts with an email address and `false` only the ones without it.
+         * `true` returns only contacts with an email address and `false` only those without one.
          */
         has_email?: boolean | null;
         /**
-         * `true` returns only contacts with a landline or mobile phone number and `false` only the ones with neither.
+         * `true` returns only contacts with a phone number and `false` only those without one.
          */
         has_phone?: boolean | null;
         /**
-         * Only records created on or after this date (`YYYY-MM-DD`, inclusive).
+         * Only records created on or after this date (`YYYY-MM-DD`).
          */
         created_from?: string | null;
         /**
-         * Only records created on or before this date (`YYYY-MM-DD`, inclusive). Must not be earlier than `created_from`.
+         * Only records created on or before this date (`YYYY-MM-DD`).
          */
         created_to?: string | null;
         /**
-         * Filter by metadata as `metadata[key]=value` (exact match); when several pairs are sent, all of them must match. Up to 20 pairs.
+         * Metadata filter as `metadata[key]=value` (exact match, up to 20 pairs, all must match).
          */
         'metadata[]'?: Array<string>;
         /**
-         * Sort direction by creation order: `asc` (default, oldest first) or `desc`.
+         * Sort direction by creation date: `asc` (default) or `desc`.
          */
         sort_order?: 'asc' | 'desc' | null;
     };
@@ -26188,7 +26168,7 @@ export type PublicApiV1ContactsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -26255,11 +26235,11 @@ export type PublicApiV1InvoicesCorrectiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -26322,13 +26302,13 @@ export type PublicApiV1DeliveryNotesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -26340,7 +26320,7 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         ending_before?: string;
         /**
-         * Public delivery note status: `draft`, `sent`, `signed`, `invoiced`, `cancelled` (the same values returned by the resource `status` field). `sent` and `signed` filter by the internal delivered state (with/without signature); use the `signed` filter as well to distinguish them precisely. Exact match on `status`.
+         * Status: `draft`, `sent`, `signed`, `invoiced` or `cancelled`; `sent` and `signed` both match delivered notes (use the `signed` filter to split them). Exact match on `status`.
          */
         status?: string;
         /**
@@ -26424,7 +26404,7 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         'carrier_company[contains]'?: string;
         /**
-         * Town or city of the delivery address recorded on the delivery note (e.g. `delivery_city=Alcoy`), never the client's address — to filter by client use `client_id`. Exact match on `delivery_city`.
+         * Town or city of the delivery address (not the client address). Exact match on `delivery_city`.
          */
         delivery_city?: string;
         /**
@@ -26432,11 +26412,11 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         'delivery_city[in]'?: string;
         /**
-         * Town or city of the delivery address recorded on the delivery note (e.g. `delivery_city=Alcoy`), never the client's address — to filter by client use `client_id`. Partial case-insensitive match (`LIKE %term%`) on `delivery_city`.
+         * Town or city of the delivery address (not the client address). Partial case-insensitive match (`LIKE %term%`) on `delivery_city`.
          */
         'delivery_city[contains]'?: string;
         /**
-         * Province of the delivery address recorded on the delivery note (e.g. `delivery_province[in]=Alicante,Valencia`), never the client's address — to filter by client use `client_id`. Exact match on `delivery_province`.
+         * Province of the delivery address (not the client address). Exact match on `delivery_province`.
          */
         delivery_province?: string;
         /**
@@ -26444,11 +26424,11 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         'delivery_province[in]'?: string;
         /**
-         * Province of the delivery address recorded on the delivery note (e.g. `delivery_province[in]=Alicante,Valencia`), never the client's address — to filter by client use `client_id`. Partial case-insensitive match (`LIKE %term%`) on `delivery_province`.
+         * Province of the delivery address (not the client address). Partial case-insensitive match (`LIKE %term%`) on `delivery_province`.
          */
         'delivery_province[contains]'?: string;
         /**
-         * Postal code of the delivery address recorded on the delivery note, never the client's address. The first two digits identify the Spanish province, so `delivery_postal_code[contains]=03` narrows the list down to one province. Exact match on `delivery_postal_code`.
+         * Postal code of the delivery address (not the client address); its first two digits identify the province. Exact match on `delivery_postal_code`.
          */
         delivery_postal_code?: string;
         /**
@@ -26456,11 +26436,11 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         'delivery_postal_code[in]'?: string;
         /**
-         * Postal code of the delivery address recorded on the delivery note, never the client's address. The first two digits identify the Spanish province, so `delivery_postal_code[contains]=03` narrows the list down to one province. Partial case-insensitive match (`LIKE %term%`) on `delivery_postal_code`.
+         * Postal code of the delivery address (not the client address); its first two digits identify the province. Partial case-insensitive match (`LIKE %term%`) on `delivery_postal_code`.
          */
         'delivery_postal_code[contains]'?: string;
         /**
-         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches delivery notes carrying ANY of the tags). Exact match on `tags`.
+         * Classification tag (lowercase slug); `tags[in]=a,b` matches delivery notes carrying ANY of the tags. Exact match on `tags`.
          */
         tags?: string;
         /**
@@ -26468,7 +26448,7 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         'tags[in]'?: string;
         /**
-         * Sort order. Use a field for ascending or a `-` prefix for descending (e.g. `-created`). Allowed fields: `created`, `number`, `delivery_date`. Combined with the cursor, ordering stays deterministic (a stable secondary sort by the cursor id, Stripe-style). When omitted, results follow the default cursor order (`created` descending).
+         * Sort order: `created`, `number`, `delivery_date` ascending, or with a `-` prefix for descending (default `-created`).
          */
         sort?: 'created' | '-created' | 'number' | '-number' | 'delivery_date' | '-delivery_date';
         /**
@@ -26476,7 +26456,7 @@ export type PublicApiV1DeliveryNotesListData = {
          */
         search?: string;
         /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
+         * Metadata filter as `metadata[key]=value` (deepObject): pairs combine with AND, up to 50, keys matching `[A-Za-z0-9_.-]{1,64}`.
          */
         metadata?: {
             [key: string]: string;
@@ -26540,7 +26520,7 @@ export type PublicApiV1DeliveryNotesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -26602,13 +26582,13 @@ export type PublicApiV1EmployeesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -26702,7 +26682,7 @@ export type PublicApiV1EmployeesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -26765,21 +26745,21 @@ export type PublicApiV1InvoicesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Public identifier (UUID v7) of an original invoice: returns the corrective invoices that rectify it. An unknown identifier returns an empty page.
+         * Public identifier (UUID v7) of an original invoice, to list its corrective invoices.
          */
         original_invoice_id?: string | null;
         /**
-         * VeriFactu status of the invoice: `no_verifactu` (no VeriFactu record), `pending` (queued or submitted to the AEAT), `accepted` or `rejected` (rejected or failed).
+         * VeriFactu status: `no_verifactu`, `pending`, `accepted` or `rejected`.
          */
         verifactu_status?: 'no_verifactu' | 'pending' | 'accepted' | 'rejected' | null;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -26875,7 +26855,7 @@ export type PublicApiV1InvoicesListData = {
          */
         number?: string;
         /**
-         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches invoices carrying ANY of the tags). Exact match on `tags`.
+         * Classification tag (lowercase slug); `tags[in]=a,b` matches invoices carrying ANY of the tags. Exact match on `tags`.
          */
         tags?: string;
         /**
@@ -26899,7 +26879,7 @@ export type PublicApiV1InvoicesListData = {
          */
         'paid_on[lt]'?: string;
         /**
-         * Sort order. Use a field for ascending or a `-` prefix for descending (e.g. `-created`). Allowed fields: `created`, `total`, `number`. Combined with the cursor, ordering stays deterministic (a stable secondary sort by the cursor id, Stripe-style). When omitted, results follow the default cursor order (`created` descending).
+         * Sort order: `created`, `total`, `number` ascending, or with a `-` prefix for descending (default `-created`).
          */
         sort?: 'created' | '-created' | 'total' | '-total' | 'number' | '-number';
         /**
@@ -26907,7 +26887,7 @@ export type PublicApiV1InvoicesListData = {
          */
         search?: string;
         /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
+         * Metadata filter as `metadata[key]=value` (deepObject): pairs combine with AND, up to 50, keys matching `[A-Za-z0-9_.-]{1,64}`.
          */
         metadata?: {
             [key: string]: string;
@@ -26967,7 +26947,7 @@ export type PublicApiV1InvoicesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -27029,11 +27009,11 @@ export type PublicApiV1InvoicesVerifactuGetData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -27092,11 +27072,11 @@ export type PublicApiV1InvoicesVerifactuCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -27158,17 +27138,17 @@ export type PublicApiV1PriceListsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Page number (starting at 1) for page-based navigation. Ignored when `starting_after` is sent, which takes precedence.
+         * Page number, starting at 1; ignored when `starting_after` is sent.
          */
         page?: number;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 20.
+         * Number of objects to return, between 1 and 100 (default 20).
          */
         limit?: number;
         /**
@@ -27176,7 +27156,7 @@ export type PublicApiV1PriceListsListData = {
          */
         starting_after?: string | null;
         /**
-         * Partial match against the price list name (up to 120 characters).
+         * Partial match on the price list name (up to 120 characters).
          */
         search?: string;
         /**
@@ -27236,7 +27216,7 @@ export type PublicApiV1PriceListsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -27295,13 +27275,13 @@ export type PublicApiV1ProductsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -27389,7 +27369,7 @@ export type PublicApiV1ProductsListData = {
          */
         search?: string;
         /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
+         * Metadata filter as `metadata[key]=value` (deepObject): pairs combine with AND, up to 50, keys matching `[A-Za-z0-9_.-]{1,64}`.
          */
         metadata?: {
             [key: string]: string;
@@ -27449,7 +27429,7 @@ export type PublicApiV1ProductsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -27511,17 +27491,17 @@ export type PublicApiV1ProductsPresentationsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -27529,7 +27509,7 @@ export type PublicApiV1ProductsPresentationsListData = {
          */
         starting_after?: string | null;
         /**
-         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         * `true` returns only active items; `false` or omitted returns all of them.
          */
         active?: boolean;
     };
@@ -27587,11 +27567,11 @@ export type PublicApiV1ProductsPresentationsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -27650,17 +27630,17 @@ export type PublicApiV1ProductsVariantsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -27668,7 +27648,7 @@ export type PublicApiV1ProductsVariantsListData = {
          */
         starting_after?: string | null;
         /**
-         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         * `true` returns only active items; `false` or omitted returns all of them.
          */
         active?: boolean;
     };
@@ -27726,11 +27706,11 @@ export type PublicApiV1ProductsVariantsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -27789,13 +27769,13 @@ export type PublicApiV1ProformasListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -27871,7 +27851,7 @@ export type PublicApiV1ProformasListData = {
          */
         'number[contains]'?: string;
         /**
-         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches proformas carrying ANY of the tags). Exact match on `tags`.
+         * Classification tag (lowercase slug); `tags[in]=a,b` matches proformas carrying ANY of the tags. Exact match on `tags`.
          */
         tags?: string;
         /**
@@ -27879,7 +27859,7 @@ export type PublicApiV1ProformasListData = {
          */
         'tags[in]'?: string;
         /**
-         * Sort order. Use a field for ascending or a `-` prefix for descending (e.g. `-created`). Allowed fields: `created`, `total`, `number`, `valid_until`. Combined with the cursor, ordering stays deterministic (a stable secondary sort by the cursor id, Stripe-style). When omitted, results follow the default cursor order (`created` descending).
+         * Sort order: `created`, `total`, `number`, `valid_until` ascending, or with a `-` prefix for descending (default `-created`).
          */
         sort?: 'created' | '-created' | 'total' | '-total' | 'number' | '-number' | 'valid_until' | '-valid_until';
         /**
@@ -27887,7 +27867,7 @@ export type PublicApiV1ProformasListData = {
          */
         search?: string;
         /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
+         * Metadata filter as `metadata[key]=value` (deepObject): pairs combine with AND, up to 50, keys matching `[A-Za-z0-9_.-]{1,64}`.
          */
         metadata?: {
             [key: string]: string;
@@ -27947,7 +27927,7 @@ export type PublicApiV1ProformasCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -28009,13 +27989,13 @@ export type PublicApiV1PurchaseInvoicesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -28107,7 +28087,7 @@ export type PublicApiV1PurchaseInvoicesListData = {
          */
         'external_invoice_number[contains]'?: string;
         /**
-         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches purchase invoices carrying ANY of the tags). Exact match on `tags`.
+         * Classification tag (lowercase slug); `tags[in]=a,b` matches purchase invoices carrying ANY of the tags. Exact match on `tags`.
          */
         tags?: string;
         /**
@@ -28115,7 +28095,7 @@ export type PublicApiV1PurchaseInvoicesListData = {
          */
         'tags[in]'?: string;
         /**
-         * Sort order. Use a field for ascending or a `-` prefix for descending (e.g. `-created`). Allowed fields: `created`, `total`, `issued_on`, `due_on`. Combined with the cursor, ordering stays deterministic (a stable secondary sort by the cursor id, Stripe-style). When omitted, results follow the default cursor order (`created` descending).
+         * Sort order: `created`, `total`, `issued_on`, `due_on` ascending, or with a `-` prefix for descending (default `-created`).
          */
         sort?: 'created' | '-created' | 'total' | '-total' | 'issued_on' | '-issued_on' | 'due_on' | '-due_on';
         /**
@@ -28123,7 +28103,7 @@ export type PublicApiV1PurchaseInvoicesListData = {
          */
         search?: string;
         /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
+         * Metadata filter as `metadata[key]=value` (deepObject): pairs combine with AND, up to 50, keys matching `[A-Za-z0-9_.-]{1,64}`.
          */
         metadata?: {
             [key: string]: string;
@@ -28183,7 +28163,7 @@ export type PublicApiV1PurchaseInvoicesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -28245,13 +28225,13 @@ export type PublicApiV1QuotesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -28343,7 +28323,7 @@ export type PublicApiV1QuotesListData = {
          */
         'number[contains]'?: string;
         /**
-         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches quotes carrying ANY of the tags). Exact match on `tags`.
+         * Classification tag (lowercase slug); `tags[in]=a,b` matches quotes carrying ANY of the tags. Exact match on `tags`.
          */
         tags?: string;
         /**
@@ -28351,7 +28331,7 @@ export type PublicApiV1QuotesListData = {
          */
         'tags[in]'?: string;
         /**
-         * Sort order. Use a field for ascending or a `-` prefix for descending (e.g. `-created`). Allowed fields: `created`, `total`, `number`, `valid_until`. Combined with the cursor, ordering stays deterministic (a stable secondary sort by the cursor id, Stripe-style). When omitted, results follow the default cursor order (`created` descending).
+         * Sort order: `created`, `total`, `number`, `valid_until` ascending, or with a `-` prefix for descending (default `-created`).
          */
         sort?: 'created' | '-created' | 'total' | '-total' | 'number' | '-number' | 'valid_until' | '-valid_until';
         /**
@@ -28359,7 +28339,7 @@ export type PublicApiV1QuotesListData = {
          */
         search?: string;
         /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
+         * Metadata filter as `metadata[key]=value` (deepObject): pairs combine with AND, up to 50, keys matching `[A-Za-z0-9_.-]{1,64}`.
          */
         metadata?: {
             [key: string]: string;
@@ -28419,7 +28399,7 @@ export type PublicApiV1QuotesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -28485,11 +28465,11 @@ export type PublicApiV1InvoicesCreateRecurringData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -28551,13 +28531,13 @@ export type PublicApiV1RecurringInvoicesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -28617,7 +28597,7 @@ export type PublicApiV1RecurringInvoicesListData = {
          */
         'name[contains]'?: string;
         /**
-         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches recurring invoices carrying ANY of the tags). Exact match on `tags`.
+         * Classification tag (lowercase slug); `tags[in]=a,b` matches recurring invoices carrying ANY of the tags. Exact match on `tags`.
          */
         tags?: string;
         /**
@@ -28625,7 +28605,7 @@ export type PublicApiV1RecurringInvoicesListData = {
          */
         'tags[in]'?: string;
         /**
-         * Sort order. Use a field for ascending or a `-` prefix for descending (e.g. `-created`). Allowed fields: `created`, `next_run_at`. Combined with the cursor, ordering stays deterministic (a stable secondary sort by the cursor id, Stripe-style). When omitted, results follow the default cursor order (`created` descending).
+         * Sort order: `created`, `next_run_at` ascending, or with a `-` prefix for descending (default `-created`).
          */
         sort?: 'created' | '-created' | 'next_run_at' | '-next_run_at';
         /**
@@ -28633,7 +28613,7 @@ export type PublicApiV1RecurringInvoicesListData = {
          */
         search?: string;
         /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
+         * Metadata filter as `metadata[key]=value` (deepObject): pairs combine with AND, up to 50, keys matching `[A-Za-z0-9_.-]{1,64}`.
          */
         metadata?: {
             [key: string]: string;
@@ -28693,7 +28673,7 @@ export type PublicApiV1RecurringInvoicesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -28755,13 +28735,13 @@ export type PublicApiV1SeriesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -28835,7 +28815,7 @@ export type PublicApiV1SeriesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -28897,21 +28877,21 @@ export type PublicApiV1ProductsSupplierOffersListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Supplier ID (UUID v7). Exact match on `supplier_id`.
+         * Public identifier (UUID v7) of the supplier to filter by.
          */
         supplier_id?: string;
         /**
-         * Only records for this product variant (UUID v7).
+         * Public identifier (UUID v7) of the product variant to filter by.
          */
         variant_id?: string;
         /**
@@ -28919,11 +28899,11 @@ export type PublicApiV1ProductsSupplierOffersListData = {
          */
         availability?: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
         /**
-         * `true` returns only the preferred offer and `false` only the ones not preferred.
+         * `true` returns only the preferred offer and `false` only the rest.
          */
         preferred?: boolean;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -28985,11 +28965,11 @@ export type PublicApiV1ProductsSupplierOffersCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -29048,13 +29028,13 @@ export type PublicApiV1TaxesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -29176,7 +29156,7 @@ export type PublicApiV1TaxesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -29238,13 +29218,13 @@ export type PublicApiV1WebhookEndpointsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -29310,7 +29290,7 @@ export type PublicApiV1WebhookEndpointsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -29376,13 +29356,13 @@ export type PublicApiV1WorkSchedulesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -29468,7 +29448,7 @@ export type PublicApiV1WorkSchedulesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -29531,11 +29511,11 @@ export type PublicApiV1CompaniesDeactivateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -29594,11 +29574,11 @@ export type PublicApiV1EmployeesDeactivateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee.
          */
         employee: string;
     };
@@ -29661,11 +29641,11 @@ export type PublicApiV1AutomationsRulesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
     };
@@ -29725,11 +29705,11 @@ export type PublicApiV1AutomationsRulesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
     };
@@ -29784,11 +29764,11 @@ export type PublicApiV1AutomationsRulesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
     };
@@ -29851,11 +29831,11 @@ export type PublicApiV1ContactsDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -29922,11 +29902,11 @@ export type PublicApiV1ContactsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -29988,11 +29968,11 @@ export type PublicApiV1ContactsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -30062,11 +30042,11 @@ export type PublicApiV1CompaniesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -30122,11 +30102,11 @@ export type PublicApiV1CompaniesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -30181,11 +30161,11 @@ export type PublicApiV1CompaniesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -30248,11 +30228,11 @@ export type PublicApiV1DeliveryNotesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -30312,11 +30292,11 @@ export type PublicApiV1DeliveryNotesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -30371,11 +30351,11 @@ export type PublicApiV1DeliveryNotesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -30438,11 +30418,11 @@ export type PublicApiV1InvoicesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -30502,11 +30482,11 @@ export type PublicApiV1InvoicesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -30561,11 +30541,11 @@ export type PublicApiV1InvoicesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -30628,11 +30608,11 @@ export type PublicApiV1PriceListsDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
     };
@@ -30692,11 +30672,11 @@ export type PublicApiV1PriceListsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
     };
@@ -30751,11 +30731,11 @@ export type PublicApiV1PriceListsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
     };
@@ -30818,15 +30798,15 @@ export type PublicApiV1PriceListsItemsDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
         /**
-         * Public identifier (UUID v7) of the price list item, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list item.
          */
         item: string;
     };
@@ -30890,11 +30870,11 @@ export type PublicApiV1ProductsDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -30954,17 +30934,17 @@ export type PublicApiV1ProductsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Comma-separated list of related data to embed in the product (up to 200 characters). Currently only `configurable_catalog`, which adds the sellable option groups and the commercial combinations of the product.
+         * Related data to embed; only `configurable_catalog` is supported.
          */
         include?: string | null;
     };
@@ -31022,11 +31002,11 @@ export type PublicApiV1ProductsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -31089,15 +31069,15 @@ export type PublicApiV1ProductsGalleryDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Zero-based position of the image in the product `gallery` list (an integer, not a UUID). After a deletion the following images move up one position.
+         * Zero-based position (integer) of the image in the product `gallery`.
          */
         index: number;
     };
@@ -31161,15 +31141,15 @@ export type PublicApiV1ProductsPresentationsDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Public identifier (UUID v7) of the product presentation, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product presentation.
          */
         presentation: string;
     };
@@ -31233,15 +31213,15 @@ export type PublicApiV1ProductsPresentationsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Public identifier (UUID v7) of the product presentation, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product presentation.
          */
         presentation: string;
     };
@@ -31304,15 +31284,15 @@ export type PublicApiV1ProductsVariantsDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Public identifier (UUID v7) of the product variant, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product variant.
          */
         variant: string;
     };
@@ -31376,15 +31356,15 @@ export type PublicApiV1ProductsVariantsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Public identifier (UUID v7) of the product variant, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product variant.
          */
         variant: string;
     };
@@ -31447,11 +31427,11 @@ export type PublicApiV1ProductsVideoDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -31511,11 +31491,11 @@ export type PublicApiV1ProductsVideoUploadData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -31578,11 +31558,11 @@ export type PublicApiV1ProformasDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -31642,11 +31622,11 @@ export type PublicApiV1ProformasShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -31701,11 +31681,11 @@ export type PublicApiV1ProformasUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -31768,11 +31748,11 @@ export type PublicApiV1PurchaseInvoicesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -31832,11 +31812,11 @@ export type PublicApiV1PurchaseInvoicesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -31891,11 +31871,11 @@ export type PublicApiV1PurchaseInvoicesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -31958,11 +31938,11 @@ export type PublicApiV1PurchaseInvoicesDeleteFileData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -32018,11 +31998,11 @@ export type PublicApiV1PurchaseInvoicesFileData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -32075,11 +32055,11 @@ export type PublicApiV1QuotesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -32139,11 +32119,11 @@ export type PublicApiV1QuotesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -32198,11 +32178,11 @@ export type PublicApiV1QuotesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -32265,11 +32245,11 @@ export type PublicApiV1RecurringInvoicesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -32329,11 +32309,11 @@ export type PublicApiV1RecurringInvoicesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -32388,11 +32368,11 @@ export type PublicApiV1RecurringInvoicesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -32455,15 +32435,15 @@ export type PublicApiV1ProductsSupplierOffersDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Public identifier (UUID v7) of the supplier offer, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the supplier offer.
          */
         offer: string;
     };
@@ -32527,15 +32507,15 @@ export type PublicApiV1ProductsSupplierOffersUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Public identifier (UUID v7) of the supplier offer, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the supplier offer.
          */
         offer: string;
     };
@@ -32598,11 +32578,11 @@ export type PublicApiV1TaxesDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax.
          */
         tax: string;
     };
@@ -32662,11 +32642,11 @@ export type PublicApiV1TaxesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax.
          */
         tax: string;
     };
@@ -32721,11 +32701,11 @@ export type PublicApiV1TaxesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax.
          */
         tax: string;
     };
@@ -32788,11 +32768,11 @@ export type PublicApiV1WebhookEndpointsDeleteData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
     };
@@ -32852,11 +32832,11 @@ export type PublicApiV1WebhookEndpointsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
     };
@@ -32911,11 +32891,11 @@ export type PublicApiV1WebhookEndpointsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
     };
@@ -32978,11 +32958,11 @@ export type PublicApiV1StripeAutoinvoicingAccountsDisconnectData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected payment account, as returned in `id` by its list and detail responses. It is not your Factuarea account.
+         * Public identifier (UUID v7) of the connected payment account.
          */
         account: string;
     };
@@ -33042,11 +33022,11 @@ export type PublicApiV1StripeAutoinvoicingAccountsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected payment account, as returned in `id` by its list and detail responses. It is not your Factuarea account.
+         * Public identifier (UUID v7) of the connected payment account.
          */
         account: string;
     };
@@ -33101,11 +33081,11 @@ export type PublicApiV1StripeAutoinvoicingAccountsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected payment account, as returned in `id` by its list and detail responses. It is not your Factuarea account.
+         * Public identifier (UUID v7) of the connected payment account.
          */
         account: string;
     };
@@ -33168,11 +33148,11 @@ export type PublicApiV1StoresDisconnectData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the connected online store.
          */
         store: string;
     };
@@ -33232,11 +33212,11 @@ export type PublicApiV1StoresShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the connected online store.
          */
         store: string;
     };
@@ -33291,11 +33271,11 @@ export type PublicApiV1StoresUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the connected online store.
          */
         store: string;
     };
@@ -33354,7 +33334,7 @@ export type PublicApiV1ContactsImportTemplateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -33410,11 +33390,11 @@ export type PublicApiV1MonthlyTimeRecordClosesExportData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the monthly time-record close.
          */
         monthly_time_record_close: string;
     };
@@ -33472,17 +33452,17 @@ export type PublicApiV1DeliveryNotesPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
     query?: {
         /**
-         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
+         * Send `1` to get the PDF as an attachment (`Content-Disposition: attachment`) instead of inline.
          */
         download?: string;
     };
@@ -33533,11 +33513,11 @@ export type PublicApiV1InvoicesFacturaeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -33590,17 +33570,17 @@ export type PublicApiV1InvoicesPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
     query?: {
         /**
-         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
+         * Send `1` to get the PDF as an attachment (`Content-Disposition: attachment`) instead of inline.
          */
         download?: string;
     };
@@ -33648,11 +33628,11 @@ export type PublicApiV1MonthlyTimeRecordClosesPayrollExportData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the monthly time-record close.
          */
         monthly_time_record_close: string;
     };
@@ -33710,15 +33690,15 @@ export type PublicApiV1ProductsGalleryDownloadData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Zero-based position of the image in the product `gallery` list (an integer, not a UUID). After a deletion the following images move up one position.
+         * Zero-based position (integer) of the image in the product `gallery`.
          */
         index: number;
     };
@@ -33767,11 +33747,11 @@ export type PublicApiV1ProductsVideoDownloadData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -33820,17 +33800,17 @@ export type PublicApiV1ProformasPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
     query?: {
         /**
-         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
+         * Send `1` to get the PDF as an attachment (`Content-Disposition: attachment`) instead of inline.
          */
         download?: string;
     };
@@ -33882,11 +33862,11 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -33935,17 +33915,17 @@ export type PublicApiV1QuotesPdfData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
     query?: {
         /**
-         * Set to `1` (any value other than `0` or empty) to receive the PDF with `Content-Disposition: attachment`, so browsers save it as a file; omit it to get `inline`.
+         * Send `1` to get the PDF as an attachment (`Content-Disposition: attachment`) instead of inline.
          */
         download?: string;
     };
@@ -33997,11 +33977,11 @@ export type PublicApiV1TaxReportsDownloadData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax report, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax report.
          */
         tax_report: string;
     };
@@ -34050,11 +34030,11 @@ export type PublicApiV1AutomationsRulesDryRunData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
     };
@@ -34117,11 +34097,11 @@ export type PublicApiV1DeliveryNotesDuplicateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -34180,11 +34160,11 @@ export type PublicApiV1InvoicesDuplicateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -34246,11 +34226,11 @@ export type PublicApiV1ProformasDuplicateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -34309,11 +34289,11 @@ export type PublicApiV1QuotesDuplicateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -34372,7 +34352,7 @@ export type PublicApiV1InvoicesExportExcelData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34433,7 +34413,7 @@ export type PublicApiV1ContactsFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34496,7 +34476,7 @@ export type PublicApiV1ContactsFindByTaxIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34555,7 +34535,7 @@ export type PublicApiV1DeliveryNotesFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34614,7 +34594,7 @@ export type PublicApiV1EmployeesFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34673,7 +34653,7 @@ export type PublicApiV1InvoicesFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34732,7 +34712,7 @@ export type PublicApiV1InvoicesFindByNumberData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34791,7 +34771,7 @@ export type PublicApiV1ProductsFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34850,7 +34830,7 @@ export type PublicApiV1ProductsFindBySkuData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34905,7 +34885,7 @@ export type PublicApiV1ProformasFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -34964,7 +34944,7 @@ export type PublicApiV1PurchaseInvoicesFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35023,7 +35003,7 @@ export type PublicApiV1QuotesFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35084,7 +35064,7 @@ export type PublicApiV1VerifactuRecordsFindByCsvData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35141,7 +35121,7 @@ export type PublicApiV1VerifactuRecordsFindByHuellaData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35203,7 +35183,7 @@ export type PublicApiV1VerifactuRecordsFindByInvoiceNumberData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35258,7 +35238,7 @@ export type PublicApiV1RecurringInvoicesFindByExternalIdData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35317,7 +35297,7 @@ export type PublicApiV1SeriesFindByCodeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35372,7 +35352,7 @@ export type PublicApiV1TaxReportsFindByPeriodData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35435,11 +35415,11 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Numeric identifier (an integer, not a UUID) of the delivery-note signature audit record whose personal data is erased.
+         * Numeric identifier (integer) of the delivery-note signature audit record.
          */
         auditId: string;
     };
@@ -35505,7 +35485,7 @@ export type PublicApiV1TaxReportsGenerate130Data = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35571,7 +35551,7 @@ export type PublicApiV1TaxReportsGenerate303Data = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35637,7 +35617,7 @@ export type PublicApiV1TaxReportsGenerate347Data = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35703,11 +35683,11 @@ export type PublicApiV1RecurringInvoicesGenerateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -35770,7 +35750,7 @@ export type PublicApiV1AccountBillingData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -35821,11 +35801,11 @@ export type PublicApiV1AccountMembersModuleAccessShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
+         * Public identifier (UUID v7) of the account member.
          */
         member: string;
     };
@@ -35884,11 +35864,11 @@ export type PublicApiV1AccountMembersModuleAccessUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the account member, as returned in `id` by the member list. It identifies the person, not the membership.
+         * Public identifier (UUID v7) of the account member.
          */
         member: string;
     };
@@ -35947,7 +35927,7 @@ export type PublicApiV1AccountUsageData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -35998,7 +35978,7 @@ export type PublicApiV1VerifactuCertificatesActiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36049,7 +36029,7 @@ export type PublicApiV1TaxesActiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36100,7 +36080,7 @@ export type PublicApiV1AutomationsCatalogShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36151,11 +36131,11 @@ export type PublicApiV1AutomationsCatalogTriggerFieldsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Trigger key: a dotted event name such as `invoice.created`, as listed by the automation catalog (`GET /v1/companies/{company}/automations/catalog`).
+         * Trigger key, a dotted event name such as `invoice.created`.
          */
         trigger: string;
     };
@@ -36206,7 +36186,7 @@ export type PublicApiV1AutomationsUsageShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36257,21 +36237,21 @@ export type PublicApiV1ContactsActivitiesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
     query: {
         /**
-         * Only activity about this kind of record: `contact` (the contact itself), `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice`, `recurring_invoice` or `contract`.
+         * Only activity about this kind of record: `contact`, `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice`, `recurring_invoice` or `contract`.
          */
         category?: 'contact' | 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'purchase_invoice' | 'recurring_invoice' | 'contract' | null;
         /**
-         * Only activity in these directions: `sales` (documents where the contact is your customer), `purchases` (documents where it is your supplier) and `relationship` (changes to the contact itself). Omit it to include all three.
+         * Only activity in these directions: `sales`, `purchases` or `relationship` (all three when omitted).
          */
         'direction[]': 'sales' | 'purchases' | 'relationship';
     };
@@ -36329,7 +36309,7 @@ export type PublicApiV1ContactsOptionsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36339,19 +36319,19 @@ export type PublicApiV1ContactsOptionsData = {
          */
         field: 'country' | 'country_code' | 'province' | 'city' | 'tag';
         /**
-         * Narrows the returned values by partial match (up to 100 characters). Ignored when `field` is `country`.
+         * Partial match on the returned values (up to 100 characters); ignored when `field` is `country`.
          */
         search?: string | null;
         /**
-         * Only values from contacts in this country (ISO 3166-1 alpha-2 code, e.g. `ES`). Ignored when `field` is `country`.
+         * Only values from contacts in this country (ISO 3166-1 alpha-2); ignored when `field` is `country`.
          */
         country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
         /**
-         * Only values from contacts in this province (exact match). Ignored when `field` is `country`.
+         * Only values from contacts in this province; ignored when `field` is `country`.
          */
         province?: string | null;
         /**
-         * Maximum number of values to return. Integer between 1 and 250. Defaults to 50. Ignored when `field` is `country`.
+         * Maximum number of values, between 1 and 250 (default 50); ignored when `field` is `country`.
          */
         limit?: number | null;
     };
@@ -36410,7 +36390,7 @@ export type PublicApiV1ContactsStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36465,11 +36445,11 @@ export type PublicApiV1CompaniesCreationStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36520,7 +36500,7 @@ export type PublicApiV1GestoriaWorkforceSummaryData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -36571,7 +36551,7 @@ export type PublicApiV1TimeEntriesCurrentData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36631,7 +36611,7 @@ export type PublicApiV1VerifactuDeclaracionHistoryData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36683,7 +36663,7 @@ export type PublicApiV1VerifactuDeclaracionCurrentData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36734,7 +36714,7 @@ export type PublicApiV1SeriesDefaultData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36794,11 +36774,11 @@ export type PublicApiV1DeliveryNotesPublicLinkGetData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -36853,11 +36833,11 @@ export type PublicApiV1DeliveryNotesPublicLinkUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -36919,7 +36899,7 @@ export type PublicApiV1DeliveryNotesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -36970,13 +36950,13 @@ export type PublicApiV1EmailsIndicatorsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query: {
         /**
-         * Documents to summarize: UUID v7 of each one, either comma-separated (`related_entity_ids=a,b,c`) or repeated. Required, maximum 100 per call — more returns 422. The type is not needed: a UUID v7 is globally unique, so the batch MAY mix invoices, quotes, pro formas, delivery notes, purchase invoices and recurring invoices. Ids without any email, and ids that do not belong to a document of your company, are OMITTED from the response instead of being reported as zero, so match the results back by `related_entity_id`.
+         * Public identifiers (UUID v7) of the documents to summarize, of any type, comma-separated or repeated (up to 100). Documents with no email, or not yours, are omitted from the response.
          */
         'related_entity_ids[]': Array<string>;
         /**
@@ -37039,11 +37019,11 @@ export type PublicApiV1PresenceShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee.
          */
         employee: string;
     };
@@ -37094,11 +37074,11 @@ export type PublicApiV1WorkSchedulesEmployeeScheduleData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee.
          */
         employee: string;
     };
@@ -37149,7 +37129,7 @@ export type PublicApiV1EmployeeSeatsStatusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -37200,7 +37180,7 @@ export type PublicApiV1EmployeeSeatsPreviewData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -37210,7 +37190,7 @@ export type PublicApiV1EmployeeSeatsPreviewData = {
          */
         count?: number | null;
         /**
-         * Public identifiers (UUID v7) of specific employees to preview. When sent, the preview is coverage-aware: employees still covered by a paid seat cost nothing and only the uncovered ones are prorated. Omit it to preview `count` employees activated in bulk.
+         * Public identifiers (UUID v7) of the employees to preview; omit it to preview `count` employees.
          */
         'employee_ids[]'?: Array<string>;
     };
@@ -37264,7 +37244,7 @@ export type PublicApiV1EmployeesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -37321,11 +37301,11 @@ export type PublicApiV1TimeBalancesEmployeeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee.
          */
         employee: string;
     };
@@ -37389,11 +37369,11 @@ export type PublicApiV1FaceSubmissionsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the FACe submission, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the FACe submission.
          */
         faceSubmission: string;
     };
@@ -37444,11 +37424,11 @@ export type PublicApiV1InvoicesPdfLinkData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -37518,11 +37498,11 @@ export type PublicApiV1InvoicesPublicLinkGetData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -37577,11 +37557,11 @@ export type PublicApiV1InvoicesPublicLinkUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -37640,17 +37620,17 @@ export type PublicApiV1InvoicesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Start of the period to aggregate, compared against the invoice issue date (`YYYY-MM-DD`, inclusive). Omit it for no lower bound.
+         * Start of the period, by issue date (`YYYY-MM-DD`, inclusive).
          */
         date_from?: string | null;
         /**
-         * End of the period to aggregate, compared against the invoice issue date (`YYYY-MM-DD`, inclusive). Omit it for no upper bound.
+         * End of the period, by issue date (`YYYY-MM-DD`, inclusive).
          */
         date_to?: string | null;
     };
@@ -37704,11 +37684,11 @@ export type PublicApiV1CompaniesIssuingReadinessData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -37759,7 +37739,7 @@ export type PublicApiV1PresenceLiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -37810,7 +37790,7 @@ export type PublicApiV1ProductsLowStockReportData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -37907,11 +37887,11 @@ export type PublicApiV1MonthlyTimeRecordClosesReportData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the monthly time-record close.
          */
         monthly_time_record_close: string;
     };
@@ -37962,7 +37942,7 @@ export type PublicApiV1TimeBalancesMonthlySheetData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38026,11 +38006,11 @@ export type PublicApiV1PayoutsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the payout, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the payout.
          */
         payout: string;
     };
@@ -38081,21 +38061,21 @@ export type PublicApiV1ProductsActivitiesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Number of activity entries per page. Integer between 1 and 200. Defaults to 50.
+         * Number of entries per page, between 1 and 200 (default 50).
          */
         per_page?: number;
         /**
-         * Page number to return, starting at 1.
+         * Page number, starting at 1.
          */
         page?: number;
     };
@@ -38172,11 +38152,11 @@ export type PublicApiV1ProductsSalesAnalyticsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -38230,7 +38210,7 @@ export type PublicApiV1ProductsStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38281,11 +38261,11 @@ export type PublicApiV1ProformasPublicLinkGetData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -38340,11 +38320,11 @@ export type PublicApiV1ProformasPublicLinkUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -38403,7 +38383,7 @@ export type PublicApiV1ProformasStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38454,7 +38434,7 @@ export type PublicApiV1PurchaseInvoicesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38505,11 +38485,11 @@ export type PublicApiV1QuotesPublicLinkGetData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -38564,11 +38544,11 @@ export type PublicApiV1QuotesPublicLinkUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -38627,7 +38607,7 @@ export type PublicApiV1QuotesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38678,7 +38658,7 @@ export type PublicApiV1RecurringInvoicesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38729,17 +38709,17 @@ export type PublicApiV1CompaniesSeatChargePreviewData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
     query: {
         /**
-         * Number of companies to preview activating in bulk. Integer between 1 and 1000. Defaults to 1. Used when `company_ids[]` is not sent.
+         * Number of companies to preview activating in bulk, between 1 and 1000 (default 1); used without `company_ids[]`.
          */
         count?: number | null;
         /**
-         * Public identifiers (UUID) of specific companies of your account to preview. When sent, the preview is coverage-aware: companies still covered by a paid seat cost nothing and only the uncovered ones are prorated. Omit it to preview `count` companies activated in bulk.
+         * Public identifiers (UUID v7) of the companies to preview; omit it to preview `count` companies.
          */
         'company_ids[]': Array<string>;
     };
@@ -38796,11 +38776,11 @@ export type PublicApiV1SeriesActivitiesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the document series.
          */
         series: string;
     };
@@ -38868,7 +38848,7 @@ export type PublicApiV1SeriesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38925,7 +38905,7 @@ export type PublicApiV1StripeAutoinvoicingConfigShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -38980,7 +38960,7 @@ export type PublicApiV1StripeAutoinvoicingConfigUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39081,11 +39061,11 @@ export type PublicApiV1TaxesDefaultsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Document type the tax defaults apply to: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice` or `recurring_invoice`. Any other value returns 422.
+         * Document type: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice` or `recurring_invoice`.
          */
         docType: string;
     };
@@ -39132,11 +39112,11 @@ export type PublicApiV1TaxReportsActivitiesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax report, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax report.
          */
         tax_report: string;
     };
@@ -39204,7 +39184,7 @@ export type PublicApiV1TaxReportsStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39255,7 +39235,7 @@ export type PublicApiV1TaxesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39306,13 +39286,13 @@ export type PublicApiV1TaxesByTypeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Tax type to list: `vat`, `retention`, `surcharge` or `other`. Defaults to `vat`.
+         * Tax type: `vat` (default), `retention`, `surcharge` or `other`.
          */
         type?: string;
     };
@@ -39362,7 +39342,7 @@ export type PublicApiV1TaxesForPurchasesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39413,7 +39393,7 @@ export type PublicApiV1TaxesForSalesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39464,7 +39444,7 @@ export type PublicApiV1AbsenceCalendarShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39532,7 +39512,7 @@ export type PublicApiV1TimeBalancesTeamSummaryData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39592,7 +39572,7 @@ export type PublicApiV1TimeTrackingSettingsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39647,7 +39627,7 @@ export type PublicApiV1TimeTrackingSettingsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39706,11 +39686,11 @@ export type PublicApiV1VerifactuRecordsActivitiesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu billing record.
          */
         record: string;
     };
@@ -39778,7 +39758,7 @@ export type PublicApiV1VerifactuConfigData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39829,7 +39809,7 @@ export type PublicApiV1VerifactuEventsSummaryData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39880,7 +39860,7 @@ export type PublicApiV1VerifactuStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -39956,7 +39936,7 @@ export type PublicApiV1WorkSchedulesStatsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -40018,7 +39998,7 @@ export type PublicApiV1ContactsImportData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -40087,7 +40067,7 @@ export type PublicApiV1AccountInvitationsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -40152,7 +40132,7 @@ export type PublicApiV1AccountInvitationsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -40211,7 +40191,7 @@ export type PublicApiV1AbsenceBalancesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -40229,7 +40209,7 @@ export type PublicApiV1AbsenceBalancesListData = {
          */
         year?: number | null;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -40291,11 +40271,11 @@ export type PublicApiV1AbsencePoliciesAssignmentsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -40346,7 +40326,7 @@ export type PublicApiV1AccountPersonalizationTemplatesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -40397,7 +40377,7 @@ export type PublicApiV1SeriesActiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -40451,7 +40431,7 @@ export type PublicApiV1VerifactuAeatAccessListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -40527,17 +40507,17 @@ export type PublicApiV1DevelopersRequestLogsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * HTTP methods to filter by, either comma-separated (`?method=GET,POST`) or repeated (`?method[]=GET&method[]=POST`). Allowed values: GET, POST, PUT, PATCH, DELETE. Any other value returns 422 — the filter is never silently dropped.
+         * HTTP methods, comma-separated (`?method=GET,POST`) or repeated: `GET`, `POST`, `PUT`, `PATCH` or `DELETE`; any other value returns 422.
          */
         'method[]'?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
         /**
-         * Status code ranges to filter by, either comma-separated (`?status_range=4xx,5xx`) or repeated (`?status_range[]=4xx&status_range[]=5xx`). Allowed values: 2xx, 3xx, 4xx, 5xx. Any other value returns 422. `only_errors=true` is shorthand for `4xx,5xx`, but an explicit `status_range` wins over it.
+         * Status code ranges, comma-separated (`?status_range=4xx,5xx`) or repeated: `2xx`, `3xx`, `4xx` or `5xx`; it wins over `only_errors=true` (shorthand for `4xx,5xx`).
          */
         'status_range[]'?: '2xx' | '3xx' | '4xx' | '5xx';
         /**
@@ -40565,11 +40545,11 @@ export type PublicApiV1DevelopersRequestLogsListData = {
          */
         environment?: 'live' | 'test';
         /**
-         * Number of logs to return. Integer between 1 and 100. Defaults to 50 (wider than the rest of the v1 listings, which default to 25). A non-integer or out-of-range value returns 400.
+         * Number of logs to return, between 1 and 100 (default 50).
          */
         limit?: number;
         /**
-         * Cursor for forward pagination: pass back the `next_cursor` of the previous page. Treat it as opaque — unlike the rest of the v1 listings it is a numeric string, not a UUID v7, because request logs have no UUID. A malformed cursor returns 400.
+         * Cursor for forward pagination: the `next_cursor` of the previous page, an opaque numeric string (not a UUID v7). A malformed cursor returns 400.
          */
         starting_after?: string;
     };
@@ -40628,25 +40608,25 @@ export type PublicApiV1AutomationsRulesVersionsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
     };
     query?: {
         /**
-         * Number of versions to return. Integer between 1 and 100. Defaults to 25. A non-integer or out-of-range value returns 400.
+         * Number of versions to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
-         * Cursor for forward pagination: pass back the `next_cursor` of the previous page. Treat it as opaque — unlike most v1 listings it is a numeric string, not a UUID v7, because the version history paginates by offset. Never build one yourself. A malformed cursor returns 400.
+         * Cursor for forward pagination: the `next_cursor` of the previous page, an opaque numeric string (not a UUID v7). A malformed cursor returns 400.
          */
         starting_after?: string;
         /**
-         * Cursor for backward pagination: pass back a cursor you were given to step one page back (it never goes past the first page). Same opaque numeric string as `starting_after`. A malformed cursor returns 400.
+         * Cursor for backward pagination: a cursor you were given, to step one page back (never past the first page).
          */
         ending_before?: string;
     };
@@ -40700,17 +40680,17 @@ export type PublicApiV1AutomationsRunsStepsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation run.
          */
         run: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -40772,7 +40752,7 @@ export type PublicApiV1AutomationsRunsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -40786,7 +40766,7 @@ export type PublicApiV1AutomationsRunsListData = {
          */
         subject_company_id?: string;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -40868,25 +40848,25 @@ export type PublicApiV1CompaniesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
     query?: {
         /**
-         * Only companies in this status: `active`, `inactive` or `archived`. Without it, archived companies are hidden and only `active` and `inactive` ones are returned.
+         * Only companies in this status: `active`, `inactive` or `archived` (archived ones are hidden when omitted).
          */
         status?: 'active' | 'inactive' | 'archived' | null;
         /**
-         * Fiscal tax number (NIF/CIF/NIE) of the company. A tax number outside the scope of the API key returns an EMPTY list, never a rejection: telling «not found» apart from «not yours» would turn this filter into a way to enumerate which companies exist on the platform. Exact match on `tax_id`.
+         * Tax ID (NIF/CIF/NIE) of the company. A tax ID outside the scope of your key returns an empty list, never an error. Exact match on `tax_id`.
          */
         tax_id?: string;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
-         * Cursor for forward pagination. NON-STANDARD for this API: unlike the `starting_after` / `ending_before` lists, this endpoint takes a single `cursor`. Use the `id` of the last company on the previous page.
+         * Cursor for forward pagination (this list takes a single `cursor`, not `starting_after`/`ending_before`): the `id` of the last company on the previous page.
          */
         cursor?: string;
     };
@@ -40945,7 +40925,7 @@ export type PublicApiV1CompaniesCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -41008,7 +40988,7 @@ export type PublicApiV1VerifactuCertificatesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41063,7 +41043,7 @@ export type PublicApiV1VerifactuCertificatesUploadData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41129,7 +41109,7 @@ export type PublicApiV1StripeAutoinvoicingAccountsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41180,7 +41160,7 @@ export type PublicApiV1PresenceDailyData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41202,7 +41182,7 @@ export type PublicApiV1PresenceDailyData = {
          */
         to?: string | null;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -41264,7 +41244,7 @@ export type PublicApiV1DeliveryNotesStatusesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41315,7 +41295,7 @@ export type PublicApiV1EmailsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41349,11 +41329,11 @@ export type PublicApiV1EmailsListData = {
          */
         search?: string;
         /**
-         * Number of emails to return. Integer between 1 and 100. Defaults to 25. A non-integer or out-of-range value returns 400.
+         * Number of emails to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
-         * Cursor for forward pagination: pass back the `next_cursor` of the previous page. Treat it as opaque — unlike the rest of the v1 listings it is a numeric string, not a UUID v7. A malformed cursor returns 400.
+         * Cursor for forward pagination: the `next_cursor` of the previous page, an opaque numeric string (not a UUID v7). A malformed cursor returns 400.
          */
         starting_after?: string;
     };
@@ -41412,7 +41392,7 @@ export type PublicApiV1EmployeeInvitationsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41467,7 +41447,7 @@ export type PublicApiV1EmployeeInvitationsSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41568,13 +41548,13 @@ export type PublicApiV1EventsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -41660,13 +41640,13 @@ export type PublicApiV1HolidaysListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -41752,7 +41732,7 @@ export type PublicApiV1IntegrationsEventsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -41786,11 +41766,11 @@ export type PublicApiV1IntegrationsEventsListData = {
          */
         'created_at[lte]'?: string;
         /**
-         * Number of events to return. Integer between 1 and 100. Defaults to 25. A non-integer or out-of-range value returns 400.
+         * Number of events to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
-         * Cursor for forward pagination: pass back the `next_cursor` of the previous page. Treat it as opaque — unlike the rest of the v1 listings it is a numeric string, not a UUID v7. A malformed cursor returns 400.
+         * Cursor for forward pagination: the `next_cursor` of the previous page, an opaque numeric string (not a UUID v7). A malformed cursor returns 400.
          */
         starting_after?: string;
     };
@@ -41849,11 +41829,11 @@ export type PublicApiV1InvoicesActivitiesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -41904,11 +41884,11 @@ export type PublicApiV1InvoicesCorrectivesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -41959,11 +41939,11 @@ export type PublicApiV1InvoicesFaceSubmissionsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -42018,11 +41998,11 @@ export type PublicApiV1InvoicesFaceSubmissionsSubmitData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -42081,11 +42061,11 @@ export type PublicApiV1InvoicesPaymentsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -42140,11 +42120,11 @@ export type PublicApiV1InvoicesPaymentsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -42203,7 +42183,7 @@ export type PublicApiV1InvoicesStatusesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -42254,21 +42234,21 @@ export type PublicApiV1PurchaseInvoicesOverdueData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Page size. Alias of `limit` (integer between 1 and 100, defaults to 25).
+         * Page size, alias of `limit` (1 to 100, default 25).
          */
         per_page?: string;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: string;
         /**
-         * Opaque pagination cursor. NON-STANDARD for this API: unlike the cursor lists (`starting_after`/`ending_before`), this endpoint wraps an offset paginator, so the cursor encodes the next page number. Use the `next_cursor` value returned by the previous page.
+         * Pagination cursor (it encodes the next page number): the `next_cursor` of the previous page.
          */
         cursor?: string;
     };
@@ -42360,13 +42340,13 @@ export type PublicApiV1PayoutsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -42497,21 +42477,21 @@ export type PublicApiV1PurchaseInvoicesPendingData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Page size. Alias of `limit` (integer between 1 and 100, defaults to 25).
+         * Page size, alias of `limit` (1 to 100, default 25).
          */
         per_page?: string;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: string;
         /**
-         * Opaque pagination cursor. NON-STANDARD for this API: unlike the cursor lists (`starting_after`/`ending_before`), this endpoint wraps an offset paginator, so the cursor encodes the next page number. Use the `next_cursor` value returned by the previous page.
+         * Pagination cursor (it encodes the next page number): the `next_cursor` of the previous page.
          */
         cursor?: string;
     };
@@ -42561,17 +42541,17 @@ export type PublicApiV1PriceListsItemsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -42579,11 +42559,11 @@ export type PublicApiV1PriceListsItemsListData = {
          */
         starting_after?: string | null;
         /**
-         * Partial, case-insensitive match against the name of the priced product, variant, presentation or configuration (up to 120 characters).
+         * Partial, case-insensitive match on the name of the priced item (up to 120 characters).
          */
         search?: string | null;
         /**
-         * Lifecycle of the items to return: `active` (default, the current ones), `retired` (the history of items whose catalog target was deleted) or `all`.
+         * Items to return: `active` (default), `retired` or `all`.
          */
         status?: 'active' | 'retired' | 'all' | null;
     };
@@ -42639,11 +42619,11 @@ export type PublicApiV1PriceListsItemsUpsertData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
     };
@@ -42702,17 +42682,17 @@ export type PublicApiV1PriceListsOptionsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Partial match against the price list name (up to 120 characters).
+         * Partial match on the price list name (up to 120 characters).
          */
         search?: string;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 50.
+         * Number of objects to return, between 1 and 100 (default 50).
          */
         limit?: number;
     };
@@ -42766,17 +42746,17 @@ export type PublicApiV1ProductsConfigurationsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -42784,7 +42764,7 @@ export type PublicApiV1ProductsConfigurationsListData = {
          */
         starting_after?: string | null;
         /**
-         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         * `true` returns only active items; `false` or omitted returns all of them.
          */
         active?: boolean;
     };
@@ -42838,17 +42818,17 @@ export type PublicApiV1ProductsOptionsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -42856,7 +42836,7 @@ export type PublicApiV1ProductsOptionsListData = {
          */
         starting_after?: string | null;
         /**
-         * When `true`, return only active items; omit it (or send `false`) to include inactive ones too.
+         * `true` returns only active items; `false` or omitted returns all of them.
          */
         active?: boolean;
     };
@@ -42910,25 +42890,25 @@ export type PublicApiV1ProductsStockMovementsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
     query?: {
         /**
-         * Number of stock movements per page. Integer between 1 and 100. Defaults to 25.
+         * Number of stock movements per page, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
-         * Cursor for forward pagination: pass the `id` of the last stock movement you already received; the page starts right after it.
+         * Cursor for forward pagination: the `id` of the last stock movement you received.
          */
         starting_after?: string | null;
         /**
-         * `in` returns only incoming movements (positive quantity change) and `out` only outgoing ones (negative quantity change). Omit it to return the whole stock ledger.
+         * `in` returns only incoming movements and `out` only outgoing ones (all when omitted).
          */
         direction?: 'in' | 'out' | null;
     };
@@ -42982,7 +42962,7 @@ export type PublicApiV1ProformasStatusesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43036,11 +43016,11 @@ export type PublicApiV1PurchaseInvoicesListPaymentsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -43098,11 +43078,11 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -43164,7 +43144,7 @@ export type PublicApiV1InvoicesQuarterlyAvailableData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43218,7 +43198,7 @@ export type PublicApiV1QuotesStatusesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43272,11 +43252,11 @@ export type PublicApiV1RecurringInvoicesActivitiesData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -43344,25 +43324,25 @@ export type PublicApiV1RecurringInvoicesLogsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
     query?: {
         /**
-         * Page size. Alias of `limit` (integer between 1 and 100, defaults to 25).
+         * Page size, alias of `limit` (1 to 100, default 25).
          */
         per_page?: string;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: string;
         /**
-         * Opaque pagination cursor: pass the `next_cursor` value returned by the previous page.
+         * Pagination cursor: the `next_cursor` of the previous page.
          */
         cursor?: string;
     };
@@ -43417,11 +43397,11 @@ export type PublicApiV1WorkSchedulesAssignmentsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the work schedule.
          */
         schedule: string;
     };
@@ -43472,7 +43452,7 @@ export type PublicApiV1StripeAutoinvoicingCorrectivesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43540,13 +43520,13 @@ export type PublicApiV1StripeAutoinvoicingPaymentsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query?: {
         /**
-         * Only payments of this origin: `subscription` (subscription billing cycles) or `oneshot` (one-off charges).
+         * Only payments of this origin: `subscription` or `oneshot`.
          */
         origin?: 'subscription' | 'oneshot';
     };
@@ -43600,7 +43580,7 @@ export type PublicApiV1TaxReportsHistoryData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43692,7 +43672,7 @@ export type PublicApiV1TimeCorrectionsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43714,7 +43694,7 @@ export type PublicApiV1TimeCorrectionsListData = {
          */
         to?: string | null;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -43780,7 +43760,7 @@ export type PublicApiV1TimeCorrectionsCreateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43839,7 +43819,7 @@ export type PublicApiV1TimeEntriesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -43861,7 +43841,7 @@ export type PublicApiV1TimeEntriesListData = {
          */
         entry_type?: 'clock_in' | 'pause_start' | 'pause_end' | 'clock_out' | null;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -43923,7 +43903,7 @@ export type PublicApiV1VerifactuEventsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -44003,7 +43983,7 @@ export type PublicApiV1VerifactuRecordsListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -44095,17 +44075,17 @@ export type PublicApiV1WebhookEndpointsDeliveriesListData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
     };
     query?: {
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number;
         /**
@@ -44203,11 +44183,11 @@ export type PublicApiV1DeliveryNotesMarkDeliveredData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -44270,11 +44250,11 @@ export type PublicApiV1InvoicesMarkPaidData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -44337,11 +44317,11 @@ export type PublicApiV1InvoicesMarkSentData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -44404,11 +44384,11 @@ export type PublicApiV1PurchaseInvoicesMarkPaidData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the purchase invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the purchase invoice.
          */
         purchase_invoice: string;
     };
@@ -44471,11 +44451,11 @@ export type PublicApiV1SeriesSetDefaultData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the document series.
          */
         series: string;
     };
@@ -44531,11 +44511,11 @@ export type PublicApiV1SeriesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the document series.
          */
         series: string;
     };
@@ -44590,11 +44570,11 @@ export type PublicApiV1AutomationsRulesPauseData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
     };
@@ -44657,11 +44637,11 @@ export type PublicApiV1RecurringInvoicesPauseData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -44720,7 +44700,7 @@ export type PublicApiV1TimeEntriesPauseData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -44783,11 +44763,11 @@ export type PublicApiV1WebhookEndpointsPingData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
     };
@@ -44852,7 +44832,7 @@ export type PublicApiV1ContactsPreviewImportData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -44918,11 +44898,11 @@ export type PublicApiV1ProductsConfigurationsImpactPreviewData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -44977,11 +44957,11 @@ export type PublicApiV1InvoicesPdfPreviewData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -45030,11 +45010,11 @@ export type PublicApiV1InvoicesReminderPreviewData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -45089,11 +45069,11 @@ export type PublicApiV1InvoicesPaymentReceiptData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -45142,21 +45122,21 @@ export type PublicApiV1RecurringInvoicesPreviewData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
     query?: {
         /**
-         * Number of upcoming occurrences to preview. Integer between 1 and 36. Defaults to 5; larger values are capped at 36.
+         * Number of upcoming occurrences to preview, between 1 and 36 (default 5).
          */
         count?: string;
         /**
-         * Set to `document` to also return `next_invoice`, a full preview of the next invoice the template will generate.
+         * Send `document` to also return `next_invoice`, a full preview of the next invoice.
          */
         expand?: string;
     };
@@ -45210,7 +45190,7 @@ export type PublicApiV1TaxReportsPreviewData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -45273,15 +45253,15 @@ export type PublicApiV1PriceListsItemsPurgeRetiredData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
         /**
-         * Public identifier (UUID v7) of the price list item, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list item.
          */
         item: string;
     };
@@ -45345,7 +45325,7 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -45410,7 +45390,7 @@ export type PublicApiV1InvoicesQuarterlySendEmailData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -45478,11 +45458,11 @@ export type PublicApiV1EmployeesReactivateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee.
          */
         employee: string;
     };
@@ -45549,15 +45529,15 @@ export type PublicApiV1PriceListsItemsReassignRetiredData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the price list, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list.
          */
         priceList: string;
         /**
-         * Public identifier (UUID v7) of the price list item, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the price list item.
          */
         item: string;
     };
@@ -45620,7 +45600,7 @@ export type PublicApiV1TimeEntriesManualData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -45683,11 +45663,11 @@ export type PublicApiV1AbsenceRequestsRejectData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence request.
          */
         absence_request: string;
     };
@@ -45750,11 +45730,11 @@ export type PublicApiV1ProformasRejectData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -45817,11 +45797,11 @@ export type PublicApiV1QuotesRejectData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -45884,11 +45864,11 @@ export type PublicApiV1TimeCorrectionsRejectData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the time correction request, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the time correction request.
          */
         time_correction: string;
     };
@@ -45951,11 +45931,11 @@ export type PublicApiV1MonthlyTimeRecordClosesReopenData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the monthly time-record close.
          */
         monthly_time_record_close: string;
     };
@@ -46014,11 +45994,11 @@ export type PublicApiV1AutomationsRunsReplayData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation run.
          */
         run: string;
     };
@@ -46086,15 +46066,15 @@ export type PublicApiV1AutomationsRunsStepsReplayData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation run.
          */
         run: string;
         /**
-         * Index of the step within the run (an integer, not a UUID), as returned in `step_index` by `GET /v1/companies/{company}/automations/runs/{run}/steps`. It is not the position of the step in that list.
+         * Index (integer) of the step, as returned in `step_index` by the run steps list.
          */
         step_index: string;
     };
@@ -46166,11 +46146,11 @@ export type PublicApiV1IntegrationsEventsReplayData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the integration event, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the integration event.
          */
         event: string;
     };
@@ -46237,15 +46217,15 @@ export type PublicApiV1WebhookEndpointsDeliveriesReplayData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
         /**
-         * Public identifier (UUID v7) of the webhook delivery, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook delivery.
          */
         delivery: string;
     };
@@ -46312,11 +46292,11 @@ export type PublicApiV1InvoicesRescheduleData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -46379,11 +46359,11 @@ export type PublicApiV1AccountInvitationsResendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the account invitation, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the account invitation.
          */
         invitation: string;
     };
@@ -46447,11 +46427,11 @@ export type PublicApiV1EmployeeInvitationsResendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee invitation, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee invitation.
          */
         invitation: string;
     };
@@ -46510,7 +46490,7 @@ export type PublicApiV1HolidaysResolveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -46574,7 +46554,7 @@ export type PublicApiV1PriceListsResolveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -46633,11 +46613,11 @@ export type PublicApiV1ProductsResolveSelectionData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -46696,7 +46676,7 @@ export type PublicApiV1PriceListsResolveManyData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -46759,11 +46739,11 @@ export type PublicApiV1ContactsRestoreData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -46829,11 +46809,11 @@ export type PublicApiV1RecurringInvoicesResumeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -46896,7 +46876,7 @@ export type PublicApiV1TimeEntriesResumeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -46959,11 +46939,11 @@ export type PublicApiV1VerifactuEventsRetryData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu event, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu event.
          */
         event: string;
     };
@@ -47029,11 +47009,11 @@ export type PublicApiV1VerifactuRecordsRetryData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu billing record.
          */
         record: string;
     };
@@ -47099,15 +47079,15 @@ export type PublicApiV1InvoicesPaymentsRevertData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
         /**
-         * Public identifier (UUID v7) of the invoice payment, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice payment.
          */
         payment: string;
     };
@@ -47170,11 +47150,11 @@ export type PublicApiV1AccountApiKeysRevokeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the API key, as returned in `id` by its list and detail responses. The key making the request finds its own in `GET /v1/me` (`data.api_key.id`).
+         * Public identifier (UUID v7) of the API key.
          */
         api_key: string;
     };
@@ -47237,17 +47217,17 @@ export type PublicApiV1VerifactuCertificatesRevokeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu certificate, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu certificate.
          */
         certificate: string;
     };
     query?: {
         /**
-         * Optional reason for the revocation, kept in the audit trail of the certificate.
+         * Optional reason for the revocation, kept in the audit trail.
          */
         reason?: string;
     };
@@ -47310,11 +47290,11 @@ export type PublicApiV1AccountApiKeysRotateSecretData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the API key, as returned in `id` by its list and detail responses. The key making the request finds its own in `GET /v1/me` (`data.api_key.id`).
+         * Public identifier (UUID v7) of the API key.
          */
         api_key: string;
     };
@@ -47377,11 +47357,11 @@ export type PublicApiV1WebhookEndpointsRotateSecretData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
     };
@@ -47444,11 +47424,11 @@ export type PublicApiV1InvoicesScheduleData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -47507,11 +47487,11 @@ export type PublicApiV1MonthlyTimeRecordClosesSealShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the monthly time-record close.
          */
         monthly_time_record_close: string;
     };
@@ -47566,11 +47546,11 @@ export type PublicApiV1MonthlyTimeRecordClosesSealData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the monthly time-record close.
          */
         monthly_time_record_close: string;
     };
@@ -47629,29 +47609,29 @@ export type PublicApiV1ContactsSearchData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query: {
         /**
-         * Search term (2 to 255 characters) over the name, commercial name, tax identifiers, email and external ID of the contact, and its phone numbers when the term is numeric. Results are ranked: exact matches first, then prefix matches, then partial matches.
+         * Search term (2 to 255 characters), ranked by exact, prefix and partial match.
          */
         q: string;
         /**
-         * Only contacts with these roles: `customer`, `supplier` or `lead`. Repeat the parameter or send a comma-separated list; combine it with `role_match` and `role_status`.
+         * Only contacts with these roles: `customer`, `supplier` or `lead` (repeat it or send a comma-separated list).
          */
         'roles[]'?: 'customer' | 'supplier' | 'lead';
         /**
-         * `any` (default) returns contacts with at least one of the requested `roles[]`; `all` requires every one of them.
+         * `any` (default) matches at least one of the `roles[]`; `all` requires all of them.
          */
         role_match?: 'any' | 'all' | null;
         /**
-         * Only roles in this status: `active` or `inactive`. Applies to the requested `roles[]`, or to any role when none is requested.
+         * Only roles in this status: `active` or `inactive`.
          */
         role_status?: 'active' | 'inactive' | null;
         /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         * Number of objects to return, between 1 and 100 (default 25).
          */
         limit?: number | null;
         /**
@@ -47711,13 +47691,13 @@ export type PublicApiV1ProductsSearchData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
     query: {
         /**
-         * Search term (1 to 120 characters) matched against the product `sku` and `name`. Results are ranked: exact matches first, then prefix matches, then partial matches; up to 50 are returned.
+         * Search term (1 to 120 characters) over `sku` and `name`, ranked by exact, prefix and partial match (up to 50 results).
          */
         q: string;
     };
@@ -47775,11 +47755,11 @@ export type PublicApiV1DeliveryNotesSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -47846,11 +47826,11 @@ export type PublicApiV1InvoicesSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -47913,11 +47893,11 @@ export type PublicApiV1InvoicesSendReminderData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -47980,11 +47960,11 @@ export type PublicApiV1ProformasSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the proforma, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the proforma.
          */
         proforma: string;
     };
@@ -48047,11 +48027,11 @@ export type PublicApiV1QuotesSendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the quote, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the quote.
          */
         quote: string;
     };
@@ -48114,11 +48094,11 @@ export type PublicApiV1WebhookEndpointsTestEventData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
     };
@@ -48185,15 +48165,15 @@ export type PublicApiV1ProductsSupplierOffersPreferredData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
         /**
-         * Public identifier (UUID v7) of the supplier offer, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the supplier offer.
          */
         offer: string;
     };
@@ -48256,11 +48236,11 @@ export type PublicApiV1TaxesSetDefaultData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax.
          */
         tax: string;
     };
@@ -48319,15 +48299,15 @@ export type PublicApiV1TaxesSetDefaultForDocumentData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax.
          */
         tax: string;
         /**
-         * Document type the tax defaults apply to: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice` or `recurring_invoice`. Any other value returns 422.
+         * Document type: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice` or `recurring_invoice`.
          */
         docType: string;
     };
@@ -48382,11 +48362,11 @@ export type PublicApiV1AbsenceBalancesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence balance, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence balance.
          */
         absence_balance: string;
     };
@@ -48437,11 +48417,11 @@ export type PublicApiV1AbsencePoliciesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -48496,11 +48476,11 @@ export type PublicApiV1AbsencePoliciesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -48559,11 +48539,11 @@ export type PublicApiV1AbsenceRequestsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence request, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence request.
          */
         absence_request: string;
     };
@@ -48614,11 +48594,11 @@ export type PublicApiV1AbsenceTypesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence type.
          */
         absence_type: string;
     };
@@ -48673,11 +48653,11 @@ export type PublicApiV1AbsenceTypesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence type.
          */
         absence_type: string;
     };
@@ -48736,11 +48716,11 @@ export type PublicApiV1VerifactuAeatAccessShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the AEAT access record, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the AEAT access record.
          */
         record: string;
     };
@@ -48791,11 +48771,11 @@ export type PublicApiV1AccountApiKeysShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID v7) of the API key, as returned in `id` by its list and detail responses. The key making the request finds its own in `GET /v1/me` (`data.api_key.id`).
+         * Public identifier (UUID v7) of the API key.
          */
         api_key: string;
     };
@@ -48846,11 +48826,11 @@ export type PublicApiV1DevelopersRequestLogsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Identifier of the logged request (`req_…`, not a UUID), as returned in the `X-Request-Id` response header and in `request_id` by the request log list. Request logs are kept for 30 days.
+         * Identifier of the logged request (`req_…`), as returned in the `X-Request-Id` header.
          */
         request_id: string;
     };
@@ -48901,15 +48881,15 @@ export type PublicApiV1AutomationsRulesVersionsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation rule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation rule.
          */
         rule: string;
         /**
-         * Version number of the rule (an integer, not a UUID), as returned in `version` by `GET /v1/companies/{company}/automations/rules/{rule}/versions`.
+         * Version number (integer) of the rule, as returned in `version` by its versions list.
          */
         version: string;
     };
@@ -48960,11 +48940,11 @@ export type PublicApiV1AutomationsRunsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the automation run, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the automation run.
          */
         run: string;
     };
@@ -49015,11 +48995,11 @@ export type PublicApiV1EmailsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the email delivery, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the email delivery.
          */
         email: string;
     };
@@ -49070,11 +49050,11 @@ export type PublicApiV1EmployeesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee.
          */
         employee: string;
     };
@@ -49129,11 +49109,11 @@ export type PublicApiV1EmployeesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the employee, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the employee.
          */
         employee: string;
     };
@@ -49192,11 +49172,11 @@ export type PublicApiV1EventsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the event, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the event.
          */
         event: string;
     };
@@ -49247,11 +49227,11 @@ export type PublicApiV1HolidaysShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the holiday, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the holiday.
          */
         holiday: string;
     };
@@ -49302,11 +49282,11 @@ export type PublicApiV1IntegrationsEventsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the integration event, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the integration event.
          */
         event: string;
     };
@@ -49357,11 +49337,11 @@ export type PublicApiV1MonthlyTimeRecordClosesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the monthly time-record close, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the monthly time-record close.
          */
         monthly_time_record_close: string;
     };
@@ -49412,11 +49392,11 @@ export type PublicApiV1TimeCorrectionsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the time correction request, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the time correction request.
          */
         time_correction: string;
     };
@@ -49467,11 +49447,11 @@ export type PublicApiV1TimeEntriesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the time entry, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the time entry.
          */
         time_entry: string;
     };
@@ -49522,11 +49502,11 @@ export type PublicApiV1VerifactuEventsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu event, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu event.
          */
         event: string;
     };
@@ -49577,11 +49557,11 @@ export type PublicApiV1VerifactuRecordsShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu billing record.
          */
         record: string;
     };
@@ -49632,15 +49612,15 @@ export type PublicApiV1WebhookEndpointsDeliveriesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the webhook endpoint, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook endpoint.
          */
         webhook_endpoint: string;
         /**
-         * Public identifier (UUID v7) of the webhook delivery, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the webhook delivery.
          */
         delivery: string;
     };
@@ -49691,11 +49671,11 @@ export type PublicApiV1WorkSchedulesShowData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the work schedule.
          */
         schedule: string;
     };
@@ -49750,11 +49730,11 @@ export type PublicApiV1WorkSchedulesUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the work schedule.
          */
         schedule: string;
     };
@@ -49817,11 +49797,11 @@ export type PublicApiV1DeliveryNotesSignData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the delivery note, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the delivery note.
          */
         delivery_note: string;
     };
@@ -49888,11 +49868,11 @@ export type PublicApiV1RecurringInvoicesSkipData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the recurring invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the recurring invoice.
          */
         recurring_invoice: string;
     };
@@ -49951,11 +49931,11 @@ export type PublicApiV1VerifactuRecordsSubsanarData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the VeriFactu billing record, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the VeriFactu billing record.
          */
         record: string;
     };
@@ -50021,7 +50001,7 @@ export type PublicApiV1EmployeeSeatsSubscribeData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -50088,7 +50068,7 @@ export type PublicApiV1InvoicesSubstituteSimplifiedData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -50154,11 +50134,11 @@ export type PublicApiV1ShopifyStoresConnectionTestData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the connected online store.
          */
         store: string;
     };
@@ -50221,11 +50201,11 @@ export type PublicApiV1WoocommerceStoresConnectionTestData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the connected online store, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the connected online store.
          */
         store: string;
     };
@@ -50288,11 +50268,11 @@ export type PublicApiV1ProductsToggleActiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -50351,11 +50331,11 @@ export type PublicApiV1TaxesToggleData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the tax.
          */
         tax: string;
     };
@@ -50414,7 +50394,7 @@ export type PublicApiV1AccountOwnerTransferData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
     };
@@ -50477,11 +50457,11 @@ export type PublicApiV1AbsencePoliciesUnarchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -50540,11 +50520,11 @@ export type PublicApiV1AbsenceTypesUnarchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence type, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence type.
          */
         absence_type: string;
     };
@@ -50603,11 +50583,11 @@ export type PublicApiV1SeriesUnarchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the document series, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the document series.
          */
         series: string;
     };
@@ -50667,11 +50647,11 @@ export type PublicApiV1WorkSchedulesUnarchiveData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the work schedule.
          */
         schedule: string;
     };
@@ -50730,11 +50710,11 @@ export type PublicApiV1AbsencePoliciesUnassignData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the absence policy, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the absence policy.
          */
         absence_policy: string;
     };
@@ -50797,11 +50777,11 @@ export type PublicApiV1WorkSchedulesUnassignData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the work schedule, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the work schedule.
          */
         schedule: string;
     };
@@ -50865,11 +50845,11 @@ export type PublicApiV1InvoicesUnscheduleData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -50928,11 +50908,11 @@ export type PublicApiV1InvoicesUnsendData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
@@ -50991,7 +50971,7 @@ export type PublicApiV1AccountPersonalizationUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -51054,11 +51034,11 @@ export type PublicApiV1ContactsUpdateBankAccountsData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -51128,11 +51108,11 @@ export type PublicApiV1ContactsUpdateCustomerProfileData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -51202,11 +51182,11 @@ export type PublicApiV1ProductsUpdateStockData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -51269,11 +51249,11 @@ export type PublicApiV1ContactsUpdateSupplierProfileData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the contact, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the contact.
          */
         contact: string;
     };
@@ -51343,7 +51323,7 @@ export type PublicApiV1VerifactuSettingsUpdateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -51406,11 +51386,11 @@ export type PublicApiV1ProductsGalleryUploadData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the product, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the product.
          */
         product: string;
     };
@@ -51464,7 +51444,7 @@ export type PublicApiV1ProductsGalleryUploadResponses = {
              */
             url: string;
             /**
-             * MIME type de la imagen.
+             * MIME type of the image.
              */
             content_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' | 'application/octet-stream';
             /**
@@ -51487,7 +51467,7 @@ export type PublicApiV1TimeEntriesChainValidateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -51538,7 +51518,7 @@ export type PublicApiV1VerifactuChainValidateData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -51593,7 +51573,7 @@ export type PublicApiV1AccountVerifyCensusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -51656,7 +51636,7 @@ export type PublicApiV1ContactsVerifyCensusData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -51723,11 +51703,11 @@ export type PublicApiV1CompaniesVerifyCreationData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the account your credential belongs to; read it from `GET /v1/me` (`data.account.id`). Any other value returns 404 `account_not_found`.
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
          */
         account: string;
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
     };
@@ -51786,11 +51766,11 @@ export type PublicApiV1InvoicesVoidData = {
     };
     path: {
         /**
-         * Public identifier (UUID) of the company the request acts on. It must be in your credential's scope; read it from `GET /v1/me` (`data.scope[].id`). Never the tax ID.
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the invoice, as returned in `id` by its list and detail responses.
+         * Public identifier (UUID v7) of the invoice.
          */
         invoice: string;
     };
