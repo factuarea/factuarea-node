@@ -110,17 +110,32 @@ function hasBody(op) {
   return Boolean(op.requestBody);
 }
 
+/** Resolves a parameter object that may be a `$ref` to `components.parameters`. */
+function resolveParam(spec, param) {
+  if (param && typeof param === "object" && typeof param.$ref === "string") {
+    const segments = param.$ref.replace(/^#\//, "").split("/");
+    let node = spec;
+    for (const segment of segments) {
+      node = node?.[segment];
+    }
+    return node ?? {};
+  }
+  return param;
+}
+
 /**
  * True when the spec requires the `Idempotency-Key` header on an operation
  * that is not `POST` (design D6). `POST` already gets an auto-generated key
  * unconditionally (`http-client.ts` `METHODS_WITH_IDEMPOTENCY`), so it is
  * excluded here — the flag only carries new information for PUT/PATCH/DELETE.
+ * Parameters declared via `$ref` to `components.parameters` are resolved.
  */
-function idempotencyRequiredOffPost(method, op) {
+function idempotencyRequiredOffPost(method, op, spec) {
   if (method === "post") return false;
-  return (op.parameters ?? []).some(
-    (p) => p.in === "header" && p.name === "Idempotency-Key" && p.required === true
-  );
+  return (op.parameters ?? []).some((p) => {
+    const resolved = resolveParam(spec, p);
+    return resolved.in === "header" && resolved.name === "Idempotency-Key" && resolved.required === true;
+  });
 }
 
 // ---- Parse spec into a namespace tree ----------------------------------------
@@ -176,7 +191,7 @@ for (const [path, methods] of Object.entries(spec.paths)) {
       hasBody: hasBody(op),
       isBinary: isBinary(op),
       isMultipart: isMultipart(op),
-      idempotent: idempotencyRequiredOffPost(method, op),
+      idempotent: idempotencyRequiredOffPost(method, op, spec),
       summary: op.summary ?? "",
     };
     node.ops.push(entry);

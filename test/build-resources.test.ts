@@ -137,6 +137,104 @@ describe("build-resources.mjs --spec/--out", () => {
     );
   });
 
+  it("resolves a $ref to components.parameters when checking for a required Idempotency-Key", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/widgets/{widget}": {
+          delete: {
+            operationId: "public-api.v1.widgets.archive",
+            "x-speakeasy-group": "widgets",
+            parameters: [
+              { name: "widget", in: "path", required: true, schema: { type: "string" } },
+              { $ref: "#/components/parameters/IdempotencyKey" },
+            ],
+            requestBody: { content: { "application/json": {} } },
+            responses: { "200": { content: { "application/json": {} } } },
+          },
+        },
+      },
+      components: {
+        parameters: {
+          IdempotencyKey: { name: "Idempotency-Key", in: "header", required: true, schema: { type: "string" } },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).toBe(0);
+    const source = readFileSync(join(outDir, "widgets.ts"), "utf8");
+    expect(source).toContain(
+      'return this._send<unknown>("DELETE", path, body, config, { idempotent: true });'
+    );
+  });
+
+  it("does not opt a mutation into { idempotent: true } when Idempotency-Key is not required", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/widgets/{widget}": {
+          put: {
+            operationId: "public-api.v1.widgets.update",
+            "x-speakeasy-group": "widgets",
+            parameters: [{ name: "widget", in: "path", required: true, schema: { type: "string" } }],
+            requestBody: { content: { "application/json": {} } },
+            responses: { "200": { content: { "application/json": {} } } },
+          },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).toBe(0);
+    const source = readFileSync(join(outDir, "widgets.ts"), "utf8");
+    expect(source).toContain('return this._send<unknown>("PUT", path, body, config);');
+    expect(source).not.toContain("{ idempotent: true }");
+  });
+
+  it("emits _sendForm for multipart requests and _binary for binary responses", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/widgets": {
+          post: {
+            operationId: "public-api.v1.widgets.create",
+            "x-speakeasy-group": "widgets",
+            requestBody: { content: { "multipart/form-data": {} } },
+            responses: { "202": { content: { "application/json": {} } } },
+          },
+        },
+        "/widgets/{widget}/source": {
+          get: {
+            operationId: "public-api.v1.widgets.source",
+            "x-speakeasy-group": "widgets",
+            parameters: [{ name: "widget", in: "path", required: true, schema: { type: "string" } }],
+            responses: {
+              "200": { content: { "application/pdf": {}, "image/png": {} } },
+            },
+          },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).toBe(0);
+    const source = readFileSync(join(outDir, "widgets.ts"), "utf8");
+    expect(source).toContain("async create(formData: FormData, config?: RequestConfig): Promise<unknown> {");
+    expect(source).toContain('return this._sendForm<unknown>(path, formData, config);');
+    expect(source).toContain("Promise<BinaryResponse> {");
+    expect(source).toContain('return this._binary(path, "GET", undefined, undefined, config);');
+  });
+
   it("does not opt POST into { idempotent: true } (already unconditional in http-client.ts)", () => {
     const dir = scratchDir();
     const outDir = join(dir, "resources");
