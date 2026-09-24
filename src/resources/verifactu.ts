@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -37,7 +37,7 @@ export class VerifactuCertificatesResource extends BaseResource {
   /** Revoke a company certificate */
   async revoke(certificate: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/verifactu/certificates/{certificate}", { "certificate": certificate });
-    return this._delete<unknown>(path, params, config);
+    return this._delete<unknown>(path, params, config, { idempotent: true });
   }
 }
 
@@ -146,7 +146,7 @@ export class VerifactuSettingsResource extends BaseResource {
   /** Update VeriFactu settings */
   async update(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/verifactu/settings";
-    return this._send<unknown>("PUT", path, body, config);
+    return this._send<unknown>("PUT", path, body, config, { idempotent: true });
   }
 }
 

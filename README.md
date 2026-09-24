@@ -128,13 +128,15 @@ Filter `list` and `search` with `roles`, `tags`, `search` or `is_archived`. Arra
 
 `BusinessContact`, the contact list/import response types and contact request types are exported from `@factuarea/sdk`. The resource wrappers return `unknown` in 0.x, so use the exported types for request validation and response casts.
 
-### Compatibility resources
+### Breaking: `clients` and `suppliers` retired
 
-`clients` and `suppliers` remain available for integrations using the published legacy routes and their role-specific analytics. They are deprecated for identity management: use `contacts` for new CRUD, searches and examples. Compatibility IDs may differ from the canonical contact UUID; do not join the two namespaces by assuming UUID equality.
+The backend retired the legacy `clients`/`suppliers` routes in favor of `contacts` (see above), and this release re-pins the spec accordingly: the `ClientsResource`/`SuppliersResource` wrappers, the `factuarea.clients`/`factuarea.suppliers` client properties and the `Supplier` type export are all **removed**. Use `contacts` for every identity, role and profile operation; it is the canonical (and now only) resource for customer/supplier/lead management.
 
-## Document scanner
+## Purchase scans
 
 `purchaseScans` supports `create` (multipart batch), `list`, `show`, `stats`, `review`, `convert`, `duplicateResolution`, `retry`, `archive`, `restore` and `source` (binary). `purchaseScanEmails.list` returns inbound messages and attachment outcomes. Read operations require `purchase_invoices:read`, mutations `purchase_invoices:write`, and archive `purchase_invoices:delete`; the company's scanner/OCR entitlement must also be active.
+
+Uploads take one multipart part per file, every part named `files[]` (the API accepts PDF, JPEG or PNG originals), with limits of 20 files per batch, 20.0 MiB per file and 100.0 MiB per batch. `create`, `retry`, `duplicateResolution`, `convert`, `archive` and `restore` require `Idempotency-Key`; the SDK generates one automatically when you do not pass `idempotencyKey` yourself. `review` does not require it.
 
 ```ts
 import { readFile, writeFile } from "node:fs/promises";

@@ -8,7 +8,6 @@ import { AbsenceRequestsResource } from "./absenceRequests.js";
 import { AbsenceTypesResource } from "./absenceTypes.js";
 import { AccountResource } from "./account.js";
 import { AutomationsResource } from "./automations.js";
-import { ClientsResource } from "./clients.js";
 import { CompaniesResource } from "./companies.js";
 import { ContactsResource } from "./contacts.js";
 import { DeliveryNotesResource } from "./deliveryNotes.js";
@@ -41,7 +40,6 @@ import { SeriesResource } from "./series.js";
 import { ShopifyResource } from "./shopify.js";
 import { StoresResource } from "./stores.js";
 import { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
-import { SuppliersResource } from "./suppliers.js";
 import { TaxCatalogResource } from "./taxCatalog.js";
 import { TaxReportsResource } from "./taxReports.js";
 import { TaxesResource } from "./taxes.js";
@@ -61,7 +59,6 @@ export { AbsenceRequestsResource } from "./absenceRequests.js";
 export { AbsenceTypesResource } from "./absenceTypes.js";
 export { AccountResource } from "./account.js";
 export { AutomationsResource } from "./automations.js";
-export { ClientsResource } from "./clients.js";
 export { CompaniesResource } from "./companies.js";
 export { ContactsResource } from "./contacts.js";
 export { DeliveryNotesResource } from "./deliveryNotes.js";
@@ -94,7 +91,6 @@ export { SeriesResource } from "./series.js";
 export { ShopifyResource } from "./shopify.js";
 export { StoresResource } from "./stores.js";
 export { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
-export { SuppliersResource } from "./suppliers.js";
 export { TaxCatalogResource } from "./taxCatalog.js";
 export { TaxReportsResource } from "./taxReports.js";
 export { TaxesResource } from "./taxes.js";
@@ -115,7 +111,6 @@ export interface ResourceNamespaces {
   absenceTypes: AbsenceTypesResource;
   account: AccountResource;
   automations: AutomationsResource;
-  clients: ClientsResource;
   companies: CompaniesResource;
   contacts: ContactsResource;
   deliveryNotes: DeliveryNotesResource;
@@ -148,7 +143,6 @@ export interface ResourceNamespaces {
   shopify: ShopifyResource;
   stores: StoresResource;
   stripeAutoinvoicing: StripeAutoinvoicingResource;
-  suppliers: SuppliersResource;
   taxCatalog: TaxCatalogResource;
   taxReports: TaxReportsResource;
   taxes: TaxesResource;
@@ -171,7 +165,6 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     absenceTypes: new AbsenceTypesResource(client),
     account: new AccountResource(client),
     automations: new AutomationsResource(client),
-    clients: new ClientsResource(client),
     companies: new CompaniesResource(client),
     contacts: new ContactsResource(client),
     deliveryNotes: new DeliveryNotesResource(client),
@@ -204,7 +197,6 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     shopify: new ShopifyResource(client),
     stores: new StoresResource(client),
     stripeAutoinvoicing: new StripeAutoinvoicingResource(client),
-    suppliers: new SuppliersResource(client),
     taxCatalog: new TaxCatalogResource(client),
     taxReports: new TaxReportsResource(client),
     taxes: new TaxesResource(client),

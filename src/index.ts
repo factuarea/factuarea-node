@@ -77,7 +77,6 @@ export type {
   Proforma,
   Quote,
   Series,
-  Supplier,
   Tax,
   UpdateBusinessContactBankAccountsV1Request,
   UpdateBusinessContactV1Request,

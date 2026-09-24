@@ -8,12 +8,17 @@
  * generated HTTP client; they compose `src/core` only (design D5).
  *
  * Method names follow the SDK naming contract
- * (`backend/docs/api/sdk-method-naming.md @ 1.0.0`): the last dotted segment of
+ * (`backend/docs/api/sdk-method-naming.md @ 1.1.0`): the last dotted segment of
  * the operationId is the action, the preceding segments are the namespace, all
  * camelCased.
  *
  * Run via `npm run generate:resources` (and as part of `npm run generate`).
  * Output is committed; it is regenerated only when the spec changes.
+ *
+ * Accepts `--spec <path>` and `--out <dir>` to override the default input/output
+ * locations (used by `test/build-resources.test.ts` against fixture specs in a
+ * scratch directory). Without them, the real `spec/openapi.json` and
+ * `src/resources/` are used, unchanged from before.
  */
 import {
   readFileSync,
@@ -23,12 +28,23 @@ import {
   existsSync,
 } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
-const specPath = join(root, "spec", "openapi.json");
-const outDir = join(root, "src", "resources");
+
+function parseArgs(argv) {
+  const args = {};
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--spec") args.spec = argv[++i];
+    else if (argv[i] === "--out") args.out = argv[++i];
+  }
+  return args;
+}
+const cliArgs = parseArgs(process.argv.slice(2));
+
+const specPath = cliArgs.spec ? resolve(cliArgs.spec) : join(root, "spec", "openapi.json");
+const outDir = cliArgs.out ? resolve(cliArgs.out) : join(root, "src", "resources");
 
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
 
@@ -94,6 +110,19 @@ function hasBody(op) {
   return Boolean(op.requestBody);
 }
 
+/**
+ * True when the spec requires the `Idempotency-Key` header on an operation
+ * that is not `POST` (design D6). `POST` already gets an auto-generated key
+ * unconditionally (`http-client.ts` `METHODS_WITH_IDEMPOTENCY`), so it is
+ * excluded here — the flag only carries new information for PUT/PATCH/DELETE.
+ */
+function idempotencyRequiredOffPost(method, op) {
+  if (method === "post") return false;
+  return (op.parameters ?? []).some(
+    (p) => p.in === "header" && p.name === "Idempotency-Key" && p.required === true
+  );
+}
+
 // ---- Parse spec into a namespace tree ----------------------------------------
 
 const spec = JSON.parse(readFileSync(specPath, "utf8"));
@@ -113,11 +142,19 @@ function childNode(node, name) {
   return node.children.get(name);
 }
 
+// Operations without `x-speakeasy-group` used to be dropped silently (`continue`).
+// Endurecido (D4): they are collected here and fail the run below, before any
+// output is written, instead of vanishing from the generated SDK unnoticed.
+const ungrouped = [];
+
 for (const [path, methods] of Object.entries(spec.paths)) {
   for (const [method, op] of Object.entries(methods)) {
     if (!HTTP_METHODS.has(method)) continue;
     const group = op["x-speakeasy-group"];
-    if (!group) continue;
+    if (!group) {
+      ungrouped.push({ method: method.toUpperCase(), path, operationId: op.operationId ?? "(no operationId)" });
+      continue;
+    }
     const [top, ...rest] = group.split(".");
     if (!tree.has(top)) {
       tree.set(top, { ops: [], children: new Map() });
@@ -139,10 +176,21 @@ for (const [path, methods] of Object.entries(spec.paths)) {
       hasBody: hasBody(op),
       isBinary: isBinary(op),
       isMultipart: isMultipart(op),
+      idempotent: idempotencyRequiredOffPost(method, op),
       summary: op.summary ?? "",
     };
     node.ops.push(entry);
   }
+}
+
+if (ungrouped.length > 0) {
+  console.error(
+    `build-resources: ${ungrouped.length} operation(s) have no x-speakeasy-group and would be silently dropped:`
+  );
+  for (const entry of ungrouped) {
+    console.error(`  ${entry.method} ${entry.path} ${entry.operationId}`);
+  }
+  process.exit(1);
 }
 
 // ---- Emit per-method TS source ----------------------------------------------
@@ -166,6 +214,7 @@ function methodSource(entry) {
     hasBody: hb,
     isBinary: bin,
     isMultipart: mp,
+    idempotent,
     summary,
   } = entry;
   const lines = [];
@@ -248,13 +297,16 @@ function methodSource(entry) {
   sig.push("config?: RequestConfig");
   lines.push(`  async ${action}(${sig.join(", ")}): Promise<unknown> {`);
   lines.push(`    const path = ${pathExpr};`);
+  // Spec-guided idempotency (D6): the spec requires `Idempotency-Key` on this
+  // non-POST mutation, so the call opts in explicitly via the resource layer.
+  const opts = idempotent ? ", { idempotent: true }" : "";
   if (method === "DELETE" && hq && !hb) {
     // DELETE with query (legacy bulk): pass query, no body.
-    lines.push(`    return this._delete<unknown>(path, params, config);`);
+    lines.push(`    return this._delete<unknown>(path, params, config${opts});`);
   } else {
     const b = hb ? "body" : "undefined";
     lines.push(
-      `    return this._send<unknown>("${method}", path, ${b}, config);`
+      `    return this._send<unknown>("${method}", path, ${b}, config${opts});`
     );
   }
   lines.push(`  }`);
@@ -312,7 +364,7 @@ const header = `// AUTO-GENERATED resource wrapper. Do not edit by hand.
 // Regenerate with \`npm run generate:resources\`. These wrappers compose the
 // hand-written core (\`../core\`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";

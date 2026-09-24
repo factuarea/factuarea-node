@@ -386,6 +386,7 @@ export type Account = {
      * Account personalization: invoice-emission language and PDF template/accent color. Mutable via `PATCH /v1/account/personalization`.
      */
     personalization: {
+        pdf_capabilities: PdfCapabilities;
         /**
          * Invoice-emission language of the account. One of `es`, `en`, `ca`.
          */
@@ -531,6 +532,7 @@ export type AccountBilling = {
  * Plan-aware catalog of PDF templates available for the account, plus the accepted hex format for the accent color. Returned by `GET /v1/account/personalization/templates`. Use it to discover which `pdf_template` slugs and colors can be set via `PATCH /v1/account/personalization`.
  */
 export type AccountPersonalizationTemplates = {
+    pdf_capabilities?: PdfCapabilities;
     /**
      * Stripe-like discriminator. Always `personalization_templates` for this resource.
      */
@@ -1692,13 +1694,13 @@ export type BulkChangeContactRoleStatusV1Request = {
 };
 
 /**
- * BulkCreateClientsV1Request
+ * BulkCreateBusinessContactsV1Request
  *
- * Create clients in bulk. `clients[]` holds up to 500 client payloads and `dry_run` (default `false`) validates each row without persisting. Per-row rules (format, duplicate `external_id`/`tax_id`, AEAT census) are reported per row instead of failing the whole batch.
+ * Create canonical contacts in bulk. `contacts[]` holds up to 500 payloads with cumulative roles and directional profiles. `dry_run=true` validates every row without persisting; row errors do not abort the remaining contacts.
  */
-export type BulkCreateClientsV1Request = {
-    clients: Array<Array<string>>;
-    dry_run?: boolean | null;
+export type BulkCreateBusinessContactsV1Request = {
+    contacts: Array<CreateBusinessContactV1Request>;
+    dry_run?: boolean;
 };
 
 /**
@@ -1778,11 +1780,9 @@ export type BulkCreateResult = {
 };
 
 /**
- * BulkDeleteClientsRequest
- *
- * Delete several clients in one request. `ids` is an array of 1 to 200 UUIDs; identifiers that do not belong to your company are reported under `failed` rather than failing the whole request.
+ * BulkDeleteBusinessContactsV1Request
  */
-export type BulkDeleteClientsRequest = {
+export type BulkDeleteBusinessContactsV1Request = {
     ids: Array<string>;
 };
 
@@ -1850,15 +1850,6 @@ export type BulkDeleteQuotesV1Request = {
  * Delete several recurring invoices in one request. `ids` is an array of 1 to 100 UUIDs; unknown or cross-tenant identifiers are reported under `failed`.
  */
 export type BulkDeleteRecurringInvoicesRequest = {
-    ids: Array<string>;
-};
-
-/**
- * BulkDeleteSuppliersRequest
- *
- * Delete several suppliers in one request. `ids` is an array of 1 to 200 UUIDs; identifiers that do not belong to your company are reported under `failed`.
- */
-export type BulkDeleteSuppliersRequest = {
     ids: Array<string>;
 };
 
@@ -2066,13 +2057,11 @@ export type BulkStatusQuotesV1Request = {
 };
 
 /**
- * BulkStatusSuppliersV1Request
- *
- * Transition several suppliers to `new_status` (`active` or `inactive`) in one request, up to 50 per batch. `ids` is an array of supplier UUIDs; the change is idempotent (a supplier already in the target status counts as successful). Suppliers that do not exist are returned under `failures[]`.
+ * BulkStatusRecurringInvoicesV1Request
  */
-export type BulkStatusSuppliersV1Request = {
+export type BulkStatusRecurringInvoicesV1Request = {
     ids: Array<string>;
-    new_status: 'active' | 'inactive';
+    new_status: 'active' | 'paused';
 };
 
 /**
@@ -2227,6 +2216,34 @@ export type BusinessContact = {
 };
 
 /**
+ * BusinessContactActivity
+ *
+ * An item in the canonical contact timeline. It combines sales, purchases and relationship changes in reverse chronological order.
+ */
+export type BusinessContactActivity = {
+    object: 'activity';
+    id: string;
+    direction: 'sales' | 'purchases' | 'relationship';
+    event_type: string;
+    title: string;
+    description: string | null;
+    related_resource_type: string | null;
+    related_resource_id: string | null;
+    amount: number | null;
+    currency: string | null;
+    performed_by_id: string | null;
+    performed_by_name: string | null;
+    occurred_at: string;
+    /**
+     * Sanitized event metadata. Internal numeric identifiers are removed.
+     */
+    metadata: {
+        [key: string]: unknown;
+    };
+    changed_sections: Array<string>;
+};
+
+/**
  * BusinessContactImportPreview
  */
 export type BusinessContactImportPreview = {
@@ -2272,6 +2289,33 @@ export type BusinessContactList = {
 export type BusinessContactOptionsResource = {
     data: Array<string>;
     has_more: boolean;
+};
+
+/**
+ * BusinessContactStats
+ *
+ * Aggregated counters for canonical identities and their cumulative customer, supplier and fiscal lead roles. A contact with multiple roles is counted once in `total` and in each applicable role counter.
+ */
+export type BusinessContactStats = {
+    object: 'contact_stats';
+    total: number;
+    customer: number;
+    supplier: number;
+    unassigned: number;
+    lead: number;
+    active_lead: number;
+    inactive_lead: number;
+    dual_role: number;
+    person: number;
+    company: number;
+    active_customer: number;
+    inactive_customer: number;
+    active_supplier: number;
+    inactive_supplier: number;
+    archived: number;
+    with_email: number;
+    with_phone: number;
+    new_this_month: number;
 };
 
 /**
@@ -2578,149 +2622,11 @@ export type Client = {
 };
 
 /**
- * ClientActivity
- *
- * Un evento del timeline de actividad de un cliente. Agrupa eventos de dominio originados por cambios sobre el propio cliente y por documentos que lo referencian (facturas, presupuestos, etc.).
- */
-export type ClientActivity = {
-    object: 'activity';
-    /**
-     * Tipo de evento de dominio (p. ej. `client.updated`, `invoice.created`).
-     */
-    event_type: string;
-    /**
-     * Human-readable description of the event in Spanish.
-     */
-    description: string;
-    /**
-     * Event metadata. Internal identifiers (PKs) are stripped; `*_uuid` values are preserved.
-     */
-    metadata: {
-        [key: string]: unknown;
-    };
-    /**
-     * Actor that originated the event. `{type:"user",...}` for an internal user, `{type:"api_key",...}` when performed via the public v1 API, or `null` when the event is system-generated (scheduler, periodic sweep) with no attributable actor.
-     */
-    performed_by: {
-        /**
-         * Type of actor that originated the event: `user` for a human in the internal app, `api_key` for an action performed through the public v1 API.
-         */
-        type: 'user' | 'api_key';
-        /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
-         */
-        id: string;
-        /**
-         * Actor name at the time of the event: the user name or the API key name. `null` if it could not be resolved.
-         */
-        name: string | null;
-    } | null;
-    /**
-     * When the event occurred (ISO 8601).
-     */
-    created_at: string;
-};
-
-/**
- * ClientImportPreview
- *
- * Validate-only preview of a client import (`POST /v1/clients/import` with `dry_run=true`). The CSV/XLSX file is checked row by row without persisting anything: `rows[]` carries the per-row classification `{row, status, errors[], warnings[]}` identified by the 1-based file `row` number (the header is row 1).
- */
-export type ClientImportPreview = {
-    /**
-     * Stripe-like discriminator. Always `client_import_preview` for this resource.
-     */
-    object: 'client_import_preview';
-    /**
-     * Number of data rows in the uploaded file (excluding the header).
-     */
-    total_rows: number;
-    /**
-     * Per-row validation of the file. One item per data row, in file order.
-     */
-    rows: Array<{
-        /**
-         * 1-based row number in the file (the header is row 1, so the first data row is 2).
-         */
-        row: number;
-        /**
-         * Row outcome: `valid` (would be imported without error) or `error` (has blocking issues).
-         */
-        status: 'valid' | 'error';
-        /**
-         * Per-field blocking issues of the row. Empty when the row is valid.
-         */
-        errors: Array<FieldIssue>;
-        /**
-         * Per-field non-blocking warnings of the row. Always empty in preview (validate-only does not emit per-row warnings).
-         */
-        warnings: Array<FieldIssue>;
-    }>;
-};
-
-/**
  * ClientRef
  */
 export type ClientRef = {
     id: string | null;
     name: string | null;
-};
-
-/**
- * ClientStats
- *
- * Aggregated summary of the client portfolio of the authenticated company: counters, invoiced and pending amounts, and average metrics. Returned by `GET /v1/clients/stats`.
- */
-export type ClientStats = {
-    object: 'client_stats';
-    /**
-     * Total number of clients registered in the company.
-     */
-    total: number;
-    /**
-     * Clientes marcados como activos.
-     */
-    active: number;
-    /**
-     * Clients with a registered email address.
-     */
-    with_email: number;
-    /**
-     * Clients with a registered phone number.
-     */
-    with_phone: number;
-    /**
-     * Clients with at least one issued invoice.
-     */
-    with_invoices: number;
-    /**
-     * Total amount invoiced to clients (EUR).
-     */
-    total_invoiced: number;
-    /**
-     * Total amount pending collection (EUR).
-     */
-    total_pending: number;
-    /**
-     * Clients with at least one invoice pending collection.
-     */
-    with_pending_invoices: number;
-    /**
-     * Aggregate amount of invoices pending collection (EUR).
-     */
-    pending_invoices_amount: number;
-    /**
-     * Clientes nuevos creados durante el mes en curso.
-     */
-    new_this_month: number;
-    /**
-     * Clientes marcados como inactivos.
-     */
-    inactive_clients: number;
-    /**
-     * Average amount invoiced per client (EUR).
-     */
-    average_per_client: number;
 };
 
 /**
@@ -3454,66 +3360,6 @@ export type CreateChildApiKeyV1Request = {
 };
 
 /**
- * CreateClientRequest
- */
-export type CreateClientRequest = {
-    name: string;
-    commercial_name?: string | null;
-    tax_id?: string | null;
-    vat_id?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    fax?: string | null;
-    mobile?: string | null;
-    website?: string | null;
-    contact_person?: string | null;
-    billing_emails?: Array<string> | null;
-    latitude?: number | null;
-    longitude?: number | null;
-    default_discount?: number | null;
-    default_vat_rate?: number | null;
-    default_retention_rate?: number | null;
-    is_surcharge_subject?: boolean | null;
-    accumulate_347?: boolean;
-    bank_accounts?: Array<{
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
-    payment_terms_days?: number | null;
-    alternative_id?: {
-        /**
-         * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
-         */
-        type?: 'nif_iva' | 'passport' | 'country_id' | 'residence_certificate' | 'other_document' | 'not_registered' | 'tax_id_foreign' | 'national_id';
-        value?: string;
-        country_code?: string;
-    };
-    address?: {
-        line1?: string | null;
-        line2?: string | null;
-        number?: string | null;
-        floor?: string | null;
-        door?: string | null;
-        staircase?: string | null;
-        postal_code?: string | null;
-        city?: string | null;
-        province?: string | null;
-        country?: string | null;
-    };
-    notes?: string | null;
-    metadata?: Metadata;
-    dir3_accounting_office?: string | null;
-    dir3_managing_body?: string | null;
-    dir3_processing_unit?: string | null;
-    external_id?: string | null;
-    default_price_list_id?: string | null;
-};
-
-/**
  * CreateCompanyV1Request
  *
  * Register a managed child company under your master tenant. `name` and `tax_id` are required; the rest of the profile (business name, fiscal address, contact details) is optional. `tax_id` is validated as a Spanish tax ID (NIF/CIF/NIE) and must be unique among the companies you manage; `country_aeat_zone` is derived from the postal code.
@@ -3996,6 +3842,7 @@ export type CreateProformaRequest = {
  * CreatePurchaseInvoiceRequest
  */
 export type CreatePurchaseInvoiceRequest = {
+    source_purchase_invoice_id?: string | null;
     is_simplified?: boolean;
     supplier_id?: string | null;
     expense_category_id?: string | null;
@@ -4037,6 +3884,7 @@ export type CreatePurchaseInvoiceRequest = {
     exclude_347?: boolean;
     lines: Array<{
         description?: string | null;
+        discount_percent?: number | null;
         additional_description?: string | null;
         quantity: number;
         unit_price?: number | null;
@@ -4064,14 +3912,19 @@ export type CreatePurchaseInvoiceRequest = {
          * Per-line indirect tax regime of the supplier. Passthrough only (purchase lines have no `tax_id`): the incoming override is the sole regime channel; the real invariant lives in the domain.
          */
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        price_source?: 'manual' | 'supplier_offer' | null;
+        source_line_index?: number | null;
         configuration_uuid?: string | null;
+        purchase_measurement?: {
+            package_quantity: string | null;
+            cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
+        };
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
@@ -4254,75 +4107,6 @@ export type CreateSupplierProductOfferRequest = {
 };
 
 /**
- * CreateSupplierRequest
- */
-export type CreateSupplierRequest = {
-    name: string;
-    business_name?: string | null;
-    commercial_name?: string | null;
-    tax_id?: string | null;
-    vat_id?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    fax?: string | null;
-    mobile?: string | null;
-    website?: string | null;
-    contact_person?: string | null;
-    billing_emails?: Array<string> | null;
-    coordinates?: {
-        latitude?: number | null;
-        longitude?: number | null;
-    };
-    latitude?: number | null;
-    longitude?: number | null;
-    default_discount?: number | null;
-    default_vat_rate?: number | null;
-    default_retention_rate?: number | null;
-    is_surcharge_subject?: boolean | null;
-    accumulate_347?: boolean;
-    bank_accounts?: Array<{
-        /**
-         * Legacy alias for the whole `bank_accounts` collection, not a single field within it: the value you send becomes the supplier's ONLY bank account, marked as the default one. Send `bank_accounts` instead to register several accounts, or to set `bic`/`notes`. If you send both, `bank_accounts` wins and `iban` is ignored.
-         */
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
-    /**
-     * Legacy alias for the whole `bank_accounts` collection, not a single field within it: the value you send becomes the supplier's ONLY bank account, marked as the default one. Send `bank_accounts` instead to register several accounts, or to set `bic`/`notes`. If you send both, `bank_accounts` wins and `iban` is ignored.
-     */
-    iban?: string | null;
-    default_taxes_id?: string | null;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
-    payment_terms_days?: number | null;
-    alternative_id?: {
-        /**
-         * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
-         */
-        type?: 'nif_iva' | 'passport' | 'country_id' | 'residence_certificate' | 'other_document' | 'not_registered' | 'tax_id_foreign' | 'national_id';
-        value?: string;
-        country_code?: string;
-    };
-    address?: {
-        line1?: string | null;
-        line2?: string | null;
-        number?: string | null;
-        floor?: string | null;
-        door?: string | null;
-        staircase?: string | null;
-        postal_code?: string | null;
-        city?: string | null;
-        province?: string | null;
-        country?: string | null;
-    };
-    notes?: string | null;
-    metadata?: Metadata;
-    external_id?: string | null;
-};
-
-/**
  * CreateTaxRequest
  */
 export type CreateTaxRequest = {
@@ -4369,7 +4153,7 @@ export type CreateTaxRequest = {
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     api_version?: string | null;
@@ -5715,6 +5499,8 @@ export type EventData = ({
 } & EventDataContactArchived) | ({
     type: 'contact.restored';
 } & EventDataContactRestored) | ({
+    type: 'contact.deleted';
+} & EventDataContactDeleted) | ({
     type: 'contact.role.assigned';
 } & EventDataContactRoleAssigned) | ({
     type: 'contact.role.activated';
@@ -5994,6 +5780,19 @@ export type EventDataContactCreated = {
 export type EventDataContactCustomerProfileUpdated = {
     type: 'contact.customer_profile.updated';
     object: BusinessContact;
+};
+
+/**
+ * EventDataContactDeleted
+ *
+ * Payload (`data`) emitted with the `contact.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataContactDeleted = {
+    type: 'contact.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: BusinessContact | EventDeletedObject;
 };
 
 /**
@@ -7411,20 +7210,16 @@ export type FieldIssue = {
 };
 
 /**
- * FindClientByExternalIdRequest
- *
- * Look up a client by its `external_id` (the integration key that maps it to a record in a third-party ERP/CRM/e-commerce system) within your company.
+ * FindBusinessContactByExternalIdV1Request
  */
-export type FindClientByExternalIdRequest = {
+export type FindBusinessContactByExternalIdV1Request = {
     external_id: string;
 };
 
 /**
- * FindClientByTaxIdRequest
- *
- * Look up a client by its Spanish tax ID (NIF/CIF/NIE) within your company.
+ * FindBusinessContactByTaxIdV1Request
  */
-export type FindClientByTaxIdRequest = {
+export type FindBusinessContactByTaxIdV1Request = {
     tax_id: string;
 };
 
@@ -7553,24 +7348,6 @@ export type FindSeriesByCodeRequest = {
 };
 
 /**
- * FindSupplierByExternalIdRequest
- *
- * Look up a supplier by its `external_id` (the integration key that maps it to a record in a third-party ERP/CRM/e-commerce system) within your company.
- */
-export type FindSupplierByExternalIdRequest = {
-    external_id: string;
-};
-
-/**
- * FindSupplierByTaxIdRequest
- *
- * Look up a supplier by its Spanish tax ID (NIF/CIF/NIE/VAT) within your company.
- */
-export type FindSupplierByTaxIdRequest = {
-    tax_id: string;
-};
-
-/**
  * FindTaxReportByPeriodV1Request
  *
  * Resolve the most recent generation of a tax report for a period (latest wins). Validates the shape (`year` integer, `quarter` 1-4, `type`); the period rules (year range, and whether the model requires or forbids a quarter) are enforced with a 422. `303`/`347` are accepted as aliases of `modelo_303`/`modelo_347`.
@@ -7695,29 +7472,6 @@ export type ImportBusinessContactsV1Request = {
     target_roles?: Array<'customer' | 'supplier' | 'lead'>;
     conflict_strategy?: 'reject' | 'update' | 'merge';
     dry_run?: boolean;
-};
-
-/**
- * ImportClientsV1Request
- *
- * Import clients from a file as `multipart/form-data`. `file` is a CSV/XLSX/XLS/ODS/TXT document (≤10 MB); `mapping` maps your column headers to target fields and must include at least `name` and `tax_id`; `dry_run` (default `false`) validates the file and returns a per-row preview without persisting.
- */
-export type ImportClientsV1Request = {
-    /**
-     * CSV/XLSX/XLS/ODS/TXT file with the clients to import (max 10 MB).
-     */
-    file: Blob | File;
-    /**
-     * Mapeo de columnas `{cabecera_csv: campo_destino}`. Debe declarar al
-     * menos `name` y `tax_id`.
-     */
-    mapping: {
-        [key: string]: string;
-    };
-    /**
-     * If `true`, validates the file and returns a per-row preview WITHOUT persisting any client. Defaults to `false`.
-     */
-    dry_run?: boolean | null;
 };
 
 /**
@@ -8889,6 +8643,20 @@ export type PayrollExportFormat = {
 };
 
 /**
+ * PdfCapabilities
+ *
+ * Read-only document branding capabilities of the effective account.
+ */
+export type PdfCapabilities = {
+    can_upload_logo: boolean;
+    can_customize: boolean;
+    can_upload_brand_image: boolean;
+    requires_attribution: boolean;
+    available_templates: Array<'classic' | 'modern' | 'minimal' | 'corporative' | 'premium'>;
+    upgrade_plan: string | null;
+};
+
+/**
  * PhoneString
  *
  * Número de teléfono internacional permisivo: `+` opcional, dígitos, espacios, guiones y paréntesis (6..20 caracteres).
@@ -9846,13 +9614,60 @@ export type PurchaseInvoiceAttachment = {
  */
 export type PurchaseInvoiceLine = {
     object: 'purchase_invoice_line';
+    /**
+     * Zero-based ordinal of the line within this purchase invoice, in the stable read order. Send it back on create/update to keep a line matched to its historical counterpart (measures, units and frozen cost are preserved when the physical selection and the supplier do not change). It is NOT a primary key and it grants no access to any other document.
+     */
+    source_line_index?: number | null;
     description: string | null;
     /**
      * Optional secondary description rendered below the line concept on document PDFs.
      */
     additional_description: string | null;
-    quantity: number;
-    unit_price: number;
+    /**
+     * Billed quantity. A measured purchase line (one carrying `purchase_measurement`) returns it as a 4-decimal STRING so no precision is lost; a legacy line keeps the numeric type it has always published.
+     */
+    quantity: number | string;
+    /**
+     * Cost per billed unit. Same typing rule as `quantity`: decimal string on a measured line, number on a legacy one.
+     */
+    unit_price: number | string;
+    /**
+     * Discount percentage applied to the line (0-100) BEFORE any tax. `subtotal` is already net of it, so `unit_price` multiplied by `quantity` does NOT equal `subtotal` on a discounted line. Default 0.
+     */
+    discount_percent?: number;
+    /**
+     * Real measured quantity in the base unit, as a decimal string, for a variable-measure presentation (weighed goods). `null` when the line does not require one. It is reconstructed from the stored base quantity, never recomputed against the live catalog.
+     */
+    confirmed_base_quantity?: string | null;
+    /**
+     * Measured-purchase block. `null` on a legacy or manual line, which keeps its previous `quantity` × `unit_price` semantics. On write only `package_quantity` and `cost_basis` are accepted; the remaining fields are DERIVED by the server and are never taken from the client.
+     */
+    purchase_measurement?: {
+        /**
+         * Physical number of packages/presentations received, as a decimal string (e.g. `"3.0000"` boxes). `null` when the purchase is not counted in packages — it means neither one nor zero.
+         */
+        package_quantity: string | null;
+        /**
+         * Derived. Billed quantity expressed in `billing_unit_code` (e.g. `"6.0000"` kg for three 2 kg boxes).
+         */
+        billing_quantity: string;
+        /**
+         * Derived. UN/ECE code of the unit the cost applies to (`KGM`, `LTR`, `C62`, …).
+         */
+        billing_unit_code: string;
+        /**
+         * Derived. Factor, at scale 6, between the billing unit and the base unit of the product.
+         */
+        billing_conversion_factor: string;
+        /**
+         * Derived. Cost per billing unit, as a decimal string (e.g. `"7.4000"` per kg). A confirmed `"0.0000"` is a free line, not an unknown cost.
+         */
+        unit_cost: string;
+        /**
+         * Which unit the cost is quoted in: the supplier offer unit (requires an applicable offer), the product base unit (factor 1, manual cost) or a fixed presentation (manual cost per presentation).
+         */
+        cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
+    } | null;
     tax_rate: number;
     /**
      * IRPF withholding percentage applied to the supplier (0–100). Default 0.
@@ -10038,11 +9853,14 @@ export type PurchaseScan = {
     issue_date: string | null;
     currency: string | null;
     total: string | null;
+    /**
+     * Incidencias pendientes de revisar.
+     */
     issue_count: number;
     available_actions: Array<'save_review' | 'convert' | 'link_existing' | 'override_duplicate' | 'retry' | 'replace_source' | 'archive' | 'restore' | 'download_source' | 'view_purchase_invoice'>;
     purchase_invoice_id: string | null;
     last_error: {
-        code: string;
+        code: 'ocr_temporarily_unavailable' | 'scan_storage_unavailable' | 'file_safety_unavailable' | 'inbound_provider_unavailable' | 'resource_locked' | 'queue_delivery_failed' | 'purchase_scanner_disabled' | 'ocr_company_quota_exceeded' | 'module_upgrade_required' | 'unsupported_scan_format' | 'unsupported_purchase_document_type' | 'unsafe_scan_file' | 'scan_page_limit_exceeded' | 'purchase_scanner_internal_error';
         recoverable: boolean;
         message: string;
     } | null;
@@ -10075,6 +9893,8 @@ export type PurchaseScan = {
         notes: PurchaseScanExtractedField;
         issuer_tax_id: PurchaseScanExtractedField;
         recipient_tax_id: PurchaseScanExtractedField;
+        totals_confirmed: PurchaseScanExtractedField;
+        extraction_confirmed: PurchaseScanExtractedField;
         totals: {
             subtotal: PurchaseScanExtractedField;
             tax: PurchaseScanExtractedField;
@@ -10082,12 +9902,25 @@ export type PurchaseScan = {
             surcharge: PurchaseScanExtractedField;
             total: PurchaseScanExtractedField;
         };
+        printed_totals: {
+            subtotal: PurchaseScanExtractedField;
+            tax: PurchaseScanExtractedField;
+            retention: PurchaseScanExtractedField;
+            surcharge: PurchaseScanExtractedField;
+            total: PurchaseScanExtractedField;
+        };
+        detected_document_type?: PurchaseScanExtractedField;
     };
     lines: Array<{
         line_id: string;
         fields: {
             description: PurchaseScanExtractedField;
             additional_description: PurchaseScanExtractedField;
+            supplier_sku?: PurchaseScanExtractedField;
+            unit_code?: PurchaseScanExtractedField;
+            price_unit_code?: PurchaseScanExtractedField;
+            package_quantity?: PurchaseScanExtractedField;
+            measured_base_quantity?: PurchaseScanExtractedField;
             quantity: PurchaseScanExtractedField;
             unit_price: PurchaseScanExtractedField;
             discount_rate: PurchaseScanExtractedField;
@@ -10103,6 +9936,7 @@ export type PurchaseScan = {
             surcharge_amount: PurchaseScanExtractedField;
             line_total: PurchaseScanExtractedField;
         };
+        catalog_selection?: PurchaseScanCatalogSelection;
     }>;
     issues: Array<{
         code: string;
@@ -10144,6 +9978,45 @@ export type PurchaseScan = {
     linked_purchase_invoice: {
         id: string;
     } | null;
+    supplier_resolution: {
+        status: 'matched' | 'new_candidate' | 'ambiguous' | 'incomplete' | 'invalid' | 'inactive' | 'role_required' | 'conflict';
+        reason_code: string | null;
+        scan_version: number;
+        supplier_id: string | null;
+        candidates: Array<{
+            id: string;
+            name: string;
+            tax_id: string | null;
+        }>;
+        can_create: boolean;
+        blocked_reason: string | null;
+    } | null;
+    conversion_readiness: {
+        can_convert: boolean;
+        requires_supplier_creation: boolean;
+        blocking_fields: Array<string>;
+    } | null;
+    /**
+     * Whether the original file is still retained. It does not depend on the API key permissions: `download_source` can be missing from `available_actions` while this is true.
+     */
+    source_retained: boolean;
+    review_fields: {
+        document: Array<'supplier_id' | 'supplier_name' | 'supplier_tax_id' | 'is_simplified' | 'document_number' | 'issue_date' | 'reception_date' | 'due_date' | 'currency' | 'payment_method' | 'expense_category' | 'operation_class' | 'notes' | 'issuer_tax_id' | 'recipient_tax_id' | 'totals_confirmed' | 'extraction_confirmed'>;
+        read_only: Array<'detected_document_type'>;
+        totals: Array<'subtotal' | 'tax' | 'retention' | 'surcharge' | 'total'>;
+        line: Array<'description' | 'additional_description' | 'supplier_sku' | 'unit_code' | 'price_unit_code' | 'package_quantity' | 'measured_base_quantity' | 'quantity' | 'unit_price' | 'discount_rate' | 'tax_rate' | 'retention_rate' | 'surcharge_rate' | 'vat_deductible' | 'indirect_tax_regime' | 'exemption_reason' | 'line_subtotal' | 'tax_amount' | 'retention_amount' | 'surcharge_amount' | 'line_total'>;
+        exemption_reasons: Array<'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2'>;
+        /**
+         * Accepted values of the `operation_class` review field.
+         */
+        operation_classes: Array<string>;
+    };
+    automation: {
+        /**
+         * Business rule that stopped the automatic conversion and sent the scan back to review, or null.
+         */
+        rejection_code: string | null;
+    };
     can_save_review: boolean;
     can_convert: boolean;
     can_link_existing: boolean;
@@ -10157,6 +10030,38 @@ export type PurchaseScan = {
 };
 
 /**
+ * PurchaseScanCatalogSelection
+ *
+ * Catalog selection made by a person during review, never by OCR. In the review request, omit it to keep the current selection and send null to unlink the line. Company ownership is verified when the review is saved; the combination is resolved when the scan is converted.
+ */
+export type PurchaseScanCatalogSelection = {
+    product_id: string;
+    variant_id?: string | null;
+    presentation_id?: string | null;
+    supplier_offer_id?: string | null;
+    configuration_id?: string | null;
+    configuration_signature?: string | null;
+    /**
+     * Chosen option values, at most one per option group.
+     */
+    options?: Array<{
+        group_id: string;
+        value_id: string;
+    }> | null;
+    purchase_measurement?: {
+        /**
+         * Decimal string greater than zero when provided.
+         */
+        package_quantity?: string | null;
+        cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
+    } | null;
+    /**
+     * Decimal string greater than zero when provided.
+     */
+    confirmed_base_quantity?: string | null;
+} | null;
+
+/**
  * PurchaseScanEmail
  */
 export type PurchaseScanEmail = {
@@ -10164,7 +10069,23 @@ export type PurchaseScanEmail = {
     sender: string;
     subject: string | null;
     received_at: string;
-    result: string;
+    /**
+     * pending while the attachments are still being ingested; parked when the sender is not allowlisted or fails SPF/DKIM/DMARC authentication (no scan is created).
+     */
+    result: 'pending' | 'processed' | 'partially_processed' | 'no_compatible_attachments' | 'parked' | 'rejected' | 'failed';
+    /**
+     * Why the email was parked, rejected or failed; null for any other result.
+     */
+    reason: 'sender_not_allowlisted' | 'sender_authentication_failed' | 'sender_authentication_unavailable' | 'too_many_attachments' | 'module_inactive' | 'read_only' | 'scanner_disabled' | 'processing_failed' | null;
+    /**
+     * SPF/DKIM/DMARC verdict computed by the receiving server, or null when it was never evaluated.
+     */
+    sender_authentication: null | {
+        spf: 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
+        dkim: 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
+        dmarc: 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
+        alignment: 'aligned' | 'misaligned' | 'unknown';
+    };
     accepted_attachments: Array<{
         filename: string;
         sha256: string;
@@ -10185,7 +10106,13 @@ export type PurchaseScanExtractedField = {
     value: string | boolean | null;
     confidence: string | null;
     confidence_band: 'high' | 'medium' | 'low' | 'unknown';
-    issue_codes: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+    issue_codes: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+    extraction_issues: Array<{
+        code: string;
+        path: string;
+        recoverable: boolean;
+        file_revision: number;
+    }>;
     source: 'ocr' | 'human' | 'system';
     evidence: Array<{
         page: number;
@@ -10219,14 +10146,19 @@ export type PurchaseScanListItem = {
     issue_date: string | null;
     currency: string | null;
     total: string | null;
+    /**
+     * Incidencias pendientes de revisar.
+     */
     issue_count: number;
     available_actions: Array<'save_review' | 'convert' | 'link_existing' | 'override_duplicate' | 'retry' | 'replace_source' | 'archive' | 'restore' | 'download_source' | 'view_purchase_invoice'>;
     purchase_invoice_id: string | null;
     last_error: {
-        code: string;
+        code: 'ocr_temporarily_unavailable' | 'scan_storage_unavailable' | 'file_safety_unavailable' | 'inbound_provider_unavailable' | 'resource_locked' | 'queue_delivery_failed' | 'purchase_scanner_disabled' | 'ocr_company_quota_exceeded' | 'module_upgrade_required' | 'unsupported_scan_format' | 'unsupported_purchase_document_type' | 'unsafe_scan_file' | 'scan_page_limit_exceeded' | 'purchase_scanner_internal_error';
         recoverable: boolean;
-        message: string;
     } | null;
+    document_kind: 'invoice' | 'simplified_qualified' | 'ticket' | 'delivery_note' | 'other' | 'undetermined';
+    file_kind: 'pdf' | 'image';
+    supplier_link_state: 'linked' | 'pending_link' | 'unidentified';
 };
 
 /**
@@ -10240,6 +10172,42 @@ export type PurchaseScanStats = {
     queued: number;
     failed: number;
     duplicate: number;
+    facets: {
+        by_status: {
+            received: number;
+            queued: number;
+            processing: number;
+            needs_review: number;
+            duplicate: number;
+            failed: number;
+            auto_created: number;
+            created: number;
+            archived: number;
+        };
+        by_source: {
+            upload: number;
+            email: number;
+            api: number;
+        };
+        by_document_kind: {
+            invoice: number;
+            simplified_qualified: number;
+            ticket: number;
+            delivery_note: number;
+            other: number;
+            undetermined: number;
+        };
+        by_file_kind: {
+            pdf: number;
+            image: number;
+        };
+        by_supplier_link_state: {
+            linked: number;
+            pending_link: number;
+            unidentified: number;
+        };
+        with_issues: number;
+    };
 };
 
 /**
@@ -11368,63 +11336,71 @@ export type SavePurchaseScanReviewV1Request = {
     fields?: {
         supplier_id?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         supplier_name?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         supplier_tax_id?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         is_simplified?: {
             value: boolean | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         document_number?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         issue_date?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         reception_date?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         due_date?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         currency?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         payment_method?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         expense_category?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         operation_class?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         notes?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         issuer_tax_id?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         recipient_tax_id?: {
             value: string | null;
-            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+        };
+        totals_confirmed?: {
+            value: boolean | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+        };
+        extraction_confirmed?: {
+            value: boolean | null;
+            issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
     };
     /**
@@ -11436,204 +11412,266 @@ export type SavePurchaseScanReviewV1Request = {
         fields: {
             description?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             additional_description?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            supplier_sku?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            unit_code?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            price_unit_code?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            package_quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            measured_base_quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             quantity?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             unit_price?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             discount_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             tax_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             retention_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             surcharge_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             vat_deductible?: {
                 value: boolean | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             indirect_tax_regime?: {
                 value: 'iva' | 'igic' | 'ipsi' | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             exemption_reason?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_subtotal?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             tax_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             retention_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             surcharge_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_total?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
         };
+        catalog_selection?: PurchaseScanCatalogSelection;
     } | {
         operation: 'add';
         fields: {
             description?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             additional_description?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            supplier_sku?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            unit_code?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            price_unit_code?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            package_quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            measured_base_quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             quantity?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             unit_price?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             discount_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             tax_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             retention_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             surcharge_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             vat_deductible?: {
                 value: boolean | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             indirect_tax_regime?: {
                 value: 'iva' | 'igic' | 'ipsi' | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             exemption_reason?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_subtotal?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             tax_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             retention_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             surcharge_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_total?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
         };
+        catalog_selection?: PurchaseScanCatalogSelection;
     } | {
         line_id: string;
         operation: 'remove';
         fields?: {
             description?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             additional_description?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            supplier_sku?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            unit_code?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            price_unit_code?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            package_quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
+            };
+            measured_base_quantity?: {
+                value: string | null;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             quantity?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             unit_price?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             discount_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             tax_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             retention_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             surcharge_rate?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             vat_deductible?: {
                 value: boolean | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             indirect_tax_regime?: {
                 value: 'iva' | 'igic' | 'ipsi' | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             exemption_reason?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_subtotal?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             tax_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             retention_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             surcharge_amount?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_total?: {
                 value: string | null;
-                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete'>;
+                issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
         };
     }>;
@@ -11819,7 +11857,7 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | null;
 };
 
 /**
@@ -12459,174 +12497,6 @@ export type SubstituteSimplifiedV1Request = {
 };
 
 /**
- * Supplier
- *
- * A supplier or vendor of your company.
- */
-export type Supplier = {
-    id: string;
-    object: 'supplier';
-    name: string;
-    /**
-     * Legal/business name / full fiscal name of the supplier (may match `name`).
-     */
-    business_name?: string | null;
-    /**
-     * Optional trade name (DBA), distinct from the legal name.
-     */
-    commercial_name?: string | null;
-    /**
-     * Spanish fiscal identifier (NIF, CIF, NIE). Structural format: NIF `^\d{8}[A-Z]$`, NIE `^[XYZ]\d{7}[A-Z]$`, CIF `^[A-Z]\d{7}[A-Z0-9]$`. AEAT control-digit (checksum) validation is enforced when the request opts in via the `Factuarea-Version` header on or after the activation version; without that opt-in the legacy permissive behaviour is preserved. Mutually exclusive with `alternative_id`.
-     */
-    tax_id: string | null;
-    /**
-     * EU VAT identifier.
-     */
-    vat_id: string | null;
-    email: string | null;
-    phone: PhoneString | null;
-    /**
-     * Fax number (rarely used, legacy).
-     */
-    fax?: string | null;
-    /**
-     * Mobile number.
-     */
-    mobile?: string | null;
-    /**
-     * Supplier website.
-     */
-    website?: string | null;
-    /**
-     * B2B contact person.
-     */
-    contact_person?: string | null;
-    /**
-     * Additional emails for invoice delivery (administration, accounting). Maximum 5.
-     */
-    billing_emails?: Array<string>;
-    address: Address;
-    /**
-     * Geographic coordinates of the supplier. `null` when not recorded.
-     */
-    coordinates?: {
-        /**
-         * Geographic latitude.
-         */
-        latitude: number;
-        /**
-         * Geographic longitude.
-         */
-        longitude: number;
-    } | null;
-    /**
-     * Legacy alias for bank_accounts[].iban where is_default=true. Kept for backward compatibility with existing integrators; prefer reading `bank_accounts[]` for new consumers.
-     */
-    iban: IbanString | null;
-    /**
-     * Bank accounts associated with the supplier. Empty `[]` when there are none.
-     */
-    bank_accounts?: Array<BankAccount>;
-    /**
-     * UUID (v7) of the default tax applied to the supplier.
-     */
-    default_taxes_id?: string | null;
-    /**
-     * Default discount applied to the supplier (percentage).
-     */
-    default_discount?: number | null;
-    /**
-     * Default VAT rate applied to the supplier (percentage).
-     */
-    default_vat_rate?: number | null;
-    /**
-     * Default IRPF withholding rate (percentage).
-     */
-    default_retention_rate?: number | null;
-    /**
-     * Indica si al proveedor se le aplica recargo de equivalencia.
-     */
-    is_surcharge_subject?: boolean;
-    /**
-     * Preferred operation regime of the supplier for VAT / VeriFactu purposes.
-     */
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
-    /**
-     * Whether this supplier accumulates towards the annual Modelo 347 report (operations with third parties above the legal threshold).
-     */
-    accumulate_347: boolean;
-    alternative_id?: AlternativeId | null;
-    payment_preferences?: PaymentPreferences | null;
-    /**
-     * External integration key (ERP/CRM/e-commerce) mapping this supplier to a record in a third-party system. Free-format, unique per company, distinct from the fiscal `tax_id`. Persistent ERP synchronization key, independent of the request-level `Idempotency-Key`.
-     */
-    external_id?: string | null;
-    /**
-     * Number of catalog supplier offers linked to this supplier.
-     */
-    offers_count: number;
-    /**
-     * Number of distinct products linked through supplier offers.
-     */
-    related_products_count: number;
-    /**
-     * Filter to list the supplier offers owned by this supplier.
-     */
-    offers_filter: {
-        supplier_id: string;
-    };
-    notes: string | null;
-    metadata: Metadata;
-    is_active: boolean;
-    created_at: string | null;
-    updated_at: string | null;
-};
-
-/**
- * SupplierActivity
- *
- * Un evento del timeline de actividad de un proveedor. Agrupa eventos de dominio originados por cambios sobre el propio proveedor y por documentos que lo referencian (facturas de compra, contratos, etc.).
- */
-export type SupplierActivity = {
-    object: 'activity';
-    /**
-     * Tipo de evento de dominio (p. ej. `supplier.updated`, `purchase_invoice.created`).
-     */
-    event_type: string;
-    /**
-     * Human-readable description of the event in Spanish.
-     */
-    description: string;
-    /**
-     * Event metadata. Internal identifiers (PKs) are stripped; `*_uuid` values are preserved.
-     */
-    metadata: {
-        [key: string]: unknown;
-    };
-    /**
-     * Actor that originated the event. `{type:"user",...}` for an internal user, `{type:"api_key",...}` when performed via the public v1 API, or `null` when the event is system-generated (scheduler, periodic sweep) with no attributable actor.
-     */
-    performed_by: {
-        /**
-         * Type of actor that originated the event: `user` for a human in the internal app, `api_key` for an action performed through the public v1 API.
-         */
-        type: 'user' | 'api_key';
-        /**
-         * UUID (v7) of the actor: the user when `type=user`, or the API key when `type=api_key`.
-         */
-        id: string;
-        /**
-         * Actor name at the time of the event: the user name or the API key name. `null` if it could not be resolved.
-         */
-        name: string | null;
-    } | null;
-    /**
-     * When the event occurred (ISO 8601).
-     */
-    created_at: string;
-};
-
-/**
  * SupplierProductOffer
  */
 export type SupplierProductOffer = {
@@ -12653,31 +12523,6 @@ export type SupplierProductOffer = {
 export type SupplierRef = {
     id: string | null;
     name: string | null;
-};
-
-/**
- * SupplierStats
- *
- * Resumen agregado de la cartera de proveedores de la empresa autenticada: contadores y proveedores con facturas de compra. Devuelto por `GET /v1/suppliers/stats`.
- */
-export type SupplierStats = {
-    object: 'supplier_stats';
-    /**
-     * Total number of suppliers registered in the company.
-     */
-    total: number;
-    /**
-     * Proveedores marcados como activos.
-     */
-    active: number;
-    /**
-     * Proveedores marcados como inactivos.
-     */
-    inactive: number;
-    /**
-     * Suppliers with at least one recorded purchase invoice.
-     */
-    with_purchase_invoices: number;
 };
 
 /**
@@ -13864,7 +13709,7 @@ export type UpdateAbsenceTypeRequest = {
 /**
  * UpdateAccountPersonalizationRequest
  *
- * Partial update of the account personalization; only the fields present in the body are applied. `language` is one of `es`, `en`, `ca`; `pdf_template` is a template slug; `accent_color` is a `#RRGGBB` hex color. Values outside the catalog return 422 with the accepted values.
+ * Partial update of the account personalization; only the fields present in the body are applied. `language` is one of `es`, `en`, `ca`; `pdf_template` is a template slug; `accent_color` is a `#RRGGBB` hex color. Values outside the catalog return 422 with the accepted values. Accent colors and advanced templates require the PDF editor; otherwise 403 feature_not_available_in_plan is returned without applying any field.
  */
 export type UpdateAccountPersonalizationRequest = {
     /**
@@ -13971,78 +13816,6 @@ export type UpdateBusinessContactV1Request = {
     bank_accounts?: string;
     customer_profile?: string;
     supplier_profile?: string;
-};
-
-/**
- * UpdateClientRequest
- *
- * Public REST API v1 — PUT /v1/clients/{uuid}.
- *
- * Partial PUT update: all fields are `sometimes`. If not sent, the handler
- * keeps the current value. If sent as `null`, the field is cleared
- * (when the domain allows it).
- *
- * Accepts the same fields as `CreateClientRequest` V1 (see docblock there).
- * The validation of domain invariants (XOR `tax_id`/`alternative_id`,
- * direct_debit ⇒ default bank account, billing_emails without duplicates) is
- * performed by the `Client` aggregate. The typed exceptions propagate to the
- * `ExceptionRenderer` with the canonical v1 envelope.
- */
-export type UpdateClientRequest = {
-    name?: string;
-    commercial_name?: string | null;
-    tax_id?: string | null;
-    vat_id?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    fax?: string | null;
-    mobile?: string | null;
-    website?: string | null;
-    contact_person?: string | null;
-    billing_emails?: Array<string> | null;
-    latitude?: number | null;
-    longitude?: number | null;
-    default_discount?: number | null;
-    default_vat_rate?: number | null;
-    default_retention_rate?: number | null;
-    is_surcharge_subject?: boolean | null;
-    accumulate_347?: boolean;
-    bank_accounts?: Array<{
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
-    payment_terms_days?: number | null;
-    alternative_id?: {
-        /**
-         * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
-         */
-        type?: 'nif_iva' | 'passport' | 'country_id' | 'residence_certificate' | 'other_document' | 'not_registered' | 'tax_id_foreign' | 'national_id';
-        value?: string;
-        country_code?: string;
-    };
-    address?: {
-        line1?: string | null;
-        line2?: string | null;
-        number?: string | null;
-        floor?: string | null;
-        door?: string | null;
-        staircase?: string | null;
-        postal_code?: string | null;
-        city?: string | null;
-        province?: string | null;
-        country?: string | null;
-    };
-    notes?: string | null;
-    metadata?: Metadata;
-    dir3_accounting_office?: string | null;
-    dir3_managing_body?: string | null;
-    dir3_processing_unit?: string | null;
-    external_id?: string | null;
-    default_price_list_id?: string | null;
 };
 
 /**
@@ -14600,6 +14373,7 @@ export type UpdatePurchaseInvoiceRequest = {
     exclude_347?: boolean;
     lines?: Array<{
         description?: string | null;
+        discount_percent?: number | null;
         additional_description?: string | null;
         quantity?: number;
         unit_price?: number | null;
@@ -14627,14 +14401,19 @@ export type UpdatePurchaseInvoiceRequest = {
          * Per-line indirect tax regime of the supplier. Same shape rule as create (defense in depth); the real invariant lives in the domain.
          */
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        price_source?: 'manual' | 'supplier_offer' | null;
+        source_line_index?: number | null;
         configuration_uuid?: string | null;
+        purchase_measurement?: {
+            package_quantity: string | null;
+            cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
+        };
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
@@ -14883,89 +14662,6 @@ export type UpdateSupplierProfileV1Request = {
 };
 
 /**
- * UpdateSupplierRequest
- *
- * Public REST API v1 — PUT /v1/suppliers/{uuid}.
- *
- * Partial PUT update: all fields are `sometimes`. If not sent, the
- * handler keeps the current value. If sent as `null`, the field is
- * cleared (when the domain allows it).
- *
- * Accepts the same fields as `CreateSupplierRequest` V1 (see docblock there).
- * The validation of domain invariants (XOR `tax_id`/`alternative_id`,
- * direct_debit ⇒ default bank account, billing_emails without duplicates,
- * IBAN format, metadata limits) is performed by the `Supplier` aggregate and
- * the VOs. The typed exceptions propagate to the `ExceptionRenderer` with the
- * canonical v1 envelope.
- */
-export type UpdateSupplierRequest = {
-    name?: string;
-    business_name?: string | null;
-    commercial_name?: string | null;
-    tax_id?: string | null;
-    vat_id?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    fax?: string | null;
-    mobile?: string | null;
-    website?: string | null;
-    contact_person?: string | null;
-    billing_emails?: Array<string> | null;
-    coordinates?: {
-        latitude?: number | null;
-        longitude?: number | null;
-    };
-    latitude?: number | null;
-    longitude?: number | null;
-    default_discount?: number | null;
-    default_vat_rate?: number | null;
-    default_retention_rate?: number | null;
-    is_surcharge_subject?: boolean | null;
-    accumulate_347?: boolean;
-    is_active?: boolean;
-    bank_accounts?: Array<{
-        /**
-         * Legacy alias for the whole `bank_accounts` collection, not a single field within it: sending it REPLACES every bank account the supplier has with the single one you provide, so any other account already registered is removed. To keep several accounts, send the full `bank_accounts` array instead; to leave the accounts untouched, omit both fields. If you send both, `bank_accounts` wins and `iban` is ignored.
-         */
-        iban: string;
-        bic?: string | null;
-        is_default?: boolean | null;
-        notes?: string | null;
-    }> | null;
-    /**
-     * Legacy alias for the whole `bank_accounts` collection, not a single field within it: sending it REPLACES every bank account the supplier has with the single one you provide, so any other account already registered is removed. To keep several accounts, send the full `bank_accounts` array instead; to leave the accounts untouched, omit both fields. If you send both, `bank_accounts` wins and `iban` is ignored.
-     */
-    iban?: string | null;
-    default_taxes_id?: string | null;
-    preferred_operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
-    payment_method?: 'bank_transfer' | 'direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'other' | null;
-    payment_terms_days?: number | null;
-    alternative_id?: {
-        /**
-         * Alternative identifier type from the AEAT L7 catalog. Legacy aliases (`tax_id_foreign`/`national_id`) are accepted on input for backward compatibility.
-         */
-        type?: 'nif_iva' | 'passport' | 'country_id' | 'residence_certificate' | 'other_document' | 'not_registered' | 'tax_id_foreign' | 'national_id';
-        value?: string;
-        country_code?: string;
-    };
-    address?: {
-        line1?: string | null;
-        line2?: string | null;
-        number?: string | null;
-        floor?: string | null;
-        door?: string | null;
-        staircase?: string | null;
-        postal_code?: string | null;
-        city?: string | null;
-        province?: string | null;
-        country?: string | null;
-    };
-    notes?: string | null;
-    metadata?: Metadata;
-    external_id?: string | null;
-};
-
-/**
  * UpdateTaxRequest
  */
 export type UpdateTaxRequest = {
@@ -15052,7 +14748,7 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     api_version?: string | null;
@@ -15148,9 +14844,9 @@ export type UploadProductVideoRequest = {
  */
 export type UploadPurchaseScansRequest = {
     /**
-     * PDF, JPEG or PNG originals. At most 20 MiB per file and 100 MiB per batch. Send the Idempotency-Key header; per-file rejection results use the same batch envelope even when status is 422.
+     * PDF, JPEG or PNG originals, one multipart part per file, each named `files[]`. At most 20 files, 20.0 MiB per file and 100.0 MiB per batch. Send the Idempotency-Key header; per-file rejection results use the same batch envelope even when status is 422.
      */
-    files: Array<Blob | File>;
+    'files[]': Array<Blob | File>;
 };
 
 /**
@@ -15438,22 +15134,12 @@ export type VeriFactuStats = {
 };
 
 /**
- * VerifyClientCensusRequest
+ * VerifyBusinessContactCensusV1Request
  *
- * Public REST API v1 — POST /v1/clients/census-verification.
- *
- * Verifies a THIRD PARTY's name + tax_id pair (invoice recipient) against
- * the AEAT census (VNifV2). Max lengths mirror the Company BC value objects
- * consumed by the bridge (`TaxIdentifier` ≤ 20, `CompanyName` ≤ 100).
+ * Verify a canonical contact name and Spanish tax identifier against the AEAT census without persisting any contact data.
  */
-export type VerifyClientCensusRequest = {
-    /**
-     * Spanish tax identifier (NIF/CIF/NIE) of the third party to check against the AEAT census
-     */
+export type VerifyBusinessContactCensusV1Request = {
     tax_id: string;
-    /**
-     * Name or business name of the third party (the name + tax ID pair is verified together)
-     */
     name: string;
 };
 
@@ -15774,6 +15460,8 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadContactArchived) | ({
     type: 'contact.restored';
 } & WebhookEventPayloadContactRestored) | ({
+    type: 'contact.deleted';
+} & WebhookEventPayloadContactDeleted) | ({
     type: 'contact.role.assigned';
 } & WebhookEventPayloadContactRoleAssigned) | ({
     type: 'contact.role.activated';
@@ -16494,6 +16182,43 @@ export type WebhookEventPayloadContactCustomerProfileUpdated = {
      */
     correlation_id: string | null;
     data: EventDataContactCustomerProfileUpdated;
+};
+
+/**
+ * WebhookEventPayloadContactDeleted
+ *
+ * Webhook delivery body for the `contact.deleted` event.
+ */
+export type WebhookEventPayloadContactDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `contact.deleted`.
+     */
+    type: 'contact.deleted';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataContactDeleted;
 };
 
 /**
@@ -21023,6 +20748,10 @@ export type PublicApiV1RecurringInvoicesActivateErrors = {
      */
     409: Error;
     /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -21354,6 +21083,73 @@ export type PublicApiV1AbsenceTypesArchiveResponses = {
 
 export type PublicApiV1AbsenceTypesArchiveResponse = PublicApiV1AbsenceTypesArchiveResponses[keyof PublicApiV1AbsenceTypesArchiveResponses];
 
+export type PublicApiV1ContactsArchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query?: never;
+    url: '/contacts/{contact}/archive';
+};
+
+export type PublicApiV1ContactsArchiveErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsArchiveError = PublicApiV1ContactsArchiveErrors[keyof PublicApiV1ContactsArchiveErrors];
+
+export type PublicApiV1ContactsArchiveResponses = {
+    /**
+     * `BusinessContactV1Resource`
+     */
+    200: {
+        data: BusinessContact;
+    };
+};
+
+export type PublicApiV1ContactsArchiveResponse = PublicApiV1ContactsArchiveResponses[keyof PublicApiV1ContactsArchiveResponses];
+
 export type PublicApiV1PurchaseScansArchiveData = {
     body: VersionedPurchaseScanRequest;
     headers: {
@@ -21383,7 +21179,7 @@ export type PublicApiV1PurchaseScansArchiveErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_delete_required` (archiving requires the `delete` capability for purchase invoices).
      */
     403: Error;
     /**
@@ -22187,8 +21983,8 @@ export type PublicApiV1ContactsBulkChangeContactRoleStatusResponses = {
 
 export type PublicApiV1ContactsBulkChangeContactRoleStatusResponse = PublicApiV1ContactsBulkChangeContactRoleStatusResponses[keyof PublicApiV1ContactsBulkChangeContactRoleStatusResponses];
 
-export type PublicApiV1ClientsBulkCreateData = {
-    body: BulkCreateClientsV1Request;
+export type PublicApiV1ContactsBulkCreateData = {
+    body: BulkCreateBusinessContactsV1Request;
     headers: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
@@ -22205,10 +22001,14 @@ export type PublicApiV1ClientsBulkCreateData = {
     };
     path?: never;
     query?: never;
-    url: '/clients/bulk-create';
+    url: '/contacts/bulk-create';
 };
 
-export type PublicApiV1ClientsBulkCreateErrors = {
+export type PublicApiV1ContactsBulkCreateErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -22235,15 +22035,15 @@ export type PublicApiV1ClientsBulkCreateErrors = {
     500: Error;
 };
 
-export type PublicApiV1ClientsBulkCreateError = PublicApiV1ClientsBulkCreateErrors[keyof PublicApiV1ClientsBulkCreateErrors];
+export type PublicApiV1ContactsBulkCreateError = PublicApiV1ContactsBulkCreateErrors[keyof PublicApiV1ContactsBulkCreateErrors];
 
-export type PublicApiV1ClientsBulkCreateResponses = {
+export type PublicApiV1ContactsBulkCreateResponses = {
     200: {
         data: BulkCreateResult;
     };
 };
 
-export type PublicApiV1ClientsBulkCreateResponse = PublicApiV1ClientsBulkCreateResponses[keyof PublicApiV1ClientsBulkCreateResponses];
+export type PublicApiV1ContactsBulkCreateResponse = PublicApiV1ContactsBulkCreateResponses[keyof PublicApiV1ContactsBulkCreateResponses];
 
 export type PublicApiV1InvoicesBulkCreateData = {
     body: BulkCreateInvoicesV1Request;
@@ -22303,8 +22103,8 @@ export type PublicApiV1InvoicesBulkCreateResponses = {
 
 export type PublicApiV1InvoicesBulkCreateResponse = PublicApiV1InvoicesBulkCreateResponses[keyof PublicApiV1InvoicesBulkCreateResponses];
 
-export type PublicApiV1ClientsBulkDeleteData = {
-    body: BulkDeleteClientsRequest;
+export type PublicApiV1ContactsBulkDeleteData = {
+    body: BulkDeleteBusinessContactsV1Request;
     headers: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
@@ -22321,10 +22121,14 @@ export type PublicApiV1ClientsBulkDeleteData = {
     };
     path?: never;
     query?: never;
-    url: '/clients/bulk-delete';
+    url: '/contacts/bulk-delete';
 };
 
-export type PublicApiV1ClientsBulkDeleteErrors = {
+export type PublicApiV1ContactsBulkDeleteErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -22351,15 +22155,18 @@ export type PublicApiV1ClientsBulkDeleteErrors = {
     500: Error;
 };
 
-export type PublicApiV1ClientsBulkDeleteError = PublicApiV1ClientsBulkDeleteErrors[keyof PublicApiV1ClientsBulkDeleteErrors];
+export type PublicApiV1ContactsBulkDeleteError = PublicApiV1ContactsBulkDeleteErrors[keyof PublicApiV1ContactsBulkDeleteErrors];
 
-export type PublicApiV1ClientsBulkDeleteResponses = {
+export type PublicApiV1ContactsBulkDeleteResponses = {
+    /**
+     * `BulkPartialSuccessV1Resource`
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
 };
 
-export type PublicApiV1ClientsBulkDeleteResponse = PublicApiV1ClientsBulkDeleteResponses[keyof PublicApiV1ClientsBulkDeleteResponses];
+export type PublicApiV1ContactsBulkDeleteResponse = PublicApiV1ContactsBulkDeleteResponses[keyof PublicApiV1ContactsBulkDeleteResponses];
 
 export type PublicApiV1DeliveryNotesBulkDeleteData = {
     body: BulkDeleteDeliveryNotesRequest;
@@ -22766,64 +22573,6 @@ export type PublicApiV1RecurringInvoicesBulkDeleteResponses = {
 };
 
 export type PublicApiV1RecurringInvoicesBulkDeleteResponse = PublicApiV1RecurringInvoicesBulkDeleteResponses[keyof PublicApiV1RecurringInvoicesBulkDeleteResponses];
-
-export type PublicApiV1SuppliersBulkDeleteData = {
-    body: BulkDeleteSuppliersRequest;
-    headers: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
-         */
-        'Idempotency-Key': string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/suppliers/bulk-delete';
-};
-
-export type PublicApiV1SuppliersBulkDeleteErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersBulkDeleteError = PublicApiV1SuppliersBulkDeleteErrors[keyof PublicApiV1SuppliersBulkDeleteErrors];
-
-export type PublicApiV1SuppliersBulkDeleteResponses = {
-    200: {
-        data: BulkPartialSuccessResult;
-    };
-};
-
-export type PublicApiV1SuppliersBulkDeleteResponse = PublicApiV1SuppliersBulkDeleteResponses[keyof PublicApiV1SuppliersBulkDeleteResponses];
 
 export type PublicApiV1DeliveryNotesBulkPdfData = {
     body: BulkPdfDeliveryNotesV1Request;
@@ -23661,8 +23410,8 @@ export type PublicApiV1QuotesBulkStatusResponses = {
 
 export type PublicApiV1QuotesBulkStatusResponse = PublicApiV1QuotesBulkStatusResponses[keyof PublicApiV1QuotesBulkStatusResponses];
 
-export type PublicApiV1SuppliersBulkStatusData = {
-    body: BulkStatusSuppliersV1Request;
+export type PublicApiV1RecurringInvoicesBulkStatusData = {
+    body: BulkStatusRecurringInvoicesV1Request;
     headers: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
@@ -23679,10 +23428,10 @@ export type PublicApiV1SuppliersBulkStatusData = {
     };
     path?: never;
     query?: never;
-    url: '/suppliers/bulk-status';
+    url: '/recurring_invoices/bulk-status';
 };
 
-export type PublicApiV1SuppliersBulkStatusErrors = {
+export type PublicApiV1RecurringInvoicesBulkStatusErrors = {
     /**
      * Missing or invalid API key.
      */
@@ -23696,7 +23445,7 @@ export type PublicApiV1SuppliersBulkStatusErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -23709,15 +23458,15 @@ export type PublicApiV1SuppliersBulkStatusErrors = {
     500: Error;
 };
 
-export type PublicApiV1SuppliersBulkStatusError = PublicApiV1SuppliersBulkStatusErrors[keyof PublicApiV1SuppliersBulkStatusErrors];
+export type PublicApiV1RecurringInvoicesBulkStatusError = PublicApiV1RecurringInvoicesBulkStatusErrors[keyof PublicApiV1RecurringInvoicesBulkStatusErrors];
 
-export type PublicApiV1SuppliersBulkStatusResponses = {
+export type PublicApiV1RecurringInvoicesBulkStatusResponses = {
     200: {
         data: BulkPartialSuccessResult;
     };
 };
 
-export type PublicApiV1SuppliersBulkStatusResponse = PublicApiV1SuppliersBulkStatusResponses[keyof PublicApiV1SuppliersBulkStatusResponses];
+export type PublicApiV1RecurringInvoicesBulkStatusResponse = PublicApiV1RecurringInvoicesBulkStatusResponses[keyof PublicApiV1RecurringInvoicesBulkStatusResponses];
 
 export type PublicApiV1ProductsBulkUpdateStockData = {
     body: BulkUpdateProductStockRequest;
@@ -25116,7 +24865,7 @@ export type PublicApiV1PurchaseScansConvertErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company).
      */
     403: Error;
     /**
@@ -25140,7 +24889,7 @@ export type PublicApiV1PurchaseScansConvertErrors = {
      */
     500: Error;
     /**
-     * Secure document storage or processing is temporarily unavailable.
+     * A service this operation depends on is temporarily unavailable. Nothing was changed; retry later (write operations with the same `Idempotency-Key`). Possible `error.code` values: `dependency_unavailable` — a dependency is down; `error.subcode` names it (`file_safety_unavailable` or `scan_storage_unavailable`); `scan_storage_unavailable` — the secure document storage could not be reached.
      */
     503: Error;
 };
@@ -26162,194 +25911,6 @@ export type PublicApiV1CompaniesApiKeysCreateResponses = {
 };
 
 export type PublicApiV1CompaniesApiKeysCreateResponse = PublicApiV1CompaniesApiKeysCreateResponses[keyof PublicApiV1CompaniesApiKeysCreateResponses];
-
-export type PublicApiV1ClientsListData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
-         */
-        limit?: number;
-        /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
-         */
-        starting_after?: string;
-        /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
-         */
-        ending_before?: string;
-        /**
-         * Fiscal tax number (NIF/CIF/NIE) of the client. Exact match on `tax_id`.
-         */
-        tax_id?: string;
-        /**
-         * Comma-separated list of values (CSV).
-         */
-        'tax_id[in]'?: string;
-        /**
-         * Client email. Exact match on `email`.
-         */
-        email?: string;
-        /**
-         * Trade name of the client. Exact match on `name`.
-         */
-        name?: string;
-        /**
-         * City of the client postal address. Exact match on `city`.
-         */
-        city?: string;
-        /**
-         * City of the client postal address. Partial case-insensitive match (`LIKE %term%`) on `city`.
-         */
-        'city[contains]'?: string;
-        /**
-         * Province / region of the client postal address. Exact match on `province`.
-         */
-        province?: string;
-        /**
-         * Province / region of the client postal address. Partial case-insensitive match (`LIKE %term%`) on `province`.
-         */
-        'province[contains]'?: string;
-        /**
-         * Phone number of the client. Exact match on `phone`.
-         */
-        phone?: string;
-        /**
-         * Phone number of the client. Partial case-insensitive match (`LIKE %term%`) on `phone`.
-         */
-        'phone[contains]'?: string;
-        /**
-         * Filter by active / inactive clients. Exact match on `is_active`.
-         */
-        is_active?: boolean;
-        /**
-         * Creation date (ISO 8601). Greater than or equal to the given value.
-         */
-        'created[gte]'?: string;
-        /**
-         * Creation date (ISO 8601). Less than or equal to the given value.
-         */
-        'created[lte]'?: string;
-        /**
-         * Creation date (ISO 8601). Strictly greater than the given value.
-         */
-        'created[gt]'?: string;
-        /**
-         * Creation date (ISO 8601). Strictly less than the given value.
-         */
-        'created[lt]'?: string;
-        /**
-         * Free-text search. Escaped `LIKE %term%` (case-insensitive, max 80 chars) across the resource's key text columns, combined with the other filters (AND) and compatible with the cursor.
-         */
-        search?: string;
-    };
-    url: '/clients';
-};
-
-export type PublicApiV1ClientsListErrors = {
-    /**
-     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
-     */
-    400: Error;
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsListError = PublicApiV1ClientsListErrors[keyof PublicApiV1ClientsListErrors];
-
-export type PublicApiV1ClientsListResponses = {
-    200: PaginatedList & {
-        data?: Array<Client>;
-    };
-};
-
-export type PublicApiV1ClientsListResponse = PublicApiV1ClientsListResponses[keyof PublicApiV1ClientsListResponses];
-
-export type PublicApiV1ClientsCreateData = {
-    body: CreateClientRequest;
-    headers?: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
-         */
-        'Idempotency-Key'?: string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/clients';
-};
-
-export type PublicApiV1ClientsCreateErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsCreateError = PublicApiV1ClientsCreateErrors[keyof PublicApiV1ClientsCreateErrors];
-
-export type PublicApiV1ClientsCreateResponses = {
-    /**
-     * Client created successfully. The `Location` header contains the canonical URL of the newly created resource.
-     */
-    201: {
-        data: Client;
-    };
-};
-
-export type PublicApiV1ClientsCreateResponse = PublicApiV1ClientsCreateResponses[keyof PublicApiV1ClientsCreateResponses];
 
 export type PublicApiV1CompaniesListData = {
     body?: never;
@@ -28740,10 +28301,6 @@ export type PublicApiV1RecurringInvoicesListErrors = {
 export type PublicApiV1RecurringInvoicesListError = PublicApiV1RecurringInvoicesListErrors[keyof PublicApiV1RecurringInvoicesListErrors];
 
 export type PublicApiV1RecurringInvoicesListResponses = {
-    /**
-     * Non-existent or cross-company public FK (`client_uuid`/`series_uuid`)
-     * → empty result without leaking cross-tenant existence.
-     */
     200: PaginatedList & {
         data?: Array<RecurringInvoice>;
     };
@@ -28943,204 +28500,6 @@ export type PublicApiV1SeriesCreateResponses = {
 };
 
 export type PublicApiV1SeriesCreateResponse = PublicApiV1SeriesCreateResponses[keyof PublicApiV1SeriesCreateResponses];
-
-export type PublicApiV1SuppliersListData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
-         */
-        limit?: number;
-        /**
-         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
-         */
-        starting_after?: string;
-        /**
-         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
-         */
-        ending_before?: string;
-        /**
-         * Fiscal tax number (NIF/CIF/NIE) of the supplier. Exact match on `tax_id`.
-         */
-        tax_id?: string;
-        /**
-         * Comma-separated list of values (CSV).
-         */
-        'tax_id[in]'?: string;
-        /**
-         * Fiscal tax number (NIF/CIF/NIE) of the supplier. Partial case-insensitive match (`LIKE %term%`) on `tax_id`.
-         */
-        'tax_id[contains]'?: string;
-        /**
-         * Intra-community VAT number. Exact match on `vat_id`.
-         */
-        vat_id?: string;
-        /**
-         * Intra-community VAT number. Partial case-insensitive match (`LIKE %term%`) on `vat_id`.
-         */
-        'vat_id[contains]'?: string;
-        /**
-         * Trade name of the supplier. Exact match on `name`.
-         */
-        name?: string;
-        /**
-         * Trade name of the supplier. Partial case-insensitive match (`LIKE %term%`) on `name`.
-         */
-        'name[contains]'?: string;
-        /**
-         * City of the supplier postal address. Exact match on `city`.
-         */
-        city?: string;
-        /**
-         * City of the supplier postal address. Partial case-insensitive match (`LIKE %term%`) on `city`.
-         */
-        'city[contains]'?: string;
-        /**
-         * Province / region of the supplier postal address. Exact match on `province`.
-         */
-        province?: string;
-        /**
-         * Province / region of the supplier postal address. Partial case-insensitive match (`LIKE %term%`) on `province`.
-         */
-        'province[contains]'?: string;
-        /**
-         * Filter by active / inactive suppliers. Exact match on `is_active`.
-         */
-        is_active?: boolean;
-        /**
-         * Creation date (ISO 8601). Greater than or equal to the given value.
-         */
-        'created[gte]'?: string;
-        /**
-         * Creation date (ISO 8601). Less than or equal to the given value.
-         */
-        'created[lte]'?: string;
-        /**
-         * Creation date (ISO 8601). Strictly greater than the given value.
-         */
-        'created[gt]'?: string;
-        /**
-         * Creation date (ISO 8601). Strictly less than the given value.
-         */
-        'created[lt]'?: string;
-        /**
-         * Free-text search. Escaped `LIKE %term%` (case-insensitive, max 80 chars) across the resource's key text columns, combined with the other filters (AND) and compatible with the cursor.
-         */
-        search?: string;
-        /**
-         * Filter by metadata key/value pairs using the deepObject syntax `metadata[key]=value`. Multiple pairs are combined with AND. Each key must match `[A-Za-z0-9_.-]{1,64}`; a maximum of 50 pairs is allowed (more → 422).
-         */
-        metadata?: {
-            [key: string]: string;
-        };
-    };
-    url: '/suppliers';
-};
-
-export type PublicApiV1SuppliersListErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersListError = PublicApiV1SuppliersListErrors[keyof PublicApiV1SuppliersListErrors];
-
-export type PublicApiV1SuppliersListResponses = {
-    200: PaginatedList & {
-        data?: Array<Supplier>;
-    };
-};
-
-export type PublicApiV1SuppliersListResponse = PublicApiV1SuppliersListResponses[keyof PublicApiV1SuppliersListResponses];
-
-export type PublicApiV1SuppliersCreateData = {
-    body: CreateSupplierRequest;
-    headers?: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
-         */
-        'Idempotency-Key'?: string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/suppliers';
-};
-
-export type PublicApiV1SuppliersCreateErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersCreateError = PublicApiV1SuppliersCreateErrors[keyof PublicApiV1SuppliersCreateErrors];
-
-export type PublicApiV1SuppliersCreateResponses = {
-    /**
-     * Supplier created successfully. The `Location` header contains the canonical URL of the newly created resource.
-     */
-    201: {
-        data: Supplier;
-    };
-};
-
-export type PublicApiV1SuppliersCreateResponse = PublicApiV1SuppliersCreateResponses[keyof PublicApiV1SuppliersCreateResponses];
 
 export type PublicApiV1ProductsSupplierOffersListData = {
     body?: never;
@@ -30088,7 +29447,7 @@ export type PublicApiV1ContactsDeleteResponses = {
         data: {
             id: string;
             object: 'contact';
-            archived: boolean;
+            deleted: boolean;
         };
     };
 };
@@ -30224,187 +29583,6 @@ export type PublicApiV1ContactsUpdateResponses = {
 };
 
 export type PublicApiV1ContactsUpdateResponse = PublicApiV1ContactsUpdateResponses[keyof PublicApiV1ContactsUpdateResponses];
-
-export type PublicApiV1ClientsDeleteData = {
-    body?: never;
-    headers: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
-         */
-        'Idempotency-Key': string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        client: string;
-    };
-    query?: never;
-    url: '/clients/{client}';
-};
-
-export type PublicApiV1ClientsDeleteErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsDeleteError = PublicApiV1ClientsDeleteErrors[keyof PublicApiV1ClientsDeleteErrors];
-
-export type PublicApiV1ClientsDeleteResponses = {
-    /**
-     * No content
-     */
-    204: void;
-};
-
-export type PublicApiV1ClientsDeleteResponse = PublicApiV1ClientsDeleteResponses[keyof PublicApiV1ClientsDeleteResponses];
-
-export type PublicApiV1ClientsShowData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        client: string;
-    };
-    query?: never;
-    url: '/clients/{client}';
-};
-
-export type PublicApiV1ClientsShowErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsShowError = PublicApiV1ClientsShowErrors[keyof PublicApiV1ClientsShowErrors];
-
-export type PublicApiV1ClientsShowResponses = {
-    200: {
-        data: Client;
-    };
-};
-
-export type PublicApiV1ClientsShowResponse = PublicApiV1ClientsShowResponses[keyof PublicApiV1ClientsShowResponses];
-
-export type PublicApiV1ClientsUpdateData = {
-    body?: UpdateClientRequest;
-    headers?: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
-         */
-        'Idempotency-Key'?: string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        client: string;
-    };
-    query?: never;
-    url: '/clients/{client}';
-};
-
-export type PublicApiV1ClientsUpdateErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsUpdateError = PublicApiV1ClientsUpdateErrors[keyof PublicApiV1ClientsUpdateErrors];
-
-export type PublicApiV1ClientsUpdateResponses = {
-    200: {
-        data: Client;
-    };
-};
-
-export type PublicApiV1ClientsUpdateResponse = PublicApiV1ClientsUpdateResponses[keyof PublicApiV1ClientsUpdateResponses];
 
 export type PublicApiV1CompaniesDeleteData = {
     body?: never;
@@ -32305,10 +31483,6 @@ export type PublicApiV1PurchaseInvoicesFileErrors = {
 export type PublicApiV1PurchaseInvoicesFileError = PublicApiV1PurchaseInvoicesFileErrors[keyof PublicApiV1PurchaseInvoicesFileErrors];
 
 export type PublicApiV1PurchaseInvoicesFileResponses = {
-    /**
-     * El adjunto está cifrado at-rest en el Vault; el handler entrega un
-     * temp file DESCIFRADO de vida acotada que se elimina tras enviarse.
-     */
     200: Blob | File;
 };
 
@@ -32675,187 +31849,6 @@ export type PublicApiV1RecurringInvoicesUpdateResponses = {
 };
 
 export type PublicApiV1RecurringInvoicesUpdateResponse = PublicApiV1RecurringInvoicesUpdateResponses[keyof PublicApiV1RecurringInvoicesUpdateResponses];
-
-export type PublicApiV1SuppliersDeleteData = {
-    body?: never;
-    headers: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
-         */
-        'Idempotency-Key': string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        supplier: string;
-    };
-    query?: never;
-    url: '/suppliers/{supplier}';
-};
-
-export type PublicApiV1SuppliersDeleteErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersDeleteError = PublicApiV1SuppliersDeleteErrors[keyof PublicApiV1SuppliersDeleteErrors];
-
-export type PublicApiV1SuppliersDeleteResponses = {
-    /**
-     * No content
-     */
-    204: void;
-};
-
-export type PublicApiV1SuppliersDeleteResponse = PublicApiV1SuppliersDeleteResponses[keyof PublicApiV1SuppliersDeleteResponses];
-
-export type PublicApiV1SuppliersShowData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        supplier: string;
-    };
-    query?: never;
-    url: '/suppliers/{supplier}';
-};
-
-export type PublicApiV1SuppliersShowErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersShowError = PublicApiV1SuppliersShowErrors[keyof PublicApiV1SuppliersShowErrors];
-
-export type PublicApiV1SuppliersShowResponses = {
-    200: {
-        data: Supplier;
-    };
-};
-
-export type PublicApiV1SuppliersShowResponse = PublicApiV1SuppliersShowResponses[keyof PublicApiV1SuppliersShowResponses];
-
-export type PublicApiV1SuppliersUpdateData = {
-    body?: UpdateSupplierRequest;
-    headers?: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
-         */
-        'Idempotency-Key'?: string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        supplier: string;
-    };
-    query?: never;
-    url: '/suppliers/{supplier}';
-};
-
-export type PublicApiV1SuppliersUpdateErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersUpdateError = PublicApiV1SuppliersUpdateErrors[keyof PublicApiV1SuppliersUpdateErrors];
-
-export type PublicApiV1SuppliersUpdateResponses = {
-    200: {
-        data: Supplier;
-    };
-};
-
-export type PublicApiV1SuppliersUpdateResponse = PublicApiV1SuppliersUpdateResponses[keyof PublicApiV1SuppliersUpdateResponses];
 
 export type PublicApiV1ProductsSupplierOffersDeleteData = {
     body?: never;
@@ -33712,7 +32705,7 @@ export type PublicApiV1StoresUpdateResponses = {
 
 export type PublicApiV1StoresUpdateResponse = PublicApiV1StoresUpdateResponses[keyof PublicApiV1StoresUpdateResponses];
 
-export type PublicApiV1ClientsImportTemplateData = {
+export type PublicApiV1ContactsImportTemplateData = {
     body?: never;
     headers?: {
         /**
@@ -33726,10 +32719,14 @@ export type PublicApiV1ClientsImportTemplateData = {
     };
     path?: never;
     query?: never;
-    url: '/clients/import/template';
+    url: '/contacts/import/template';
 };
 
-export type PublicApiV1ClientsImportTemplateErrors = {
+export type PublicApiV1ContactsImportTemplateErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -33748,16 +32745,16 @@ export type PublicApiV1ClientsImportTemplateErrors = {
     500: Error;
 };
 
-export type PublicApiV1ClientsImportTemplateError = PublicApiV1ClientsImportTemplateErrors[keyof PublicApiV1ClientsImportTemplateErrors];
+export type PublicApiV1ContactsImportTemplateError = PublicApiV1ContactsImportTemplateErrors[keyof PublicApiV1ContactsImportTemplateErrors];
 
-export type PublicApiV1ClientsImportTemplateResponses = {
+export type PublicApiV1ContactsImportTemplateResponses = {
     /**
-     * CSV import template with a UTF-8 BOM, Spanish column headings and two example rows.
+     * CSV import template with canonical identity, cumulative role and directional-profile headings.
      */
     200: string;
 };
 
-export type PublicApiV1ClientsImportTemplateResponse = PublicApiV1ClientsImportTemplateResponses[keyof PublicApiV1ClientsImportTemplateResponses];
+export type PublicApiV1ContactsImportTemplateResponse = PublicApiV1ContactsImportTemplateResponses[keyof PublicApiV1ContactsImportTemplateResponses];
 
 export type PublicApiV1MonthlyTimeRecordClosesExportData = {
     body?: never;
@@ -34273,7 +33270,7 @@ export type PublicApiV1PurchaseScansSourceErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_export_required` (the API key creator lacks the `export` capability for purchase invoices).
      */
     403: Error;
     /**
@@ -34289,7 +33286,7 @@ export type PublicApiV1PurchaseScansSourceErrors = {
      */
     500: Error;
     /**
-     * Secure document storage or processing is temporarily unavailable.
+     * A service this operation depends on is temporarily unavailable. Nothing was changed; retry later (write operations with the same `Idempotency-Key`). Possible `error.code` values: `dependency_unavailable` — a dependency is down; `error.subcode` names it (`file_safety_unavailable` or `scan_storage_unavailable`); `scan_storage_unavailable` — the secure document storage could not be reached.
      */
     503: Error;
 };
@@ -34771,8 +33768,8 @@ export type PublicApiV1InvoicesExportExcelResponses = {
 
 export type PublicApiV1InvoicesExportExcelResponse = PublicApiV1InvoicesExportExcelResponses[keyof PublicApiV1InvoicesExportExcelResponses];
 
-export type PublicApiV1ClientsFindByExternalIdData = {
-    body: FindClientByExternalIdRequest;
+export type PublicApiV1ContactsFindByExternalIdData = {
+    body: FindBusinessContactByExternalIdV1Request;
     headers?: {
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
@@ -34785,10 +33782,14 @@ export type PublicApiV1ClientsFindByExternalIdData = {
     };
     path?: never;
     query?: never;
-    url: '/clients/find-by-external-id';
+    url: '/contacts/find-by-external-id';
 };
 
-export type PublicApiV1ClientsFindByExternalIdErrors = {
+export type PublicApiV1ContactsFindByExternalIdErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -34815,18 +33816,18 @@ export type PublicApiV1ClientsFindByExternalIdErrors = {
     500: Error;
 };
 
-export type PublicApiV1ClientsFindByExternalIdError = PublicApiV1ClientsFindByExternalIdErrors[keyof PublicApiV1ClientsFindByExternalIdErrors];
+export type PublicApiV1ContactsFindByExternalIdError = PublicApiV1ContactsFindByExternalIdErrors[keyof PublicApiV1ContactsFindByExternalIdErrors];
 
-export type PublicApiV1ClientsFindByExternalIdResponses = {
+export type PublicApiV1ContactsFindByExternalIdResponses = {
     200: {
-        data: Client;
+        data: BusinessContact;
     };
 };
 
-export type PublicApiV1ClientsFindByExternalIdResponse = PublicApiV1ClientsFindByExternalIdResponses[keyof PublicApiV1ClientsFindByExternalIdResponses];
+export type PublicApiV1ContactsFindByExternalIdResponse = PublicApiV1ContactsFindByExternalIdResponses[keyof PublicApiV1ContactsFindByExternalIdResponses];
 
-export type PublicApiV1ClientsFindByTaxIdData = {
-    body: FindClientByTaxIdRequest;
+export type PublicApiV1ContactsFindByTaxIdData = {
+    body: FindBusinessContactByTaxIdV1Request;
     headers?: {
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
@@ -34839,10 +33840,14 @@ export type PublicApiV1ClientsFindByTaxIdData = {
     };
     path?: never;
     query?: never;
-    url: '/clients/find-by-tax-id';
+    url: '/contacts/find-by-tax-id';
 };
 
-export type PublicApiV1ClientsFindByTaxIdErrors = {
+export type PublicApiV1ContactsFindByTaxIdErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -34865,15 +33870,15 @@ export type PublicApiV1ClientsFindByTaxIdErrors = {
     500: Error;
 };
 
-export type PublicApiV1ClientsFindByTaxIdError = PublicApiV1ClientsFindByTaxIdErrors[keyof PublicApiV1ClientsFindByTaxIdErrors];
+export type PublicApiV1ContactsFindByTaxIdError = PublicApiV1ContactsFindByTaxIdErrors[keyof PublicApiV1ContactsFindByTaxIdErrors];
 
-export type PublicApiV1ClientsFindByTaxIdResponses = {
+export type PublicApiV1ContactsFindByTaxIdResponses = {
     200: {
-        data: Client;
+        data: BusinessContact;
     };
 };
 
-export type PublicApiV1ClientsFindByTaxIdResponse = PublicApiV1ClientsFindByTaxIdResponses[keyof PublicApiV1ClientsFindByTaxIdResponses];
+export type PublicApiV1ContactsFindByTaxIdResponse = PublicApiV1ContactsFindByTaxIdResponses[keyof PublicApiV1ContactsFindByTaxIdResponses];
 
 export type PublicApiV1DeliveryNotesFindByExternalIdData = {
     body: FindDeliveryNoteByExternalIdRequest;
@@ -35626,110 +34631,6 @@ export type PublicApiV1SeriesFindByCodeResponses = {
 
 export type PublicApiV1SeriesFindByCodeResponse = PublicApiV1SeriesFindByCodeResponses[keyof PublicApiV1SeriesFindByCodeResponses];
 
-export type PublicApiV1SuppliersFindByExternalIdData = {
-    body: FindSupplierByExternalIdRequest;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/suppliers/find-by-external-id';
-};
-
-export type PublicApiV1SuppliersFindByExternalIdErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersFindByExternalIdError = PublicApiV1SuppliersFindByExternalIdErrors[keyof PublicApiV1SuppliersFindByExternalIdErrors];
-
-export type PublicApiV1SuppliersFindByExternalIdResponses = {
-    200: {
-        data: Supplier;
-    };
-};
-
-export type PublicApiV1SuppliersFindByExternalIdResponse = PublicApiV1SuppliersFindByExternalIdResponses[keyof PublicApiV1SuppliersFindByExternalIdResponses];
-
-export type PublicApiV1SuppliersFindByTaxIdData = {
-    body: FindSupplierByTaxIdRequest;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/suppliers/find-by-tax-id';
-};
-
-export type PublicApiV1SuppliersFindByTaxIdErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersFindByTaxIdError = PublicApiV1SuppliersFindByTaxIdErrors[keyof PublicApiV1SuppliersFindByTaxIdErrors];
-
-export type PublicApiV1SuppliersFindByTaxIdResponses = {
-    200: {
-        data: Supplier;
-    };
-};
-
-export type PublicApiV1SuppliersFindByTaxIdResponse = PublicApiV1SuppliersFindByTaxIdResponses[keyof PublicApiV1SuppliersFindByTaxIdResponses];
-
 export type PublicApiV1TaxReportsFindByPeriodData = {
     body: FindTaxReportByPeriodV1Request;
     headers?: {
@@ -36434,6 +35335,69 @@ export type PublicApiV1AutomationsUsageShowResponses = {
 
 export type PublicApiV1AutomationsUsageShowResponse = PublicApiV1AutomationsUsageShowResponses[keyof PublicApiV1AutomationsUsageShowResponses];
 
+export type PublicApiV1ContactsActivitiesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        contact: string;
+    };
+    query: {
+        category?: 'contact' | 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'purchase_invoice' | 'recurring_invoice' | 'contract' | null;
+        'direction[]': 'sales' | 'purchases' | 'relationship';
+    };
+    url: '/contacts/{contact}/activities';
+};
+
+export type PublicApiV1ContactsActivitiesErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsActivitiesError = PublicApiV1ContactsActivitiesErrors[keyof PublicApiV1ContactsActivitiesErrors];
+
+export type PublicApiV1ContactsActivitiesResponses = {
+    200: PaginatedList & {
+        data?: Array<BusinessContactActivity>;
+    };
+};
+
+export type PublicApiV1ContactsActivitiesResponse = PublicApiV1ContactsActivitiesResponses[keyof PublicApiV1ContactsActivitiesResponses];
+
 export type PublicApiV1ContactsOptionsData = {
     body?: never;
     headers?: {
@@ -36498,63 +35462,7 @@ export type PublicApiV1ContactsOptionsResponses = {
 
 export type PublicApiV1ContactsOptionsResponse = PublicApiV1ContactsOptionsResponses[keyof PublicApiV1ContactsOptionsResponses];
 
-export type PublicApiV1ClientsActivitiesData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        client: string;
-    };
-    query?: never;
-    url: '/clients/{client}/activities';
-};
-
-export type PublicApiV1ClientsActivitiesErrors = {
-    /**
-     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
-     */
-    400: Error;
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsActivitiesError = PublicApiV1ClientsActivitiesErrors[keyof PublicApiV1ClientsActivitiesErrors];
-
-export type PublicApiV1ClientsActivitiesResponses = {
-    200: PaginatedList & {
-        data?: Array<ClientActivity>;
-    };
-};
-
-export type PublicApiV1ClientsActivitiesResponse = PublicApiV1ClientsActivitiesResponses[keyof PublicApiV1ClientsActivitiesResponses];
-
-export type PublicApiV1ClientsStatsData = {
+export type PublicApiV1ContactsStatsData = {
     body?: never;
     headers?: {
         /**
@@ -36568,10 +35476,14 @@ export type PublicApiV1ClientsStatsData = {
     };
     path?: never;
     query?: never;
-    url: '/clients/stats';
+    url: '/contacts/stats';
 };
 
-export type PublicApiV1ClientsStatsErrors = {
+export type PublicApiV1ContactsStatsErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -36590,15 +35502,15 @@ export type PublicApiV1ClientsStatsErrors = {
     500: Error;
 };
 
-export type PublicApiV1ClientsStatsError = PublicApiV1ClientsStatsErrors[keyof PublicApiV1ClientsStatsErrors];
+export type PublicApiV1ContactsStatsError = PublicApiV1ContactsStatsErrors[keyof PublicApiV1ContactsStatsErrors];
 
-export type PublicApiV1ClientsStatsResponses = {
+export type PublicApiV1ContactsStatsResponses = {
     200: {
-        data: ClientStats;
+        data: BusinessContactStats;
     };
 };
 
-export type PublicApiV1ClientsStatsResponse = PublicApiV1ClientsStatsResponses[keyof PublicApiV1ClientsStatsResponses];
+export type PublicApiV1ContactsStatsResponse = PublicApiV1ContactsStatsResponses[keyof PublicApiV1ContactsStatsResponses];
 
 export type PublicApiV1CompaniesCreationStatusData = {
     body?: never;
@@ -38412,7 +37324,9 @@ export type PublicApiV1PurchaseScansStatsData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        scope?: 'inbox' | 'history';
+    };
     url: '/purchase_scans/stats';
 };
 
@@ -38425,6 +37339,10 @@ export type PublicApiV1PurchaseScansStatsErrors = {
      * The API key lacks the required scope for this operation.
      */
     403: Error;
+    /**
+     * The request could not be validated. Possible `error.code` values: `validation_failed` — a query parameter is invalid, or a `supplier_id` (or, on the SPA-only surfaces, an uploader) does not belong to the company; `error.param` identifies which one.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -38939,121 +37857,6 @@ export type PublicApiV1StripeAutoinvoicingConfigUpdateResponses = {
 };
 
 export type PublicApiV1StripeAutoinvoicingConfigUpdateResponse = PublicApiV1StripeAutoinvoicingConfigUpdateResponses[keyof PublicApiV1StripeAutoinvoicingConfigUpdateResponses];
-
-export type PublicApiV1SuppliersActivitiesData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        supplier: string;
-    };
-    query?: {
-        /**
-         * Maximum number of results.
-         */
-        limit?: number;
-        /**
-         * Page cursor returned by the previous response.
-         */
-        starting_after?: string;
-        /**
-         * Reverse cursor. Mutually exclusive with starting_after.
-         */
-        ending_before?: string;
-    };
-    url: '/suppliers/{supplier}/activities';
-};
-
-export type PublicApiV1SuppliersActivitiesErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersActivitiesError = PublicApiV1SuppliersActivitiesErrors[keyof PublicApiV1SuppliersActivitiesErrors];
-
-export type PublicApiV1SuppliersActivitiesResponses = {
-    200: PaginatedList & {
-        data?: Array<SupplierActivity>;
-    };
-};
-
-export type PublicApiV1SuppliersActivitiesResponse = PublicApiV1SuppliersActivitiesResponses[keyof PublicApiV1SuppliersActivitiesResponses];
-
-export type PublicApiV1SuppliersStatsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/suppliers/stats';
-};
-
-export type PublicApiV1SuppliersStatsErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersStatsError = PublicApiV1SuppliersStatsErrors[keyof PublicApiV1SuppliersStatsErrors];
-
-export type PublicApiV1SuppliersStatsResponses = {
-    200: {
-        data: SupplierStats;
-    };
-};
-
-export type PublicApiV1SuppliersStatsResponse = PublicApiV1SuppliersStatsResponses[keyof PublicApiV1SuppliersStatsResponses];
 
 export type PublicApiV1TaxCatalogShowData = {
     body?: never;
@@ -40024,64 +38827,6 @@ export type PublicApiV1ContactsImportResponses = {
 };
 
 export type PublicApiV1ContactsImportResponse = PublicApiV1ContactsImportResponses[keyof PublicApiV1ContactsImportResponses];
-
-export type PublicApiV1ClientsImportData = {
-    body: ImportClientsV1Request;
-    headers: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
-         */
-        'Idempotency-Key': string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/clients/import';
-};
-
-export type PublicApiV1ClientsImportErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsImportError = PublicApiV1ClientsImportErrors[keyof PublicApiV1ClientsImportErrors];
-
-export type PublicApiV1ClientsImportResponses = {
-    200: {
-        data: ClientImportPreview;
-    };
-};
-
-export type PublicApiV1ClientsImportResponse = PublicApiV1ClientsImportResponses[keyof PublicApiV1ClientsImportResponses];
 
 export type PublicApiV1AbsenceBalancesListData = {
     body?: never;
@@ -42762,9 +41507,13 @@ export type PublicApiV1PurchaseScanEmailsListData = {
         limit?: number;
         starting_after?: string | null;
         search?: string;
-        result?: 'processed' | 'partially_processed' | 'no_compatible_attachments' | 'rejected';
+        'result[]'?: 'pending' | 'processed' | 'partially_processed' | 'no_compatible_attachments' | 'parked' | 'rejected' | 'failed';
         'created[gte]'?: string;
         'created[lte]'?: string;
+        /**
+         * Comma-separated list of email results. Allowed values: pending, processed, partially_processed, no_compatible_attachments, parked, rejected, failed.
+         */
+        result?: string;
     };
     url: '/purchase_scan_emails';
 };
@@ -42779,7 +41528,7 @@ export type PublicApiV1PurchaseScanEmailsListErrors = {
      */
     403: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `validation_failed` — a query parameter is invalid, or a `supplier_id` (or, on the SPA-only surfaces, an uploader) does not belong to the company; `error.param` identifies which one.
      */
     422: Error;
     /**
@@ -46142,7 +44891,7 @@ export type PublicApiV1PurchaseScansDuplicateResolutionErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_delete_required` (archiving requires the `delete` capability for purchase invoices).
      */
     403: Error;
     /**
@@ -46276,7 +45025,7 @@ export type PublicApiV1PurchaseScansRestoreErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company).
      */
     403: Error;
     /**
@@ -46354,6 +45103,10 @@ export type PublicApiV1RecurringInvoicesResumeErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -46461,7 +45214,7 @@ export type PublicApiV1PurchaseScansRetryErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company).
      */
     403: Error;
     /**
@@ -46477,7 +45230,7 @@ export type PublicApiV1PurchaseScansRetryErrors = {
      */
     422: Error;
     /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     * Too many requests, or the company has used up its monthly document-reading quota. Wait for the number of seconds in `Retry-After` before retrying. Possible `error.code` values: `rate_limit_exceeded` — the API key exceeded its request rate; `ocr_company_quota_exceeded` — the monthly document-reading quota is exhausted; it is not recoverable until the quota renews, and `Retry-After` counts the seconds until then.
      */
     429: Error;
     /**
@@ -46485,7 +45238,7 @@ export type PublicApiV1PurchaseScansRetryErrors = {
      */
     500: Error;
     /**
-     * Secure document storage or processing is temporarily unavailable.
+     * A service this operation depends on is temporarily unavailable. Nothing was changed; retry later (write operations with the same `Idempotency-Key`). Possible `error.code` values: `dependency_unavailable` — a dependency is down; `error.subcode` names it (`file_safety_unavailable` or `scan_storage_unavailable`); `scan_storage_unavailable` — the secure document storage could not be reached.
      */
     503: Error;
 };
@@ -47178,7 +45931,7 @@ export type PublicApiV1PurchaseScansReviewErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company).
      */
     403: Error;
     /**
@@ -47455,58 +46208,6 @@ export type PublicApiV1ContactsSearchResponses = {
 
 export type PublicApiV1ContactsSearchResponse = PublicApiV1ContactsSearchResponses[keyof PublicApiV1ContactsSearchResponses];
 
-export type PublicApiV1ClientsSearchData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query: {
-        q: string;
-    };
-    url: '/clients/search';
-};
-
-export type PublicApiV1ClientsSearchErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1ClientsSearchError = PublicApiV1ClientsSearchErrors[keyof PublicApiV1ClientsSearchErrors];
-
-export type PublicApiV1ClientsSearchResponses = {
-    200: {
-        data: Array<Client>;
-    };
-};
-
-export type PublicApiV1ClientsSearchResponse = PublicApiV1ClientsSearchResponses[keyof PublicApiV1ClientsSearchResponses];
-
 export type PublicApiV1ProductsSearchData = {
     body?: never;
     headers?: {
@@ -47579,11 +46280,36 @@ export type PublicApiV1PurchaseScansListData = {
         search?: string;
         sort?: 'received_at' | '-received_at' | 'issue_date' | '-issue_date' | 'total' | '-total' | 'status' | '-status';
         'filter[status]'?: 'received' | 'queued' | 'processing' | 'needs_review' | 'duplicate' | 'failed' | 'auto_created' | 'created' | 'archived';
-        'filter[source]'?: 'upload' | 'email' | 'api';
-        'filter[supplier_id]'?: string;
+        'filter[source][]'?: 'upload' | 'email' | 'api';
+        'filter[supplier_id][]'?: Array<string>;
+        'filter[document_kind][]'?: 'invoice' | 'simplified_qualified' | 'ticket' | 'delivery_note' | 'other' | 'undetermined';
+        'filter[file_kind][]'?: 'pdf' | 'image';
+        'filter[supplier_link_state][]'?: 'linked' | 'pending_link' | 'unidentified';
+        'filter[has_issues]'?: boolean;
+        'filter[sender]'?: string;
         'filter[created][]'?: Array<string>;
         'filter[issued_on][]'?: Array<string>;
         'filter[total][]'?: Array<string>;
+        /**
+         * Comma-separated list of scan sources. Allowed values: upload, email, api.
+         */
+        'filter[source]'?: string;
+        /**
+         * Comma-separated list of document kinds. Allowed values: invoice, simplified_qualified, ticket, delivery_note, other, undetermined.
+         */
+        'filter[document_kind]'?: string;
+        /**
+         * Comma-separated list of file kinds. Allowed values: pdf, image.
+         */
+        'filter[file_kind]'?: string;
+        /**
+         * Comma-separated list of supplier link states. Allowed values: linked, pending_link, unidentified.
+         */
+        'filter[supplier_link_state]'?: string;
+        /**
+         * Comma-separated list of supplier ids (up to 20).
+         */
+        'filter[supplier_id]'?: string;
     };
     url: '/purchase_scans';
 };
@@ -47598,7 +46324,7 @@ export type PublicApiV1PurchaseScansListErrors = {
      */
     403: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `validation_failed` — a query parameter is invalid, or a `supplier_id` (or, on the SPA-only surfaces, an uploader) does not belong to the company; `error.param` identifies which one.
      */
     422: Error;
     /**
@@ -47627,6 +46353,9 @@ export type PublicApiV1PurchaseScansListResponses = {
 export type PublicApiV1PurchaseScansListResponse = PublicApiV1PurchaseScansListResponses[keyof PublicApiV1PurchaseScansListResponses];
 
 export type PublicApiV1PurchaseScansCreateData = {
+    /**
+     * Multipart form with one part per file. Every part must be named `files[]`; repeated parts without the brackets are collapsed into a single file by the server.
+     */
     body: UploadPurchaseScansRequest;
     headers: {
         /**
@@ -47653,7 +46382,7 @@ export type PublicApiV1PurchaseScansCreateErrors = {
      */
     401: Error;
     /**
-     * The API key lacks the required scope for this operation.
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `company_read_only` (the company is in read-only mode); `module_upgrade_required` — the company plan does not include the purchase scanner.
      */
     403: Error;
     /**
@@ -47661,7 +46390,7 @@ export type PublicApiV1PurchaseScansCreateErrors = {
      */
     409: Error;
     /**
-     * The upload exceeds a safe processing limit.
+     * The upload exceeds a safe processing limit. Nothing was stored. Possible `error.code` values: `scan_batch_too_large` — the files together exceed the maximum batch size; per-file limits (`scan_file_too_large`, `scan_page_limit_exceeded`, `scan_pixel_limit_exceeded`, `scan_decompression_limit_exceeded`) are reported as per-file rejections in the batch envelope instead; `payload_too_large` — the request body exceeds the upload transport limit.
      */
     413: Error;
     /**
@@ -47679,7 +46408,7 @@ export type PublicApiV1PurchaseScansCreateErrors = {
      */
     500: Error;
     /**
-     * Secure document storage or processing is temporarily unavailable.
+     * A service this operation depends on is temporarily unavailable. Nothing was changed; retry later (write operations with the same `Idempotency-Key`). Possible `error.code` values: `service_unavailable` — the purchase scanner is temporarily disabled (`error.subcode`: `purchase_scanner_disabled`); `dependency_unavailable` — a dependency is down; `error.subcode` names it (`file_safety_unavailable` or `scan_storage_unavailable`); `scan_storage_unavailable` — the secure document storage could not be reached.
      */
     503: Error;
 };
@@ -47696,58 +46425,6 @@ export type PublicApiV1PurchaseScansCreateResponses = {
 };
 
 export type PublicApiV1PurchaseScansCreateResponse = PublicApiV1PurchaseScansCreateResponses[keyof PublicApiV1PurchaseScansCreateResponses];
-
-export type PublicApiV1SuppliersSearchData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path?: never;
-    query: {
-        q: string;
-    };
-    url: '/suppliers/search';
-};
-
-export type PublicApiV1SuppliersSearchErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersSearchError = PublicApiV1SuppliersSearchErrors[keyof PublicApiV1SuppliersSearchErrors];
-
-export type PublicApiV1SuppliersSearchResponses = {
-    200: {
-        data: Array<Supplier>;
-    };
-};
-
-export type PublicApiV1SuppliersSearchResponse = PublicApiV1SuppliersSearchResponses[keyof PublicApiV1SuppliersSearchResponses];
 
 export type PublicApiV1DeliveryNotesSendData = {
     body: SendDeliveryNoteRequest;
@@ -50187,66 +48864,6 @@ export type PublicApiV1ProductsToggleActiveResponses = {
 
 export type PublicApiV1ProductsToggleActiveResponse = PublicApiV1ProductsToggleActiveResponses[keyof PublicApiV1ProductsToggleActiveResponses];
 
-export type PublicApiV1SuppliersToggleActiveData = {
-    body?: never;
-    headers?: {
-        /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
-         */
-        'Idempotency-Key'?: string;
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-        /**
-         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
-         */
-        'X-Active-Profile'?: string;
-    };
-    path: {
-        supplier: string;
-    };
-    query?: never;
-    url: '/suppliers/{supplier}/toggle-active';
-};
-
-export type PublicApiV1SuppliersToggleActiveErrors = {
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The API key lacks the required scope for this operation.
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company.
-     */
-    404: Error;
-    /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
-     */
-    409: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1SuppliersToggleActiveError = PublicApiV1SuppliersToggleActiveErrors[keyof PublicApiV1SuppliersToggleActiveErrors];
-
-export type PublicApiV1SuppliersToggleActiveResponses = {
-    200: {
-        data: Supplier;
-    };
-};
-
-export type PublicApiV1SuppliersToggleActiveResponse = PublicApiV1SuppliersToggleActiveResponses[keyof PublicApiV1SuppliersToggleActiveResponses];
-
 export type PublicApiV1TaxesToggleData = {
     body?: never;
     headers?: {
@@ -51422,8 +50039,8 @@ export type PublicApiV1AccountVerifyCensusResponses = {
 
 export type PublicApiV1AccountVerifyCensusResponse = PublicApiV1AccountVerifyCensusResponses[keyof PublicApiV1AccountVerifyCensusResponses];
 
-export type PublicApiV1ClientsVerifyCensusData = {
-    body: VerifyClientCensusRequest;
+export type PublicApiV1ContactsVerifyCensusData = {
+    body: VerifyBusinessContactCensusV1Request;
     headers: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
@@ -51440,10 +50057,14 @@ export type PublicApiV1ClientsVerifyCensusData = {
     };
     path?: never;
     query?: never;
-    url: '/clients/census-verification';
+    url: '/contacts/census-verification';
 };
 
-export type PublicApiV1ClientsVerifyCensusErrors = {
+export type PublicApiV1ContactsVerifyCensusErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -51470,15 +50091,15 @@ export type PublicApiV1ClientsVerifyCensusErrors = {
     500: Error;
 };
 
-export type PublicApiV1ClientsVerifyCensusError = PublicApiV1ClientsVerifyCensusErrors[keyof PublicApiV1ClientsVerifyCensusErrors];
+export type PublicApiV1ContactsVerifyCensusError = PublicApiV1ContactsVerifyCensusErrors[keyof PublicApiV1ContactsVerifyCensusErrors];
 
-export type PublicApiV1ClientsVerifyCensusResponses = {
+export type PublicApiV1ContactsVerifyCensusResponses = {
     200: {
         data: CensusVerification;
     };
 };
 
-export type PublicApiV1ClientsVerifyCensusResponse = PublicApiV1ClientsVerifyCensusResponses[keyof PublicApiV1ClientsVerifyCensusResponses];
+export type PublicApiV1ContactsVerifyCensusResponse = PublicApiV1ContactsVerifyCensusResponses[keyof PublicApiV1ContactsVerifyCensusResponses];
 
 export type PublicApiV1CompaniesVerifyCreationData = {
     body?: never;

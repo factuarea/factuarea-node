@@ -63,6 +63,15 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   /** Override the auto-generated `Idempotency-Key` for this mutation. */
   idempotencyKey?: string;
+  /**
+   * Spec-guided opt-in (design D6): set by the resource layer for non-`POST`
+   * mutations that the OpenAPI spec marks as requiring `Idempotency-Key`.
+   * Currently redundant with `METHODS_WITH_IDEMPOTENCY` below (which already
+   * generates the header unconditionally for every mutating method), kept so
+   * the per-operation signal from the spec stays explicit in the generated
+   * call sites rather than relying solely on the broader blanket policy.
+   */
+  idempotent?: boolean;
   /** Per-request timeout override (ms). */
   timeout?: number;
   /** Per-request retry override. */
@@ -268,7 +277,7 @@ export class HttpClient {
     if (options.idempotencyKey !== undefined) {
       return options.idempotencyKey;
     }
-    if (METHODS_WITH_IDEMPOTENCY.has(options.method)) {
+    if (options.idempotent || METHODS_WITH_IDEMPOTENCY.has(options.method)) {
       return randomUUID();
     }
     return undefined;

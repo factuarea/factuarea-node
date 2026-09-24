@@ -67,7 +67,7 @@ describe("retry behaviour (integration via MSW)", () => {
   it("does NOT retry a 422 and throws ValidationError immediately", async () => {
     let calls = 0;
     server.use(
-      http.post(`${BASE_URL}/clients`, () => {
+      http.post(`${BASE_URL}/contacts`, () => {
         calls += 1;
         return HttpResponse.json(
           { error: { type: "invalid_request_error", code: "parameter_invalid", param: "name", message: "Required" } },
@@ -76,7 +76,7 @@ describe("retry behaviour (integration via MSW)", () => {
       }),
     );
 
-    await expect(testClient({ maxRetries: 3 }).clients.create({})).rejects.toBeInstanceOf(ValidationError);
+    await expect(testClient({ maxRetries: 3 }).contacts.create({})).rejects.toBeInstanceOf(ValidationError);
     expect(calls).toBe(1);
   });
 

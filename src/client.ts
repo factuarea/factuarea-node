@@ -4,7 +4,6 @@ import { Webhooks } from "./core/webhooks.js";
 import { createResources } from "./resources/index.js";
 import type {
   AccountResource,
-  ClientsResource,
   ContactsResource,
   DeliveryNotesResource,
   EventCatalogResource,
@@ -18,7 +17,6 @@ import type {
   QuotesResource,
   RecurringInvoicesResource,
   SeriesResource,
-  SuppliersResource,
   TaxReportsResource,
   TaxesResource,
   VerifactuResource,
@@ -43,8 +41,6 @@ export class Factuarea {
   readonly environment: Environment;
 
   readonly account: AccountResource;
-  /** @deprecated Legacy customer projection. Use contacts for contact identity and CRUD. */
-  readonly clients: ClientsResource;
   /** Canonical identities with cumulative customer, supplier and lead roles. */
   readonly contacts: ContactsResource;
   readonly deliveryNotes: DeliveryNotesResource;
@@ -59,8 +55,6 @@ export class Factuarea {
   readonly quotes: QuotesResource;
   readonly recurringInvoices: RecurringInvoicesResource;
   readonly series: SeriesResource;
-  /** @deprecated Legacy supplier projection. Use contacts for contact identity and CRUD. */
-  readonly suppliers: SuppliersResource;
   readonly taxReports: TaxReportsResource;
   readonly taxes: TaxesResource;
   readonly verifactu: VerifactuResource;
@@ -79,7 +73,6 @@ export class Factuarea {
 
     const resources = createResources(this.http);
     this.account = resources.account;
-    this.clients = resources.clients;
     this.contacts = resources.contacts;
     this.deliveryNotes = resources.deliveryNotes;
     this.eventCatalog = resources.eventCatalog;
@@ -93,7 +86,6 @@ export class Factuarea {
     this.quotes = resources.quotes;
     this.recurringInvoices = resources.recurringInvoices;
     this.series = resources.series;
-    this.suppliers = resources.suppliers;
     this.taxReports = resources.taxReports;
     this.taxes = resources.taxes;
     this.verifactu = resources.verifactu;

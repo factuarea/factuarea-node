@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -13,7 +13,7 @@ export class PriceListsItemsResource extends BaseResource {
   /** Delete a price list item */
   async delete(priceList: string, item: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/price-lists/{priceList}/items/{item}", { "priceList": priceList, "item": item });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** List price list items */
@@ -63,7 +63,7 @@ export class PriceListsResource extends BaseResource {
   /** Delete a price list */
   async delete(priceList: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/price-lists/{priceList}", { "priceList": priceList });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a price list */

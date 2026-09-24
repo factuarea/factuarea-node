@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -13,7 +13,7 @@ export class PurchaseScansResource extends BaseResource {
   /** Archive a purchase scan */
   async archive(purchaseScan: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_scans/{purchase_scan}", { "purchase_scan": purchaseScan });
-    return this._send<unknown>("DELETE", path, body, config);
+    return this._send<unknown>("DELETE", path, body, config, { idempotent: true });
   }
 
   /** Retrieve a purchase scan */
@@ -35,9 +35,9 @@ export class PurchaseScansResource extends BaseResource {
   }
 
   /** Get purchase scanner stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
+  async stats(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_scans/stats";
-    return this._get<unknown>(path, undefined, config);
+    return this._get<unknown>(path, params, config);
   }
 
   /** Resolve a duplicate purchase scan */
