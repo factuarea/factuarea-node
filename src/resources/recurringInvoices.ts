@@ -22,6 +22,12 @@ export class RecurringInvoicesResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Bulk change recurring invoice status */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/recurring_invoices/bulk-status";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Cancel recurring invoice */
   async cancel(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/recurring_invoices/{recurring_invoice}/cancel", { "recurring_invoice": recurringInvoice });

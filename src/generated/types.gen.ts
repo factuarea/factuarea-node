@@ -2057,6 +2057,14 @@ export type BulkStatusQuotesV1Request = {
 };
 
 /**
+ * BulkStatusRecurringInvoicesV1Request
+ */
+export type BulkStatusRecurringInvoicesV1Request = {
+    ids: Array<string>;
+    new_status: 'active' | 'paused';
+};
+
+/**
  * BulkUpdateProductStockRequest
  *
  * Public REST API v1 — POST /v1/products/bulk-update-stock.
@@ -4244,7 +4252,7 @@ export type DailyPresence = {
 /**
  * DayBalance
  *
- * The balance of a single day of the period for the Control Horario (time tracking) module: expected vs worked minutes, the resulting balance (worked − expected) and the day’s overtime minutes, plus the flags that explain why the expected minutes are zero (holiday, approved absence, rest day).
+ * The balance of a single day of the period for the Control Horario (time tracking) module: expected vs worked minutes, the resulting balance (worked − expected) and the day’s overtime minutes, plus the flags that explain why the expected minutes are zero (holiday, approved absence, rest day, no schedule in effect, outside the employment period). The live monthly sheet and the period balance always include `is_unscheduled` and `is_outside_employment`; the frozen daily detail of a monthly close report does not.
  */
 export type DayBalance = {
     /**
@@ -4252,19 +4260,19 @@ export type DayBalance = {
      */
     date: string;
     /**
-     * Expected working minutes of the day derived from the schedule (0 on holidays, approved absences and rest days).
+     * Expected working minutes of the day derived from the schedule (0 on holidays, approved absences, rest days, days without a schedule in effect and days outside the employment period).
      */
     expected_minutes: number;
     /**
-     * Worked minutes of the day.
+     * Worked minutes of the day. Always the minutes actually clocked, also on days without a schedule in effect or outside the employment period, except under a `validated` schedule, where a scheduled day counts its expected minutes.
      */
     worked_minutes: number;
     /**
-     * Day balance in minutes (worked − expected); negative when the employee worked less than expected.
+     * Day balance in minutes (worked − expected); negative when the employee worked less than expected. 0 on days without a schedule in effect or outside the employment period (no reference to compare against).
      */
     balance_minutes: number;
     /**
-     * Overtime minutes of the day (worked above the configured threshold, with the tolerance applied).
+     * Overtime minutes of the day (worked above the configured threshold, with the tolerance applied). 0 on days without a schedule in effect or outside the employment period: minutes clocked on those days never count as overtime.
      */
     overtime_minutes: number;
     /**
@@ -4279,6 +4287,14 @@ export type DayBalance = {
      * Whether the day is a rest day (no shift in the schedule).
      */
     is_rest_day: boolean;
+    /**
+     * Whether the day falls within the employment period but no work schedule is in effect for it. Expected, balance and overtime minutes are 0; worked minutes are the minutes actually clocked. Never `true` together with `is_outside_employment`. Absent from the daily detail of a monthly close report.
+     */
+    is_unscheduled?: boolean;
+    /**
+     * Whether the day is before the employee’s `hire_date` or after their `termination_date`. Expected, balance and overtime minutes are 0 even if a schedule assignment covers the day; clock entries recorded before this rule existed still show as worked minutes. Absent from the daily detail of a monthly close report.
+     */
+    is_outside_employment?: boolean;
 };
 
 /**
@@ -8510,7 +8526,7 @@ export type MonthlyTimeRecordClose = {
 /**
  * MonthlyTimeSheet
  *
- * The live monthly time sheet of an employee for the open (in-progress) period of the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by employee + month, so it exposes `employee_id` (UUID v7) and never an `id`. Totals are in minutes; `days` is the daily breakdown. It is recomputed on every request, so a just-recorded clock entry is reflected without closing the month.
+ * The live monthly time sheet of an employee for the open (in-progress) period of the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by employee + month, so it exposes `employee_id` (UUID v7) and never an `id`. Totals are in minutes; `days` is the daily breakdown. It is recomputed on every request, so a just-recorded clock entry is reflected without closing the month. The `total_*` fields cover the whole month and, in the current month, are a projection; `to_date` holds the actual accumulation of the closed days (every day before today).
  */
 export type MonthlyTimeSheet = {
     /**
@@ -8526,23 +8542,24 @@ export type MonthlyTimeSheet = {
      */
     month: string;
     /**
-     * Total expected working minutes of the month (holidays and approved absences already discounted).
+     * Total expected working minutes of the whole month, including today and the remaining days (holidays, approved absences, days without a schedule and days outside the employment period already count as 0).
      */
     total_expected_minutes: number;
     /**
-     * Total worked minutes of the month.
+     * Total worked minutes of the month so far, today included.
      */
     total_worked_minutes: number;
     /**
-     * Month balance in minutes (worked − expected).
+     * Month balance in minutes as the sum of the daily balances. In the current month it is a projection that already subtracts the expected minutes of today and of the remaining days; use `to_date.balance_minutes` for the actual balance.
      */
     total_balance_minutes: number;
     /**
      * Total overtime minutes of the month.
      */
     total_overtime_minutes: number;
+    to_date: TimeBalanceToDate;
     /**
-     * Daily breakdown of the month.
+     * Daily breakdown of the month. Each day includes `is_unscheduled` and `is_outside_employment`.
      */
     days: Array<DayBalance>;
 };
@@ -12562,7 +12579,7 @@ export type TeamAbsenceCalendar = {
 /**
  * TeamTimeBalanceRow
  *
- * A single row of the team time balance summary: the monthly totals of one active employee for the Control Horario (time tracking) module.
+ * A single row of the team time balance summary: the monthly totals of one active employee for the Control Horario (time tracking) module. The `total_*` fields project the whole month; `to_date` holds the accumulation of the closed days.
  */
 export type TeamTimeBalanceRow = {
     /**
@@ -12574,27 +12591,28 @@ export type TeamTimeBalanceRow = {
      */
     employee_name: string;
     /**
-     * Total expected working minutes of the month.
+     * Total expected working minutes of the whole month, including today and the remaining days (projection).
      */
     total_expected_minutes: number;
     /**
-     * Total worked minutes of the month.
+     * Total worked minutes of the month so far, today included.
      */
     total_worked_minutes: number;
     /**
-     * Month balance in minutes (worked − expected).
+     * Month balance in minutes as the sum of the daily balances. In the current month it is a projection that already subtracts the expected minutes of today and of the remaining days; use `to_date.balance_minutes` for the actual balance.
      */
     total_balance_minutes: number;
     /**
      * Total overtime minutes of the month.
      */
     total_overtime_minutes: number;
+    to_date: TimeBalanceToDate;
 };
 
 /**
  * TeamTimeBalanceSummary
  *
- * The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per active employee with their monthly totals. Totals are in minutes.
+ * The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per active employee with their monthly totals and their accumulation of the closed days (`to_date`). Totals are in minutes.
  */
 export type TeamTimeBalanceSummary = {
     /**
@@ -12642,7 +12660,7 @@ export type TimeBalance = {
      */
     total_worked_minutes: number;
     /**
-     * Period balance in minutes (worked − expected).
+     * Period balance in minutes as the sum of the daily balances. Days without a schedule in effect or outside the employment period add 0, so it can differ from worked − expected when minutes were clocked on those days.
      */
     total_balance_minutes: number;
     /**
@@ -12650,9 +12668,37 @@ export type TimeBalance = {
      */
     total_overtime_minutes: number;
     /**
-     * Daily breakdown of the period.
+     * Daily breakdown of the period. Each day includes `is_unscheduled` and `is_outside_employment`.
      */
     days: Array<DayBalance>;
+};
+
+/**
+ * TimeBalanceToDate
+ *
+ * The month-to-date accumulation of the closed days (every day before today) for the Control Horario (time tracking) module. It is computed from the same daily breakdown as the `total_*` fields, which instead cover the whole month and are a projection: in the current month they already subtract the expected minutes of today and of the remaining days. Today is left out because its workday is still in progress. In a finished month it equals the `total_*` fields; when no day of the month has closed yet (its first day, or a future month), `through_date` is `null` and the four figures are 0.
+ */
+export type TimeBalanceToDate = {
+    /**
+     * Last closed day included in the accumulation (YYYY-MM-DD), normally yesterday; `null` when no day of the month has closed yet.
+     */
+    through_date: string | null;
+    /**
+     * Expected working minutes of the closed days.
+     */
+    expected_minutes: number;
+    /**
+     * Worked minutes of the closed days.
+     */
+    worked_minutes: number;
+    /**
+     * Balance of the closed days in minutes: the sum of the daily `balance_minutes`, so days without a schedule or outside the employment period add 0.
+     */
+    balance_minutes: number;
+    /**
+     * Overtime minutes of the closed days.
+     */
+    overtime_minutes: number;
 };
 
 /**
@@ -13213,6 +13259,10 @@ export type UpdateEmployeeRequest = {
      * Weekly contracted hours (greater than 0 and up to 168).
      */
     contract_hours?: number;
+    /**
+     * Hire date of the employee (`Y-m-d`). Must not be later than the termination date; changing it keeps existing time entries and schedule assignments.
+     */
+    hire_date?: string;
     /**
      * Spanish autonomous community or city (ISO 3166-2:ES) used to localise public holidays.
      */
@@ -19939,6 +19989,10 @@ export type PublicApiV1RecurringInvoicesActivateErrors = {
      */
     409: Error;
     /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -20127,7 +20181,7 @@ export type PublicApiV1TimeCorrectionsApproveErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -22475,6 +22529,64 @@ export type PublicApiV1QuotesBulkStatusResponses = {
 
 export type PublicApiV1QuotesBulkStatusResponse = PublicApiV1QuotesBulkStatusResponses[keyof PublicApiV1QuotesBulkStatusResponses];
 
+export type PublicApiV1RecurringInvoicesBulkStatusData = {
+    body: BulkStatusRecurringInvoicesV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/recurring_invoices/bulk-status';
+};
+
+export type PublicApiV1RecurringInvoicesBulkStatusErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1RecurringInvoicesBulkStatusError = PublicApiV1RecurringInvoicesBulkStatusErrors[keyof PublicApiV1RecurringInvoicesBulkStatusErrors];
+
+export type PublicApiV1RecurringInvoicesBulkStatusResponses = {
+    200: {
+        data: BulkPartialSuccessResult;
+    };
+};
+
+export type PublicApiV1RecurringInvoicesBulkStatusResponse = PublicApiV1RecurringInvoicesBulkStatusResponses[keyof PublicApiV1RecurringInvoicesBulkStatusResponses];
+
 export type PublicApiV1ProductsBulkUpdateStockData = {
     body: BulkUpdateProductStockRequest;
     headers: {
@@ -23330,7 +23442,7 @@ export type PublicApiV1TimeEntriesClockInErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -34991,7 +35103,12 @@ export type PublicApiV1WorkSchedulesEmployeeScheduleData = {
     path: {
         employee: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Date (Y-m-d) on which the employee's effective schedule is resolved; defaults to today when omitted.
+         */
+        date?: string | null;
+    };
     url: '/work-schedules/employee/{employee}';
 };
 
@@ -35008,6 +35125,10 @@ export type PublicApiV1WorkSchedulesEmployeeScheduleErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -40870,7 +40991,7 @@ export type PublicApiV1TimeCorrectionsCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -42603,7 +42724,7 @@ export type PublicApiV1TimeEntriesManualErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -43684,6 +43805,10 @@ export type PublicApiV1RecurringInvoicesResumeErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */

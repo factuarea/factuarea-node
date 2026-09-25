@@ -3011,6 +3011,9 @@
               }
             }
           },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntityRecurringInvoice"
+          },
           "429": {
             "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
             "content": {
@@ -4118,7 +4121,7 @@
     "/time-corrections/{time_correction}/approve": {
       "post": {
         "operationId": "public-api.v1.time_corrections.approve",
-        "description": "Approve a pending correction request by its `id` (UUID v7), appending the resolving `correction_entry` linked to the original time entry. An optional `note` from the approver may be supplied. A request that is not pending returns 422 (already resolved), and approving your own request returns 422 (self-approval is forbidden). Returns 200 with the resolved correction.",
+        "description": "Approve a pending correction request by its `id` (UUID v7), appending the resolving `correction_entry` linked to the original time entry. An optional `note` from the approver may be supplied. A request that is not pending returns 422 (already resolved), and approving your own request returns 422 (self-approval is forbidden). Approval checks the employment period again: if the corrected entry falls outside it (for example because `hire_date` was changed after the request), it returns 422 `business_rule_violation` with subcode `clocking_outside_employment_period`, the request stays pending and the ledger is unchanged. Returns 200 with the resolved correction.",
         "summary": "Approve a time entry correction",
         "tags": [
           "Time Corrections"
@@ -4377,7 +4380,7 @@
             }
           },
           "422": {
-            "description": "Validation failed. The `error.param` field identifies which input is invalid.",
+            "description": "Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4394,6 +4397,20 @@
                         "param": "Idempotency-Key",
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_format",
                         "request_id": "req_41396d75f05e54b936f804f5e7"
+                      }
+                    }
+                  },
+                  "clocking_outside_employment_period": {
+                    "summary": "POST /v1/time-corrections/{time_correction}/approve · 422 clocking_outside_employment_period",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "clocking_outside_employment_period",
+                        "message": "No se puede fichar el 04/05/2026: el empleado está de alta desde el 11/05/2026.",
+                        "param": "occurred_at",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_800f48e9fb0285135a640885d0"
                       }
                     }
                   }
@@ -5430,7 +5447,7 @@
                         },
                         "latest_activity": null,
                         "is_archived": true,
-                        "archived_at": "2026-09-20T09:15:00+00:00",
+                        "archived_at": "2026-08-29T10:05:00+00:00",
                         "created_at": "2026-08-29T10:00:00+00:00",
                         "updated_at": "2026-08-29T10:00:00+00:00"
                       }
@@ -7739,7 +7756,7 @@
     "/work-schedules/{schedule}/assign": {
       "post": {
         "operationId": "public-api.v1.work_schedules.assign",
-        "description": "Assign the work schedule to an employee with an effective start date. `employee_id` (UUID v7, must belong to your company) and `effective_from` (`Y-m-d`) are required. Assigning closes the employee’s previously open assignment and opens the new one (an employee has at most one open assignment; history is preserved). An unknown employee returns 422 `assigned_employee_not_found`; an unknown schedule returns 404. Returns the created assignment.",
+        "description": "Assign the work schedule to an employee with an effective start date. `employee_id` (UUID v7, must belong to your company) and `effective_from` (`Y-m-d`) are required. Assigning closes the employee’s previously open assignment and opens the new one (an employee has at most one open assignment; history is preserved). If that previous assignment has not started yet and the new `effective_from` is on or before its start, it is cancelled instead: it is closed as an empty span (`effective_to` = its `effective_from`), kept in the history and never in effect. Moving back the start of an assignment that is already in effect still returns 422. An unknown employee returns 422 `assigned_employee_not_found`; an unknown schedule returns 404. Returns the created assignment.",
         "summary": "Assign a schedule to an employee",
         "tags": [
           "Work Schedules"
@@ -18818,6 +18835,395 @@
         "x-required-scope": "quotes:transition"
       }
     },
+    "/recurring_invoices/bulk-status": {
+      "post": {
+        "operationId": "public-api.v1.recurring_invoices.bulk_status",
+        "description": "Move up to 50 recurring invoices (by id) to a status from the closed set `[active, paused]`: `paused` pauses the active ones and `active` resumes the paused ones, each through the same single transition —and therefore the same aggregate guards— as `POST /recurring_invoices/{recurring_invoice}/pause` and `/resume`. Returns a `BulkPartialSuccessResult`; nothing aborts the batch: ids that are not found, already in the target status, cancelled or with their occurrences exhausted come back in `failures[]` with their `error_code` and a Spanish `error_message`.",
+        "summary": "Bulk change recurring invoice status",
+        "tags": [
+          "Recurring Invoices"
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "example": "01928f10-7c0e-7c4a-9b7d-2f8a6e3c1d4b"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/FactuareaVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XActiveProfile"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkStatusRecurringInvoicesV1Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BulkPartialSuccessResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "summary": "POST /v1/recurring_invoices/bulk-status · 200",
+                    "value": {
+                      "data": {
+                        "total": 3,
+                        "successful": 2,
+                        "failed": 1,
+                        "failures": [
+                          {
+                            "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8aff",
+                            "error_code": "recurring_invoice_already_paused",
+                            "error_message": "Esta factura recurrente ya está pausada."
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Maximum number of requests allowed in the current rate limit window (60 seconds). Omitted when the API key has no cap (unlimited tier).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Number of requests remaining in the current rate limit window before receiving a 429.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp (seconds) at which the rate limit window resets and the counter returns to its maximum.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Factuarea-Version": {
+                "description": "Effective API version (`YYYY-MM-DD`, Stripe-style date versioning) resolved for this request: the `Factuarea-Version` request header if sent, otherwise the version pinned on the API key, otherwise the latest version. Present on every response.",
+                "schema": {
+                  "type": "string",
+                  "format": "date",
+                  "examples": [
+                    "2026-06-01"
+                  ]
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "Present with value `\"true\"` only when this response was replayed from the idempotency cache for a repeated `Idempotency-Key` (same key, same request fingerprint). Absent on the first, freshly executed request.",
+                "schema": {
+                  "type": "string",
+                  "examples": [
+                    "true"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "missing_api_key": {
+                    "summary": "POST /v1/recurring_invoices/bulk-status · 401 missing_api_key",
+                    "value": {
+                      "error": {
+                        "type": "authentication_error",
+                        "code": "missing_api_key",
+                        "message": "Falta header Authorization o X-API-Key.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#missing_api_key",
+                        "request_id": "req_c03e00ead274605f1fdabd0d96"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API key lacks the required scope for this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_scope": {
+                    "summary": "POST /v1/recurring_invoices/bulk-status · 403 insufficient_scope",
+                    "value": {
+                      "error": {
+                        "type": "authorization_error",
+                        "code": "insufficient_scope",
+                        "message": "Esta operación requiere el scope 'recurring_invoices:transition'. Tu API key solo tiene los scopes: ninguno.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#insufficient_scope",
+                        "request_id": "req_78d83337e2b0789fd5245260f3"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "idempotency_key_reused": {
+                    "summary": "POST /v1/recurring_invoices/bulk-status · 409 idempotency_key_reused",
+                    "value": {
+                      "error": {
+                        "type": "idempotency_error",
+                        "code": "idempotency_key_reused",
+                        "message": "Esa `Idempotency-Key` ya se usó con un payload distinto. La clave identifica una operación concreta, así que reutilizarla para otra vaciaría de sentido el replay.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#idempotency_key_reused",
+                        "request_id": "req_351ce57a13f6d891ab6eccc3c2"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_param_value": {
+                    "summary": "POST /v1/recurring_invoices/bulk-status · 422 invalid_param_value",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_param_value",
+                        "message": "El campo new_status es obligatorio.",
+                        "param": "new_status",
+                        "errors": [
+                          {
+                            "param": "new_status",
+                            "code": "parameter_missing",
+                            "message": "El campo new_status es obligatorio."
+                          }
+                        ],
+                        "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_value",
+                        "request_id": "req_df4e733e97375a849ca2677719"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "rate_limit_exceeded": {
+                    "summary": "POST /v1/recurring_invoices/bulk-status · 429 rate_limit_exceeded",
+                    "value": {
+                      "error": {
+                        "type": "rate_limit_error",
+                        "code": "rate_limit_exceeded",
+                        "message": "Has excedido el límite de requests permitido. Reintenta más tarde.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#rate_limit_exceeded",
+                        "request_id": "req_cac79cba23e9b7fd86aad89e7a"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Number of seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Limit": {
+                "description": "Request quota for the current window (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Remaining": {
+                "description": "Remaining requests in the current window (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Reset": {
+                "description": "Seconds until the quota window resets (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Request quota for the current window (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the quota window resets (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "internal_error": {
+                    "summary": "POST /v1/recurring_invoices/bulk-status · 500 internal_error",
+                    "value": {
+                      "error": {
+                        "type": "api_error",
+                        "code": "internal_error",
+                        "message": "Algo se rompió en nuestro lado al procesar la petición. La condición no la provoca tu payload.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#internal_error",
+                        "request_id": "req_b9d8a5d1ccf7db3f3678cc6f13"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "x-speakeasy-group": "recurringInvoices",
+        "x-speakeasy-retries": {
+          "strategy": "backoff",
+          "backoff": {
+            "initialInterval": 500,
+            "maxInterval": 60000,
+            "maxElapsedTime": 3600000,
+            "exponent": 1.5
+          },
+          "statusCodes": [
+            "429",
+            "5XX"
+          ],
+          "retryConnectionErrors": true
+        },
+        "x-required-scope": "recurring_invoices:transition"
+      }
+    },
     "/products/bulk-update-stock": {
       "post": {
         "operationId": "public-api.v1.products.bulk_update_stock",
@@ -24149,7 +24555,7 @@
     "/time-entries/clock-in": {
       "post": {
         "operationId": "public-api.v1.time_entries.clock_in",
-        "description": "Clock the start of an employee’s workday, opening a new work span. `employee_id` (UUID v7) and `source` (`web`/`mobile`) are required; `occurred_at` defaults to the server time. Valid only when the employee is not already clocked in; an invalid transition returns 422 in Spanish. Returns 201 with the created `clock_in` entry.",
+        "description": "Clock the start of an employee’s workday, opening a new work span. `employee_id` (UUID v7) and `source` (`web`/`mobile`) are required; `occurred_at` defaults to the server time. Valid only when the employee is not already clocked in; an invalid transition returns 422 in Spanish. `occurred_at` must fall within the employee’s employment period (from `hire_date` to `termination_date`, both inclusive, compared on the calendar date of `occurred_at` in its own UTC offset); otherwise it returns 422 `business_rule_violation` with subcode `clocking_outside_employment_period` (param `occurred_at`) and a Spanish message naming the hire or termination date, and nothing is written. Pausing, resuming and clocking out of a span that is already open are never blocked by this rule. Returns 201 with the created `clock_in` entry.",
         "summary": "Clock in an employee",
         "tags": [
           "Time Entries"
@@ -24364,7 +24770,7 @@
             }
           },
           "422": {
-            "description": "Validation failed. The `error.param` field identifies which input is invalid.",
+            "description": "Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.",
             "content": {
               "application/json": {
                 "schema": {
@@ -24388,6 +24794,33 @@
                         ],
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_value",
                         "request_id": "req_cee477cde416d62dc780fe4ecb"
+                      }
+                    }
+                  },
+                  "clocking_outside_employment_period": {
+                    "summary": "POST /v1/time-entries/clock-in · 422 clocking_outside_employment_period",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "clocking_outside_employment_period",
+                        "message": "No se puede fichar el 04/05/2026: el empleado está de alta desde el 11/05/2026.",
+                        "param": "occurred_at",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_209714de530a8e58600cae3c45"
+                      }
+                    }
+                  },
+                  "already_clocked_in": {
+                    "summary": "POST /v1/time-entries/clock-in · 422 already_clocked_in",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "already_clocked_in",
+                        "message": "Ya has fichado la entrada.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_64299e2ed8bf4fa8fe6eb856c0"
                       }
                     }
                   }
@@ -24919,7 +25352,7 @@
     "/monthly-time-record-closes": {
       "post": {
         "operationId": "public-api.v1.monthly_time_record_closes.create",
-        "description": "Freeze the immutable monthly close of the time record register for a finished `(year, month)`: it snapshots each active employee’s balance totals and absence breakdown/balances (reusing the balance contract, never recomputing) and locks the period against retroactive entries and corrections. `year` and `month` (1-12) are required. A month that has not ended yet returns 422 in Spanish; a period already closed returns 409. Reopening a previously reopened period re-closes it, keeping its original `id`. Returns 201 with the created close and a `Location` header.",
+        "description": "Freeze the immutable monthly close of the time record register for a finished `(year, month)`: it snapshots, for every employee whose employment period overlaps the month (hired on or before its last day and not terminated before its first day, whatever their current status), the balance totals and absence breakdown/balances (reusing the balance contract, never recomputing) and locks the period against retroactive entries and corrections. `year` and `month` (1-12) are required. A month that has not ended yet returns 422 in Spanish; a period already closed returns 409. Reopening a previously reopened period re-closes it, keeping its original `id`. Returns 201 with the created close and a `Location` header.",
         "summary": "Close a monthly time record",
         "tags": [
           "Monthly Register Closes"
@@ -53022,6 +53455,20 @@
                         "param": "Idempotency-Key",
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_format",
                         "request_id": "req_008d0bab6f8304807abd926c50"
+                      }
+                    }
+                  },
+                  "invalid_hire_date": {
+                    "summary": "POST /v1/employees/{employee}/deactivate · 422 invalid_hire_date",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "parameter_invalid_value",
+                        "subcode": "invalid_hire_date",
+                        "message": "La fecha de baja no puede ser anterior a la fecha de alta.",
+                        "param": "termination_date",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#parameter_invalid_value",
+                        "request_id": "req_8e3f41d0b6a27c95e1d4f3a8c2"
                       }
                     }
                   }
@@ -96938,8 +97385,8 @@
     "/work-schedules/employee/{employee}": {
       "get": {
         "operationId": "public-api.v1.work_schedules.employee_schedule",
-        "description": "Resolve the work schedule currently in effect (today) for an employee by its `id` (UUID v7). Returns 404 `schedule_assignment_not_found` when the employee has no schedule in effect (or belongs to another company). The result is the resolved schedule (`id` = UUID v7 of the schedule), not the assignment.",
-        "summary": "Get an employee’s current schedule",
+        "description": "Resolve the work schedule in effect for an employee by its `id` (UUID v7) on a given day. The optional `date` query parameter (`Y-m-d`) sets that day and defaults to today, so you can read a schedule that starts in the future, such as the one assigned from a pending hire date. Returns 404 `schedule_assignment_not_found` when the employee has no schedule in effect on that day (or belongs to another company), and 422 when `date` is not a valid `Y-m-d` date. The result is the resolved schedule (`id` = UUID v7 of the schedule), not the assignment.",
+        "summary": "Get an employee’s schedule on a date",
         "tags": [
           "Work Schedules"
         ],
@@ -96951,6 +97398,19 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Date (Y-m-d) on which the employee's effective schedule is resolved; defaults to today when omitted.",
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            },
+            "example": "2026-10-16"
           },
           {
             "$ref": "#/components/parameters/FactuareaVersion"
@@ -97152,6 +97612,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           },
           "429": {
             "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
@@ -98228,7 +98691,7 @@
     "/time-balances/employee/{employee}": {
       "get": {
         "operationId": "public-api.v1.time_balances.employee",
-        "description": "Return the time balance of an arbitrary period of an employee: expected vs worked minutes, the balance and overtime per day, and the period totals. The employee is the `{employee}` (UUID v7) in the path; `from` and `to` (`YYYY-MM-DD`) are required. This is the same contract the monthly close reuses over closed periods. A range where `to` is before `from` returns 422. Totals are in minutes. A computed resource: it exposes `employee_id`, never an `id`.",
+        "description": "Return the time balance of an arbitrary period of an employee: expected vs worked minutes, the balance and overtime per day, and the period totals. The employee is the `{employee}` (UUID v7) in the path; `from` and `to` (`YYYY-MM-DD`) are required. This is the same contract the monthly close reuses over closed periods. Each day carries `is_unscheduled` (within the employment period but with no schedule in effect) and `is_outside_employment` (before `hire_date` or after `termination_date`); on both, expected, balance and overtime are 0 and worked minutes are the minutes actually clocked, so the period balance is the sum of the daily balances. A range where `to` is before `from` returns 422. Totals are in minutes. A computed resource: it exposes `employee_id`, never an `id`.",
         "summary": "Retrieve an employee’s time balance for a period",
         "tags": [
           "Time Balances"
@@ -98300,6 +98763,18 @@
                         "total_overtime_minutes": 90,
                         "days": [
                           {
+                            "date": "2026-05-01",
+                            "expected_minutes": 0,
+                            "worked_minutes": 0,
+                            "balance_minutes": 0,
+                            "overtime_minutes": 0,
+                            "is_holiday": true,
+                            "is_approved_absence": false,
+                            "is_rest_day": false,
+                            "is_unscheduled": false,
+                            "is_outside_employment": false
+                          },
+                          {
                             "date": "2026-05-04",
                             "expected_minutes": 480,
                             "worked_minutes": 510,
@@ -98307,7 +98782,9 @@
                             "overtime_minutes": 15,
                             "is_holiday": false,
                             "is_approved_absence": false,
-                            "is_rest_day": false
+                            "is_rest_day": false,
+                            "is_unscheduled": false,
+                            "is_outside_employment": false
                           }
                         ]
                       }
@@ -101577,7 +102054,7 @@
     "/time-balances/monthly-sheet": {
       "get": {
         "operationId": "public-api.v1.time_balances.monthly_sheet",
-        "description": "Return the live monthly time sheet of an employee for the open (in-progress) period: expected vs worked minutes, the balance and overtime per day, and the monthly totals. `employee_id` (UUID v7) is required; `month` (`YYYY-MM`) defaults to the current month. The sheet is recomputed on every request from the immutable ledger, so a just-recorded clock entry is reflected without closing the month. Expected minutes discount public holidays and approved absences. Totals are in minutes. A computed resource: it exposes `employee_id`, never an `id`.",
+        "description": "Return the live monthly time sheet of an employee for the open (in-progress) period: expected vs worked minutes, the balance and overtime per day, and the monthly totals. `employee_id` (UUID v7) is required; `month` (`YYYY-MM`) defaults to the current month. The sheet is recomputed on every request from the immutable ledger, so a just-recorded clock entry is reflected without closing the month. Expected minutes discount public holidays and approved absences. Each day carries `is_unscheduled` (within the employment period but with no schedule in effect: the minutes actually clocked count as worked, while expected, balance and overtime are 0) and `is_outside_employment` (before `hire_date` or after `termination_date`: expected 0 even if a schedule covers the day). The `total_*` fields cover the whole month, so in the current month they are a projection that already subtracts the expected minutes of today and of the remaining days; `to_date` holds the actual accumulation of the closed days (every day before today) with `through_date`, and is `through_date: null` with zeros when no day has closed yet. Totals are in minutes. A computed resource: it exposes `employee_id`, never an `id`.",
         "summary": "Retrieve an employee’s monthly time sheet",
         "tags": [
           "Time Balances"
@@ -101637,10 +102114,29 @@
                         "employee_id": "01933a1f-8c21-7b3d-9e4f-1a2b3c4d5e01",
                         "month": "2026-05",
                         "total_expected_minutes": 9600,
-                        "total_worked_minutes": 9720,
-                        "total_balance_minutes": 120,
-                        "total_overtime_minutes": 90,
+                        "total_worked_minutes": 7290,
+                        "total_balance_minutes": -2310,
+                        "total_overtime_minutes": 60,
+                        "to_date": {
+                          "through_date": "2026-05-24",
+                          "expected_minutes": 7200,
+                          "worked_minutes": 7290,
+                          "balance_minutes": 90,
+                          "overtime_minutes": 60
+                        },
                         "days": [
+                          {
+                            "date": "2026-05-01",
+                            "expected_minutes": 0,
+                            "worked_minutes": 0,
+                            "balance_minutes": 0,
+                            "overtime_minutes": 0,
+                            "is_holiday": true,
+                            "is_approved_absence": false,
+                            "is_rest_day": false,
+                            "is_unscheduled": false,
+                            "is_outside_employment": false
+                          },
                           {
                             "date": "2026-05-04",
                             "expected_minutes": 480,
@@ -101649,7 +102145,21 @@
                             "overtime_minutes": 15,
                             "is_holiday": false,
                             "is_approved_absence": false,
-                            "is_rest_day": false
+                            "is_rest_day": false,
+                            "is_unscheduled": false,
+                            "is_outside_employment": false
+                          },
+                          {
+                            "date": "2026-05-25",
+                            "expected_minutes": 480,
+                            "worked_minutes": 0,
+                            "balance_minutes": -480,
+                            "overtime_minutes": 0,
+                            "is_holiday": false,
+                            "is_approved_absence": false,
+                            "is_rest_day": false,
+                            "is_unscheduled": false,
+                            "is_outside_employment": false
                           }
                         ]
                       }
@@ -110824,7 +111334,7 @@
     "/time-balances/team-summary": {
       "get": {
         "operationId": "public-api.v1.time_balances.team_summary",
-        "description": "Return the team time balance summary (manager view) for a month: one row per active employee with their expected, worked, balance and overtime minutes. `month` (`YYYY-MM`) defaults to the current month. Only active employees with a schedule are included. Totals are in minutes. A computed resource with no `id`.",
+        "description": "Return the team time balance summary (manager view) for a month: one row per active employee with their expected, worked, balance and overtime minutes. `month` (`YYYY-MM`) defaults to the current month. Only active employees with a schedule are included. The `total_*` fields of each row cover the whole month (a projection in the current month); each row also carries `to_date`, the accumulation of that employee’s closed days (every day before today), with the same content as their monthly sheet. Totals are in minutes. A computed resource with no `id`.",
         "summary": "Retrieve the team time balance summary",
         "tags": [
           "Time Balances"
@@ -110877,9 +111387,31 @@
                             "employee_id": "01933a1f-8c21-7b3d-9e4f-1a2b3c4d5e01",
                             "employee_name": "Lucía Fernández Ruiz",
                             "total_expected_minutes": 9600,
-                            "total_worked_minutes": 9720,
-                            "total_balance_minutes": 120,
-                            "total_overtime_minutes": 90
+                            "total_worked_minutes": 7290,
+                            "total_balance_minutes": -2310,
+                            "total_overtime_minutes": 60,
+                            "to_date": {
+                              "through_date": "2026-05-24",
+                              "expected_minutes": 7200,
+                              "worked_minutes": 7290,
+                              "balance_minutes": 90,
+                              "overtime_minutes": 60
+                            }
+                          },
+                          {
+                            "employee_id": "01933a1f-8c21-7b3d-9e4f-1a2b3c4d5e03",
+                            "employee_name": "Andrés Molina Castro",
+                            "total_expected_minutes": 4800,
+                            "total_worked_minutes": 3540,
+                            "total_balance_minutes": -1260,
+                            "total_overtime_minutes": 0,
+                            "to_date": {
+                              "through_date": "2026-05-24",
+                              "expected_minutes": 3600,
+                              "worked_minutes": 3540,
+                              "balance_minutes": -60,
+                              "overtime_minutes": 0
+                            }
                           }
                         ]
                       }
@@ -132445,7 +132977,7 @@
       },
       "post": {
         "operationId": "public-api.v1.time_corrections.create",
-        "description": "Request the correction of a time entry (RD-ley 8/2019). `time_entry_id` (UUID v7 of the entry to correct), `kind` (`add_missing_entry`/`adjust_time`/`remove_entry`), a `reason` and the `proposed` values are required. A correction is a new append-only entry that references the original entry without mutating it (analogous to a corrective invoice); the workflow stays `pending` until a manager approves or rejects it. Returns 201 with the created request and a `Location` header.",
+        "description": "Request the correction of a time entry (RD-ley 8/2019). `time_entry_id` (UUID v7 of the entry to correct), `kind` (`add_missing_entry`/`adjust_time`/`remove_entry`), a `reason` and the `proposed` values are required. A correction is a new append-only entry that references the original entry without mutating it (analogous to a corrective invoice); the workflow stays `pending` until a manager approves or rejects it. An `add_missing_entry` or `adjust_time` correction whose proposed time falls outside the employee’s employment period (before `hire_date` or after `termination_date`) returns 422 `business_rule_violation` with subcode `clocking_outside_employment_period` and no request is created; `remove_entry` is never blocked by this rule. Returns 201 with the created request and a `Location` header.",
         "summary": "Request a time entry correction",
         "tags": [
           "Time Corrections"
@@ -132664,7 +133196,7 @@
             }
           },
           "422": {
-            "description": "Validation failed. The `error.param` field identifies which input is invalid.",
+            "description": "Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.",
             "content": {
               "application/json": {
                 "schema": {
@@ -132688,6 +133220,20 @@
                         ],
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_value",
                         "request_id": "req_9c611c4e69b6066e0aad03ae9c"
+                      }
+                    }
+                  },
+                  "clocking_outside_employment_period": {
+                    "summary": "POST /v1/time-corrections · 422 clocking_outside_employment_period",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "clocking_outside_employment_period",
+                        "message": "No se puede fichar el 04/05/2026: el empleado causó baja el 30/04/2026.",
+                        "param": "occurred_at",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_1e79251d84e6a5c27f8ebcdf32"
                       }
                     }
                   }
@@ -143471,7 +144017,7 @@
     "/time-entries/manual": {
       "post": {
         "operationId": "public-api.v1.time_entries.manual",
-        "description": "Record a past work span for an employee (a retroactive manual entry). `employee_id` (UUID v7), `started_at`, `ended_at` and a `reason` are required; optional `pauses` add pause intervals. The entries are stored with `is_retroactive: true` and `source: manual`, and one audit log entry is written. `ended_at` before `started_at`, or a missing reason, returns 422 in Spanish. Returns 201 with the created span’s `clock_out` entry.",
+        "description": "Record a past work span for an employee (a retroactive manual entry). `employee_id` (UUID v7), `started_at`, `ended_at` and a `reason` are required; optional `pauses` add pause intervals. The entries are stored with `is_retroactive: true` and `source: manual`, and one audit log entry is written. `ended_at` before `started_at`, or a missing reason, returns 422 in Spanish. A span that starts or ends outside the employee’s employment period (before `hire_date` or after `termination_date`) returns 422 `business_rule_violation` with subcode `clocking_outside_employment_period` and writes nothing. Returns 201 with the created span’s `clock_out` entry.",
         "summary": "Record a manual retroactive entry",
         "tags": [
           "Time Entries"
@@ -143686,7 +144232,7 @@
             }
           },
           "422": {
-            "description": "Validation failed. The `error.param` field identifies which input is invalid.",
+            "description": "Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.",
             "content": {
               "application/json": {
                 "schema": {
@@ -143710,6 +144256,20 @@
                         ],
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_value",
                         "request_id": "req_a99fd9d1fd1361a176af273353"
+                      }
+                    }
+                  },
+                  "clocking_outside_employment_period": {
+                    "summary": "POST /v1/time-entries/manual · 422 clocking_outside_employment_period",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "clocking_outside_employment_period",
+                        "message": "No se puede fichar el 04/05/2026: el empleado está de alta desde el 11/05/2026.",
+                        "param": "occurred_at",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_a71dc06a61acac9d5dc65ccc4c"
                       }
                     }
                   }
@@ -150464,6 +151024,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntityRecurringInvoice"
           },
           "429": {
             "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
@@ -165540,7 +166103,7 @@
       },
       "put": {
         "operationId": "public-api.v1.employees.update",
-        "description": "Update an employee. Partial update: only fields present in the payload are modified; omitted fields keep their value. `hire_date` is immutable. Returns the updated employee.",
+        "description": "Update an employee. Partial update: only fields present in the payload are modified; omitted fields keep their value. `hire_date` (`Y-m-d`) can be corrected: it must not be later than the employee’s `termination_date` (422 `parameter_invalid_value`, subcode `invalid_hire_date`), and changing it keeps existing time entries and schedule assignments — entries left outside the new employment period stay in the ledger and are flagged with `is_outside_employment` in the time balances. Returns the updated employee.",
         "summary": "Update an employee",
         "tags": [
           "Employees"
@@ -165823,6 +166386,20 @@
                         "param": "Idempotency-Key",
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_format",
                         "request_id": "req_c568eb9122cb1140079c9590d4"
+                      }
+                    }
+                  },
+                  "invalid_hire_date": {
+                    "summary": "PUT /v1/employees/{employee} · 422 invalid_hire_date",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "parameter_invalid_value",
+                        "subcode": "invalid_hire_date",
+                        "message": "La fecha de baja no puede ser anterior a la fecha de alta.",
+                        "param": "termination_date",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#parameter_invalid_value",
+                        "request_id": "req_5b1e0c7a92d44f18a3c6e2b07d"
                       }
                     }
                   }
@@ -176225,7 +176802,7 @@
     "/work-schedules/{schedule}/unassign": {
       "post": {
         "operationId": "public-api.v1.work_schedules.unassign",
-        "description": "Close the employee’s open assignment to this schedule. `employee_id` (UUID v7) is required; `effective_to` (`Y-m-d`) is optional and defaults to today. Returns 404 when there is no open assignment. Responds 204 No Content.",
+        "description": "Close the employee’s open assignment to this schedule. `employee_id` (UUID v7) is required; `effective_to` (`Y-m-d`) is optional and defaults to today. An assignment that has not started yet and is unassigned on or before its start (including the default of today) is cancelled: it is closed as an empty span (`effective_to` = its `effective_from`) and kept in the history. Closing an assignment already in effect on a date before its start returns 422. Returns 404 when there is no open assignment. Responds 204 No Content.",
         "summary": "Unassign a schedule from an employee",
         "tags": [
           "Work Schedules"
@@ -187705,6 +188282,33 @@
         ],
         "title": "BulkStatusQuotesV1Request"
       },
+      "BulkStatusRecurringInvoicesV1Request": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "uniqueItems": true
+          },
+          "new_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused"
+            ]
+          }
+        },
+        "required": [
+          "ids",
+          "new_status"
+        ],
+        "title": "BulkStatusRecurringInvoicesV1Request"
+      },
       "BulkUpdateProductStockRequest": {
         "type": "object",
         "description": "Public REST API v1 — POST /v1/products/bulk-update-stock.\n\nBody: `{ updates: [{ product_id: string, stock: numeric-string, operation?: 'set'|'add'|'subtract', variant_id?: uuid }] }`.\nAccepts up to 500 updates in a single operation. `variant_id` targets the\nown balance of a variant of that product; a variant that does not belong to\nthe product is skipped like an unknown product (skip-on-miss).\n\nWe accept `items` as an alias of the canonical `updates` field for\nforgiveness with integrators following the most common convention. The\ncontroller normalizes it to `updates`.",
@@ -196569,7 +197173,7 @@
       },
       "DayBalance": {
         "type": "object",
-        "description": "The balance of a single day of the period for the Control Horario (time tracking) module: expected vs worked minutes, the resulting balance (worked − expected) and the day’s overtime minutes, plus the flags that explain why the expected minutes are zero (holiday, approved absence, rest day).",
+        "description": "The balance of a single day of the period for the Control Horario (time tracking) module: expected vs worked minutes, the resulting balance (worked − expected) and the day’s overtime minutes, plus the flags that explain why the expected minutes are zero (holiday, approved absence, rest day, no schedule in effect, outside the employment period). The live monthly sheet and the period balance always include `is_unscheduled` and `is_outside_employment`; the frozen daily detail of a monthly close report does not.",
         "properties": {
           "date": {
             "type": "string",
@@ -196582,7 +197186,7 @@
           },
           "expected_minutes": {
             "type": "integer",
-            "description": "Expected working minutes of the day derived from the schedule (0 on holidays, approved absences and rest days).",
+            "description": "Expected working minutes of the day derived from the schedule (0 on holidays, approved absences, rest days, days without a schedule in effect and days outside the employment period).",
             "example": 480,
             "examples": [
               480
@@ -196590,7 +197194,7 @@
           },
           "worked_minutes": {
             "type": "integer",
-            "description": "Worked minutes of the day.",
+            "description": "Worked minutes of the day. Always the minutes actually clocked, also on days without a schedule in effect or outside the employment period, except under a `validated` schedule, where a scheduled day counts its expected minutes.",
             "example": 510,
             "examples": [
               510
@@ -196598,7 +197202,7 @@
           },
           "balance_minutes": {
             "type": "integer",
-            "description": "Day balance in minutes (worked − expected); negative when the employee worked less than expected.",
+            "description": "Day balance in minutes (worked − expected); negative when the employee worked less than expected. 0 on days without a schedule in effect or outside the employment period (no reference to compare against).",
             "example": 30,
             "examples": [
               30
@@ -196606,7 +197210,7 @@
           },
           "overtime_minutes": {
             "type": "integer",
-            "description": "Overtime minutes of the day (worked above the configured threshold, with the tolerance applied).",
+            "description": "Overtime minutes of the day (worked above the configured threshold, with the tolerance applied). 0 on days without a schedule in effect or outside the employment period: minutes clocked on those days never count as overtime.",
             "example": 15,
             "examples": [
               15
@@ -196631,6 +197235,22 @@
           "is_rest_day": {
             "type": "boolean",
             "description": "Whether the day is a rest day (no shift in the schedule).",
+            "example": false,
+            "examples": [
+              false
+            ]
+          },
+          "is_unscheduled": {
+            "type": "boolean",
+            "description": "Whether the day falls within the employment period but no work schedule is in effect for it. Expected, balance and overtime minutes are 0; worked minutes are the minutes actually clocked. Never `true` together with `is_outside_employment`. Absent from the daily detail of a monthly close report.",
+            "example": false,
+            "examples": [
+              false
+            ]
+          },
+          "is_outside_employment": {
+            "type": "boolean",
+            "description": "Whether the day is before the employee’s `hire_date` or after their `termination_date`. Expected, balance and overtime minutes are 0 even if a schedule assignment covers the day; clock entries recorded before this rule existed still show as worked minutes. Absent from the daily detail of a monthly close report.",
             "example": false,
             "examples": [
               false
@@ -207038,7 +207658,7 @@
       },
       "MonthlyTimeSheet": {
         "type": "object",
-        "description": "The live monthly time sheet of an employee for the open (in-progress) period of the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by employee + month, so it exposes `employee_id` (UUID v7) and never an `id`. Totals are in minutes; `days` is the daily breakdown. It is recomputed on every request, so a just-recorded clock entry is reflected without closing the month.",
+        "description": "The live monthly time sheet of an employee for the open (in-progress) period of the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by employee + month, so it exposes `employee_id` (UUID v7) and never an `id`. Totals are in minutes; `days` is the daily breakdown. It is recomputed on every request, so a just-recorded clock entry is reflected without closing the month. The `total_*` fields cover the whole month and, in the current month, are a projection; `to_date` holds the actual accumulation of the closed days (every day before today).",
         "properties": {
           "object": {
             "type": "string",
@@ -207070,7 +207690,7 @@
           },
           "total_expected_minutes": {
             "type": "integer",
-            "description": "Total expected working minutes of the month (holidays and approved absences already discounted).",
+            "description": "Total expected working minutes of the whole month, including today and the remaining days (holidays, approved absences, days without a schedule and days outside the employment period already count as 0).",
             "example": 9600,
             "examples": [
               9600
@@ -207078,34 +207698,37 @@
           },
           "total_worked_minutes": {
             "type": "integer",
-            "description": "Total worked minutes of the month.",
-            "example": 9720,
+            "description": "Total worked minutes of the month so far, today included.",
+            "example": 7290,
             "examples": [
-              9720
+              7290
             ]
           },
           "total_balance_minutes": {
             "type": "integer",
-            "description": "Month balance in minutes (worked − expected).",
-            "example": 120,
+            "description": "Month balance in minutes as the sum of the daily balances. In the current month it is a projection that already subtracts the expected minutes of today and of the remaining days; use `to_date.balance_minutes` for the actual balance.",
+            "example": -2310,
             "examples": [
-              120
+              -2310
             ]
           },
           "total_overtime_minutes": {
             "type": "integer",
             "description": "Total overtime minutes of the month.",
-            "example": 90,
+            "example": 60,
             "examples": [
-              90
+              60
             ]
+          },
+          "to_date": {
+            "$ref": "#/components/schemas/TimeBalanceToDate"
           },
           "days": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DayBalance"
             },
-            "description": "Daily breakdown of the month."
+            "description": "Daily breakdown of the month. Each day includes `is_unscheduled` and `is_outside_employment`."
           }
         },
         "required": [
@@ -207116,6 +207739,7 @@
           "total_worked_minutes",
           "total_balance_minutes",
           "total_overtime_minutes",
+          "to_date",
           "days"
         ],
         "title": "MonthlyTimeSheet"
@@ -219011,7 +219635,7 @@
       },
       "TeamTimeBalanceRow": {
         "type": "object",
-        "description": "A single row of the team time balance summary: the monthly totals of one active employee for the Control Horario (time tracking) module.",
+        "description": "A single row of the team time balance summary: the monthly totals of one active employee for the Control Horario (time tracking) module. The `total_*` fields project the whole month; `to_date` holds the accumulation of the closed days.",
         "properties": {
           "employee_id": {
             "type": "string",
@@ -219032,7 +219656,7 @@
           },
           "total_expected_minutes": {
             "type": "integer",
-            "description": "Total expected working minutes of the month.",
+            "description": "Total expected working minutes of the whole month, including today and the remaining days (projection).",
             "example": 9600,
             "examples": [
               9600
@@ -219040,27 +219664,30 @@
           },
           "total_worked_minutes": {
             "type": "integer",
-            "description": "Total worked minutes of the month.",
-            "example": 9720,
+            "description": "Total worked minutes of the month so far, today included.",
+            "example": 7290,
             "examples": [
-              9720
+              7290
             ]
           },
           "total_balance_minutes": {
             "type": "integer",
-            "description": "Month balance in minutes (worked − expected).",
-            "example": 120,
+            "description": "Month balance in minutes as the sum of the daily balances. In the current month it is a projection that already subtracts the expected minutes of today and of the remaining days; use `to_date.balance_minutes` for the actual balance.",
+            "example": -2310,
             "examples": [
-              120
+              -2310
             ]
           },
           "total_overtime_minutes": {
             "type": "integer",
             "description": "Total overtime minutes of the month.",
-            "example": 90,
+            "example": 60,
             "examples": [
-              90
+              60
             ]
+          },
+          "to_date": {
+            "$ref": "#/components/schemas/TimeBalanceToDate"
           }
         },
         "required": [
@@ -219069,13 +219696,14 @@
           "total_expected_minutes",
           "total_worked_minutes",
           "total_balance_minutes",
-          "total_overtime_minutes"
+          "total_overtime_minutes",
+          "to_date"
         ],
         "title": "TeamTimeBalanceRow"
       },
       "TeamTimeBalanceSummary": {
         "type": "object",
-        "description": "The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per active employee with their monthly totals. Totals are in minutes.",
+        "description": "The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per active employee with their monthly totals and their accumulation of the closed days (`to_date`). Totals are in minutes.",
         "properties": {
           "object": {
             "type": "string",
@@ -219171,7 +219799,7 @@
           },
           "total_balance_minutes": {
             "type": "integer",
-            "description": "Period balance in minutes (worked − expected).",
+            "description": "Period balance in minutes as the sum of the daily balances. Days without a schedule in effect or outside the employment period add 0, so it can differ from worked − expected when minutes were clocked on those days.",
             "example": 120,
             "examples": [
               120
@@ -219190,7 +219818,7 @@
             "items": {
               "$ref": "#/components/schemas/DayBalance"
             },
-            "description": "Daily breakdown of the period."
+            "description": "Daily breakdown of the period. Each day includes `is_unscheduled` and `is_outside_employment`."
           }
         },
         "required": [
@@ -219205,6 +219833,64 @@
           "days"
         ],
         "title": "TimeBalance"
+      },
+      "TimeBalanceToDate": {
+        "type": "object",
+        "description": "The month-to-date accumulation of the closed days (every day before today) for the Control Horario (time tracking) module. It is computed from the same daily breakdown as the `total_*` fields, which instead cover the whole month and are a projection: in the current month they already subtract the expected minutes of today and of the remaining days. Today is left out because its workday is still in progress. In a finished month it equals the `total_*` fields; when no day of the month has closed yet (its first day, or a future month), `through_date` is `null` and the four figures are 0.",
+        "properties": {
+          "through_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Last closed day included in the accumulation (YYYY-MM-DD), normally yesterday; `null` when no day of the month has closed yet.",
+            "example": "2026-05-24",
+            "examples": [
+              "2026-05-24"
+            ]
+          },
+          "expected_minutes": {
+            "type": "integer",
+            "description": "Expected working minutes of the closed days.",
+            "example": 7200,
+            "examples": [
+              7200
+            ]
+          },
+          "worked_minutes": {
+            "type": "integer",
+            "description": "Worked minutes of the closed days.",
+            "example": 7290,
+            "examples": [
+              7290
+            ]
+          },
+          "balance_minutes": {
+            "type": "integer",
+            "description": "Balance of the closed days in minutes: the sum of the daily `balance_minutes`, so days without a schedule or outside the employment period add 0.",
+            "example": 90,
+            "examples": [
+              90
+            ]
+          },
+          "overtime_minutes": {
+            "type": "integer",
+            "description": "Overtime minutes of the closed days.",
+            "example": 60,
+            "examples": [
+              60
+            ]
+          }
+        },
+        "required": [
+          "through_date",
+          "expected_minutes",
+          "worked_minutes",
+          "balance_minutes",
+          "overtime_minutes"
+        ],
+        "title": "TimeBalanceToDate"
       },
       "TimeCorrection": {
         "type": "object",
@@ -221417,6 +222103,11 @@
           "contract_hours": {
             "type": "number",
             "description": "Weekly contracted hours (greater than 0 and up to 168)."
+          },
+          "hire_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Hire date of the employee (`Y-m-d`). Must not be later than the termination date; changing it keeps existing time entries and schedule assignments."
           },
           "ccaa": {
             "type": "string",
@@ -235584,6 +236275,81 @@
           }
         }
       },
+      "UnprocessableEntityTimeTracking": {
+        "description": "Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "parameter_invalid": {
+                "summary": "Parameter failed validation",
+                "value": {
+                  "error": {
+                    "type": "invalid_request_error",
+                    "code": "parameter_invalid",
+                    "message": "El campo `name` es obligatorio y no puede estar vacío.",
+                    "param": "name",
+                    "doc_url": "https://docs.factuarea.com/guides/errors#parameter_invalid",
+                    "request_id": "req_01HKQS5NGS8Z3T6Q1D2E7FYVSI"
+                  }
+                }
+              },
+              "invalid_idempotency_key_format": {
+                "summary": "Invalid Idempotency-Key format",
+                "value": {
+                  "error": {
+                    "type": "invalid_request_error",
+                    "code": "invalid_param_format",
+                    "message": "La Idempotency-Key debe tener entre 1 y 64 caracteres ASCII printable.",
+                    "param": "Idempotency-Key",
+                    "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_format",
+                    "request_id": "req_01HKQS5NIDEMPKEYFORMAT0007"
+                  }
+                }
+              },
+              "clocking_outside_employment_period": {
+                "summary": "Clock entry outside the employment period",
+                "value": {
+                  "error": {
+                    "type": "invalid_request_error",
+                    "code": "business_rule_violation",
+                    "subcode": "clocking_outside_employment_period",
+                    "message": "No se puede fichar el 04/05/2026: el empleado está de alta desde el 11/05/2026.",
+                    "param": "occurred_at",
+                    "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                    "request_id": "req_01HKQS5NTIMEOUTSIDEMPLOY01"
+                  }
+                }
+              },
+              "already_clocked_in": {
+                "summary": "Employee already clocked in",
+                "value": {
+                  "error": {
+                    "type": "invalid_request_error",
+                    "code": "business_rule_violation",
+                    "subcode": "already_clocked_in",
+                    "message": "Ya has fichado la entrada.",
+                    "param": null,
+                    "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                    "request_id": "req_01HKQS5NTIMEALREADYCLOCK02"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "description": "Unique request identifier, propagated for log correlation and support.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
       "TooManyRequests": {
         "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
         "content": {
@@ -236214,8 +236980,9 @@
       },
       "employee_update": {
         "summary": "Update employee (partial)",
-        "description": "Edición parcial (PATCH): solo los campos presentes se modifican. `hire_date` no es editable.",
+        "description": "Actualización parcial con `PUT`: solo los campos presentes se modifican. `hire_date` (`Y-m-d`) corrige la fecha de alta; no puede ser posterior a `termination_date` (422 `parameter_invalid_value`, subcode `invalid_hire_date`) y cambiarla no borra fichajes ni asignaciones de horario.",
         "value": {
+          "hire_date": "2026-01-12",
           "job_title": "Analista senior de datos",
           "contract_hours": 38,
           "external_id": "EMP-1042",
@@ -236482,7 +237249,7 @@
       },
       "work_schedule_assign": {
         "summary": "Assign schedule to an employee",
-        "description": "Asigna el horario a un empleado con vigencia efectivo-datada. `employee_id` (UUID v7) y `effective_from` (`Y-m-d`).",
+        "description": "Asigna el horario a un empleado con vigencia efectivo-datada. `employee_id` (UUID v7) y `effective_from` (`Y-m-d`). Si la asignación abierta previa aún no ha empezado y la nueva empieza antes o el mismo día, la previa se anula en vez de devolver 422.",
         "value": {
           "employee_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b01",
           "effective_from": "2026-06-01"
@@ -236490,7 +237257,7 @@
       },
       "work_schedule_unassign": {
         "summary": "Unassign schedule from an employee",
-        "description": "Cierra la asignación abierta del horario a un empleado. `effective_to` (`Y-m-d`) es opcional; si se omite, la fecha de hoy.",
+        "description": "Cierra la asignación abierta del horario a un empleado. `effective_to` (`Y-m-d`) es opcional; si se omite, la fecha de hoy. Si la asignación aún no ha empezado y `effective_to` es anterior o igual a su inicio, se anula (queda en el historial como tramo vacío) en vez de devolver 422.",
         "value": {
           "employee_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b01",
           "effective_to": "2026-06-30"
