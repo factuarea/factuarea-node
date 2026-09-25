@@ -33,10 +33,10 @@ export class WorkSchedulesResource extends BaseResource {
     return this._paginate<unknown>("/work-schedules", params, "starting_after", config);
   }
 
-  /** Get an employee’s current schedule */
-  async employeeSchedule(employee: string, config?: RequestConfig): Promise<unknown> {
+  /** Get an employee’s schedule on a date */
+  async employeeSchedule(employee: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/work-schedules/employee/{employee}", { "employee": employee });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<unknown>(path, params, config);
   }
 
   /** Get work schedule stats */
