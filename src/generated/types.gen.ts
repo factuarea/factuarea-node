@@ -24951,7 +24951,7 @@ export type PublicApiV1PurchaseScansConvertErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `purchase_scan_source_unavailable` — the original was purged or is no longer retained; the scan history remains available (`error.subcode`: `source_unavailable`).
      */
     422: Error;
     /**
@@ -45128,7 +45128,7 @@ export type PublicApiV1PurchaseScansRestoreErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `purchase_scan_source_unavailable` — the original was purged or is no longer retained; the scan history remains available (`error.subcode`: `source_unavailable`).
      */
     422: Error;
     /**
@@ -45317,7 +45317,7 @@ export type PublicApiV1PurchaseScansRetryErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `purchase_scan_source_unavailable` — the original was purged or is no longer retained; the scan history remains available (`error.subcode`: `source_unavailable`).
      */
     422: Error;
     /**
