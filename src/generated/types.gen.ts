@@ -4260,7 +4260,7 @@ export type DailyPresence = {
 /**
  * DayBalance
  *
- * The balance of a single day of the period for the Control Horario (time tracking) module: expected vs worked minutes, the resulting balance (worked − expected) and the day’s overtime minutes, plus the flags that explain why the expected minutes are zero (holiday, approved absence, rest day).
+ * The balance of a single day of the period for the Control Horario (time tracking) module: expected vs worked minutes, the resulting balance (worked − expected) and the day’s overtime minutes, plus the flags that explain why the expected minutes are zero (holiday, approved absence, rest day, no schedule in effect, outside the employment period). The live monthly sheet and the period balance always include `is_unscheduled` and `is_outside_employment`; the frozen daily detail of a monthly close report does not.
  */
 export type DayBalance = {
     /**
@@ -4268,19 +4268,19 @@ export type DayBalance = {
      */
     date: string;
     /**
-     * Expected working minutes of the day derived from the schedule (0 on holidays, approved absences and rest days).
+     * Expected working minutes of the day derived from the schedule (0 on holidays, approved absences, rest days, days without a schedule in effect and days outside the employment period).
      */
     expected_minutes: number;
     /**
-     * Worked minutes of the day.
+     * Worked minutes of the day. Always the minutes actually clocked, also on days without a schedule in effect or outside the employment period, except under a `validated` schedule, where a scheduled day counts its expected minutes.
      */
     worked_minutes: number;
     /**
-     * Day balance in minutes (worked − expected); negative when the employee worked less than expected.
+     * Day balance in minutes (worked − expected); negative when the employee worked less than expected. 0 on days without a schedule in effect or outside the employment period (no reference to compare against).
      */
     balance_minutes: number;
     /**
-     * Overtime minutes of the day (worked above the configured threshold, with the tolerance applied).
+     * Overtime minutes of the day (worked above the configured threshold, with the tolerance applied). 0 on days without a schedule in effect or outside the employment period: minutes clocked on those days never count as overtime.
      */
     overtime_minutes: number;
     /**
@@ -4295,6 +4295,14 @@ export type DayBalance = {
      * Whether the day is a rest day (no shift in the schedule).
      */
     is_rest_day: boolean;
+    /**
+     * Whether the day falls within the employment period but no work schedule is in effect for it. Expected, balance and overtime minutes are 0; worked minutes are the minutes actually clocked. Never `true` together with `is_outside_employment`. Absent from the daily detail of a monthly close report.
+     */
+    is_unscheduled?: boolean;
+    /**
+     * Whether the day is before the employee’s `hire_date` or after their `termination_date`. Expected, balance and overtime minutes are 0 even if a schedule assignment covers the day; clock entries recorded before this rule existed still show as worked minutes. Absent from the daily detail of a monthly close report.
+     */
+    is_outside_employment?: boolean;
 };
 
 /**
@@ -8546,7 +8554,7 @@ export type MonthlyTimeRecordClose = {
 /**
  * MonthlyTimeSheet
  *
- * The live monthly time sheet of an employee for the open (in-progress) period of the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by employee + month, so it exposes `employee_id` (UUID v7) and never an `id`. Totals are in minutes; `days` is the daily breakdown. It is recomputed on every request, so a just-recorded clock entry is reflected without closing the month.
+ * The live monthly time sheet of an employee for the open (in-progress) period of the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by employee + month, so it exposes `employee_id` (UUID v7) and never an `id`. Totals are in minutes; `days` is the daily breakdown. It is recomputed on every request, so a just-recorded clock entry is reflected without closing the month. The `total_*` fields cover the whole month and, in the current month, are a projection; `to_date` holds the actual accumulation of the closed days (every day before today).
  */
 export type MonthlyTimeSheet = {
     /**
@@ -8562,23 +8570,24 @@ export type MonthlyTimeSheet = {
      */
     month: string;
     /**
-     * Total expected working minutes of the month (holidays and approved absences already discounted).
+     * Total expected working minutes of the whole month, including today and the remaining days (holidays, approved absences, days without a schedule and days outside the employment period already count as 0).
      */
     total_expected_minutes: number;
     /**
-     * Total worked minutes of the month.
+     * Total worked minutes of the month so far, today included.
      */
     total_worked_minutes: number;
     /**
-     * Month balance in minutes (worked − expected).
+     * Month balance in minutes as the sum of the daily balances. In the current month it is a projection that already subtracts the expected minutes of today and of the remaining days; use `to_date.balance_minutes` for the actual balance.
      */
     total_balance_minutes: number;
     /**
      * Total overtime minutes of the month.
      */
     total_overtime_minutes: number;
+    to_date: TimeBalanceToDate;
     /**
-     * Daily breakdown of the month.
+     * Daily breakdown of the month. Each day includes `is_unscheduled` and `is_outside_employment`.
      */
     days: Array<DayBalance>;
 };
@@ -9854,7 +9863,7 @@ export type PurchaseScan = {
     currency: string | null;
     total: string | null;
     /**
-     * Incidencias pendientes de revisar.
+     * Number of issues still pending review: one per field, supplier identity counted once, 0 before the first extraction.
      */
     issue_count: number;
     available_actions: Array<'save_review' | 'convert' | 'link_existing' | 'override_duplicate' | 'retry' | 'replace_source' | 'archive' | 'restore' | 'download_source' | 'view_purchase_invoice'>;
@@ -9864,6 +9873,11 @@ export type PurchaseScan = {
         recoverable: boolean;
         message: string;
     } | null;
+    /**
+     * When set, the scan is waiting for the company daily OCR quota to reset; it will be retried automatically.
+     */
+    deferred_until: string | null;
+    deferred_reason: 'ocr_daily_quota_reached' | null;
     file_revision: number;
     extraction_revision: number | null;
     bytes: number;
@@ -9955,6 +9969,9 @@ export type PurchaseScan = {
         override_reason?: string | null;
         resolved_at?: string | null;
     } | null;
+    /**
+     * The 50 most recent processing attempts, newest first. `attempts_total` holds how many there are in all.
+     */
     attempts: Array<{
         id: string;
         invocation_number?: number;
@@ -9967,6 +9984,13 @@ export type PurchaseScan = {
         error_code?: string;
         error_recoverable?: boolean;
     }>;
+    /**
+     * Total number of processing attempts, including those not listed in `attempts`.
+     */
+    attempts_total: number;
+    /**
+     * The 50 most recent audit events, newest first. `audit_total` holds how many there are in all.
+     */
     audit: Array<{
         id: string;
         action: string;
@@ -9975,6 +9999,10 @@ export type PurchaseScan = {
         correlation_id?: string;
         occurred_at?: string;
     }>;
+    /**
+     * Total number of audit events, including those not listed in `audit`.
+     */
+    audit_total: number;
     linked_purchase_invoice: {
         id: string;
     } | null;
@@ -10147,7 +10175,7 @@ export type PurchaseScanListItem = {
     currency: string | null;
     total: string | null;
     /**
-     * Incidencias pendientes de revisar.
+     * Number of issues still pending review: one per field, supplier identity counted once, 0 before the first extraction.
      */
     issue_count: number;
     available_actions: Array<'save_review' | 'convert' | 'link_existing' | 'override_duplicate' | 'retry' | 'replace_source' | 'archive' | 'restore' | 'download_source' | 'view_purchase_invoice'>;
@@ -10156,6 +10184,11 @@ export type PurchaseScanListItem = {
         code: 'ocr_temporarily_unavailable' | 'scan_storage_unavailable' | 'file_safety_unavailable' | 'inbound_provider_unavailable' | 'resource_locked' | 'queue_delivery_failed' | 'purchase_scanner_disabled' | 'ocr_company_quota_exceeded' | 'module_upgrade_required' | 'unsupported_scan_format' | 'unsupported_purchase_document_type' | 'unsafe_scan_file' | 'scan_page_limit_exceeded' | 'purchase_scanner_internal_error';
         recoverable: boolean;
     } | null;
+    /**
+     * When set, the scan is waiting for the company daily OCR quota to reset; it will be retried automatically.
+     */
+    deferred_until: string | null;
+    deferred_reason: 'ocr_daily_quota_reached' | null;
     document_kind: 'invoice' | 'simplified_qualified' | 'ticket' | 'delivery_note' | 'other' | 'undetermined';
     file_kind: 'pdf' | 'image';
     supplier_link_state: 'linked' | 'pending_link' | 'unidentified';
@@ -10206,6 +10239,14 @@ export type PurchaseScanStats = {
             pending_link: number;
             unidentified: number;
         };
+        /**
+         * Suppliers with at least one linked scan in scope, ordered by count desc then name asc, capped at 100.
+         */
+        by_supplier: Array<{
+            id: string;
+            name: string;
+            count: number;
+        }>;
         with_issues: number;
     };
 };
@@ -11379,7 +11420,7 @@ export type SavePurchaseScanReviewV1Request = {
             issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         operation_class?: {
-            value: string | null;
+            value: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria' | 'isp' | null;
             issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
         };
         notes?: {
@@ -11471,7 +11512,7 @@ export type SavePurchaseScanReviewV1Request = {
                 issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             exemption_reason?: {
-                value: string | null;
+                value: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
                 issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_subtotal?: {
@@ -11560,7 +11601,7 @@ export type SavePurchaseScanReviewV1Request = {
                 issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             exemption_reason?: {
-                value: string | null;
+                value: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
                 issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_subtotal?: {
@@ -11650,7 +11691,7 @@ export type SavePurchaseScanReviewV1Request = {
                 issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             exemption_reason?: {
-                value: string | null;
+                value: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
                 issue_codes?: Array<'missing_value' | 'unverified_value' | 'invalid_field_evidence' | 'supplier_unverified' | 'supplier_ambiguous' | 'document_number_unverified' | 'issue_date_unverified' | 'missing_due_date' | 'currency_unverified' | 'unsupported_purchase_currency' | 'line_description_missing' | 'quantity_invalid' | 'unit_price_invalid' | 'tax_rate_unverified' | 'totals_mismatch' | 'fiscal_identity_ambiguous' | 'duplicate_candidate' | 'invalid_decimal' | 'extraction_incomplete' | 'simplified_invoice_not_qualified'>;
             };
             line_subtotal?: {
@@ -13354,7 +13395,7 @@ export type TeamAbsenceCalendar = {
 /**
  * TeamTimeBalanceRow
  *
- * A single row of the team time balance summary: the monthly totals of one active employee for the Control Horario (time tracking) module.
+ * A single row of the team time balance summary: the monthly totals of one active employee for the Control Horario (time tracking) module. The `total_*` fields project the whole month; `to_date` holds the accumulation of the closed days.
  */
 export type TeamTimeBalanceRow = {
     /**
@@ -13366,27 +13407,28 @@ export type TeamTimeBalanceRow = {
      */
     employee_name: string;
     /**
-     * Total expected working minutes of the month.
+     * Total expected working minutes of the whole month, including today and the remaining days (projection).
      */
     total_expected_minutes: number;
     /**
-     * Total worked minutes of the month.
+     * Total worked minutes of the month so far, today included.
      */
     total_worked_minutes: number;
     /**
-     * Month balance in minutes (worked − expected).
+     * Month balance in minutes as the sum of the daily balances. In the current month it is a projection that already subtracts the expected minutes of today and of the remaining days; use `to_date.balance_minutes` for the actual balance.
      */
     total_balance_minutes: number;
     /**
      * Total overtime minutes of the month.
      */
     total_overtime_minutes: number;
+    to_date: TimeBalanceToDate;
 };
 
 /**
  * TeamTimeBalanceSummary
  *
- * The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per active employee with their monthly totals. Totals are in minutes.
+ * The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per active employee with their monthly totals and their accumulation of the closed days (`to_date`). Totals are in minutes.
  */
 export type TeamTimeBalanceSummary = {
     /**
@@ -13434,7 +13476,7 @@ export type TimeBalance = {
      */
     total_worked_minutes: number;
     /**
-     * Period balance in minutes (worked − expected).
+     * Period balance in minutes as the sum of the daily balances. Days without a schedule in effect or outside the employment period add 0, so it can differ from worked − expected when minutes were clocked on those days.
      */
     total_balance_minutes: number;
     /**
@@ -13442,9 +13484,37 @@ export type TimeBalance = {
      */
     total_overtime_minutes: number;
     /**
-     * Daily breakdown of the period.
+     * Daily breakdown of the period. Each day includes `is_unscheduled` and `is_outside_employment`.
      */
     days: Array<DayBalance>;
+};
+
+/**
+ * TimeBalanceToDate
+ *
+ * The month-to-date accumulation of the closed days (every day before today) for the Control Horario (time tracking) module. It is computed from the same daily breakdown as the `total_*` fields, which instead cover the whole month and are a projection: in the current month they already subtract the expected minutes of today and of the remaining days. Today is left out because its workday is still in progress. In a finished month it equals the `total_*` fields; when no day of the month has closed yet (its first day, or a future month), `through_date` is `null` and the four figures are 0.
+ */
+export type TimeBalanceToDate = {
+    /**
+     * Last closed day included in the accumulation (YYYY-MM-DD), normally yesterday; `null` when no day of the month has closed yet.
+     */
+    through_date: string | null;
+    /**
+     * Expected working minutes of the closed days.
+     */
+    expected_minutes: number;
+    /**
+     * Worked minutes of the closed days.
+     */
+    worked_minutes: number;
+    /**
+     * Balance of the closed days in minutes: the sum of the daily `balance_minutes`, so days without a schedule or outside the employment period add 0.
+     */
+    balance_minutes: number;
+    /**
+     * Overtime minutes of the closed days.
+     */
+    overtime_minutes: number;
 };
 
 /**
@@ -14005,6 +14075,10 @@ export type UpdateEmployeeRequest = {
      * Weekly contracted hours (greater than 0 and up to 168).
      */
     contract_hours?: number;
+    /**
+     * Hire date of the employee (`Y-m-d`). Must not be later than the termination date; changing it keeps existing time entries and schedule assignments.
+     */
+    hire_date?: string;
     /**
      * Spanish autonomous community or city (ISO 3166-2:ES) used to localise public holidays.
      */
@@ -20940,7 +21014,7 @@ export type PublicApiV1TimeCorrectionsApproveErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -24323,7 +24397,7 @@ export type PublicApiV1TimeEntriesClockInErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -36109,7 +36183,12 @@ export type PublicApiV1WorkSchedulesEmployeeScheduleData = {
     path: {
         employee: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Date (Y-m-d) on which the employee's effective schedule is resolved; defaults to today when omitted.
+         */
+        date?: string | null;
+    };
     url: '/work-schedules/employee/{employee}';
 };
 
@@ -36126,6 +36205,10 @@ export type PublicApiV1WorkSchedulesEmployeeScheduleErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -36463,7 +36546,7 @@ export type PublicApiV1InvoicesPdfLinkError = PublicApiV1InvoicesPdfLinkErrors[k
 
 export type PublicApiV1InvoicesPdfLinkResponses = {
     /**
-     * The PDF is already materialized: returns a temporary `url` to download it, its `filename` and the `expires_at` of the link.
+     * The PDF is already materialized: returns a signed temporary `url` to download it without an API key, its `filename` and the `expires_at` after which the URL answers 403.
      */
     200: {
         data: {
@@ -36473,7 +36556,7 @@ export type PublicApiV1InvoicesPdfLinkResponses = {
         };
     };
     /**
-     * The PDF has not been generated yet: its generation is enqueued and the response reports the `pendiente` status. Retry shortly to obtain the link (200).
+     * The PDF has not been generated yet: its generation is enqueued and the response reports the `pendiente` status and a signed `pdf_url` that answers 404 until the PDF is ready. Retry shortly to obtain the link (200).
      */
     202: {
         data: {
@@ -37332,6 +37415,10 @@ export type PublicApiV1PurchaseScansStatsData = {
 
 export type PublicApiV1PurchaseScansStatsErrors = {
     /**
+     * The operation failed. Possible `error.code` values: `parameter_unknown` — the query contains a parameter this operation does not accept.
+     */
+    400: Error;
+    /**
      * Missing or invalid API key.
      */
     401: Error;
@@ -37340,7 +37427,7 @@ export type PublicApiV1PurchaseScansStatsErrors = {
      */
     403: Error;
     /**
-     * The request could not be validated. Possible `error.code` values: `validation_failed` — a query parameter is invalid, or a `supplier_id` (or, on the SPA-only surfaces, an uploader) does not belong to the company; `error.param` identifies which one.
+     * The request could not be validated. Possible `error.code` values: `invalid_param_value` — a recognized query parameter has an invalid value.
      */
     422: Error;
     /**
@@ -41508,17 +41595,21 @@ export type PublicApiV1PurchaseScanEmailsListData = {
         starting_after?: string | null;
         search?: string;
         'result[]'?: 'pending' | 'processed' | 'partially_processed' | 'no_compatible_attachments' | 'parked' | 'rejected' | 'failed';
-        'created[gte]'?: string;
-        'created[lte]'?: string;
         /**
          * Comma-separated list of email results. Allowed values: pending, processed, partially_processed, no_compatible_attachments, parked, rejected, failed.
          */
         result?: string;
+        'created[gte]'?: string;
+        'created[lte]'?: string;
     };
     url: '/purchase_scan_emails';
 };
 
 export type PublicApiV1PurchaseScanEmailsListErrors = {
+    /**
+     * The operation failed. Possible `error.code` values: `parameter_unknown` — the query contains a parameter this operation does not accept.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -41528,7 +41619,7 @@ export type PublicApiV1PurchaseScanEmailsListErrors = {
      */
     403: Error;
     /**
-     * The request could not be validated. Possible `error.code` values: `validation_failed` — a query parameter is invalid, or a `supplier_id` (or, on the SPA-only surfaces, an uploader) does not belong to the company; `error.param` identifies which one.
+     * The request could not be validated. Possible `error.code` values: `invalid_param_value` — a recognized query parameter has an invalid value.
      */
     422: Error;
     /**
@@ -42155,7 +42246,7 @@ export type PublicApiV1TimeCorrectionsCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -43888,7 +43979,7 @@ export type PublicApiV1TimeEntriesManualErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -46287,9 +46378,6 @@ export type PublicApiV1PurchaseScansListData = {
         'filter[supplier_link_state][]'?: 'linked' | 'pending_link' | 'unidentified';
         'filter[has_issues]'?: boolean;
         'filter[sender]'?: string;
-        'filter[created][]'?: Array<string>;
-        'filter[issued_on][]'?: Array<string>;
-        'filter[total][]'?: Array<string>;
         /**
          * Comma-separated list of scan sources. Allowed values: upload, email, api.
          */
@@ -46310,11 +46398,30 @@ export type PublicApiV1PurchaseScansListData = {
          * Comma-separated list of supplier ids (up to 20).
          */
         'filter[supplier_id]'?: string;
+        'filter[created][eq]'?: string;
+        'filter[created][gt]'?: string;
+        'filter[created][gte]'?: string;
+        'filter[created][lt]'?: string;
+        'filter[created][lte]'?: string;
+        'filter[issued_on][eq]'?: string;
+        'filter[issued_on][gt]'?: string;
+        'filter[issued_on][gte]'?: string;
+        'filter[issued_on][lt]'?: string;
+        'filter[issued_on][lte]'?: string;
+        'filter[total][eq]'?: string;
+        'filter[total][gt]'?: string;
+        'filter[total][gte]'?: string;
+        'filter[total][lt]'?: string;
+        'filter[total][lte]'?: string;
     };
     url: '/purchase_scans';
 };
 
 export type PublicApiV1PurchaseScansListErrors = {
+    /**
+     * The operation failed. Possible `error.code` values: `parameter_unknown` — the query contains a parameter this operation does not accept.
+     */
+    400: Error;
     /**
      * Missing or invalid API key.
      */
@@ -46324,7 +46431,7 @@ export type PublicApiV1PurchaseScansListErrors = {
      */
     403: Error;
     /**
-     * The request could not be validated. Possible `error.code` values: `validation_failed` — a query parameter is invalid, or a `supplier_id` (or, on the SPA-only surfaces, an uploader) does not belong to the company; `error.param` identifies which one.
+     * The request could not be validated. Possible `error.code` values: `invalid_param_value` — a recognized query parameter has an invalid value.
      */
     422: Error;
     /**
