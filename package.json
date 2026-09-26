@@ -1,6 +1,6 @@
 {
   "name": "@factuarea/sdk",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Official TypeScript SDK for the Factuarea API — Spanish e-invoicing & VeriFactu.",
   "license": "MIT",
   "author": "Factuarea <info@factuarea.com>",
