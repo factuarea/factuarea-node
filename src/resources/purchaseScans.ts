@@ -22,7 +22,7 @@ export class PurchaseScansResource extends BaseResource {
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** Create the purchase invoice from a scan */
+  /** Create the expense from a scan */
   async convert(purchaseScan: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_scans/{purchase_scan}/convert", { "purchase_scan": purchaseScan });
     return this._send<unknown>("POST", path, body, config);

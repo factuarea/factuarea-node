@@ -1829,7 +1829,7 @@ export type BulkDeleteProformasV1Request = {
 /**
  * BulkDeletePurchaseInvoicesRequest
  *
- * Delete several purchase invoices in one request. `ids` is an array of 1 to 100 UUIDs; unknown identifiers are reported as failed rather than failing the whole request.
+ * Delete several expenses in one request. `ids` is an array of 1 to 100 UUIDs; unknown identifiers are reported as failed rather than failing the whole request.
  */
 export type BulkDeletePurchaseInvoicesRequest = {
     ids: Array<string>;
@@ -2038,7 +2038,7 @@ export type BulkStatusProformasV1Request = {
 /**
  * BulkStatusPurchaseInvoicesV1Request
  *
- * Transition several purchase invoices to `new_status` (`paid`) in one request, up to 50 per batch. `ids` is an array of purchase-invoice UUIDs; `payment_date` is required and cannot be in the future. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
+ * Transition several expenses to `new_status` (`paid`) in one request, up to 50 per batch. `ids` is an array of purchase-invoice UUIDs; `payment_date` is required and cannot be in the future. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusPurchaseInvoicesV1Request = {
     ids: Array<string>;
@@ -3569,7 +3569,7 @@ export type CreateEmployeeRequest = {
 /**
  * CreateInvoiceRequest
  *
- * Create a sales invoice. Required: `client_id`, `series_id`, `issued_on`, `due_on` and `lines[]` (at least one). Optional: `notes`, `metadata`, `tags`, `custom_fields`, and an `options` object to atomically create, issue, send and wait for the PDF in a single call. Without `options` the invoice is created as a draft. A line may also be a DISBURSEMENT (`line_type: "SUPLIDO"`): an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) that is re-invoiced at cost and, under art. 78.Tres.3 of the Spanish VAT Act (LIVA), stays out of the taxable base — it carries no VAT, withholding, surcharge, discount or product, requires `source_invoice_reference`, and is not allowed on a simplified (`F2`) invoice. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line returns `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00.
+ * Create an invoice. Required: `client_id`, `series_id`, `issued_on`, `due_on` and `lines[]` (at least one). Optional: `notes`, `metadata`, `tags`, `custom_fields`, and an `options` object to atomically create, issue, send and wait for the PDF in a single call. Without `options` the invoice is created as a draft. A line may also be a DISBURSEMENT (`line_type: "SUPLIDO"`): an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) that is re-invoiced at cost and, under art. 78.Tres.3 of the Spanish VAT Act (LIVA), stays out of the taxable base — it carries no VAT, withholding, surcharge, discount or product, requires `source_invoice_reference`, and is not allowed on a simplified (`F2`) invoice. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line returns `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00.
  */
 export type CreateInvoiceRequest = {
     client_id: string;
@@ -3610,11 +3610,11 @@ export type CreateInvoiceRequest = {
          */
         line_type?: 'NORMAL' | 'SUPLIDO' | null;
         /**
-         * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line. Free text on purpose: the receipt of a public body is rarely registered as a purchase invoice.
+         * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line. Free text on purpose: the receipt of a public body is rarely registered as an expense.
          */
         source_invoice_reference?: string | null;
         /**
-         * Optional traceability of a disbursement: list of IDs (UUID v7) of your own purchase invoices that back it. A purchase invoice of another company is rejected with 422. Omit it (or send `null`) when there is nothing to link.
+         * Optional traceability of a disbursement: list of IDs (UUID v7) of your own expenses that back it. An expense of another company is rejected with 422. Omit it (or send `null`) when there is nothing to link.
          */
         source_invoice_ids?: Array<string> | null;
         /**
@@ -3879,7 +3879,7 @@ export type CreatePurchaseInvoiceRequest = {
      */
     operation_class?: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria' | 'isp' | null;
     /**
-     * Whether to exclude this purchase invoice from the annual Modelo 347 declaration.
+     * Whether to exclude this expense from the annual Modelo 347 declaration.
      */
     exclude_347?: boolean;
     lines: Array<{
@@ -4470,7 +4470,7 @@ export type DeliveryNote = {
     billing_emails: Array<string>;
     subtotal: number;
     /**
-     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on an expense the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
      */
     taxes_total: number;
     /**
@@ -7315,7 +7315,7 @@ export type FindProformaByExternalIdRequest = {
 /**
  * FindPurchaseInvoiceByExternalIdRequest
  *
- * Look up a purchase invoice by its `external_id` (the integration key that maps it to a record in a third-party ERP/CRM/e-commerce system) within your company. Orthogonal to `external_invoice_number`, the supplier fiscal number.
+ * Look up an expense by its `external_id` (the integration key that maps it to a record in a third-party ERP/CRM/e-commerce system) within your company. Orthogonal to `external_invoice_number`, the supplier fiscal number.
  */
 export type FindPurchaseInvoiceByExternalIdRequest = {
     external_id: string;
@@ -7569,7 +7569,7 @@ export type IntegrationEventList = {
 /**
  * Invoice
  *
- * A sales invoice (compliant with Spanish AEAT VeriFactu).
+ * An invoice (compliant with Spanish AEAT VeriFactu).
  */
 export type Invoice = {
     id: string;
@@ -7604,7 +7604,7 @@ export type Invoice = {
     due_on: string | null;
     subtotal: number;
     /**
-     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on an expense the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
      */
     taxes_total: number;
     /**
@@ -7925,11 +7925,11 @@ export type InvoiceLine = {
      */
     line_type?: 'NORMAL' | 'SUPLIDO';
     /**
-     * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (≤100 chars). REQUIRED on a `SUPLIDO` line (a disbursement without its supporting reference is rejected with 422) and `null` on a normal line. Free text on purpose: the receipt of a public body is rarely registered as a purchase invoice.
+     * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (≤100 chars). REQUIRED on a `SUPLIDO` line (a disbursement without its supporting reference is rejected with 422) and `null` on a normal line. Free text on purpose: the receipt of a public body is rarely registered as an expense.
      */
     source_invoice_reference?: string | null;
     /**
-     * Optional traceability of a `SUPLIDO` line: IDs (UUID v7) of your own purchase invoices that back the disbursement. `null` when the line carries no traceability — never `[]`, so "no traceability" cannot be confused with "empty list". A purchase invoice of another company is rejected with 422.
+     * Optional traceability of a `SUPLIDO` line: IDs (UUID v7) of your own expenses that back the disbursement. `null` when the line carries no traceability — never `[]`, so "no traceability" cannot be confused with "empty list". An expense of another company is rejected with 422.
      */
     source_invoice_ids?: Array<string> | null;
     /**
@@ -9219,7 +9219,7 @@ export type Proforma = {
     converted_invoice_number: string | null;
     subtotal: number;
     /**
-     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on an expense the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
      */
     taxes_total: number;
     /**
@@ -9481,7 +9481,7 @@ export type PurchaseInvoice = {
      */
     external_invoice_number: string | null;
     /**
-     * Whether this is a simplified purchase invoice (expense ticket). When `true`, `supplier` and `external_invoice_number` may be `null`.
+     * Whether this is a simplified supplier invoice (expense ticket). When `true`, `supplier` and `external_invoice_number` may be `null`.
      */
     is_simplified: boolean;
     /**
@@ -9502,7 +9502,7 @@ export type PurchaseInvoice = {
     due_on: string | null;
     subtotal: number;
     /**
-     * VAT BORNE (IVA soportado) of this purchase invoice, WITHOUT surcharge and WITHOUT withholding. Careful: on the sales-side documents (invoice, delivery note, quote, proforma) the SAME field name carries the NET aggregate `total_vat + total_surcharge − total_retention` instead. Header invariant here: `total === subtotal + taxes_total + total_surcharge − total_retention`. Read `total_vat` for a VAT figure whose meaning does not depend on the document family.
+     * VAT BORNE (IVA soportado) of this expense, WITHOUT surcharge and WITHOUT withholding. Careful: on the sales-side documents (invoice, delivery note, quote, proforma) the SAME field name carries the NET aggregate `total_vat + total_surcharge − total_retention` instead. Header invariant here: `total === subtotal + taxes_total + total_surcharge − total_retention`. Read `total_vat` for a VAT figure whose meaning does not depend on the document family.
      */
     taxes_total: number;
     /**
@@ -9518,16 +9518,16 @@ export type PurchaseInvoice = {
      */
     total_surcharge: number;
     /**
-     * Total of the purchase invoice. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the one specific to this family, where `taxes_total` is the VAT alone - `total = subtotal + taxes_total + total_surcharge - total_retention`. Note that the aggregate shortcut of the sales-side families (`subtotal + taxes_total`) does NOT apply here: the same field name carries a different meaning on each side.
+     * Total of the expense. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the one specific to this family, where `taxes_total` is the VAT alone - `total = subtotal + taxes_total + total_surcharge - total_retention`. Note that the aggregate shortcut of the sales-side families (`subtotal + taxes_total`) does NOT apply here: the same field name carries a different meaning on each side.
      */
     total: number;
     currency: string;
     /**
-     * Amount already paid against this purchase invoice (derived from the payment ledger). Satisfies the invariant `paid_amount + pending_amount === total`.
+     * Amount already paid against this expense (derived from the payment ledger). Satisfies the invariant `paid_amount + pending_amount === total`.
      */
     paid_amount: number;
     /**
-     * Outstanding balance pending payment for this purchase invoice (derived from the payment ledger).
+     * Outstanding balance pending payment for this expense (derived from the payment ledger).
      */
     pending_amount: number;
     /**
@@ -9561,7 +9561,7 @@ export type PurchaseInvoice = {
      */
     operation_class: 'corriente' | 'bien_inversion' | 'importacion' | 'intracomunitaria' | 'isp';
     /**
-     * Declarative per-document flag: whether this purchase invoice is excluded from the annual Modelo 347 report.
+     * Declarative per-document flag: whether this expense is excluded from the annual Modelo 347 report.
      */
     exclude_347: boolean;
     /**
@@ -9595,7 +9595,7 @@ export type PurchaseInvoice = {
 /**
  * PurchaseInvoiceAttachment
  *
- * Fichero adjunto (PDF/imagen) de la factura de compra. `null` cuando no hay adjunto.
+ * Fichero adjunto (PDF/imagen) del gasto. `null` cuando no hay adjunto.
  */
 export type PurchaseInvoiceAttachment = {
     /**
@@ -9619,12 +9619,12 @@ export type PurchaseInvoiceAttachment = {
 /**
  * PurchaseInvoiceLine
  *
- * A line item on a purchase invoice.
+ * A line item on an expense.
  */
 export type PurchaseInvoiceLine = {
     object: 'purchase_invoice_line';
     /**
-     * Zero-based ordinal of the line within this purchase invoice, in the stable read order. Send it back on create/update to keep a line matched to its historical counterpart (measures, units and frozen cost are preserved when the physical selection and the supplier do not change). It is NOT a primary key and it grants no access to any other document.
+     * Zero-based ordinal of the line within this expense, in the stable read order. Send it back on create/update to keep a line matched to its historical counterpart (measures, units and frozen cost are preserved when the physical selection and the supplier do not change). It is NOT a primary key and it grants no access to any other document.
      */
     source_line_index?: number | null;
     description: string | null;
@@ -9793,12 +9793,12 @@ export type PurchaseInvoicePayment = {
 /**
  * PurchaseInvoiceStats
  *
- * Aggregated metrics (KPIs) of the purchase invoices of the authenticated company: total, count by status and accumulated amounts. `overdue` is a derived condition (`pending` + past due date), not a persisted status.
+ * Aggregated metrics (KPIs) of the expenses of the authenticated company: total, count by status and accumulated amounts. `overdue` is a derived condition (`pending` + past due date), not a persisted status.
  */
 export type PurchaseInvoiceStats = {
     object: 'purchase_invoice_stats';
     /**
-     * Total number of purchase invoices.
+     * Total number of expenses.
      */
     total_invoices: number;
     /**
@@ -9828,7 +9828,7 @@ export type PurchaseInvoiceStats = {
      */
     overdue: number;
     /**
-     * Total aggregate amount of all purchase invoices.
+     * Total aggregate amount of all expenses.
      */
     total_amount: number;
     /**
@@ -10329,7 +10329,7 @@ export type Quote = {
     converted_invoice_number: string | null;
     subtotal: number;
     /**
-     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on a purchase invoice the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on an expense the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
      */
     taxes_total: number;
     /**
@@ -10987,7 +10987,7 @@ export type RecurringInvoiceStats = {
 /**
  * RegisterInvoicePaymentRequest
  *
- * Register a partial (or full) payment against a sales invoice. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `reference`, `notes`.
+ * Register a partial (or full) payment against an invoice. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `reference`, `notes`.
  */
 export type RegisterInvoicePaymentRequest = {
     amount: number;
@@ -11000,7 +11000,7 @@ export type RegisterInvoicePaymentRequest = {
 /**
  * RegisterPurchaseInvoicePaymentRequest
  *
- * Register a partial (or full) payment against a purchase invoice. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, invoice not cancelled) are enforced with a 422.
+ * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, invoice not cancelled) are enforced with a 422.
  */
 export type RegisterPurchaseInvoicePaymentRequest = {
     amount: number;
@@ -13101,7 +13101,7 @@ export type TaxReportPreview = {
      */
     invoice_count: number;
     /**
-     * Number of purchase invoices considered in the period.
+     * Number of expenses considered in the period.
      */
     purchase_invoice_count: number;
     /**
@@ -14158,7 +14158,7 @@ export type UpdateInvoiceRequest = {
          */
         source_invoice_reference?: string | null;
         /**
-         * Optional traceability of a disbursement: list of IDs (UUID v7) of your own purchase invoices that back it. A purchase invoice of another company is rejected with 422.
+         * Optional traceability of a disbursement: list of IDs (UUID v7) of your own expenses that back it. An expense of another company is rejected with 422.
          */
         source_invoice_ids?: Array<string> | null;
         /**
@@ -20614,7 +20614,7 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -20742,7 +20742,7 @@ export type PublicApiV1CompaniesActivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -21253,7 +21253,7 @@ export type PublicApiV1PurchaseScansArchiveErrors = {
      */
     401: Error;
     /**
-     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_delete_required` (archiving requires the `delete` capability for purchase invoices).
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_delete_required` (archiving requires the `delete` capability for expenses).
      */
     403: Error;
     /**
@@ -21834,7 +21834,7 @@ export type PublicApiV1PurchaseInvoicesAttachFileErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -21846,11 +21846,11 @@ export type PublicApiV1PurchaseInvoicesAttachFileErrors = {
      */
     404: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -22505,11 +22505,11 @@ export type PublicApiV1PurchaseInvoicesBulkDeleteErrors = {
      */
     403: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -23399,11 +23399,11 @@ export type PublicApiV1PurchaseInvoicesBulkStatusErrors = {
      */
     403: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -24951,7 +24951,7 @@ export type PublicApiV1PurchaseScansConvertErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `purchase_scan_source_unavailable` — the original was purged or is no longer retained; the scan history remains available (`error.subcode`: `source_unavailable`).
      */
     422: Error;
     /**
@@ -26069,7 +26069,7 @@ export type PublicApiV1CompaniesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -26560,7 +26560,7 @@ export type PublicApiV1EmployeesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -27757,7 +27757,7 @@ export type PublicApiV1PurchaseInvoicesListData = {
          */
         ending_before?: string;
         /**
-         * Purchase invoice status. Exact match on `status`.
+         * Expense status. Exact match on `status`.
          */
         status?: string;
         /**
@@ -27837,7 +27837,7 @@ export type PublicApiV1PurchaseInvoicesListData = {
          */
         'external_invoice_number[contains]'?: string;
         /**
-         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches purchase invoices carrying ANY of the tags). Exact match on `tags`.
+         * Filter by classification tag (lowercase slug). Supports multiple values with `tags[in]=a,b` (JSON_CONTAINS, OR semantics — matches expenses carrying ANY of the tags). Exact match on `tags`.
          */
         tags?: string;
         /**
@@ -27872,7 +27872,7 @@ export type PublicApiV1PurchaseInvoicesListErrors = {
      */
     403: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -27926,11 +27926,11 @@ export type PublicApiV1PurchaseInvoicesCreateErrors = {
      */
     403: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -27947,7 +27947,7 @@ export type PublicApiV1PurchaseInvoicesCreateError = PublicApiV1PurchaseInvoices
 
 export type PublicApiV1PurchaseInvoicesCreateResponses = {
     /**
-     * Purchase invoice created successfully. The `Location` header contains the canonical URL of the newly created resource.
+     * Expense created successfully. The `Location` header contains the canonical URL of the newly created resource.
      */
     201: {
         data: PurchaseInvoice;
@@ -28972,7 +28972,7 @@ export type PublicApiV1WebhookEndpointsCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -31307,11 +31307,11 @@ export type PublicApiV1PurchaseInvoicesDeleteErrors = {
      */
     404: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -31424,11 +31424,11 @@ export type PublicApiV1PurchaseInvoicesUpdateErrors = {
      */
     404: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -31488,7 +31488,7 @@ export type PublicApiV1PurchaseInvoicesDeleteFileErrors = {
      */
     404: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
@@ -33344,7 +33344,7 @@ export type PublicApiV1PurchaseScansSourceErrors = {
      */
     401: Error;
     /**
-     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_export_required` (the API key creator lacks the `export` capability for purchase invoices).
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_export_required` (the API key creator lacks the `export` capability for expenses).
      */
     403: Error;
     /**
@@ -34359,11 +34359,11 @@ export type PublicApiV1PurchaseInvoicesFindByExternalIdErrors = {
      */
     403: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -36067,7 +36067,7 @@ export type PublicApiV1EmailsIndicatorsData = {
     path?: never;
     query: {
         /**
-         * Documents to summarize: UUID v7 of each one, either comma-separated (`related_entity_ids=a,b,c`) or repeated. Required, maximum 100 per call — more returns 422. The type is not needed: a UUID v7 is globally unique, so the batch MAY mix invoices, quotes, pro formas, delivery notes, purchase invoices and recurring invoices. Ids without any email, and ids that do not belong to a document of your company, are OMITTED from the response instead of being reported as zero, so match the results back by `related_entity_id`.
+         * Documents to summarize: UUID v7 of each one, either comma-separated (`related_entity_ids=a,b,c`) or repeated. Required, maximum 100 per call — more returns 422. The type is not needed: a UUID v7 is globally unique, so the batch MAY mix invoices, quotes, pro formas, delivery notes, expenses and recurring invoices. Ids without any email, and ids that do not belong to a document of your company, are OMITTED from the response instead of being reported as zero, so match the results back by `related_entity_id`.
          */
         'related_entity_ids[]': Array<string>;
         /**
@@ -39606,7 +39606,7 @@ export type PublicApiV1VerifactuCertificatesUploadErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -41501,7 +41501,7 @@ export type PublicApiV1PurchaseInvoicesListPaymentsError = PublicApiV1PurchaseIn
 
 export type PublicApiV1PurchaseInvoicesListPaymentsResponses = {
     /**
-     * All payments for the purchase invoice, including reversed payments. An invoice without payments returns an empty collection.
+     * All payments for the expense, including reversed payments. An expense without payments returns an empty collection.
      */
     200: {
         data: Array<PurchaseInvoicePayment>;
@@ -41547,11 +41547,11 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentErrors = {
      */
     404: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -42840,11 +42840,11 @@ export type PublicApiV1PurchaseInvoicesMarkPaidErrors = {
      */
     404: Error;
     /**
-     * The purchase invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid purchase invoice, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the purchase invoice cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -43840,7 +43840,7 @@ export type PublicApiV1EmployeesReactivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -44982,7 +44982,7 @@ export type PublicApiV1PurchaseScansDuplicateResolutionErrors = {
      */
     401: Error;
     /**
-     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_delete_required` (archiving requires the `delete` capability for purchase invoices).
+     * The request is not allowed for this API key or its creator. Possible `error.code` values: `insufficient_scope` — the API key lacks the scope this operation requires; `forbidden_action` — the API key has the scope, but the user who created it cannot perform this action for the company; `error.subcode` is `api_key_creator_not_member` (the API key creator no longer belongs to the company), or `purchase_invoices_delete_required` (archiving requires the `delete` capability for expenses).
      */
     403: Error;
     /**
@@ -45128,7 +45128,7 @@ export type PublicApiV1PurchaseScansRestoreErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `purchase_scan_source_unavailable` — the original was purged or is no longer retained; the scan history remains available (`error.subcode`: `source_unavailable`).
      */
     422: Error;
     /**
@@ -45317,7 +45317,7 @@ export type PublicApiV1PurchaseScansRetryErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request could not be validated. Possible `error.code` values: `purchase_scan_source_unavailable` — the original was purged or is no longer retained; the scan history remains available (`error.subcode`: `source_unavailable`).
      */
     422: Error;
     /**
@@ -48490,7 +48490,7 @@ export type PublicApiV1DeliveryNotesSignErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -48683,7 +48683,7 @@ export type PublicApiV1EmployeeSeatsSubscribeErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to a purchase invoice — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**

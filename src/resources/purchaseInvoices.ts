@@ -10,112 +10,112 @@ import type { Page } from "../core/pagination.js";
 
 
 export class PurchaseInvoicesResource extends BaseResource {
-  /** Attach a file to a purchase invoice */
+  /** Attach a file to an expense */
   async attachFile(purchaseInvoice: string, formData: FormData, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/attach-file", { "purchase_invoice": purchaseInvoice });
     return this._sendForm<unknown>(path, formData, config);
   }
 
-  /** Bulk delete purchase invoices */
+  /** Bulk delete expenses */
   async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_invoices/bulk-delete";
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Bulk change purchase invoice status */
+  /** Bulk change expense status */
   async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_invoices/bulk-status";
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Create a purchase invoice */
+  /** Create an expense */
   async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_invoices";
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** List all purchase invoices */
+  /** List all expenses */
   async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     return this._paginate<unknown>("/purchase_invoices", params, "starting_after", config);
   }
 
-  /** Delete a purchase invoice */
+  /** Delete an expense */
   async delete(purchaseInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}", { "purchase_invoice": purchaseInvoice });
     return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
-  /** Retrieve a purchase invoice */
+  /** Retrieve an expense */
   async show(purchaseInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}", { "purchase_invoice": purchaseInvoice });
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** Update a purchase invoice */
+  /** Update an expense */
   async update(purchaseInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}", { "purchase_invoice": purchaseInvoice });
     return this._send<unknown>("PUT", path, body, config);
   }
 
-  /** Remove a purchase invoice file */
+  /** Remove an expense file */
   async deleteFile(purchaseInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/file", { "purchase_invoice": purchaseInvoice });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
-  /** Download the original purchase invoice file */
+  /** Download the original expense file */
   async file(purchaseInvoice: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/file", { "purchase_invoice": purchaseInvoice });
     return this._binary(path, "GET", undefined, undefined, config);
   }
 
-  /** Download a purchase invoice payment receipt */
+  /** Download an expense payment receipt */
   async paymentReceipt(purchaseInvoice: string, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/payment-receipt", { "purchase_invoice": purchaseInvoice });
     return this._binary(path, "GET", undefined, undefined, config);
   }
 
-  /** Find a purchase invoice by external ID */
+  /** Find an expense by external ID */
   async findByExternalId(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_invoices/find-by-external-id";
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Get purchase invoice stats */
+  /** Get expense stats */
   async stats(config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_invoices/stats";
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** List purchase invoice expense categories */
+  /** List expense categories */
   async expenseCategories(config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_invoices/expense_categories";
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** List overdue purchase invoices */
+  /** List overdue expenses */
   async overdue(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     return this._paginate<unknown>("/purchase_invoices/overdue", params, "cursor", config);
   }
 
-  /** List pending purchase invoices */
+  /** List pending expenses */
   async pending(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     return this._paginate<unknown>("/purchase_invoices/pending", params, "cursor", config);
   }
 
-  /** List purchase invoice payments */
+  /** List expense payments */
   async listPayments(purchaseInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/payments", { "purchase_invoice": purchaseInvoice });
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** Register a purchase invoice payment */
+  /** Register an expense payment */
   async registerPayment(purchaseInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/payments", { "purchase_invoice": purchaseInvoice });
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Mark purchase invoice as paid */
+  /** Mark expense as paid */
   async markPaid(purchaseInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}/mark_paid", { "purchase_invoice": purchaseInvoice });
     return this._send<unknown>("POST", path, body, config);

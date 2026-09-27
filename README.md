@@ -165,7 +165,7 @@ Use `purchaseInvoices.expenseCategories()` to discover company category IDs for 
 
 Only edit when `can_save_review` is true. `review(id, { expected_version, fields, lines })` accepts partial field patches (`{ value: "..." }`), explicit `null` to clear, and line operations `update`, `add` (without `line_id`) or `remove`. Omitted values remain unchanged. Use the new returned version for the next mutation; a stale version returns `409`. On conversion failure, `ValidationError.fields` exposes the review fields that need correction.
 
-`convert(id, { expected_version }, { idempotencyKey })` creates a **purchase draft**, including its original attachment; it does not issue a sales invoice or mark the purchase paid. Follow `purchase_invoice_id` to the created purchase. EUR and resolved fiscal data are required. `retry` also starts a received document when automatic scanning is disabled. Respect `available_actions`; duplicate override and supplier creation are reserved for an interactive administrator. The public duplicate resolutions are `link_existing` (with `purchase_invoice_id`) and `archive`.
+`convert(id, { expected_version }, { idempotencyKey })` creates a **draft expense**, including its original attachment; it does not issue an invoice or mark the expense paid. Follow `purchase_invoice_id` to the created expense. EUR and resolved fiscal data are required. `retry` also starts a received document when automatic scanning is disabled. Respect `available_actions`; duplicate override and supplier creation are reserved for an interactive administrator. The public duplicate resolutions are `link_existing` (with `purchase_invoice_id`) and `archive`.
 
 ## Pagination
 
