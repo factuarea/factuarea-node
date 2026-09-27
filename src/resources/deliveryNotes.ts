@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -91,7 +91,7 @@ export class DeliveryNotesResource extends BaseResource {
   /** Delete a delivery note */
   async delete(deliveryNote: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/delivery_notes/{delivery_note}", { "delivery_note": deliveryNote });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a delivery note */

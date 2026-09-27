@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -19,6 +19,12 @@ export class RecurringInvoicesResource extends BaseResource {
   /** Bulk delete recurring invoices */
   async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/recurring_invoices/bulk-delete";
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Bulk change recurring invoice status */
+  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/recurring_invoices/bulk-status";
     return this._send<unknown>("POST", path, body, config);
   }
 
@@ -42,7 +48,7 @@ export class RecurringInvoicesResource extends BaseResource {
   /** Delete a recurring invoice */
   async delete(recurringInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/recurring_invoices/{recurring_invoice}", { "recurring_invoice": recurringInvoice });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a recurring invoice */

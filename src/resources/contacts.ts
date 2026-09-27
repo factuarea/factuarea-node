@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -25,7 +25,7 @@ export class ContactsResource extends BaseResource {
   /** Remove a contact role */
   async removeContactRole(contact: string, role: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/contacts/{contact}/roles/{role}", { "contact": contact, "role": role });
-    return this._delete<unknown>(path, params, config);
+    return this._delete<unknown>(path, params, config, { idempotent: true });
   }
 
   /** Archive contacts in bulk */
@@ -72,7 +72,7 @@ export class ContactsResource extends BaseResource {
   /** Delete a contact */
   async delete(contact: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/contacts/{contact}", { "contact": contact });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a contact */

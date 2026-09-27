@@ -85,8 +85,15 @@ export abstract class BaseResource {
     path: string,
     body?: unknown,
     config?: RequestConfig,
+    opts?: { idempotent?: boolean },
   ): Promise<T> {
-    const response = await this.client.request<T>({ method, path, body, ...config });
+    const response = await this.client.request<T>({
+      method,
+      path,
+      body,
+      ...config,
+      idempotent: opts?.idempotent,
+    });
     return response.data;
   }
 
@@ -94,12 +101,14 @@ export abstract class BaseResource {
     path: string,
     query?: Record<string, unknown>,
     config?: RequestConfig,
+    opts?: { idempotent?: boolean },
   ): Promise<T> {
     const response = await this.client.request<T>({
       method: "DELETE",
       path,
       query: flattenQuery(query),
       ...config,
+      idempotent: opts?.idempotent,
     });
     return response.data;
   }

@@ -95,7 +95,7 @@ The SDK pins the [`Factuarea-Version`](https://docs.factuarea.com/guides/version
 
 Use `factuarea.contacts` for customer, supplier and lead identities. A contact can hold multiple roles, so creating a supplier relationship does not require duplicating an existing customer's identity. Sales documents still name their reference `client_id`, and purchases use `supplier_id`; both accept the canonical contact UUID with the corresponding active role.
 
-Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog` and `webhookEndpoints`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
+Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog` and `webhookEndpoints`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
 
 ### Contacts
 
@@ -131,6 +131,41 @@ Filter `list` and `search` with `roles`, `tags`, `search` or `is_archived`. Arra
 ### Migrating from `clients` and `suppliers`
 
 The legacy `/v1/clients` and `/v1/suppliers` routes were retired from the public API on 2026-09-16, so the `clients` and `suppliers` resources were removed from the SDK in 0.6.0. Every operation has a `contacts` equivalent: filter by `roles: ["customer"]` or `roles: ["supplier"]` where the legacy resource implied the role, and use `contacts.stats`, `contacts.activities`, `contacts.bulkCreate`, `contacts.bulkDelete`, `contacts.import`, `contacts.verifyCensus`, `contacts.findByTaxId` and `contacts.findByExternalId` for the role-specific helpers. Legacy client/supplier IDs are not contact UUIDs; resolve them through the [Contact migration guide](https://docs.factuarea.com/guides/contact-migration) instead of assuming equality.
+
+## Purchase scans
+
+`purchaseScans` supports `create` (multipart batch), `list`, `show`, `stats`, `review`, `convert`, `duplicateResolution`, `retry`, `archive`, `restore` and `source` (binary). `purchaseScanEmails.list` returns inbound messages and attachment outcomes. Read operations require `purchase_invoices:read`, mutations `purchase_invoices:write`, and archive `purchase_invoices:delete`; the company's scanner/OCR entitlement must also be active.
+
+Uploads take one multipart part per file, every part named `files[]` (the API accepts PDF, JPEG or PNG originals), with limits of 20 files per batch, 20.0 MiB per file and 100.0 MiB per batch. `create`, `retry`, `duplicateResolution`, `convert`, `archive` and `restore` require `Idempotency-Key`; the SDK generates one automatically when you do not pass `idempotencyKey` yourself. `review` does not require it.
+
+```ts
+import { readFile, writeFile } from "node:fs/promises";
+import type { PurchaseScanUploadBatch, PurchaseScan } from "@factuarea/sdk";
+
+const form = new FormData();
+form.append("files[]", new Blob([await readFile("invoice.pdf")], {
+  type: "application/pdf",
+}), "invoice.pdf");
+const { data: batch } = await factuarea.purchaseScans.create(form, {
+  idempotencyKey: "purchase-upload-batch-001",
+}) as { data: PurchaseScanUploadBatch };
+console.log(batch.accepted, batch.rejected);
+
+// Processing is asynchronous. Read the current state before editing.
+const id = batch.accepted[0].id;
+const { data: scan } = await factuarea.purchaseScans.show(id) as { data: PurchaseScan };
+console.log(scan.status, scan.available_actions, scan.extraction, scan.issues);
+const original = await factuarea.purchaseScans.source(id);
+await writeFile("original.pdf", original.toBuffer());
+```
+
+An upload accepts up to 20 PDF/JPEG/PNG originals (20 MiB each, 100 MiB total). A partial rejection still returns `202`; if all files are rejected, `ValidationError.data` retains the batch result. Preserve the same idempotency key and file order when retrying that batch.
+
+Use `purchaseInvoices.expenseCategories()` to discover company category IDs for the review field `expense_category`; category names are not accepted as identifiers.
+
+Only edit when `can_save_review` is true. `review(id, { expected_version, fields, lines })` accepts partial field patches (`{ value: "..." }`), explicit `null` to clear, and line operations `update`, `add` (without `line_id`) or `remove`. Omitted values remain unchanged. Use the new returned version for the next mutation; a stale version returns `409`. On conversion failure, `ValidationError.fields` exposes the review fields that need correction.
+
+`convert(id, { expected_version }, { idempotencyKey })` creates a **purchase draft**, including its original attachment; it does not issue a sales invoice or mark the purchase paid. Follow `purchase_invoice_id` to the created purchase. EUR and resolved fiscal data are required. `retry` also starts a received document when automatic scanning is disabled. Respect `available_actions`; duplicate override and supplier creation are reserved for an interactive administrator. The public duplicate resolutions are `link_existing` (with `purchase_invoice_id`) and `archive`.
 
 ## Pagination
 

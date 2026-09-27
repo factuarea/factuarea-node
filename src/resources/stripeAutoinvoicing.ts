@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -13,7 +13,7 @@ export class StripeAutoinvoicingAccountsResource extends BaseResource {
   /** Disconnect a connected Stripe account */
   async disconnect(account: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/connected-accounts/{account}", { "account": account });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a connected Stripe account */
@@ -25,7 +25,7 @@ export class StripeAutoinvoicingAccountsResource extends BaseResource {
   /** Update a connected Stripe account */
   async update(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/connected-accounts/{account}", { "account": account });
-    return this._send<unknown>("PUT", path, body, config);
+    return this._send<unknown>("PUT", path, body, config, { idempotent: true });
   }
 
   /** List connected Stripe accounts */
@@ -45,7 +45,7 @@ export class StripeAutoinvoicingConfigResource extends BaseResource {
   /** Update Stripe autoinvoicing config */
   async update(body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = "/stripe-autoinvoicing/config";
-    return this._send<unknown>("PUT", path, body, config);
+    return this._send<unknown>("PUT", path, body, config, { idempotent: true });
   }
 }
 

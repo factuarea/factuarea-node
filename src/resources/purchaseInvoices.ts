@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -42,7 +42,7 @@ export class PurchaseInvoicesResource extends BaseResource {
   /** Delete a purchase invoice */
   async delete(purchaseInvoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/purchase_invoices/{purchase_invoice}", { "purchase_invoice": purchaseInvoice });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a purchase invoice */
@@ -84,6 +84,12 @@ export class PurchaseInvoicesResource extends BaseResource {
   /** Get purchase invoice stats */
   async stats(config?: RequestConfig): Promise<unknown> {
     const path = "/purchase_invoices/stats";
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** List purchase invoice expense categories */
+  async expenseCategories(config?: RequestConfig): Promise<unknown> {
+    const path = "/purchase_invoices/expense_categories";
     return this._get<unknown>(path, undefined, config);
   }
 

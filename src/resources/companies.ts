@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -25,7 +25,7 @@ export class CompaniesApiKeysResource extends BaseResource {
   /** Revoke a child API key */
   async revoke(company: string, apiKey: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/api-keys/{api_key}", { "company": company, "api_key": apiKey });
-    return this._delete<unknown>(path, params, config);
+    return this._delete<unknown>(path, params, config, { idempotent: true });
   }
 
   /** Retrieve a child API key */

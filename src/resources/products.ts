@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -25,7 +25,7 @@ export class ProductsPresentationsResource extends BaseResource {
   /** Delete a product presentation */
   async delete(product: string, presentation: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/products/{product}/presentations/{presentation}", { "product": product, "presentation": presentation });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Update a product presentation */
@@ -51,7 +51,7 @@ export class ProductsVariantsResource extends BaseResource {
   /** Delete a product variant */
   async delete(product: string, variant: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/products/{product}/variants/{variant}", { "product": product, "variant": variant });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Update a product variant */
@@ -77,7 +77,7 @@ export class ProductsSupplierOffersResource extends BaseResource {
   /** Delete a supplier offer */
   async delete(product: string, offer: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/products/{product}/supplier-offers/{offer}", { "product": product, "offer": offer });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Update a supplier offer */
@@ -217,7 +217,7 @@ export class ProductsResource extends BaseResource {
   /** Delete a product */
   async delete(product: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/products/{product}", { "product": product });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a product */
