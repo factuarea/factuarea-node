@@ -2007,11 +2007,14 @@ export type BulkStatusDeliveryNotesV1Request = {
 /**
  * BulkStatusInvoicesV1Request
  *
- * Transition several invoices to `new_status` (`sent` or `paid`) in one request, up to 50 per batch. `ids` is an array of invoice UUIDs; `payment_date` is required and cannot be in the future when `new_status` is `paid`. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
+ * Transition several invoices to `new_status` (`issued` or `paid`) in one request, up to 50 per batch. `issued` issues each draft without sending any email; `sent` is still accepted as an alias of `issued` in every API version and never marks the invoice as delivered. `ids` is an array of invoice UUIDs; `payment_date` is required and cannot be in the future when `new_status` is `paid`. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusInvoicesV1Request = {
     ids: Array<string>;
-    new_status: 'sent' | 'paid';
+    /**
+     * Target status: `issued` issues each draft (definitive number, VeriFactu record) without sending any email; `paid` records a payment for the outstanding amount of each issued invoice. `sent` is accepted as an alias of `issued` in every API version and never sets the delivery mark (`is_sent`).
+     */
+    new_status: 'issued' | 'sent' | 'paid';
     payment_date?: string | null;
 };
 
@@ -2038,7 +2041,7 @@ export type BulkStatusProformasV1Request = {
 /**
  * BulkStatusPurchaseInvoicesV1Request
  *
- * Transition several expenses to `new_status` (`paid`) in one request, up to 50 per batch. `ids` is an array of purchase-invoice UUIDs; `payment_date` is required and cannot be in the future. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
+ * Transition several expenses to `new_status` (`paid`) in one request, up to 50 per batch. `ids` is an array of expense UUIDs; `payment_date` is required and cannot be in the future. Every transition passes the document state guard, and expenses that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusPurchaseInvoicesV1Request = {
     ids: Array<string>;
@@ -3209,7 +3212,7 @@ export type CreateApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
+    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -3348,7 +3351,7 @@ export type CreateChildApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one; a subset of the parent key scopes).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'prestashop_store:read' | 'prestashop_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
+    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'prestashop_store:read' | 'prestashop_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -3610,7 +3613,7 @@ export type CreateInvoiceRequest = {
          */
         line_type?: 'NORMAL' | 'SUPLIDO' | null;
         /**
-         * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line. Free text on purpose: the receipt of a public body is rarely registered as an expense.
+         * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line. Free text on purpose: the receipt of a public body is rarely a supplier invoice.
          */
         source_invoice_reference?: string | null;
         /**
@@ -3985,7 +3988,7 @@ export type CreateQuoteRequest = {
 /**
  * CreateRecurringFromInvoiceRequest
  *
- * Create a recurring invoice from an existing invoice, reusing its lines, client and series. The body supplies only the recurrence configuration: `frequency` and `start_on` are required; `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences` and an `auto_delivery` object are optional.
+ * Create a recurring invoice from an existing invoice, reusing its lines, client and series. The body supplies only the recurrence configuration: `frequency` and `start_on` are required; `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `generation_mode` (`draft`, `issue` or `issue_and_send`) and an `auto_delivery` object are optional.
  */
 export type CreateRecurringFromInvoiceRequest = {
     frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
@@ -3998,7 +4001,14 @@ export type CreateRecurringFromInvoiceRequest = {
     holiday_handling?: string | null;
     days_before_due?: number | null;
     max_occurrences?: number | null;
+    /**
+     * What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft; `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it; `issue_and_send` issues it and emails it to the `auto_delivery` recipients. Any other value is rejected with 422. Optional and nullable: when omitted (or `null`) the mode is derived from `send_automatically` (`true` → `issue_and_send`, `false` or absent → `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if an `auto_delivery` object is configured, `auto_delivery.recipients` must then contain at least one address (422 `auto_delivery_recipients_required` otherwise); `draft` and `issue` send no email and need none. Available in every API version.
+     */
+    generation_mode?: 'draft' | 'issue' | 'issue_and_send' | null;
     auto_delivery?: {
+        /**
+         * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+         */
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
@@ -4010,7 +4020,7 @@ export type CreateRecurringFromInvoiceRequest = {
 /**
  * CreateRecurringInvoiceRequest
  *
- * Create a recurring invoice template that auto-generates invoices on a fixed cadence. Required: `client_id`, `series_id`, `frequency`, `start_on` and `lines[]` (at least one). Optional: `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `tags` and `custom_fields`. `frequency` accepts `daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `semiannual` or `yearly`.
+ * Create a recurring invoice template that auto-generates invoices on a fixed cadence. Required: `client_id`, `series_id`, `frequency`, `start_on` and `lines[]` (at least one). Optional: `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `generation_mode`, `auto_delivery`, `tags` and `custom_fields`. `generation_mode` (`draft`, `issue` or `issue_and_send`) decides what each run does with the generated invoice; `send_automatically` is its derived compatibility field. `frequency` accepts `daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `semiannual` or `yearly`.
  */
 export type CreateRecurringInvoiceRequest = {
     client_id: string;
@@ -4034,8 +4044,18 @@ export type CreateRecurringInvoiceRequest = {
     days_before_due?: number | null;
     max_occurrences?: number | null;
     email_to?: string | null;
+    /**
+     * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+     */
     send_automatically?: boolean;
+    /**
+     * What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft; `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it; `issue_and_send` issues it and emails it to the `auto_delivery` recipients. Any other value is rejected with 422. Optional and nullable: when omitted (or `null`) the mode is derived from `send_automatically` (`true` → `issue_and_send`, `false` or absent → `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if an `auto_delivery` object is configured, `auto_delivery.recipients` must then contain at least one address (422 `auto_delivery_recipients_required` otherwise); `draft` and `issue` send no email and need none. Available in every API version.
+     */
+    generation_mode?: 'draft' | 'issue' | 'issue_and_send' | null;
     auto_delivery?: {
+        /**
+         * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+         */
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
@@ -4153,9 +4173,12 @@ export type CreateTaxRequest = {
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
+    /**
+     * Payload version (date-based, `YYYY-MM-DD`) to pin for the events delivered to this endpoint. Supported values: `2026-05-22` and `2026-10-01`. Omitted or `null`, the endpoint is pinned at creation to the payload version that matches the effective REST version of the request: `2026-10-01` when that version is `2026-10-01` or later (`Factuarea-Version` header, or the version pinned on the API key), and `2026-05-22` otherwise, including requests without a version header. So nobody receives the new vocabulary without opting in. With `2026-05-22`, invoices keep the previous vocabulary (`status: sent` for an issued invoice, `sent_at` equal to the issuance instant). A value that is not a `YYYY-MM-DD` date returns 422 (subcode `api_version_invalid_format`), and an unsupported one 422 (subcode `api_version_unsupported`).
+     */
     api_version?: string | null;
     metadata?: Metadata;
     custom_headers?: CustomHeaders;
@@ -5361,8 +5384,14 @@ export type EventData = ({
 } & EventDataInvoiceSubscriptionAutoCreated) | ({
     type: 'invoice.updated';
 } & EventDataInvoiceUpdated) | ({
+    type: 'invoice.issued';
+} & EventDataInvoiceIssued) | ({
     type: 'invoice.sent';
 } & EventDataInvoiceSent) | ({
+    type: 'invoice.marked_sent';
+} & EventDataInvoiceMarkedSent) | ({
+    type: 'invoice.unsent';
+} & EventDataInvoiceUnsent) | ({
     type: 'invoice.paid';
 } & EventDataInvoicePaid) | ({
     type: 'invoice.cancelled';
@@ -6144,6 +6173,26 @@ export type EventDataInvoiceEmailSent = {
 };
 
 /**
+ * EventDataInvoiceIssued
+ *
+ * Payload (`data`) emitted with the `invoice.issued` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceIssued = {
+    type: 'invoice.issued';
+    object: Invoice;
+};
+
+/**
+ * EventDataInvoiceMarkedSent
+ *
+ * Payload (`data`) emitted with the `invoice.marked_sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceMarkedSent = {
+    type: 'invoice.marked_sent';
+    object: Invoice;
+};
+
+/**
  * EventDataInvoiceMetadataChanged
  *
  * Payload (`data`) emitted with the `invoice.metadata_changed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
@@ -6220,7 +6269,9 @@ export type EventDataInvoiceRectified = {
 /**
  * EventDataInvoiceSent
  *
- * Payload (`data`) emitted with the `invoice.sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ * Payload (`data`) emitted with the `invoice.sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys. Deprecated: alias of `invoice.issued`, emitted at the same instant and with the same `data.object`. New integrations should subscribe to `invoice.issued`; its removal will be announced with a `Sunset` date.
+ *
+ * @deprecated
  */
 export type EventDataInvoiceSent = {
     type: 'invoice.sent';
@@ -6277,6 +6328,16 @@ export type EventDataInvoiceSubstitutedByComplete = {
     object: Invoice;
     substitute_invoice_id: string | null;
     substitute_invoice_number: string | null;
+};
+
+/**
+ * EventDataInvoiceUnsent
+ *
+ * Payload (`data`) emitted with the `invoice.unsent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceUnsent = {
+    type: 'invoice.unsent';
+    object: Invoice;
 };
 
 /**
@@ -7110,9 +7171,9 @@ export type ExportInvoicesExcelV1Request = {
      */
     invoice_ids?: Array<string> | null;
     /**
-     * Invoice status to filter by (draft, sent, paid, overdue, cancelled, annulled, scheduled).
+     * Invoice status to filter by (`draft`, `scheduled`, `issued`, `paid`, `cancelled`, `overdue`, `annulled`). `sent` is accepted as an alias of `issued` in every API version.
      */
-    status?: 'draft' | 'scheduled' | 'sent' | 'paid' | 'cancelled' | 'overdue' | 'annulled' | null;
+    status?: 'draft' | 'scheduled' | 'issued' | 'paid' | 'cancelled' | 'overdue' | 'annulled' | null;
     /**
      * Start of the issue-date range (inclusive).
      */
@@ -7579,7 +7640,7 @@ export type Invoice = {
      */
     number: string | null;
     /**
-     * Whether the invoice has a definitive number assigned. `false` for drafts (where `number` is `null`); becomes `true` after `POST /v1/invoices/{uuid}/assign-real-number`, or automatically on send/payment.
+     * Whether the invoice has a definitive number assigned. `false` for drafts (where `number` is `null`); becomes `true` after `POST /v1/invoices/{uuid}/assign-real-number`, or automatically when the invoice is issued.
      */
     is_number_assigned: boolean;
     /**
@@ -7589,9 +7650,9 @@ export type Invoice = {
     series: SeriesRef;
     client: ClientRef;
     /**
-     * Invoice lifecycle status.
+     * Public invoice status. `issued` means the invoice has been ISSUED (definitive number, VeriFactu record); it says nothing about delivery, which lives in `is_sent`/`sent_at`/`sent_via`. `paid` and `partially_paid` are derived from the payment ledger. Before API version `2026-10-01` the issued status is published as `sent` (that contract called issuing "sending"), so `sent` only appears for integrations pinned to an earlier version.
      */
-    status: string;
+    status: 'draft' | 'scheduled' | 'issued' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled' | 'annulled' | 'sent';
     /**
      * UUID of the price list selected for this document.
      */
@@ -7706,7 +7767,22 @@ export type Invoice = {
     recurring: InvoiceRecurring | null;
     paid_at: string | null;
     paid_on: string | null;
+    /**
+     * When the invoice was issued (ISO 8601), or `null` while it is a draft or scheduled. Not present before API version `2026-10-01`: earlier versions publish this instant in `sent_at`.
+     */
+    issued_at: string | null;
+    /**
+     * When the invoice was first delivered to the customer (ISO 8601): the moment the mail server accepted its delivery email, or the date of a manual mark. `null` while it has not been delivered. A resend never moves it. Before API version `2026-10-01` this field carries the ISSUANCE instant instead (that contract called issuing "sending").
+     */
     sent_at: string | null;
+    /**
+     * Channel of the first delivery: `email` (the mail server accepted the delivery email) or `manual` (marked with `POST /v1/invoices/{id}/mark-sent`). `null` while the invoice has not been delivered. Not present before API version `2026-10-01`.
+     */
+    sent_via: 'email' | 'manual' | null;
+    /**
+     * Whether the invoice has been delivered to the customer, independently of its fiscal `status`: an issued or overdue invoice can be delivered or not. Derived from the delivery mark (`sent_at` + `sent_via`), never set directly. Not present before API version `2026-10-01`.
+     */
+    is_sent: boolean;
     voided_at: string | null;
     void_reason: string | null;
     /**
@@ -7714,9 +7790,9 @@ export type Invoice = {
      */
     scheduled_for: string | null;
     /**
-     * Action the scheduler runs when `scheduled_for` is reached: `issue_and_send` (issue and email) or `draft` (issue only). `null` when the invoice is not scheduled.
+     * Action the scheduler runs when `scheduled_for` is reached: `issue` (issue without sending) or `issue_and_send` (issue and email it). `null` when the invoice is not scheduled. Before API version `2026-10-01` the `issue` action is published as `draft`, its previous name.
      */
-    scheduled_action: 'draft' | 'issue_and_send' | null;
+    scheduled_action: 'issue' | 'issue_and_send' | 'draft' | null;
     /**
      * Sales channel the invoice originated from (`woocommerce`, `shopify`, `prestashop`), or `null` when it was not created from a store order — which is the common case.
      */
@@ -7925,7 +8001,7 @@ export type InvoiceLine = {
      */
     line_type?: 'NORMAL' | 'SUPLIDO';
     /**
-     * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (≤100 chars). REQUIRED on a `SUPLIDO` line (a disbursement without its supporting reference is rejected with 422) and `null` on a normal line. Free text on purpose: the receipt of a public body is rarely registered as an expense.
+     * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (≤100 chars). REQUIRED on a `SUPLIDO` line (a disbursement without its supporting reference is rejected with 422) and `null` on a normal line. Free text on purpose: the receipt of a public body is rarely a supplier invoice.
      */
     source_invoice_reference?: string | null;
     /**
@@ -8081,7 +8157,7 @@ export type InvoiceReminderPreview = {
      */
     bcc: Array<string>;
     /**
-     * Current status of the invoice (e.g. `sent`, `overdue`).
+     * Current status of the invoice (e.g. `issued`, `overdue`). Before API version `2026-10-01` the issued status is published as `sent`.
      */
     status: string;
     /**
@@ -8150,7 +8226,7 @@ export type InvoiceStats = {
      */
     total_count: number;
     /**
-     * Invoice count by status (key = status, value = number of invoices).
+     * Invoice count by status (key = status, value = number of invoices). Issued invoices are counted under `issued`; before API version `2026-10-01` that key is `sent`.
      */
     by_status: {
         [key: string]: number;
@@ -8201,9 +8277,9 @@ export type InvoiceStats = {
  */
 export type InvoiceStatusItem = {
     /**
-     * Internal status identifier.
+     * Status identifier, in the same order as the catalog. Before API version `2026-10-01` the issued status is listed as `sent` (label «Enviado») in the position of `issued`.
      */
-    value: 'draft' | 'sent' | 'paid' | 'cancelled' | 'overdue' | 'annulled';
+    value: 'draft' | 'scheduled' | 'issued' | 'paid' | 'cancelled' | 'overdue' | 'annulled' | 'partially_paid' | 'sent';
     /**
      * Human-readable status label (Spanish).
      */
@@ -10595,9 +10671,13 @@ export type RecurringInvoice = {
      */
     email_to: string | null;
     /**
-     * If `true`, the generated invoices are automatically emailed to `email_to`.
+     * Compatibility field DERIVED from `generation_mode`: `true` if and only if `generation_mode` is `issue_and_send` (each generated invoice is issued and emailed to `email_to`). On write, without an explicit `generation_mode`, `true` still means `issue_and_send` and `false` means `draft`; when both are sent and contradict each other the request is rejected with 422.
      */
     send_automatically: boolean;
+    /**
+     * What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft (no definitive number); `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it, so it stays `is_sent = false`; `issue_and_send` issues it and emails it to the configured recipients, and it is marked as sent once the mail server accepts the email (if the delivery fails the invoice stays issued and not sent). Available in every API version. `send_automatically` is derived from it.
+     */
+    generation_mode: 'draft' | 'issue' | 'issue_and_send';
     /**
      * Payment term days (Net X) applied to the due date of each generated invoice.
      */
@@ -10673,7 +10753,7 @@ export type RecurringInvoice = {
      */
     auto_delivery: {
         /**
-         * If `true`, generated invoices are automatically emailed to `recipients`.
+         * Compatibility field DERIVED from `generation_mode`: `true` if and only if `generation_mode` is `issue_and_send`, in which case each generated invoice is emailed to `recipients`.
          */
         send_automatically: boolean;
         /**
@@ -11000,7 +11080,7 @@ export type RegisterInvoicePaymentRequest = {
 /**
  * RegisterPurchaseInvoicePaymentRequest
  *
- * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, invoice not cancelled) are enforced with a 422.
+ * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, expense not cancelled) are enforced with a 422.
  */
 export type RegisterPurchaseInvoicePaymentRequest = {
     amount: number;
@@ -11078,6 +11158,9 @@ export type RequestTimeCorrectionRequest = {
  * Reschedule an already `scheduled` invoice. Required: `scheduled_for` (ISO 8601 date-time, strictly in the future).
  */
 export type RescheduleInvoiceRequest = {
+    /**
+     * New instant at which the scheduled invoice will be issued, as an ISO 8601 date-time strictly in the future (422 otherwise). An explicit offset (`Z`, `+01:00`) is honoured; without one it is read in `Europe/Madrid`. Only the date moves: the `scheduled_action` chosen when scheduling (`issue` or `issue_and_send`) is kept.
+     */
     scheduled_for: string;
 };
 
@@ -11757,11 +11840,17 @@ export type ScheduleAssignment = {
 /**
  * ScheduleInvoiceRequest
  *
- * Schedule the future issuance of a `draft` invoice. Required: `scheduled_for` (ISO 8601 date-time, strictly in the future) and `scheduled_action` (`draft` or `issue_and_send`).
+ * Schedule the future issuance of a `draft` invoice. Required: `scheduled_for` (ISO 8601 date-time, strictly in the future) and `scheduled_action` (`issue` to issue it without sending, or `issue_and_send` to issue it and email it to the customer). The legacy value `draft` is still accepted as an alias of `issue` in every API version.
  */
 export type ScheduleInvoiceRequest = {
+    /**
+     * Instant at which the invoice will be issued, as an ISO 8601 date-time strictly in the future. An explicit offset (`Z`, `+01:00`) is honoured; without one it is read in `Europe/Madrid`.
+     */
     scheduled_for: string;
-    scheduled_action: 'draft' | 'issue_and_send';
+    /**
+     * What happens at `scheduled_for`: `issue` issues the invoice without sending it; `issue_and_send` issues it and emails it to the customer. `draft` is still accepted as an alias of `issue` in every API version (it always meant "issue without sending").
+     */
+    scheduled_action: 'issue' | 'issue_and_send';
 };
 
 /**
@@ -11898,7 +11987,7 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | null;
 };
 
 /**
@@ -14567,7 +14656,7 @@ export type UpdateQuoteRequest = {
 /**
  * UpdateRecurringInvoiceRequest
  *
- * Partial update of a recurring invoice template; only the fields sent overwrite the current value, omitted ones are preserved. Writable fields mirror creation (`client_id`, `series_id`, `name`, `description`, `frequency`, `holiday_handling`, `start_on`, `end_on`, `notes`, `metadata`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `lines[]`).
+ * Partial update of a recurring invoice template; only the fields sent overwrite the current value, omitted ones are preserved. Writable fields mirror creation (`client_id`, `series_id`, `name`, `description`, `frequency`, `holiday_handling`, `start_on`, `end_on`, `notes`, `metadata`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `generation_mode`, `auto_delivery`, `lines[]`). Omitting `generation_mode` keeps the current mode.
  */
 export type UpdateRecurringInvoiceRequest = {
     client_id?: string;
@@ -14591,8 +14680,18 @@ export type UpdateRecurringInvoiceRequest = {
     days_before_due?: number | null;
     max_occurrences?: number | null;
     email_to?: string | null;
+    /**
+     * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+     */
     send_automatically?: boolean;
+    /**
+     * New generation mode of the recurrence: `draft` (generated invoices stay as drafts), `issue` (they are issued without being emailed) or `issue_and_send` (they are issued and emailed to the `auto_delivery` recipients). Any other value is rejected with 422. Optional: when omitted (or `null`) the current mode is kept, unless `send_automatically` is sent on its own and changes whether the recurrence emails its invoices (`true` switches a non-sending mode to `issue_and_send`; `false` switches `issue_and_send` to `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if the recurrence has an `auto_delivery` configuration, it must keep at least one recipient (422 `auto_delivery_recipients_required` otherwise). Available in every API version.
+     */
+    generation_mode?: 'draft' | 'issue' | 'issue_and_send' | null;
     auto_delivery?: {
+        /**
+         * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+         */
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
@@ -14822,9 +14921,12 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
+    /**
+     * New payload version (date-based, `YYYY-MM-DD`) pinned for the events delivered to this endpoint. Supported values: `2026-05-22` and `2026-10-01`. Omit the field to keep the current value; send `null` to unpin the endpoint, which then receives the payload version of the default REST version (currently `2026-05-22`), never the latest one. Endpoints that existed before version `2026-10-01` was released were pinned to `2026-05-22`, so they keep receiving invoices in the previous vocabulary until you change this value. A value that is not a `YYYY-MM-DD` date returns 422 (subcode `api_version_invalid_format`), and an unsupported one 422 (subcode `api_version_unsupported`).
+     */
     api_version?: string | null;
     metadata?: Metadata;
     custom_headers?: CustomHeaders;
@@ -15288,9 +15390,9 @@ export type WebhookEndpoint = {
     url: string;
     description: string | null;
     /**
-     * List of event types this endpoint subscribes to.
+     * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<string>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -15306,7 +15408,7 @@ export type WebhookEndpoint = {
     created_at: string;
     updated_at: string;
     /**
-     * API version (date-based, e.g. `2026-05-01`) pinned for the payloads delivered to this endpoint. `null` means the account default applies.
+     * Payload version (date-based, e.g. `2026-10-01`) pinned for the events delivered to this endpoint. An endpoint created without an explicit `api_version` is pinned at creation (`2026-10-01` when the effective REST version of the request is `2026-10-01` or later, `2026-05-22` otherwise). `null` only remains if it was cleared explicitly, and then the payload version of the default REST version (currently `2026-05-22`) applies, never the latest one. An endpoint pinned to a payload version before `2026-10-01` receives invoices in the previous vocabulary: `status: sent` for an issued invoice, `sent_at` equal to the issuance instant, and no `issued_at`, `is_sent` or `sent_via`.
      */
     api_version: string | null;
     metadata: Metadata;
@@ -15335,9 +15437,9 @@ export type WebhookEndpointWithSecret = {
     url: string;
     description: string | null;
     /**
-     * List of event types this endpoint subscribes to.
+     * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<string>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -15353,7 +15455,7 @@ export type WebhookEndpointWithSecret = {
     created_at: string;
     updated_at: string;
     /**
-     * API version (date-based, e.g. `2026-05-01`) pinned for the payloads delivered to this endpoint. `null` means the account default applies.
+     * Payload version (date-based, e.g. `2026-10-01`) pinned for the events delivered to this endpoint. An endpoint created without an explicit `api_version` is pinned at creation (`2026-10-01` when the effective REST version of the request is `2026-10-01` or later, `2026-05-22` otherwise). `null` only remains if it was cleared explicitly, and then the payload version of the default REST version (currently `2026-05-22`) applies, never the latest one. An endpoint pinned to a payload version before `2026-10-01` receives invoices in the previous vocabulary: `status: sent` for an issued invoice, `sent_at` equal to the issuance instant, and no `issued_at`, `is_sent` or `sent_via`.
      */
     api_version: string | null;
     metadata: Metadata;
@@ -15388,8 +15490,14 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadInvoiceSubscriptionAutoCreated) | ({
     type: 'invoice.updated';
 } & WebhookEventPayloadInvoiceUpdated) | ({
+    type: 'invoice.issued';
+} & WebhookEventPayloadInvoiceIssued) | ({
     type: 'invoice.sent';
 } & WebhookEventPayloadInvoiceSent) | ({
+    type: 'invoice.marked_sent';
+} & WebhookEventPayloadInvoiceMarkedSent) | ({
+    type: 'invoice.unsent';
+} & WebhookEventPayloadInvoiceUnsent) | ({
     type: 'invoice.paid';
 } & WebhookEventPayloadInvoicePaid) | ({
     type: 'invoice.cancelled';
@@ -17369,6 +17477,80 @@ export type WebhookEventPayloadInvoiceEmailSent = {
 };
 
 /**
+ * WebhookEventPayloadInvoiceIssued
+ *
+ * Webhook delivery body for the `invoice.issued` event.
+ */
+export type WebhookEventPayloadInvoiceIssued = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.issued`.
+     */
+    type: 'invoice.issued';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceIssued;
+};
+
+/**
+ * WebhookEventPayloadInvoiceMarkedSent
+ *
+ * Webhook delivery body for the `invoice.marked_sent` event.
+ */
+export type WebhookEventPayloadInvoiceMarkedSent = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.marked_sent`.
+     */
+    type: 'invoice.marked_sent';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceMarkedSent;
+};
+
+/**
  * WebhookEventPayloadInvoiceMetadataChanged
  *
  * Webhook delivery body for the `invoice.metadata_changed` event.
@@ -17593,7 +17775,9 @@ export type WebhookEventPayloadInvoiceRectified = {
 /**
  * WebhookEventPayloadInvoiceSent
  *
- * Webhook delivery body for the `invoice.sent` event.
+ * Webhook delivery body for the `invoice.sent` event. Deprecated: alias of `invoice.issued`, emitted at the same instant and with the same `data.object`. New integrations should subscribe to `invoice.issued`; its removal will be announced with a `Sunset` date.
+ *
+ * @deprecated
  */
 export type WebhookEventPayloadInvoiceSent = {
     /**
@@ -17773,6 +17957,43 @@ export type WebhookEventPayloadInvoiceSubstitutedByComplete = {
      */
     correlation_id: string | null;
     data: EventDataInvoiceSubstitutedByComplete;
+};
+
+/**
+ * WebhookEventPayloadInvoiceUnsent
+ *
+ * Webhook delivery body for the `invoice.unsent` event.
+ */
+export type WebhookEventPayloadInvoiceUnsent = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.unsent`.
+     */
+    type: 'invoice.unsent';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceUnsent;
 };
 
 /**
@@ -21846,11 +22067,11 @@ export type PublicApiV1PurchaseInvoicesAttachFileErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -22505,11 +22726,11 @@ export type PublicApiV1PurchaseInvoicesBulkDeleteErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -23399,11 +23620,11 @@ export type PublicApiV1PurchaseInvoicesBulkStatusErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -26612,6 +26833,10 @@ export type PublicApiV1InvoicesListData = {
         original_invoice_id?: string | null;
         verifactu_status?: 'no_verifactu' | 'pending' | 'accepted' | 'rejected' | null;
         /**
+         * Delivery filter, independent of the fiscal status: `true` returns only the invoices marked as delivered to the customer (an email accepted by the mail server or a manual mark), `false` only the ones not delivered yet. Available in every API version.
+         */
+        is_sent?: 'true' | 'false' | '1' | '0' | null;
+        /**
          * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
         limit?: number;
@@ -26624,7 +26849,7 @@ export type PublicApiV1InvoicesListData = {
          */
         ending_before?: string;
         /**
-         * Invoice status. Exact match on `status`.
+         * Invoice status (`draft`, `scheduled`, `issued`, `paid`, `partially_paid`, `cancelled`, `overdue`, `annulled`). Exact match on `status`. `sent` is accepted as an alias of `issued` in every API version, so `status=sent` returns the same invoices as `status=issued`.
          */
         status?: string;
         /**
@@ -27872,7 +28097,7 @@ export type PublicApiV1PurchaseInvoicesListErrors = {
      */
     403: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -27926,11 +28151,11 @@ export type PublicApiV1PurchaseInvoicesCreateErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -31307,11 +31532,11 @@ export type PublicApiV1PurchaseInvoicesDeleteErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -31424,11 +31649,11 @@ export type PublicApiV1PurchaseInvoicesUpdateErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -31488,7 +31713,7 @@ export type PublicApiV1PurchaseInvoicesDeleteFileErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
@@ -34359,11 +34584,11 @@ export type PublicApiV1PurchaseInvoicesFindByExternalIdErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -38915,6 +39140,70 @@ export type PublicApiV1ContactsImportResponses = {
 
 export type PublicApiV1ContactsImportResponse = PublicApiV1ContactsImportResponses[keyof PublicApiV1ContactsImportResponses];
 
+export type PublicApiV1InvoicesIssueData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        invoice: string;
+    };
+    query?: never;
+    url: '/invoices/{invoice}/issue';
+};
+
+export type PublicApiV1InvoicesIssueErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesIssueError = PublicApiV1InvoicesIssueErrors[keyof PublicApiV1InvoicesIssueErrors];
+
+export type PublicApiV1InvoicesIssueResponses = {
+    200: {
+        data: Invoice;
+    };
+};
+
+export type PublicApiV1InvoicesIssueResponse = PublicApiV1InvoicesIssueResponses[keyof PublicApiV1InvoicesIssueResponses];
+
 export type PublicApiV1AbsenceBalancesListData = {
     body?: never;
     headers?: {
@@ -41547,11 +41836,11 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -42840,11 +43129,11 @@ export type PublicApiV1PurchaseInvoicesMarkPaidErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**

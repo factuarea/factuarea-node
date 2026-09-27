@@ -220,6 +220,12 @@ export class InvoicesResource extends BaseResource {
     return this._get<unknown>(path, params, config);
   }
 
+  /** Issue an invoice */
+  async issue(invoice: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/invoices/{invoice}/issue", { "invoice": invoice });
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+
   /** List invoice activity */
   async activities(invoice: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/invoices/{invoice}/activities", { "invoice": invoice });
