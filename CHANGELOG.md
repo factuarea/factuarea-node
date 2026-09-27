@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0
+
+### Minor Changes
+
+- [#12](https://github.com/factuarea/factuarea-node/pull/12) [`4c2ee4d`](https://github.com/factuarea/factuarea-node/commit/4c2ee4d1d70f971e41c822c66d57980deaf4f3d0) Thanks [@fernandoc00](https://github.com/fernandoc00)! - Add purchase scanner resources and extraction/review types from the backend contract. Support batch uploads, source downloads, versioned review and draft conversion, duplicate resolution, archive/restore, and inbound email history. Preserve structured batch failures and request options across pagination.
+
+  Fix the default request-version header to the supported stable version `2026-06-01`; the previous export-date pin was rejected by the backend.
+
+- [#12](https://github.com/factuarea/factuarea-node/pull/12) [`396bf15`](https://github.com/factuarea/factuarea-node/commit/396bf153ead834cffe3f9007caa28483c8224f61) Thanks [@fernandoc00](https://github.com/fernandoc00)! - Re-pin `spec/openapi.json` from the current backend contract (399 paths / 483 operations) and regenerate `src/generated/` and `src/resources/`.
+
+  **BREAKING**: the backend retired the legacy `clients`/`suppliers` routes (replaced by `contacts`, which already covers the same identities and roles). `ClientsResource`, `SuppliersResource`, the `factuarea.clients`/`factuarea.suppliers` client properties and the `Supplier` type export are removed; the SDK stays in `0.x` (breaking changes may land in a minor while pre-GA, `docs/VERSIONING.md`), so this is a `minor`, not a `major`, release. Use `contacts` for every identity, role and profile operation.
+
+  Harden `scripts/build-resources.mjs` (design D4): operations without `x-speakeasy-group` now fail the generator with a listing of `method path operationId` before any output is written, instead of being silently dropped. The script also accepts `--spec <path>`/`--out <dir>` for testing against fixture specs.
+
+  Add spec-guided `Idempotency-Key` support (design D6): `_send`/`_delete` in `src/core/resource.ts` accept an optional fifth `{ idempotent?: boolean }` argument, and the generator sets it for non-`POST` mutations the spec marks as requiring the header. `src/core/http-client.ts`'s `METHODS_WITH_IDEMPOTENCY` already generates the header unconditionally for every `POST`/`PUT`/`PATCH`/`DELETE` (a broader policy than D6, already shipped on this branch before this change) — that blanket behavior is kept as-is per the repo owner's instruction, so this is additive, not a narrowing.
+
+  Method names follow `backend/docs/api/sdk-method-naming.md @ 1.1.0` (up from the `1.0.0` cited by the generator before this change; the naming rule itself did not change).
+
 ## 0.6.0
 
 ### Minor Changes
