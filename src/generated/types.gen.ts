@@ -582,6 +582,30 @@ export type ActivateCompaniesBatchV1Request = {
 };
 
 /**
+ * AddTaskCommentV1Request
+ */
+export type AddTaskCommentV1Request = {
+    /**
+     * Comment text in Markdown, 1 to 10,000 characters after trimming whitespace.
+     */
+    body: string;
+};
+
+/**
+ * AddTaskExternalLinkV1Request
+ */
+export type AddTaskExternalLinkV1Request = {
+    /**
+     * `http` or `https` URL of the link, at most 2,048 characters and without credentials.
+     */
+    url: string;
+    /**
+     * Optional title of the link, at most 200 characters.
+     */
+    title?: string | null;
+};
+
+/**
  * Address
  */
 export type Address = {
@@ -645,6 +669,102 @@ export type AeatAccessRecord = {
      * Scope of the dissociation (`alta` / `anulacion`).
      */
     disclosure_scope: string;
+};
+
+/**
+ * AgendaItem
+ *
+ * An item of the combined agenda: a due task, a document due date or expiry, a recurring run, a tax deadline, an absence or a holiday.
+ */
+export type AgendaItem = {
+    /**
+     * UUID of the source entity, or a stable identifier for tax deadlines and holidays.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `agenda_item` for this resource.
+     */
+    object: 'agenda_item';
+    /**
+     * Layer of the item.
+     */
+    type: 'tasks' | 'invoice_due' | 'purchase_invoice_due' | 'quote_expiry' | 'proforma_expiry' | 'recurring_invoice_run' | 'fiscal_deadline' | 'absence' | 'holiday';
+    title: string;
+    starts_on: string;
+    ends_on: string;
+    /**
+     * Status of the source entity, or `null`.
+     */
+    status: string | null;
+    /**
+     * Path of the item in the Factuarea app.
+     */
+    url: string;
+    /**
+     * Task details, only in the `tasks` layer; `null` otherwise.
+     */
+    task: {
+        key: string;
+        /**
+         * UUID of the project.
+         */
+        project_id: string;
+        project_name: string;
+        /**
+         * Task priority.
+         */
+        priority: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+        /**
+         * UUID of the assigned member, or `null`.
+         */
+        assignee_id: string | null;
+        /**
+         * Board status: `planned` (backlog), `active` (in a column of the board) or `archived`.
+         */
+        board_status: 'planned' | 'active' | 'archived';
+        completed: boolean;
+    } | null;
+    /**
+     * Tax deadline details, only in the `fiscal_deadline` layer; `null` otherwise.
+     */
+    fiscal: {
+        /**
+         * Tax form (`303`, `111`…).
+         */
+        model: string | null;
+        /**
+         * Period key (`2026-3T`, `2026`…).
+         */
+        period: string | null;
+        /**
+         * UUID of the task generated for the deadline, or `null`.
+         */
+        task_id: string | null;
+    } | null;
+};
+
+/**
+ * AgendaList
+ *
+ * Every agenda item of the window in one page (`has_more` is always `false`), plus the layers served.
+ */
+export type AgendaList = {
+    /**
+     * Items ordered by date, type and title.
+     */
+    data: Array<AgendaItem>;
+    /**
+     * Always `false`: the whole window is returned at once.
+     */
+    has_more: false;
+    /**
+     * Always `null`.
+     */
+    next_cursor: null;
+    /**
+     * Layers actually served: the requested ones that the API key can read (scope and module).
+     */
+    sources: Array<'tasks' | 'invoice_due' | 'purchase_invoice_due' | 'quote_expiry' | 'proforma_expiry' | 'recurring_invoice_run' | 'fiscal_deadline' | 'absence' | 'holiday'>;
 };
 
 /**
@@ -948,6 +1068,26 @@ export type AssignScheduleRequest = {
 };
 
 /**
+ * AssignTaskLabelV1Request
+ */
+export type AssignTaskLabelV1Request = {
+    /**
+     * `id` (UUID) of a label from the company's task label catalog.
+     */
+    label_id: string;
+};
+
+/**
+ * AssignTaskV1Request
+ */
+export type AssignTaskV1Request = {
+    /**
+     * `id` of the company member user the task is assigned to.
+     */
+    assignee_id: string;
+};
+
+/**
  * AttachPurchaseInvoiceFileRequest
  */
 export type AttachPurchaseInvoiceFileRequest = {
@@ -966,7 +1106,7 @@ export type AutomationActionInput = {
     /**
      * Kind of action to run. Must be one of the action types `GET /v1/automations/catalog` reports as registered.
      */
-    type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+    type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity' | 'create_task' | 'change_task_status' | 'assign_task' | 'add_task_comment';
     /**
      * Position of the action within the sequence, starting at 0. Omit it (or send `null`) and the action takes position 0.
      */
@@ -1051,7 +1191,7 @@ export type AutomationCatalog = {
         /**
          * Raw value of the action type, as sent in the `actions` of a rule.
          */
-        key: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+        key: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity' | 'create_task' | 'change_task_status' | 'assign_task' | 'add_task_comment';
         /**
          * Human-readable name of the action, already translated.
          */
@@ -1089,6 +1229,10 @@ export type AutomationCatalog = {
          * Whether this action can be used in a rule whose `scope` is `cartera`. Actions that notify you —or that touch no record at all— can; actions whose subject would be a record of the managed company cannot, because a portfolio rule never operates on its behalf. Creating a portfolio rule with an action marked `false` is rejected with `automation_portfolio_scope_forbids_action`.
          */
         supports_portfolio_scope: boolean;
+        /**
+         * Key of the module that governs this action, or `null` when the action is transversal. Informational: an action of a module you have not contracted never reaches this list.
+         */
+        module: string | null;
     }>;
     /**
      * The scopes a rule can be created with, and whether THIS company can use each one. A scope your company cannot use is returned marked as unavailable with its reason instead of being omitted, so you can tell "not contracted" from "does not exist".
@@ -1446,7 +1590,7 @@ export type AutomationRun = {
         /**
          * Type of action of the step, as frozen in the rule version snapshot.
          */
-        action_type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+        action_type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity' | 'create_task' | 'change_task_status' | 'assign_task' | 'add_task_comment';
         /**
          * State of the step: `pending`, `running`, `succeeded`, `failed`, `skipped`, `dead_lettered` (parked awaiting a manual replay) or `blocked` (stopped by a guardrail).
          */
@@ -1519,7 +1663,7 @@ export type AutomationStepRun = {
     /**
      * Type of action of the step, as frozen in the rule version snapshot.
      */
-    action_type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity';
+    action_type: 'notify_in_app' | 'notify_channel' | 'emit_webhook' | 'create_calendar_event' | 'send_document_email' | 'send_payment_reminder' | 'change_status' | 'tag_entity' | 'create_task' | 'change_task_status' | 'assign_task' | 'add_task_comment';
     /**
      * State of the step: `pending`, `running`, `succeeded`, `failed`, `skipped`, `dead_lettered` (parked awaiting a manual replay) or `blocked` (stopped by a guardrail).
      */
@@ -1694,6 +1838,15 @@ export type BulkChangeContactRoleStatusV1Request = {
 };
 
 /**
+ * BulkChangeTaskStatusV1Request
+ */
+export type BulkChangeTaskStatusV1Request = {
+    task_ids: Array<string>;
+    column_id?: string | null;
+    status?: string | null;
+};
+
+/**
  * BulkCreateBusinessContactsV1Request
  *
  * Create canonical contacts in bulk. `contacts[]` holds up to 500 payloads with cumulative roles and directional profiles. `dry_run=true` validates every row without persisting; row errors do not abort the remaining contacts.
@@ -1854,6 +2007,13 @@ export type BulkDeleteRecurringInvoicesRequest = {
 };
 
 /**
+ * BulkDeleteTasksV1Request
+ */
+export type BulkDeleteTasksV1Request = {
+    task_ids: Array<string>;
+};
+
+/**
  * BulkPartialSuccessResult
  *
  * Result of a bulk or import operation that reports per-resource status. `total` is how many rows/resources were processed (`successful + failed`), `successful` how many were applied (deleted, created or validated) and `failed` how many could not be processed. `failures[]` carries one item per failed row. Shape shared by every bulk endpoint of the public API (the `/v1/{resource}/bulk-delete` endpoints emit it today). Anchored integrators before `2026-09-01` keep receiving the previous `{object, deleted, failed[{id, reason}]}` shape via `Factuarea-Version`.
@@ -2007,11 +2167,14 @@ export type BulkStatusDeliveryNotesV1Request = {
 /**
  * BulkStatusInvoicesV1Request
  *
- * Transition several invoices to `new_status` (`sent` or `paid`) in one request, up to 50 per batch. `ids` is an array of invoice UUIDs; `payment_date` is required and cannot be in the future when `new_status` is `paid`. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
+ * Transition several invoices to `new_status` (`issued` or `paid`) in one request, up to 50 per batch. `issued` issues each draft without sending any email; `sent` is still accepted as an alias of `issued` in every API version and never marks the invoice as delivered. `ids` is an array of invoice UUIDs; `payment_date` is required and cannot be in the future when `new_status` is `paid`. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusInvoicesV1Request = {
     ids: Array<string>;
-    new_status: 'sent' | 'paid';
+    /**
+     * Target status: `issued` issues each draft (definitive number, VeriFactu record) without sending any email; `paid` records a payment for the outstanding amount of each issued invoice. `sent` is accepted as an alias of `issued` in every API version and never sets the delivery mark (`is_sent`).
+     */
+    new_status: 'issued' | 'sent' | 'paid';
     payment_date?: string | null;
 };
 
@@ -2038,7 +2201,7 @@ export type BulkStatusProformasV1Request = {
 /**
  * BulkStatusPurchaseInvoicesV1Request
  *
- * Transition several expenses to `new_status` (`paid`) in one request, up to 50 per batch. `ids` is an array of purchase-invoice UUIDs; `payment_date` is required and cannot be in the future. Every transition passes the document state guard, and invoices that cannot transition are returned under `failures[]`.
+ * Transition several expenses to `new_status` (`paid`) in one request, up to 50 per batch. `ids` is an array of expense UUIDs; `payment_date` is required and cannot be in the future. Every transition passes the document state guard, and expenses that cannot transition are returned under `failures[]`.
  */
 export type BulkStatusPurchaseInvoicesV1Request = {
     ids: Array<string>;
@@ -2092,6 +2255,33 @@ export type BulkUpdateProductStockRequest = {
         operation?: 'set' | 'increase' | 'decrease' | 'add' | 'subtract' | null;
         variant_id?: string | null;
     }>;
+};
+
+/**
+ * BulkUpdateTasksV1Request
+ */
+export type BulkUpdateTasksV1Request = {
+    task_ids: Array<string>;
+    /**
+     * New priority: `none`, `low`, `medium`, `high` or `urgent`.
+     */
+    priority?: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+    /**
+     * `id` of the new assignee, a member of the company; `null` removes the assignee.
+     */
+    assignee_id?: string | null;
+    /**
+     * New due date (`YYYY-MM-DD`); `null` removes it.
+     */
+    due_on?: string | null;
+    /**
+     * `id` of the label to add.
+     */
+    add_label_id?: string;
+    /**
+     * `id` of the label to remove.
+     */
+    remove_label_id?: string;
 };
 
 /**
@@ -2501,6 +2691,14 @@ export type ChainValidation = {
 export type ChangeContactRoleStatusV1Request = {
     role: 'customer' | 'supplier' | 'lead';
     status: 'active' | 'inactive';
+};
+
+/**
+ * ChangeTaskStatusV1Request
+ */
+export type ChangeTaskStatusV1Request = {
+    column_id?: string | null;
+    status?: string | null;
 };
 
 /**
@@ -3209,7 +3407,7 @@ export type CreateApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
+    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -3348,7 +3546,7 @@ export type CreateChildApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one; a subset of the parent key scopes).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'clients:read' | 'clients:write' | 'clients:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'suppliers:read' | 'suppliers:write' | 'suppliers:delete' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'prestashop_store:read' | 'prestashop_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | '*'>;
+    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'prestashop_store:read' | 'prestashop_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -3610,7 +3808,7 @@ export type CreateInvoiceRequest = {
          */
         line_type?: 'NORMAL' | 'SUPLIDO' | null;
         /**
-         * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line. Free text on purpose: the receipt of a public body is rarely registered as an expense.
+         * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (up to 100 characters). REQUIRED when `line_type` is `SUPLIDO`; leave it out on a normal line. Free text on purpose: the receipt of a public body is rarely a supplier invoice.
          */
         source_invoice_reference?: string | null;
         /**
@@ -3839,6 +4037,50 @@ export type CreateProformaRequest = {
 };
 
 /**
+ * CreateProjectColumnV1Request
+ */
+export type CreateProjectColumnV1Request = {
+    /**
+     * Column name (1-60 characters, with at least one letter or digit).
+     */
+    name: string;
+    /**
+     * Icon from the catalog; optional.
+     */
+    icon?: 'folder' | 'briefcase' | 'rocket' | 'code' | 'bug' | 'wrench' | 'hammer' | 'truck' | 'package' | 'shopping-cart' | 'calculator' | 'receipt' | 'file-text' | 'landmark' | 'users' | 'user' | 'building' | 'home' | 'calendar' | 'clock' | 'flag' | 'star' | 'heart' | 'lightbulb' | 'target' | 'trophy' | 'book' | 'graduation-cap' | 'megaphone' | 'palette' | 'camera' | 'music' | 'globe' | 'leaf' | 'coffee' | 'car' | 'plane' | 'shield' | 'zap' | 'layers' | null;
+    /**
+     * `#RGB`, `#RRGGBB` or a palette key (`gray`, `red`, `orange`, `amber`, `green`, `teal`, `blue`, `cyan`, `violet`, `pink`); optional.
+     */
+    color?: string | null;
+    /**
+     * Final column: its tasks count as completed.
+     */
+    is_final?: boolean;
+};
+
+/**
+ * CreateProjectV1Request
+ */
+export type CreateProjectV1Request = {
+    /**
+     * Project name (1-120 characters, no control characters).
+     */
+    name: string;
+    /**
+     * Project key (`DEV`): one letter followed by up to 9 letters or digits; it prefixes the keys of its tasks.
+     */
+    key: string;
+    /**
+     * Icon from the closed catalog; the default icon when omitted.
+     */
+    icon?: 'folder' | 'briefcase' | 'rocket' | 'code' | 'bug' | 'wrench' | 'hammer' | 'truck' | 'package' | 'shopping-cart' | 'calculator' | 'receipt' | 'file-text' | 'landmark' | 'users' | 'user' | 'building' | 'home' | 'calendar' | 'clock' | 'flag' | 'star' | 'heart' | 'lightbulb' | 'target' | 'trophy' | 'book' | 'graduation-cap' | 'megaphone' | 'palette' | 'camera' | 'music' | 'globe' | 'leaf' | 'coffee' | 'car' | 'plane' | 'shield' | 'zap' | 'layers' | null;
+    /**
+     * Optional project description (up to 5,000 characters).
+     */
+    description?: string | null;
+};
+
+/**
  * CreatePurchaseInvoiceRequest
  */
 export type CreatePurchaseInvoiceRequest = {
@@ -3985,7 +4227,7 @@ export type CreateQuoteRequest = {
 /**
  * CreateRecurringFromInvoiceRequest
  *
- * Create a recurring invoice from an existing invoice, reusing its lines, client and series. The body supplies only the recurrence configuration: `frequency` and `start_on` are required; `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences` and an `auto_delivery` object are optional.
+ * Create a recurring invoice from an existing invoice, reusing its lines, client and series. The body supplies only the recurrence configuration: `frequency` and `start_on` are required; `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `generation_mode` (`draft`, `issue` or `issue_and_send`) and an `auto_delivery` object are optional.
  */
 export type CreateRecurringFromInvoiceRequest = {
     frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
@@ -3998,7 +4240,14 @@ export type CreateRecurringFromInvoiceRequest = {
     holiday_handling?: string | null;
     days_before_due?: number | null;
     max_occurrences?: number | null;
+    /**
+     * What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft; `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it; `issue_and_send` issues it and emails it to the `auto_delivery` recipients. Any other value is rejected with 422. Optional and nullable: when omitted (or `null`) the mode is derived from `send_automatically` (`true` → `issue_and_send`, `false` or absent → `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if an `auto_delivery` object is configured, `auto_delivery.recipients` must then contain at least one address (422 `auto_delivery_recipients_required` otherwise); `draft` and `issue` send no email and need none. Available in every API version.
+     */
+    generation_mode?: 'draft' | 'issue' | 'issue_and_send' | null;
     auto_delivery?: {
+        /**
+         * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+         */
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
@@ -4010,7 +4259,7 @@ export type CreateRecurringFromInvoiceRequest = {
 /**
  * CreateRecurringInvoiceRequest
  *
- * Create a recurring invoice template that auto-generates invoices on a fixed cadence. Required: `client_id`, `series_id`, `frequency`, `start_on` and `lines[]` (at least one). Optional: `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `tags` and `custom_fields`. `frequency` accepts `daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `semiannual` or `yearly`.
+ * Create a recurring invoice template that auto-generates invoices on a fixed cadence. Required: `client_id`, `series_id`, `frequency`, `start_on` and `lines[]` (at least one). Optional: `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `generation_mode`, `auto_delivery`, `tags` and `custom_fields`. `generation_mode` (`draft`, `issue` or `issue_and_send`) decides what each run does with the generated invoice; `send_automatically` is its derived compatibility field. `frequency` accepts `daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `semiannual` or `yearly`.
  */
 export type CreateRecurringInvoiceRequest = {
     client_id: string;
@@ -4034,8 +4283,18 @@ export type CreateRecurringInvoiceRequest = {
     days_before_due?: number | null;
     max_occurrences?: number | null;
     email_to?: string | null;
+    /**
+     * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+     */
     send_automatically?: boolean;
+    /**
+     * What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft; `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it; `issue_and_send` issues it and emails it to the `auto_delivery` recipients. Any other value is rejected with 422. Optional and nullable: when omitted (or `null`) the mode is derived from `send_automatically` (`true` → `issue_and_send`, `false` or absent → `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if an `auto_delivery` object is configured, `auto_delivery.recipients` must then contain at least one address (422 `auto_delivery_recipients_required` otherwise); `draft` and `issue` send no email and need none. Available in every API version.
+     */
+    generation_mode?: 'draft' | 'issue' | 'issue_and_send' | null;
     auto_delivery?: {
+        /**
+         * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+         */
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
@@ -4107,6 +4366,139 @@ export type CreateSupplierProductOfferRequest = {
 };
 
 /**
+ * CreateTaskCustomFieldV1Request
+ */
+export type CreateTaskCustomFieldV1Request = {
+    /**
+     * Field name (1-60 characters; duplicate names are allowed within a project).
+     */
+    name: string;
+    /**
+     * Field type: `text`, `number`, `date`, `dropdown`, `boolean` or `multiselect`. Any other value returns 422 `invalid_custom_field_definition`.
+     */
+    type: string;
+    /**
+     * Whether the field is required; a required field needs a non-empty default value.
+     */
+    required?: boolean;
+    /**
+     * Default value, applied to the existing tasks that have no value for the field: text, number, boolean, a `YYYY-MM-DD` date, an option or a list of options (`multiselect`).
+     */
+    default_value?: string | number | boolean | Array<string> | null;
+    /**
+     * Options of a `dropdown` (at least 1) or `multiselect` (at least 2, all different) field, up to 100.
+     */
+    options?: Array<string> | null;
+};
+
+/**
+ * CreateTaskLabelV1Request
+ */
+export type CreateTaskLabelV1Request = {
+    /**
+     * Label name, unique within the company ignoring case (1-60 characters).
+     */
+    name: string;
+    /**
+     * Palette key or hexadecimal `#RGB`/`#RRGGBB`.
+     */
+    color: string;
+};
+
+/**
+ * CreateTaskRelationV1Request
+ */
+export type CreateTaskRelationV1Request = {
+    /**
+     * `id` (UUID) of the target task of the relation, from the same company.
+     */
+    target_task_id: string;
+    /**
+     * Relation type: `subtask` (the target task is a subtask of the task in the path), `blocks` (the task in the path blocks the target task) or `related`.
+     */
+    type: 'subtask' | 'blocks' | 'related';
+};
+
+/**
+ * CreateTaskUploadLinkV1Request
+ */
+export type CreateTaskUploadLinkV1Request = {
+    /**
+     * Where the uploads received through the link are delivered: `comment` (default) or `description`.
+     */
+    target?: 'description' | 'comment';
+    /**
+     * Note for whoever uploads the files.
+     */
+    note?: string | null;
+};
+
+/**
+ * CreateTaskV1Request
+ */
+export type CreateTaskV1Request = {
+    /**
+     * `id` of the project the task belongs to.
+     */
+    project_id: string;
+    /**
+     * Task title (1 to 500 characters).
+     */
+    title: string;
+    /**
+     * Description in Markdown.
+     */
+    description?: string | null;
+    /**
+     * Priority: `none` (default), `low`, `medium`, `high` or `urgent`.
+     */
+    priority?: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+    /**
+     * `id` of the project column the task is created in. Mutually exclusive with `status`.
+     */
+    column_id?: string | null;
+    /**
+     * Virtual status the task is created in (`planned` or `archived`). Mutually exclusive with `column_id`.
+     */
+    status?: string | null;
+    /**
+     * Start date (`YYYY-MM-DD`).
+     */
+    start_on?: string | null;
+    /**
+     * Due date (`YYYY-MM-DD`).
+     */
+    due_on?: string | null;
+    /**
+     * `id` of the company member user the task is assigned to.
+     */
+    assignee_id?: string | null;
+    /**
+     * `id` of the company task labels to attach to the task.
+     */
+    label_ids?: Array<string>;
+    /**
+     * Values of the project's custom fields, as a map from the custom field `id` (UUID) to its value: text, number, boolean, or a list of options for a `multiselect` field. `null` leaves the field empty.
+     */
+    custom_fields?: {
+        [key: string]: string | number | boolean | Array<string> | null;
+    };
+    /**
+     * Links the task to a Factuarea document or contact in the same transaction. If the entity does not exist, belongs to another company or its module is not accessible, the call returns 404 `linked_entity_not_found` and the task is not created.
+     */
+    entity_link?: {
+        /**
+         * Type of the entity.
+         */
+        type: 'invoice' | 'quote' | 'proforma' | 'delivery_note' | 'purchase_invoice' | 'recurring_invoice' | 'contact' | 'product' | 'employee';
+        /**
+         * UUID of the entity.
+         */
+        id: string;
+    } | null;
+};
+
+/**
  * CreateTaxRequest
  */
 export type CreateTaxRequest = {
@@ -4153,9 +4545,12 @@ export type CreateTaxRequest = {
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
+    /**
+     * Payload version (date-based, `YYYY-MM-DD`) to pin for the events delivered to this endpoint. Supported values: `2026-05-22` and `2026-10-01`. Omitted or `null`, the endpoint is pinned at creation to the payload version that matches the effective REST version of the request: `2026-10-01` when that version is `2026-10-01` or later (`Factuarea-Version` header, or the version pinned on the API key), and `2026-05-22` otherwise, including requests without a version header. So nobody receives the new vocabulary without opting in. With `2026-05-22`, invoices keep the previous vocabulary (`status: sent` for an issued invoice, `sent_at` equal to the issuance instant). A value that is not a `YYYY-MM-DD` date returns 422 (subcode `api_version_invalid_format`), and an unsupported one 422 (subcode `api_version_unsupported`).
+     */
     api_version?: string | null;
     metadata?: Metadata;
     custom_headers?: CustomHeaders;
@@ -4691,6 +5086,26 @@ export type DryRunAutomationRuleV1Request = {
      * ID (UUID v7) of the sample resource to predict against. Required for rules whose actions operate on a document.
      */
     event_aggregate_id?: string | null;
+};
+
+/**
+ * DuplicateTaskV1Request
+ */
+export type DuplicateTaskV1Request = {
+    /**
+     * Title of the copy (1 to 500 characters). When omitted, it keeps the title of the original.
+     */
+    title?: string | null;
+};
+
+/**
+ * EditTaskCommentV1Request
+ */
+export type EditTaskCommentV1Request = {
+    /**
+     * Comment text in Markdown, 1 to 10,000 characters after trimming whitespace.
+     */
+    body: string;
 };
 
 /**
@@ -5361,8 +5776,14 @@ export type EventData = ({
 } & EventDataInvoiceSubscriptionAutoCreated) | ({
     type: 'invoice.updated';
 } & EventDataInvoiceUpdated) | ({
+    type: 'invoice.issued';
+} & EventDataInvoiceIssued) | ({
     type: 'invoice.sent';
 } & EventDataInvoiceSent) | ({
+    type: 'invoice.marked_sent';
+} & EventDataInvoiceMarkedSent) | ({
+    type: 'invoice.unsent';
+} & EventDataInvoiceUnsent) | ({
     type: 'invoice.paid';
 } & EventDataInvoicePaid) | ({
     type: 'invoice.cancelled';
@@ -5600,7 +6021,49 @@ export type EventData = ({
     type: 'order.invoiced';
 } & EventDataOrderInvoiced) | ({
     type: 'order.refunded';
-} & EventDataOrderRefunded);
+} & EventDataOrderRefunded) | ({
+    type: 'task.created';
+} & EventDataTaskCreated) | ({
+    type: 'task.updated';
+} & EventDataTaskUpdated) | ({
+    type: 'task.deleted';
+} & EventDataTaskDeleted) | ({
+    type: 'task.status_changed';
+} & EventDataTaskStatusChanged) | ({
+    type: 'task.completed';
+} & EventDataTaskCompleted) | ({
+    type: 'task.assigned';
+} & EventDataTaskAssigned) | ({
+    type: 'task.unassigned';
+} & EventDataTaskUnassigned) | ({
+    type: 'task.moved';
+} & EventDataTaskMoved) | ({
+    type: 'task.due_soon';
+} & EventDataTaskDueSoon) | ({
+    type: 'task.overdue';
+} & EventDataTaskOverdue) | ({
+    type: 'task_comment.created';
+} & EventDataTaskCommentCreated) | ({
+    type: 'task_comment.updated';
+} & EventDataTaskCommentUpdated) | ({
+    type: 'task_comment.deleted';
+} & EventDataTaskCommentDeleted) | ({
+    type: 'task_time_entry.created';
+} & EventDataTaskTimeEntryCreated) | ({
+    type: 'task_time_entry.updated';
+} & EventDataTaskTimeEntryUpdated) | ({
+    type: 'task_time_entry.deleted';
+} & EventDataTaskTimeEntryDeleted) | ({
+    type: 'task_time_entry.invoiced';
+} & EventDataTaskTimeEntryInvoiced) | ({
+    type: 'project.created';
+} & EventDataProjectCreated) | ({
+    type: 'project.updated';
+} & EventDataProjectUpdated) | ({
+    type: 'project.archived';
+} & EventDataProjectArchived) | ({
+    type: 'project.deleted';
+} & EventDataProjectDeleted);
 
 /**
  * EventDataAbsenceApproved
@@ -5711,7 +6174,7 @@ export type EventDataAutomationRunStepDeadLettered = {
     /**
      * Typed reason the step was parked, from a CLOSED catalogue — never free-form text. In practice it is always a replayable reason: an outcome whose reason does not admit reprocessing closes the run as `failed` instead of parking the step.
      */
-    discard_reason: 'condition_not_matched' | 'condition_not_evaluable_for_event' | 'condition_definition_invalid' | 'chain_depth_exceeded' | 'rate_limit_exceeded' | 'monthly_budget_exhausted' | 'tenant_mismatch' | 'sandbox_neutralized' | 'action_type_unregistered' | 'action_parameters_invalid' | 'channel_integration_inactive' | 'document_target_not_found' | 'document_recipient_missing' | 'document_not_sendable' | 'reminder_cooldown_active' | 'reminder_not_applicable' | 'status_transition_not_allowed' | 'document_tag_limit_exceeded' | 'document_custom_field_limit_exceeded' | 'document_type_not_supported' | 'step_attempts_exhausted' | 'run_execution_timeout';
+    discard_reason: 'condition_not_matched' | 'condition_not_evaluable_for_event' | 'condition_definition_invalid' | 'chain_depth_exceeded' | 'rate_limit_exceeded' | 'monthly_budget_exhausted' | 'tenant_mismatch' | 'sandbox_neutralized' | 'action_type_unregistered' | 'action_parameters_invalid' | 'channel_integration_inactive' | 'document_target_not_found' | 'document_recipient_missing' | 'document_not_sendable' | 'reminder_cooldown_active' | 'reminder_not_applicable' | 'status_transition_not_allowed' | 'document_tag_limit_exceeded' | 'document_custom_field_limit_exceeded' | 'document_type_not_supported' | 'task_target_not_found' | 'task_project_not_found' | 'module_not_accessible' | 'step_attempts_exhausted' | 'run_execution_timeout';
 };
 
 /**
@@ -6144,6 +6607,26 @@ export type EventDataInvoiceEmailSent = {
 };
 
 /**
+ * EventDataInvoiceIssued
+ *
+ * Payload (`data`) emitted with the `invoice.issued` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceIssued = {
+    type: 'invoice.issued';
+    object: Invoice;
+};
+
+/**
+ * EventDataInvoiceMarkedSent
+ *
+ * Payload (`data`) emitted with the `invoice.marked_sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceMarkedSent = {
+    type: 'invoice.marked_sent';
+    object: Invoice;
+};
+
+/**
  * EventDataInvoiceMetadataChanged
  *
  * Payload (`data`) emitted with the `invoice.metadata_changed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
@@ -6220,7 +6703,9 @@ export type EventDataInvoiceRectified = {
 /**
  * EventDataInvoiceSent
  *
- * Payload (`data`) emitted with the `invoice.sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ * Payload (`data`) emitted with the `invoice.sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys. Deprecated: alias of `invoice.issued`, emitted at the same instant and with the same `data.object`. New integrations should subscribe to `invoice.issued`; its removal will be announced with a `Sunset` date.
+ *
+ * @deprecated
  */
 export type EventDataInvoiceSent = {
     type: 'invoice.sent';
@@ -6277,6 +6762,16 @@ export type EventDataInvoiceSubstitutedByComplete = {
     object: Invoice;
     substitute_invoice_id: string | null;
     substitute_invoice_number: string | null;
+};
+
+/**
+ * EventDataInvoiceUnsent
+ *
+ * Payload (`data`) emitted with the `invoice.unsent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceUnsent = {
+    type: 'invoice.unsent';
+    object: Invoice;
 };
 
 /**
@@ -6584,6 +7079,49 @@ export type EventDataProformaRejected = {
 export type EventDataProformaUpdated = {
     type: 'proforma.updated';
     object: Proforma;
+};
+
+/**
+ * EventDataProjectArchived
+ *
+ * Payload (`data`) emitted with the `project.archived` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataProjectArchived = {
+    type: 'project.archived';
+    object: Project;
+};
+
+/**
+ * EventDataProjectCreated
+ *
+ * Payload (`data`) emitted with the `project.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataProjectCreated = {
+    type: 'project.created';
+    object: Project;
+};
+
+/**
+ * EventDataProjectDeleted
+ *
+ * Payload (`data`) emitted with the `project.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataProjectDeleted = {
+    type: 'project.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: Project | EventDeletedObject;
+};
+
+/**
+ * EventDataProjectUpdated
+ *
+ * Payload (`data`) emitted with the `project.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataProjectUpdated = {
+    type: 'project.updated';
+    object: Project;
 };
 
 /**
@@ -7012,6 +7550,245 @@ export type EventDataSeriesYearReset = {
 };
 
 /**
+ * EventDataTaskAssigned
+ *
+ * Payload (`data`) emitted with the `task.assigned` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskAssigned = {
+    type: 'task.assigned';
+    object: Task;
+    /**
+     * Member assigned before, or `null`.
+     */
+    previous_assignee_id: string | null;
+};
+
+/**
+ * EventDataTaskCommentCreated
+ *
+ * Payload (`data`) emitted with the `task_comment.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskCommentCreated = {
+    type: 'task_comment.created';
+    object: TaskComment;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+};
+
+/**
+ * EventDataTaskCommentDeleted
+ *
+ * Payload (`data`) emitted with the `task_comment.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskCommentDeleted = {
+    type: 'task_comment.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: TaskComment | EventDeletedObject;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+};
+
+/**
+ * EventDataTaskCommentUpdated
+ *
+ * Payload (`data`) emitted with the `task_comment.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskCommentUpdated = {
+    type: 'task_comment.updated';
+    object: TaskComment;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+};
+
+/**
+ * EventDataTaskCompleted
+ *
+ * Payload (`data`) emitted with the `task.completed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskCompleted = {
+    type: 'task.completed';
+    object: Task;
+};
+
+/**
+ * EventDataTaskCreated
+ *
+ * Payload (`data`) emitted with the `task.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskCreated = {
+    type: 'task.created';
+    object: Task;
+};
+
+/**
+ * EventDataTaskDeleted
+ *
+ * Payload (`data`) emitted with the `task.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskDeleted = {
+    type: 'task.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: Task | EventDeletedObject;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+};
+
+/**
+ * EventDataTaskDueSoon
+ *
+ * Payload (`data`) emitted with the `task.due_soon` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskDueSoon = {
+    type: 'task.due_soon';
+    object: Task;
+};
+
+/**
+ * EventDataTaskMoved
+ *
+ * Payload (`data`) emitted with the `task.moved` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskMoved = {
+    type: 'task.moved';
+    object: Task;
+    /**
+     * Project the task was moved from.
+     */
+    from_project_id: string;
+};
+
+/**
+ * EventDataTaskOverdue
+ *
+ * Payload (`data`) emitted with the `task.overdue` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskOverdue = {
+    type: 'task.overdue';
+    object: Task;
+};
+
+/**
+ * EventDataTaskStatusChanged
+ *
+ * Payload (`data`) emitted with the `task.status_changed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskStatusChanged = {
+    type: 'task.status_changed';
+    object: Task;
+    /**
+     * Board status before the change.
+     */
+    previous_status: 'planned' | 'active' | 'archived';
+    /**
+     * Column before the change, or `null` when the task was in the backlog or archived.
+     */
+    previous_column_id: string | null;
+};
+
+/**
+ * EventDataTaskTimeEntryCreated
+ *
+ * Payload (`data`) emitted with the `task_time_entry.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskTimeEntryCreated = {
+    type: 'task_time_entry.created';
+    object: TaskTimeEntry;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+};
+
+/**
+ * EventDataTaskTimeEntryDeleted
+ *
+ * Payload (`data`) emitted with the `task_time_entry.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskTimeEntryDeleted = {
+    type: 'task_time_entry.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: TaskTimeEntry | EventDeletedObject;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+};
+
+/**
+ * EventDataTaskTimeEntryInvoiced
+ *
+ * Payload (`data`) emitted with the `task_time_entry.invoiced` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskTimeEntryInvoiced = {
+    type: 'task_time_entry.invoiced';
+    object: TaskTimeEntry;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+};
+
+/**
+ * EventDataTaskTimeEntryUpdated
+ *
+ * Payload (`data`) emitted with the `task_time_entry.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskTimeEntryUpdated = {
+    type: 'task_time_entry.updated';
+    object: TaskTimeEntry;
+    /**
+     * UUID of the project of the task.
+     */
+    project_id: string;
+};
+
+/**
+ * EventDataTaskUnassigned
+ *
+ * Payload (`data`) emitted with the `task.unassigned` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskUnassigned = {
+    type: 'task.unassigned';
+    object: Task;
+};
+
+/**
+ * EventDataTaskUpdated
+ *
+ * Payload (`data`) emitted with the `task.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTaskUpdated = {
+    type: 'task.updated';
+    object: Task;
+    /**
+     * Fields of the public `Task` resource that changed.
+     */
+    changed_fields: Array<'title' | 'description' | 'priority' | 'start_on' | 'due_on'>;
+};
+
+/**
  * EventDataTaxExternalReferenceChanged
  *
  * Payload (`data`) emitted with the `tax.external_reference_changed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
@@ -7080,6 +7857,10 @@ export type EventDeletedObject = {
      */
     id: string;
     /**
+     * Resource type of the deleted object (`task`, `task_comment`…), when the event carries it.
+     */
+    object?: string;
+    /**
      * Always `true`.
      */
     deleted: true;
@@ -7110,9 +7891,9 @@ export type ExportInvoicesExcelV1Request = {
      */
     invoice_ids?: Array<string> | null;
     /**
-     * Invoice status to filter by (draft, sent, paid, overdue, cancelled, annulled, scheduled).
+     * Invoice status to filter by (`draft`, `scheduled`, `issued`, `paid`, `cancelled`, `overdue`, `annulled`). `sent` is accepted as an alias of `issued` in every API version.
      */
-    status?: 'draft' | 'scheduled' | 'sent' | 'paid' | 'cancelled' | 'overdue' | 'annulled' | null;
+    status?: 'draft' | 'scheduled' | 'issued' | 'paid' | 'cancelled' | 'overdue' | 'annulled' | null;
     /**
      * Start of the issue-date range (inclusive).
      */
@@ -7313,6 +8094,16 @@ export type FindProformaByExternalIdRequest = {
 };
 
 /**
+ * FindProjectByKeyV1Request
+ */
+export type FindProjectByKeyV1Request = {
+    /**
+     * Key of the project to find (`DEV`); case-insensitive.
+     */
+    key: string;
+};
+
+/**
  * FindPurchaseInvoiceByExternalIdRequest
  *
  * Look up an expense by its `external_id` (the integration key that maps it to a record in a third-party ERP/CRM/e-commerce system) within your company. Orthogonal to `external_invoice_number`, the supplier fiscal number.
@@ -7353,6 +8144,16 @@ export type FindRecurringInvoiceByExternalIdRequest = {
 export type FindSeriesByCodeRequest = {
     code: string;
     document_type?: 'invoice' | 'quote' | 'delivery_note' | 'proforma';
+};
+
+/**
+ * FindTaskByKeyV1Request
+ */
+export type FindTaskByKeyV1Request = {
+    /**
+     * Human-readable task key (`DEV-12`); case-insensitive.
+     */
+    key: string;
 };
 
 /**
@@ -7483,6 +8284,28 @@ export type ImportBusinessContactsV1Request = {
 };
 
 /**
+ * ImportProjectTasksV1Request
+ */
+export type ImportProjectTasksV1Request = {
+    /**
+     * Format of the document: `factuarea.tasks.v1`, the format produced by `GET /v1/projects/{project}/tasks/export`. It may be omitted when the document is a `{project, tasks}` JSON file exported from another task manager, which is also accepted.
+     */
+    format?: string;
+    /**
+     * Data of the source project (`key`, `name`, `description` and `columns`), as they appear in the exported document.
+     */
+    project?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Tasks to import: between 1 and 200 per request. Each element is an object describing one task. Problems inside a task never reject the request: they are reported per task, as warnings or as a failed entry, in the response.
+     */
+    tasks: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
  * IntegrationEvent
  *
  * One event a payment gateway sent to Factuarea, with the outcome it produced and, when it produced none, the typed reason why. Read-only and scoped to your own company. The raw content of the event is NEVER exposed: it carries personal data of your end customers and payment details, is stored encrypted only for parked events so they can be reprocessed, and is purged 30 days after being parked.
@@ -7579,7 +8402,7 @@ export type Invoice = {
      */
     number: string | null;
     /**
-     * Whether the invoice has a definitive number assigned. `false` for drafts (where `number` is `null`); becomes `true` after `POST /v1/invoices/{uuid}/assign-real-number`, or automatically on send/payment.
+     * Whether the invoice has a definitive number assigned. `false` for drafts (where `number` is `null`); becomes `true` after `POST /v1/invoices/{uuid}/assign-real-number`, or automatically when the invoice is issued.
      */
     is_number_assigned: boolean;
     /**
@@ -7589,9 +8412,9 @@ export type Invoice = {
     series: SeriesRef;
     client: ClientRef;
     /**
-     * Invoice lifecycle status.
+     * Public invoice status. `issued` means the invoice has been ISSUED (definitive number, VeriFactu record); it says nothing about delivery, which lives in `is_sent`/`sent_at`/`sent_via`. `paid` and `partially_paid` are derived from the payment ledger. Before API version `2026-10-01` the issued status is published as `sent` (that contract called issuing "sending"), so `sent` only appears for integrations pinned to an earlier version.
      */
-    status: string;
+    status: 'draft' | 'scheduled' | 'issued' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled' | 'annulled' | 'sent';
     /**
      * UUID of the price list selected for this document.
      */
@@ -7706,7 +8529,22 @@ export type Invoice = {
     recurring: InvoiceRecurring | null;
     paid_at: string | null;
     paid_on: string | null;
+    /**
+     * When the invoice was issued (ISO 8601), or `null` while it is a draft or scheduled. Not present before API version `2026-10-01`: earlier versions publish this instant in `sent_at`.
+     */
+    issued_at: string | null;
+    /**
+     * When the invoice was first delivered to the customer (ISO 8601): the moment the mail server accepted its delivery email, or the date of a manual mark. `null` while it has not been delivered. A resend never moves it. Before API version `2026-10-01` this field carries the ISSUANCE instant instead (that contract called issuing "sending").
+     */
     sent_at: string | null;
+    /**
+     * Channel of the first delivery: `email` (the mail server accepted the delivery email) or `manual` (marked with `POST /v1/invoices/{id}/mark-sent`). `null` while the invoice has not been delivered. Not present before API version `2026-10-01`.
+     */
+    sent_via: 'email' | 'manual' | null;
+    /**
+     * Whether the invoice has been delivered to the customer, independently of its fiscal `status`: an issued or overdue invoice can be delivered or not. Derived from the delivery mark (`sent_at` + `sent_via`), never set directly. Not present before API version `2026-10-01`.
+     */
+    is_sent: boolean;
     voided_at: string | null;
     void_reason: string | null;
     /**
@@ -7714,9 +8552,9 @@ export type Invoice = {
      */
     scheduled_for: string | null;
     /**
-     * Action the scheduler runs when `scheduled_for` is reached: `issue_and_send` (issue and email) or `draft` (issue only). `null` when the invoice is not scheduled.
+     * Action the scheduler runs when `scheduled_for` is reached: `issue` (issue without sending) or `issue_and_send` (issue and email it). `null` when the invoice is not scheduled. Before API version `2026-10-01` the `issue` action is published as `draft`, its previous name.
      */
-    scheduled_action: 'draft' | 'issue_and_send' | null;
+    scheduled_action: 'issue' | 'issue_and_send' | 'draft' | null;
     /**
      * Sales channel the invoice originated from (`woocommerce`, `shopify`, `prestashop`), or `null` when it was not created from a store order — which is the common case.
      */
@@ -7925,7 +8763,7 @@ export type InvoiceLine = {
      */
     line_type?: 'NORMAL' | 'SUPLIDO';
     /**
-     * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (≤100 chars). REQUIRED on a `SUPLIDO` line (a disbursement without its supporting reference is rejected with 422) and `null` on a normal line. Free text on purpose: the receipt of a public body is rarely registered as an expense.
+     * Reference of the supporting document that originated the disbursement — the receipt or fee number issued by the public body (≤100 chars). REQUIRED on a `SUPLIDO` line (a disbursement without its supporting reference is rejected with 422) and `null` on a normal line. Free text on purpose: the receipt of a public body is rarely a supplier invoice.
      */
     source_invoice_reference?: string | null;
     /**
@@ -8081,7 +8919,7 @@ export type InvoiceReminderPreview = {
      */
     bcc: Array<string>;
     /**
-     * Current status of the invoice (e.g. `sent`, `overdue`).
+     * Current status of the invoice (e.g. `issued`, `overdue`). Before API version `2026-10-01` the issued status is published as `sent`.
      */
     status: string;
     /**
@@ -8150,7 +8988,7 @@ export type InvoiceStats = {
      */
     total_count: number;
     /**
-     * Invoice count by status (key = status, value = number of invoices).
+     * Invoice count by status (key = status, value = number of invoices). Issued invoices are counted under `issued`; before API version `2026-10-01` that key is `sent`.
      */
     by_status: {
         [key: string]: number;
@@ -8201,9 +9039,9 @@ export type InvoiceStats = {
  */
 export type InvoiceStatusItem = {
     /**
-     * Internal status identifier.
+     * Status identifier, in the same order as the catalog. Before API version `2026-10-01` the issued status is listed as `sent` (label «Enviado») in the position of `issued`.
      */
-    value: 'draft' | 'sent' | 'paid' | 'cancelled' | 'overdue' | 'annulled';
+    value: 'draft' | 'scheduled' | 'issued' | 'paid' | 'cancelled' | 'overdue' | 'annulled' | 'partially_paid' | 'sent';
     /**
      * Human-readable status label (Spanish).
      */
@@ -8228,6 +9066,122 @@ export type InvoiceSubstitutedBy = {
      * Human-readable number of the replacement full invoice.
      */
     number: string | null;
+};
+
+/**
+ * InvoiceTaskTimeV1Request
+ */
+export type InvoiceTaskTimeV1Request = {
+    entry_ids?: Array<string>;
+    period?: {
+        from?: string;
+        to?: string;
+    };
+    grouping: 'per_task' | 'per_entry' | 'single_line';
+    batch_id?: string;
+};
+
+/**
+ * LinkTaskToEntityV1Request
+ */
+export type LinkTaskToEntityV1Request = {
+    /**
+     * Entity type: `invoice`, `quote`, `proforma`, `delivery_note`, `purchase_invoice`, `recurring_invoice`, `contact`, `product` or `employee`.
+     */
+    entity_type: 'invoice' | 'quote' | 'proforma' | 'delivery_note' | 'purchase_invoice' | 'recurring_invoice' | 'contact' | 'product' | 'employee';
+    /**
+     * Public `id` (UUID) of the company entity.
+     */
+    entity_id: string;
+};
+
+/**
+ * LinkedTask
+ *
+ * A task linked to a Factuarea entity, as listed by `GET /v1/tasks/linked`.
+ */
+export type LinkedTask = {
+    /**
+     * UUID of the task.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task` for this resource.
+     */
+    object: 'task';
+    /**
+     * Task key (`DEV-12`).
+     */
+    key: string;
+    title: string;
+    /**
+     * Board status: `planned` (backlog), `active` (in a column of the board) or `archived`.
+     */
+    status: 'planned' | 'active' | 'archived';
+    /**
+     * UUID of the board column, or `null`.
+     */
+    column_id: string | null;
+    /**
+     * UUID of the project.
+     */
+    project_id: string;
+    /**
+     * UUID of the assigned member, or `null`.
+     */
+    assignee_id: string | null;
+    /**
+     * Due date, or `null`.
+     */
+    due_on: string | null;
+    completed: boolean;
+    /**
+     * `true` when the task or its project is archived.
+     */
+    is_archived: boolean;
+    /**
+     * UUID of the link between the task and the entity.
+     */
+    link_id: string;
+};
+
+/**
+ * LinkedTaskList
+ *
+ * Page of linked tasks (`{ data, has_more, next_cursor }`).
+ */
+export type LinkedTaskList = {
+    data: Array<LinkedTask>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * LogTaskTimeV1Request
+ */
+export type LogTaskTimeV1Request = {
+    /**
+     * Start, ISO 8601 with time zone (e.g. `2026-09-28T09:00:00+02:00`).
+     */
+    started_at: string;
+    /**
+     * End, ISO 8601 with time zone; at most 24 h after the start.
+     */
+    ended_at: string;
+    /**
+     * Optional description of the work.
+     */
+    description?: string | null;
+    /**
+     * Whether the time is billable (default `true`).
+     */
+    billable?: boolean;
 };
 
 /**
@@ -8593,6 +9547,128 @@ export type MonthlyTimeSheet = {
 };
 
 /**
+ * MoveTaskOnBoardV1Request
+ */
+export type MoveTaskOnBoardV1Request = {
+    column_id?: string | null;
+    status?: string | null;
+    /**
+     * 0-based position within the target scope. Mutually exclusive with `before_task_id` and `after_task_id`.
+     */
+    index?: number | null;
+    /**
+     * `id` of the task the moved task is placed before.
+     */
+    before_task_id?: string | null;
+    /**
+     * `id` of the task the moved task is placed after.
+     */
+    after_task_id?: string | null;
+};
+
+/**
+ * MoveTaskToProjectV1Request
+ */
+export type MoveTaskToProjectV1Request = {
+    /**
+     * `id` of the destination project.
+     */
+    project_id: string;
+    /**
+     * `id` of the destination column within the project. Mutually exclusive with `status`.
+     */
+    column_id?: string | null;
+    /**
+     * Destination virtual status (`planned` or `archived`). Mutually exclusive with `column_id`.
+     */
+    status?: string | null;
+};
+
+/**
+ * Notification
+ *
+ * An in-app notification of the member who owns the API key.
+ */
+export type Notification = {
+    /**
+     * UUID (v7) of the notification.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `notification` for this resource.
+     */
+    object: 'notification';
+    /**
+     * Kind of notification.
+     */
+    type: string;
+    /**
+     * Category (`invoice`, `quote`, `task`…).
+     */
+    category: string;
+    title: string;
+    message: string;
+    priority: string;
+    /**
+     * Read status. Archived notifications are never returned.
+     */
+    status: 'unread' | 'read';
+    /**
+     * Type of the related resource, or `null`.
+     */
+    entity_type: string | null;
+    /**
+     * UUID of the related resource, or `null` (always `null` for task notifications).
+     */
+    entity_id: string | null;
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Last update timestamp.
+     */
+    updated_at: string;
+};
+
+/**
+ * NotificationCounts
+ *
+ * Notification counters of the member who owns the API key, after the change.
+ */
+export type NotificationCounts = {
+    /**
+     * Stripe-like discriminator. Always `notification_counts` for this resource.
+     */
+    object: 'notification_counts';
+    /**
+     * Notifications that are not archived.
+     */
+    total: number;
+    /**
+     * Unread notifications.
+     */
+    unread: number;
+};
+
+/**
+ * NotificationList
+ *
+ * Page of notifications (`{ data, has_more, next_cursor }`).
+ */
+export type NotificationList = {
+    data: Array<Notification>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
  * PaginatedList
  *
  * Cursor-paginated list envelope shared by every v1 listing endpoint. `data` holds the page items; `has_more` signals whether another page exists; `next_cursor` is the cursor to pass back for the following page. Treat it as strictly opaque: send it through verbatim, never parse it and never assume a format — it is not the same across listings, and each listing documents its own cursor parameter. Concrete listings narrow `data` to their resource type via `allOf`.
@@ -8700,6 +9776,27 @@ export type PreviewCatalogConfigurationImpactRequest = {
     }>;
     presentation_ids?: Array<string>;
     variant_ids?: Array<string>;
+};
+
+/**
+ * PreviewTaskTimeInvoiceV1Request
+ */
+export type PreviewTaskTimeInvoiceV1Request = {
+    /**
+     * Concrete time entries to invoice (mutually exclusive with `period`).
+     */
+    entry_ids?: Array<string>;
+    /**
+     * Period, by the start date of the entries (mutually exclusive with `entry_ids`).
+     */
+    period?: {
+        from?: string;
+        to?: string;
+    };
+    /**
+     * How the invoice lines are grouped.
+     */
+    grouping: 'per_task' | 'per_entry' | 'single_line';
 };
 
 /**
@@ -9428,6 +10525,416 @@ export type ProformaStats = {
      * Average value of the proformas (EUR).
      */
     average_value: number;
+};
+
+/**
+ * Project
+ *
+ * A task project of your company: its board columns hold the tasks, and its key (`DEV`) prefixes their keys (`DEV-12`).
+ */
+export type Project = {
+    /**
+     * UUID (v7) of the project.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `project` for this resource.
+     */
+    object: 'project';
+    /**
+     * Project key, unique in your company. Prefixes the key of every task (`DEV-12`).
+     */
+    key: string;
+    /**
+     * Project name.
+     */
+    name: string;
+    /**
+     * Icon of the project, from the task icon catalog.
+     */
+    icon: string;
+    /**
+     * Free description of the project, or `null`.
+     */
+    description: string | null;
+    /**
+     * Position of the project in the list shown in the app.
+     */
+    position: number;
+    /**
+     * `true` when the project is archived (read-only, no new tasks).
+     */
+    is_archived: boolean;
+    /**
+     * When the project was archived, or `null`.
+     */
+    archived_at: string | null;
+    /**
+     * UUID of the contact invoiced by default for the logged time, or `null`.
+     */
+    billing_contact_id: string | null;
+    /**
+     * Default hourly rate (decimal string, before taxes) used to invoice the logged time, or `null`.
+     */
+    billing_hourly_rate: string | null;
+    /**
+     * UUID of the product used for the invoice lines of logged time, or `null`.
+     */
+    billing_product_id: string | null;
+    /**
+     * Task statistics of the project.
+     */
+    stats: {
+        /**
+         * Tasks of the project, archived ones included.
+         */
+        total_tasks: number;
+        /**
+         * Completed tasks.
+         */
+        completed_tasks: number;
+        /**
+         * Completed tasks over total, as a whole percentage.
+         */
+        completion_percentage: number;
+        /**
+         * Earliest due date among the open tasks, or `null`.
+         */
+        next_due_on: string | null;
+    };
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Last update timestamp.
+     */
+    updated_at: string;
+};
+
+/**
+ * ProjectColumn
+ *
+ * A column of a project board. Tasks in a final column (`is_final`) are completed.
+ */
+export type ProjectColumn = {
+    /**
+     * UUID (v7) of the column.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `project_column` for this resource.
+     */
+    object: 'project_column';
+    /**
+     * UUID of the project the column belongs to.
+     */
+    project_id: string;
+    /**
+     * Column name.
+     */
+    name: string;
+    /**
+     * Stable identifier derived from the name, unique in the project (`planned` and `archived` are reserved).
+     */
+    slug: string;
+    /**
+     * Icon of the column, or `null`.
+     */
+    icon: string | null;
+    /**
+     * Color of the column from the task palette, or `null`.
+     */
+    color: string | null;
+    /**
+     * `true` when moving a task here completes it.
+     */
+    is_final: boolean;
+    /**
+     * Position of the column on the board.
+     */
+    position: number;
+};
+
+/**
+ * ProjectColumnList
+ *
+ * Page of columns (the whole board, never more than one page) (`{ data, has_more, next_cursor }`).
+ */
+export type ProjectColumnList = {
+    data: Array<ProjectColumn>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * ProjectCustomField
+ *
+ * A custom field defined for the tasks of a project.
+ */
+export type ProjectCustomField = {
+    /**
+     * UUID (v7) of the custom field.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `project_custom_field` for this resource.
+     */
+    object: 'project_custom_field';
+    /**
+     * UUID of the project.
+     */
+    project_id: string;
+    /**
+     * Field name, unique in the project.
+     */
+    name: string;
+    /**
+     * Value type of the field.
+     */
+    type: 'text' | 'number' | 'date' | 'dropdown' | 'boolean' | 'multiselect';
+    /**
+     * `true` when every task of the project must have a value.
+     */
+    required: boolean;
+    /**
+     * Value given to new tasks, serialized as a string (a JSON array for `multiselect`), or `null`.
+     */
+    default_value: string | null;
+    /**
+     * Allowed values for `dropdown` and `multiselect`; empty for the other types.
+     */
+    options: Array<string>;
+    /**
+     * Display order of the field.
+     */
+    position: number;
+};
+
+/**
+ * ProjectCustomFieldList
+ *
+ * Page of custom fields (all of them, never more than one page) (`{ data, has_more, next_cursor }`).
+ */
+export type ProjectCustomFieldList = {
+    data: Array<ProjectCustomField>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * ProjectList
+ *
+ * Page of projects (`{ data, has_more, next_cursor }`).
+ */
+export type ProjectList = {
+    data: Array<Project>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * ProjectTasksExport
+ *
+ * JSON export of the tasks of a project (`factuarea.tasks.v1`), importable with `POST /v1/projects/{project}/tasks/import`.
+ */
+export type ProjectTasksExport = {
+    /**
+     * Stripe-like discriminator. Always `project_tasks_export` for this resource.
+     */
+    object: 'project_tasks_export';
+    /**
+     * UUID of the exported project.
+     */
+    project_id: string;
+    /**
+     * Format of the document. Always `factuarea.tasks.v1` today.
+     */
+    format: string;
+    /**
+     * When the export was generated.
+     */
+    exported_at: string | null;
+    /**
+     * The project: key, name, icon, description and its columns.
+     */
+    project: {
+        [key: string]: unknown;
+    };
+    /**
+     * Labels used by the exported tasks.
+     */
+    labels: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Custom field definitions of the project.
+     */
+    custom_fields: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Every task with its column, priority, dates, labels, custom field values and comments.
+     */
+    tasks: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
+ * ProjectTasksImport
+ *
+ * Report of a synchronous task import. The API imports at most 200 tasks per call and never creates background runs, so the report has no `mode` or `run_id`.
+ */
+export type ProjectTasksImport = {
+    /**
+     * Stripe-like discriminator. Always `project_tasks_import` for this resource.
+     */
+    object: 'project_tasks_import';
+    /**
+     * UUID of the project the tasks were imported into.
+     */
+    project_id: string;
+    /**
+     * Tasks in the document.
+     */
+    total: number;
+    /**
+     * Tasks created.
+     */
+    created: number;
+    /**
+     * Tasks that could not be created.
+     */
+    failed: number;
+    /**
+     * Non-blocking adjustments (an unknown member left unassigned, a label created…).
+     */
+    warnings: Array<{
+        /**
+         * Position of the task in the document, or `null` for a document-level warning.
+         */
+        index: number | null;
+        /**
+         * Warning, in Spanish.
+         */
+        message: string;
+    }>;
+    /**
+     * Outcome per task of the document.
+     */
+    tasks: Array<{
+        /**
+         * Position of the task in the document.
+         */
+        index: number | null;
+        /**
+         * UUID of the created task, or `null` when it failed.
+         */
+        id: string | null;
+        /**
+         * Key of the created task (`DEV-12`), or `null` when it failed.
+         */
+        key: string | null;
+        /**
+         * Why the task was not created, in Spanish, or `null`.
+         */
+        error: string | null;
+    }>;
+};
+
+/**
+ * ProjectTimeSummary
+ *
+ * Time logged on the tasks of a project, optionally limited to a date range.
+ */
+export type ProjectTimeSummary = {
+    /**
+     * Stripe-like discriminator. Always `project_time_summary` for this resource.
+     */
+    object: 'project_time_summary';
+    /**
+     * UUID of the project.
+     */
+    project_id: string;
+    /**
+     * First day of the range, or `null` when not limited.
+     */
+    from: string | null;
+    /**
+     * Last day of the range, or `null` when not limited.
+     */
+    to: string | null;
+    /**
+     * Logged seconds.
+     */
+    total_seconds: number;
+    /**
+     * Logged seconds marked billable.
+     */
+    billable_seconds: number;
+    /**
+     * Billable seconds already invoiced.
+     */
+    invoiced_seconds: number;
+    /**
+     * Billable seconds not yet invoiced.
+     */
+    pending_seconds: number;
+    /**
+     * Breakdown per task.
+     */
+    by_task: Array<{
+        /**
+         * UUID of the task.
+         */
+        task_id: string;
+        /**
+         * Task key.
+         */
+        key: string;
+        /**
+         * Task title.
+         */
+        title: string;
+        total_seconds: number;
+        billable_seconds: number;
+        invoiced_seconds: number;
+        pending_seconds: number;
+    }>;
+    /**
+     * Breakdown per member.
+     */
+    by_user: Array<{
+        /**
+         * UUID of the member, or `null` when the user no longer exists.
+         */
+        user_id: string | null;
+        /**
+         * Member name.
+         */
+        name: string | null;
+        total_seconds: number;
+        billable_seconds: number;
+    }>;
 };
 
 /**
@@ -10595,9 +12102,13 @@ export type RecurringInvoice = {
      */
     email_to: string | null;
     /**
-     * If `true`, the generated invoices are automatically emailed to `email_to`.
+     * Compatibility field DERIVED from `generation_mode`: `true` if and only if `generation_mode` is `issue_and_send` (each generated invoice is issued and emailed to `email_to`). On write, without an explicit `generation_mode`, `true` still means `issue_and_send` and `false` means `draft`; when both are sent and contradict each other the request is rejected with 422.
      */
     send_automatically: boolean;
+    /**
+     * What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft (no definitive number); `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it, so it stays `is_sent = false`; `issue_and_send` issues it and emails it to the configured recipients, and it is marked as sent once the mail server accepts the email (if the delivery fails the invoice stays issued and not sent). Available in every API version. `send_automatically` is derived from it.
+     */
+    generation_mode: 'draft' | 'issue' | 'issue_and_send';
     /**
      * Payment term days (Net X) applied to the due date of each generated invoice.
      */
@@ -10673,7 +12184,7 @@ export type RecurringInvoice = {
      */
     auto_delivery: {
         /**
-         * If `true`, generated invoices are automatically emailed to `recipients`.
+         * Compatibility field DERIVED from `generation_mode`: `true` if and only if `generation_mode` is `issue_and_send`, in which case each generated invoice is emailed to `recipients`.
          */
         send_automatically: boolean;
         /**
@@ -11000,7 +12511,7 @@ export type RegisterInvoicePaymentRequest = {
 /**
  * RegisterPurchaseInvoicePaymentRequest
  *
- * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, invoice not cancelled) are enforced with a 422.
+ * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, expense not cancelled) are enforced with a 422.
  */
 export type RegisterPurchaseInvoicePaymentRequest = {
     amount: number;
@@ -11049,6 +12560,16 @@ export type RejectTimeCorrectionRequest = {
 };
 
 /**
+ * ReorderProjectColumnsV1Request
+ */
+export type ReorderProjectColumnsV1Request = {
+    /**
+     * `id` of ALL the columns of the project, in the desired order.
+     */
+    column_ids: Array<string>;
+};
+
+/**
  * RequestTimeCorrectionRequest
  */
 export type RequestTimeCorrectionRequest = {
@@ -11078,6 +12599,9 @@ export type RequestTimeCorrectionRequest = {
  * Reschedule an already `scheduled` invoice. Required: `scheduled_for` (ISO 8601 date-time, strictly in the future).
  */
 export type RescheduleInvoiceRequest = {
+    /**
+     * New instant at which the scheduled invoice will be issued, as an ISO 8601 date-time strictly in the future (422 otherwise). An explicit offset (`Z`, `+01:00`) is honoured; without one it is read in `Europe/Madrid`. Only the date moves: the `scheduled_action` chosen when scheduling (`issue` or `issue_and_send`) is kept.
+     */
     scheduled_for: string;
 };
 
@@ -11757,11 +13281,17 @@ export type ScheduleAssignment = {
 /**
  * ScheduleInvoiceRequest
  *
- * Schedule the future issuance of a `draft` invoice. Required: `scheduled_for` (ISO 8601 date-time, strictly in the future) and `scheduled_action` (`draft` or `issue_and_send`).
+ * Schedule the future issuance of a `draft` invoice. Required: `scheduled_for` (ISO 8601 date-time, strictly in the future) and `scheduled_action` (`issue` to issue it without sending, or `issue_and_send` to issue it and email it to the customer). The legacy value `draft` is still accepted as an alias of `issue` in every API version.
  */
 export type ScheduleInvoiceRequest = {
+    /**
+     * Instant at which the invoice will be issued, as an ISO 8601 date-time strictly in the future. An explicit offset (`Z`, `+01:00`) is honoured; without one it is read in `Europe/Madrid`.
+     */
     scheduled_for: string;
-    scheduled_action: 'draft' | 'issue_and_send';
+    /**
+     * What happens at `scheduled_for`: `issue` issues the invoice without sending it; `issue_and_send` issues it and emails it to the customer. `draft` is still accepted as an alias of `issue` in every API version (it always meant "issue without sending").
+     */
+    scheduled_action: 'issue' | 'issue_and_send';
 };
 
 /**
@@ -11898,7 +13428,7 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
 };
 
 /**
@@ -12057,6 +13587,16 @@ export type SeriesBootstrapResult = {
 export type SeriesRef = {
     id: string | null;
     code: string | null;
+};
+
+/**
+ * SetTaskCustomFieldValueV1Request
+ */
+export type SetTaskCustomFieldValueV1Request = {
+    /**
+     * Value of the field: text, number, boolean, a `YYYY-MM-DD` date, an option or a list of options (`multiselect`). `null` clears the value.
+     */
+    value: string | number | boolean | Array<string> | null;
 };
 
 /**
@@ -12564,6 +14104,873 @@ export type SupplierProductOffer = {
 export type SupplierRef = {
     id: string | null;
     name: string | null;
+};
+
+/**
+ * Task
+ *
+ * A task of a project board.
+ */
+export type Task = {
+    /**
+     * UUID (v7) of the task.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task` for this resource.
+     */
+    object: 'task';
+    /**
+     * Task key: project key and number (`DEV-12`).
+     */
+    key: string;
+    /**
+     * Number of the task in its project.
+     */
+    number: number;
+    /**
+     * UUID of the project.
+     */
+    project_id: string;
+    /**
+     * UUID of the board column, or `null` in the backlog (`planned`) or when `archived`.
+     */
+    column_id: string | null;
+    /**
+     * Board status: `planned` (backlog), `active` (in a column of the board) or `archived`.
+     */
+    status: 'planned' | 'active' | 'archived';
+    /**
+     * Task priority.
+     */
+    priority: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+    /**
+     * Task title.
+     */
+    title: string;
+    /**
+     * Description in Markdown, or `null`.
+     */
+    description: string | null;
+    /**
+     * Start date, or `null`.
+     */
+    start_on: string | null;
+    /**
+     * Due date, or `null`.
+     */
+    due_on: string | null;
+    /**
+     * UUID of the assigned member, or `null`.
+     */
+    assignee_id: string | null;
+    /**
+     * Labels of the task.
+     */
+    labels: Array<{
+        /**
+         * UUID of the label.
+         */
+        id: string;
+        name: string;
+        color: string;
+    }>;
+    /**
+     * Values of the custom fields of the project.
+     */
+    custom_fields: Array<{
+        /**
+         * UUID of the custom field.
+         */
+        field_id: string;
+        name: string;
+        type: 'text' | 'number' | 'date' | 'dropdown' | 'boolean' | 'multiselect';
+        /**
+         * Value serialized as a string (a JSON array for `multiselect`), or `null`.
+         */
+        value: string | null;
+    }>;
+    /**
+     * When the task was completed, or `null` while open.
+     */
+    completed_at: string | null;
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Last update timestamp.
+     */
+    updated_at: string;
+    /**
+     * Counters of the task.
+     */
+    counts: {
+        subtasks_total: number;
+        subtasks_completed: number;
+        comments: number;
+        attachments: number;
+    };
+};
+
+/**
+ * TaskActivity
+ *
+ * An entry of the activity log of a task. Entries have no `id`: paginate with the opaque `next_cursor`.
+ */
+export type TaskActivity = {
+    /**
+     * Stripe-like discriminator. Always `task_activity` for this resource.
+     */
+    object: 'task_activity';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    /**
+     * What happened (`task_created`, `task_status_changed`, `task_comment_created`…).
+     */
+    type: string;
+    /**
+     * Who did it.
+     */
+    actor: {
+        /**
+         * A member, an API key, a code forge or the system.
+         */
+        type: 'user' | 'api_key' | 'external' | 'system';
+        /**
+         * UUID of the member, or `null`.
+         */
+        id: string | null;
+        /**
+         * Display name of the actor, or `null`.
+         */
+        name: string | null;
+    };
+    /**
+     * When it happened.
+     */
+    occurred_at: string;
+    /**
+     * Details of the change (previous and new values), depending on `type`.
+     */
+    data: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * TaskActivityList
+ *
+ * Page of activity entries of a task, newest first (`{ data, has_more, next_cursor }`).
+ */
+export type TaskActivityList = {
+    data: Array<TaskActivity>;
+    /**
+     * `true` when there are older entries.
+     */
+    has_more: boolean;
+    /**
+     * OPAQUE cursor to pass back as `starting_after` untouched, or `null`. It is not a UUID: activity entries have no `id`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskAttachment
+ *
+ * A file attached to a task, in its description or in a comment.
+ */
+export type TaskAttachment = {
+    /**
+     * UUID (v7) of the attachment.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_attachment` for this resource.
+     */
+    object: 'task_attachment';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    /**
+     * UUID of the comment it belongs to, or `null` when attached to the description.
+     */
+    comment_id: string | null;
+    surface: 'description' | 'comment';
+    file_name: string;
+    /**
+     * Real type of the file, detected by content on upload.
+     */
+    mime_type: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/heic' | 'image/avif' | 'application/pdf' | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' | 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' | 'application/vnd.openxmlformats-officedocument.presentationml.presentation' | 'application/vnd.oasis.opendocument.text' | 'application/vnd.oasis.opendocument.spreadsheet' | 'text/plain' | 'text/csv' | 'text/markdown' | 'application/zip';
+    size_bytes: number;
+    kind: 'image' | 'file';
+    /**
+     * UUID of the member who uploaded it, or `null`.
+     */
+    uploaded_by_id: string | null;
+    /**
+     * Upload timestamp.
+     */
+    created_at: string;
+};
+
+/**
+ * TaskAttachmentList
+ *
+ * Page of attachments (all of them, never more than one page) (`{ data, has_more, next_cursor }`).
+ */
+export type TaskAttachmentList = {
+    data: Array<TaskAttachment>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskBulkResult
+ *
+ * Result of a bulk task operation. Tasks that no longer exist or were moved are skipped silently.
+ */
+export type TaskBulkResult = {
+    /**
+     * Stripe-like discriminator. Always `task_bulk_result` for this resource.
+     */
+    object: 'task_bulk_result';
+    /**
+     * Bulk operation performed.
+     */
+    operation: 'status' | 'update' | 'delete';
+    /**
+     * Tasks actually changed.
+     */
+    changed: number;
+};
+
+/**
+ * TaskComment
+ *
+ * A comment of a task.
+ */
+export type TaskComment = {
+    /**
+     * UUID (v7) of the comment.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_comment` for this resource.
+     */
+    object: 'task_comment';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    /**
+     * Comment in Markdown.
+     */
+    body: string;
+    /**
+     * Author of the comment.
+     */
+    author: {
+        /**
+         * `user` (a member), `external` (synchronized from a code forge), `imported` (brought by an import) or `automation`.
+         */
+        type: 'user' | 'external' | 'imported' | 'automation';
+        /**
+         * UUID of the member for `user`; `null` otherwise.
+         */
+        id: string | null;
+        /**
+         * Display name of the author.
+         */
+        name: string | null;
+        /**
+         * Code forge for `external` authors; `null` for the other types, `imported` included.
+         */
+        provider: 'github' | 'gitlab' | 'gitea' | null;
+        /**
+         * Avatar of an `external` author, or `null`.
+         */
+        avatar_url: string | null;
+        /**
+         * Link to the original comment of an `external` author, or `null`.
+         */
+        url: string | null;
+    };
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Last edition, or `null`.
+     */
+    edited_at: string | null;
+};
+
+/**
+ * TaskCommentList
+ *
+ * Page of comments (`{ data, has_more, next_cursor }`).
+ */
+export type TaskCommentList = {
+    data: Array<TaskComment>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskCustomFieldValue
+ *
+ * The value of one custom field of a task.
+ */
+export type TaskCustomFieldValue = {
+    /**
+     * UUID of the custom field.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_custom_field_value` for this resource.
+     */
+    object: 'task_custom_field_value';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    /**
+     * Field name.
+     */
+    name: string;
+    type: 'text' | 'number' | 'date' | 'dropdown' | 'boolean' | 'multiselect';
+    /**
+     * Value serialized as a string (a JSON array for `multiselect`), or `null`.
+     */
+    value: string | null;
+};
+
+/**
+ * TaskEntityLink
+ *
+ * A link between a task and a Factuarea entity (document, contact, product or employee).
+ */
+export type TaskEntityLink = {
+    /**
+     * UUID (v7) of the link.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_entity_link` for this resource.
+     */
+    object: 'task_entity_link';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    /**
+     * Type of the linked entity.
+     */
+    entity_type: 'invoice' | 'quote' | 'proforma' | 'delivery_note' | 'purchase_invoice' | 'recurring_invoice' | 'contact' | 'product' | 'employee';
+    /**
+     * UUID of the linked entity.
+     */
+    entity_id: string;
+    /**
+     * `false` when the entity was deleted or its module is no longer accessible.
+     */
+    available: boolean;
+    /**
+     * Display data of the entity, or `null` when it is not available.
+     */
+    summary: {
+        title: string;
+        /**
+         * Document number, or `null`.
+         */
+        number: string | null;
+        /**
+         * Public status of the entity, or `null`.
+         */
+        status: string | null;
+    } | null;
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+};
+
+/**
+ * TaskEntityLinkList
+ *
+ * Page of entity links (all of them, never more than one page) (`{ data, has_more, next_cursor }`).
+ */
+export type TaskEntityLinkList = {
+    data: Array<TaskEntityLink>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskExternalLink
+ *
+ * A link from a task to an external resource: added by hand, or synchronized from a code forge.
+ */
+export type TaskExternalLink = {
+    /**
+     * UUID (v7) of the link.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_external_link` for this resource.
+     */
+    object: 'task_external_link';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    url: string;
+    title: string | null;
+    /**
+     * `url` for links added by hand; the forge resource otherwise.
+     */
+    resource_type: 'url' | 'issue' | 'pull_request' | 'branch';
+    /**
+     * UUID of the forge integration that manages the link, or `null` when added by hand.
+     */
+    integration_id: string | null;
+    /**
+     * Forge of that integration, or `null`.
+     */
+    integration_type: 'github' | 'gitlab' | 'gitea' | null;
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+};
+
+/**
+ * TaskExternalLinkList
+ *
+ * Page of external links (all of them, never more than one page) (`{ data, has_more, next_cursor }`).
+ */
+export type TaskExternalLinkList = {
+    data: Array<TaskExternalLink>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskLabel
+ *
+ * A label of the task label catalog of your company.
+ */
+export type TaskLabel = {
+    /**
+     * UUID (v7) of the label.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_label` for this resource.
+     */
+    object: 'task_label';
+    /**
+     * Label name, unique in your company (case-insensitive).
+     */
+    name: string;
+    /**
+     * Color from the task palette.
+     */
+    color: string;
+    /**
+     * Tasks of your company that carry the label, archived tasks included.
+     */
+    tasks_count: number;
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Last update timestamp.
+     */
+    updated_at: string;
+};
+
+/**
+ * TaskLabelAssignment
+ *
+ * A label assigned to a task.
+ */
+export type TaskLabelAssignment = {
+    /**
+     * UUID of the label.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_label_assignment` for this resource.
+     */
+    object: 'task_label_assignment';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    name: string;
+    color: string;
+};
+
+/**
+ * TaskLabelList
+ *
+ * Page of labels (`{ data, has_more, next_cursor }`).
+ */
+export type TaskLabelList = {
+    data: Array<TaskLabel>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskList
+ *
+ * Page of tasks (`{ data, has_more, next_cursor }`).
+ */
+export type TaskList = {
+    data: Array<Task>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskRelation
+ *
+ * A relation between two tasks, seen from the task of the request.
+ */
+export type TaskRelation = {
+    /**
+     * UUID (v7) of the relation.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_relation` for this resource.
+     */
+    object: 'task_relation';
+    type: 'subtask' | 'blocks' | 'related';
+    /**
+     * UUID of the source task (the parent, or the blocking task).
+     */
+    source_task_id: string;
+    /**
+     * UUID of the target task (the subtask, or the blocked task).
+     */
+    target_task_id: string;
+    /**
+     * What `related_task` is for the task of the request.
+     */
+    direction: 'parent' | 'child' | 'blocks' | 'blocked_by' | 'related';
+    /**
+     * The other task of the relation.
+     */
+    related_task: {
+        /**
+         * UUID of the task.
+         */
+        id: string;
+        key: string;
+        title: string;
+        /**
+         * Board status: `planned` (backlog), `active` (in a column of the board) or `archived`.
+         */
+        status: 'planned' | 'active' | 'archived';
+        completed: boolean;
+        /**
+         * Task priority.
+         */
+        priority: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+        /**
+         * UUID of the assigned member, or `null`.
+         */
+        assignee_id: string | null;
+        /**
+         * UUID of its project.
+         */
+        project_id: string;
+    };
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+};
+
+/**
+ * TaskRelationList
+ *
+ * Page of relations (all of them, never more than one page) (`{ data, has_more, next_cursor }`).
+ */
+export type TaskRelationList = {
+    data: Array<TaskRelation>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskTimeEntry
+ *
+ * Time logged on a task. Unrelated to the working-day records of the time tracking module (`/v1/time-entries`).
+ */
+export type TaskTimeEntry = {
+    /**
+     * UUID (v7) of the time entry.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_time_entry` for this resource.
+     */
+    object: 'task_time_entry';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    /**
+     * UUID of the project.
+     */
+    project_id: string;
+    /**
+     * UUID of the member who logged it, or `null`.
+     */
+    user_id: string | null;
+    /**
+     * Start of the period.
+     */
+    started_at: string;
+    /**
+     * End of the period, or `null` while the timer runs.
+     */
+    ended_at: string | null;
+    /**
+     * Duration, or `null` while the timer runs.
+     */
+    duration_seconds: number | null;
+    description: string | null;
+    billable: boolean;
+    /**
+     * `true` for a running timer.
+     */
+    is_running: boolean;
+    /**
+     * UUID of the invoice that includes it, or `null`.
+     */
+    invoice_id: string | null;
+    /**
+     * When it was invoiced, or `null`.
+     */
+    invoiced_at: string | null;
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Last update timestamp.
+     */
+    updated_at: string;
+};
+
+/**
+ * TaskTimeEntryList
+ *
+ * Page of time entries (`{ data, has_more, next_cursor }`).
+ */
+export type TaskTimeEntryList = {
+    data: Array<TaskTimeEntry>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TaskTimeInvoice
+ *
+ * Result of invoicing project time: the draft invoice created for the selected entries.
+ */
+export type TaskTimeInvoice = {
+    /**
+     * UUID of the billing batch that groups the invoiced entries.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_time_invoice` for this resource.
+     */
+    object: 'task_time_invoice';
+    /**
+     * UUID of the project.
+     */
+    project_id: string;
+    /**
+     * UUID of the draft invoice. Manage it with the invoice API.
+     */
+    invoice_id: string;
+    /**
+     * How the time becomes invoice lines: one per task, one per entry, or a single line.
+     */
+    grouping: 'per_task' | 'per_entry' | 'single_line';
+    /**
+     * Always `draft`: the invoice is numbered when issued.
+     */
+    status: 'draft';
+};
+
+/**
+ * TaskTimeInvoicePreview
+ *
+ * Invoice lines that invoicing the selected time would produce. Nothing is created.
+ */
+export type TaskTimeInvoicePreview = {
+    /**
+     * Stripe-like discriminator. Always `task_time_invoice_preview` for this resource.
+     */
+    object: 'task_time_invoice_preview';
+    /**
+     * UUID of the project.
+     */
+    project_id: string;
+    /**
+     * UUID of the contact that would be invoiced.
+     */
+    customer_id: string;
+    /**
+     * Name of that contact.
+     */
+    customer_name: string;
+    /**
+     * How the time becomes invoice lines: one per task, one per entry, or a single line.
+     */
+    grouping: 'per_task' | 'per_entry' | 'single_line';
+    /**
+     * Invoice lines, before taxes.
+     */
+    lines: Array<{
+        /**
+         * Line text.
+         */
+        description: string;
+        /**
+         * Hours, as a decimal string.
+         */
+        quantity: string;
+        /**
+         * Unit code (`HUR`, hours).
+         */
+        unit: string;
+        /**
+         * Hourly rate, as a decimal string.
+         */
+        unit_price: string;
+        /**
+         * Line amount before taxes, as a decimal string.
+         */
+        amount: string;
+    }>;
+    /**
+     * Seconds invoiced.
+     */
+    total_seconds: number;
+    /**
+     * Hours invoiced, as a decimal string.
+     */
+    total_hours: string;
+    /**
+     * Sum of the line amounts before taxes, as a decimal string.
+     */
+    total_amount: string;
+    /**
+     * UUIDs of the time entries that would be invoiced.
+     */
+    entry_ids: Array<string>;
+    /**
+     * Adjustments to review before invoicing, in Spanish.
+     */
+    warnings: Array<string>;
+};
+
+/**
+ * TaskUploadLink
+ *
+ * A single-use link to upload files to a task without an account. It expires after 30 minutes.
+ */
+export type TaskUploadLink = {
+    /**
+     * UUID (v7) of the upload link.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `task_upload_link` for this resource.
+     */
+    object: 'task_upload_link';
+    /**
+     * UUID of the task.
+     */
+    task_id: string;
+    /**
+     * Public upload page. It carries the secret token and is shown only in this response.
+     */
+    url: string;
+    /**
+     * Where the uploaded files are attached.
+     */
+    target: 'description' | 'comment';
+    /**
+     * Text of the comment created with the files, or `null`.
+     */
+    note: string | null;
+    /**
+     * When the link stops working.
+     */
+    expires_at: string;
 };
 
 /**
@@ -14411,6 +16818,62 @@ export type UpdateProformaRequest = {
 };
 
 /**
+ * UpdateProjectColumnV1Request
+ */
+export type UpdateProjectColumnV1Request = {
+    /**
+     * New name (`null` is not accepted).
+     */
+    name?: string;
+    /**
+     * Icon from the catalog; `null` clears it.
+     */
+    icon?: 'folder' | 'briefcase' | 'rocket' | 'code' | 'bug' | 'wrench' | 'hammer' | 'truck' | 'package' | 'shopping-cart' | 'calculator' | 'receipt' | 'file-text' | 'landmark' | 'users' | 'user' | 'building' | 'home' | 'calendar' | 'clock' | 'flag' | 'star' | 'heart' | 'lightbulb' | 'target' | 'trophy' | 'book' | 'graduation-cap' | 'megaphone' | 'palette' | 'camera' | 'music' | 'globe' | 'leaf' | 'coffee' | 'car' | 'plane' | 'shield' | 'zap' | 'layers' | null;
+    /**
+     * Hexadecimal color or palette key; `null` clears it.
+     */
+    color?: string | null;
+    /**
+     * Whether it is a final column.
+     */
+    is_final?: boolean;
+};
+
+/**
+ * UpdateProjectV1Request
+ */
+export type UpdateProjectV1Request = {
+    /**
+     * New name (1-120 characters); `null` is not accepted.
+     */
+    name?: string;
+    /**
+     * New key; `null` is not accepted. The previous key remains as an alias of the keys of its tasks.
+     */
+    key?: string;
+    /**
+     * Icon from the catalog; `null` is not accepted.
+     */
+    icon?: 'folder' | 'briefcase' | 'rocket' | 'code' | 'bug' | 'wrench' | 'hammer' | 'truck' | 'package' | 'shopping-cart' | 'calculator' | 'receipt' | 'file-text' | 'landmark' | 'users' | 'user' | 'building' | 'home' | 'calendar' | 'clock' | 'flag' | 'star' | 'heart' | 'lightbulb' | 'target' | 'trophy' | 'book' | 'graduation-cap' | 'megaphone' | 'palette' | 'camera' | 'music' | 'globe' | 'leaf' | 'coffee' | 'car' | 'plane' | 'shield' | 'zap' | 'layers';
+    /**
+     * Description; `null` clears it.
+     */
+    description?: string | null;
+    /**
+     * `id` of the client contact the hours are invoiced to; `null` removes it.
+     */
+    billing_contact_id?: string | null;
+    /**
+     * `id` of the product the hours are invoiced with; `null` removes it.
+     */
+    billing_product_id?: string | null;
+    /**
+     * Hourly rate (decimal with up to 2 decimal places); `null` removes it.
+     */
+    billing_hourly_rate?: number | null;
+};
+
+/**
  * UpdatePurchaseInvoiceRequest
  */
 export type UpdatePurchaseInvoiceRequest = {
@@ -14567,7 +17030,7 @@ export type UpdateQuoteRequest = {
 /**
  * UpdateRecurringInvoiceRequest
  *
- * Partial update of a recurring invoice template; only the fields sent overwrite the current value, omitted ones are preserved. Writable fields mirror creation (`client_id`, `series_id`, `name`, `description`, `frequency`, `holiday_handling`, `start_on`, `end_on`, `notes`, `metadata`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `lines[]`).
+ * Partial update of a recurring invoice template; only the fields sent overwrite the current value, omitted ones are preserved. Writable fields mirror creation (`client_id`, `series_id`, `name`, `description`, `frequency`, `holiday_handling`, `start_on`, `end_on`, `notes`, `metadata`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `generation_mode`, `auto_delivery`, `lines[]`). Omitting `generation_mode` keeps the current mode.
  */
 export type UpdateRecurringInvoiceRequest = {
     client_id?: string;
@@ -14591,8 +17054,18 @@ export type UpdateRecurringInvoiceRequest = {
     days_before_due?: number | null;
     max_occurrences?: number | null;
     email_to?: string | null;
+    /**
+     * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+     */
     send_automatically?: boolean;
+    /**
+     * New generation mode of the recurrence: `draft` (generated invoices stay as drafts), `issue` (they are issued without being emailed) or `issue_and_send` (they are issued and emailed to the `auto_delivery` recipients). Any other value is rejected with 422. Optional: when omitted (or `null`) the current mode is kept, unless `send_automatically` is sent on its own and changes whether the recurrence emails its invoices (`true` switches a non-sending mode to `issue_and_send`; `false` switches `issue_and_send` to `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if the recurrence has an `auto_delivery` configuration, it must keep at least one recipient (422 `auto_delivery_recipients_required` otherwise). Available in every API version.
+     */
+    generation_mode?: 'draft' | 'issue' | 'issue_and_send' | null;
     auto_delivery?: {
+        /**
+         * Compatibility flag derived from `generation_mode`. Without `generation_mode`, `true` selects `issue_and_send` and `false` selects `draft`. Together with `generation_mode` it must agree with it (`true` only with `issue_and_send`), otherwise the request is rejected with 422. Prefer sending `generation_mode`.
+         */
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
@@ -14736,6 +17209,98 @@ export type UpdateSupplierProfileV1Request = {
 };
 
 /**
+ * UpdateTaskCustomFieldV1Request
+ */
+export type UpdateTaskCustomFieldV1Request = {
+    /**
+     * New name.
+     */
+    name?: string;
+    /**
+     * Type: immutable; a value different from the current one returns 422 `invalid_custom_field_definition`.
+     */
+    type?: string;
+    /**
+     * Whether the field is required.
+     */
+    required?: boolean;
+    /**
+     * Default value (text, number, boolean, a `YYYY-MM-DD` date, an option or a list of options); `null` removes it.
+     */
+    default_value?: string | number | boolean | Array<string> | null;
+    /**
+     * Complete resulting list of options (up to 100).
+     */
+    options?: Array<string> | null;
+};
+
+/**
+ * UpdateTaskLabelV1Request
+ */
+export type UpdateTaskLabelV1Request = {
+    /**
+     * New label name (1-60 characters); omitted = unchanged.
+     */
+    name?: string;
+    /**
+     * New color: palette key or hexadecimal `#RGB`/`#RRGGBB`; omitted = unchanged.
+     */
+    color?: string;
+};
+
+/**
+ * UpdateTaskTimeEntryV1Request
+ */
+export type UpdateTaskTimeEntryV1Request = {
+    /**
+     * New start, ISO 8601 with time zone. `null` is not accepted.
+     */
+    started_at?: string;
+    /**
+     * New end, ISO 8601 with time zone; `null` removes the end.
+     */
+    ended_at?: string | null;
+    /**
+     * Description; `null` clears it.
+     */
+    description?: string | null;
+    /**
+     * Whether the time is billable. `null` is not accepted.
+     */
+    billable?: boolean;
+};
+
+/**
+ * UpdateTaskV1Request
+ */
+export type UpdateTaskV1Request = {
+    /**
+     * New title (1 to 500 characters). `null` is not accepted.
+     */
+    title?: string;
+    /**
+     * New priority: `none`, `low`, `medium`, `high` or `urgent`. `null` is not accepted.
+     */
+    priority?: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+    /**
+     * Description in Markdown; `null` clears it.
+     */
+    description?: string | null;
+    /**
+     * Start date (`YYYY-MM-DD`); `null` removes it.
+     */
+    start_on?: string | null;
+    /**
+     * Due date (`YYYY-MM-DD`); `null` removes it.
+     */
+    due_on?: string | null;
+    /**
+     * `id` of the member user the task is assigned to; `null` leaves the task unassigned.
+     */
+    assignee_id?: string | null;
+};
+
+/**
  * UpdateTaxRequest
  */
 export type UpdateTaxRequest = {
@@ -14822,9 +17387,12 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.sent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
+    /**
+     * New payload version (date-based, `YYYY-MM-DD`) pinned for the events delivered to this endpoint. Supported values: `2026-05-22` and `2026-10-01`. Omit the field to keep the current value; send `null` to unpin the endpoint, which then receives the payload version of the default REST version (currently `2026-05-22`), never the latest one. Endpoints that existed before version `2026-10-01` was released were pinned to `2026-05-22`, so they keep receiving invoices in the previous vocabulary until you change this value. A value that is not a `YYYY-MM-DD` date returns 422 (subcode `api_version_invalid_format`), and an unsupported one 422 (subcode `api_version_unsupported`).
+     */
     api_version?: string | null;
     metadata?: Metadata;
     custom_headers?: CustomHeaders;
@@ -14924,6 +17492,24 @@ export type UploadPurchaseScansRequest = {
 };
 
 /**
+ * UploadTaskAttachmentV1Request
+ */
+export type UploadTaskAttachmentV1Request = {
+    /**
+     * Attachment file (multipart). The type is detected from the content, never from the extension.
+     */
+    file: Blob | File;
+    /**
+     * Target: `comment` (default, creates a comment with the note and the attachment) or `description`.
+     */
+    target?: 'description' | 'comment';
+    /**
+     * Note of the comment that accompanies the attachment; only used with `target=comment`.
+     */
+    note?: string | null;
+};
+
+/**
  * UpsertPriceListItemRequest
  */
 export type UpsertPriceListItemRequest = {
@@ -14935,6 +17521,49 @@ export type UpsertPriceListItemRequest = {
     selection_signature?: string | null;
     unit_price: number;
     price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+};
+
+/**
+ * User
+ *
+ * A member of your company: someone tasks can be assigned to.
+ */
+export type User = {
+    /**
+     * UUID of the user.
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `user` for this resource.
+     */
+    object: 'user';
+    name: string;
+    email: string;
+    /**
+     * Initials shown in the avatar.
+     */
+    initials: string;
+    /**
+     * Avatar color, stable per user.
+     */
+    avatar_color: string;
+};
+
+/**
+ * UserList
+ *
+ * Page of users (`{ data, has_more, next_cursor }`).
+ */
+export type UserList = {
+    data: Array<User>;
+    /**
+     * `true` when there are more objects after this page.
+     */
+    has_more: boolean;
+    /**
+     * Value to pass as `starting_after` to get the next page (the `id` of the last object), or `null` when `has_more` is `false`.
+     */
+    next_cursor: string | null;
 };
 
 /**
@@ -15288,9 +17917,9 @@ export type WebhookEndpoint = {
     url: string;
     description: string | null;
     /**
-     * List of event types this endpoint subscribes to.
+     * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<string>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -15306,7 +17935,7 @@ export type WebhookEndpoint = {
     created_at: string;
     updated_at: string;
     /**
-     * API version (date-based, e.g. `2026-05-01`) pinned for the payloads delivered to this endpoint. `null` means the account default applies.
+     * Payload version (date-based, e.g. `2026-10-01`) pinned for the events delivered to this endpoint. An endpoint created without an explicit `api_version` is pinned at creation (`2026-10-01` when the effective REST version of the request is `2026-10-01` or later, `2026-05-22` otherwise). `null` only remains if it was cleared explicitly, and then the payload version of the default REST version (currently `2026-05-22`) applies, never the latest one. An endpoint pinned to a payload version before `2026-10-01` receives invoices in the previous vocabulary: `status: sent` for an issued invoice, `sent_at` equal to the issuance instant, and no `issued_at`, `is_sent` or `sent_via`.
      */
     api_version: string | null;
     metadata: Metadata;
@@ -15335,9 +17964,9 @@ export type WebhookEndpointWithSecret = {
     url: string;
     description: string | null;
     /**
-     * List of event types this endpoint subscribes to.
+     * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<string>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -15353,7 +17982,7 @@ export type WebhookEndpointWithSecret = {
     created_at: string;
     updated_at: string;
     /**
-     * API version (date-based, e.g. `2026-05-01`) pinned for the payloads delivered to this endpoint. `null` means the account default applies.
+     * Payload version (date-based, e.g. `2026-10-01`) pinned for the events delivered to this endpoint. An endpoint created without an explicit `api_version` is pinned at creation (`2026-10-01` when the effective REST version of the request is `2026-10-01` or later, `2026-05-22` otherwise). `null` only remains if it was cleared explicitly, and then the payload version of the default REST version (currently `2026-05-22`) applies, never the latest one. An endpoint pinned to a payload version before `2026-10-01` receives invoices in the previous vocabulary: `status: sent` for an issued invoice, `sent_at` equal to the issuance instant, and no `issued_at`, `is_sent` or `sent_via`.
      */
     api_version: string | null;
     metadata: Metadata;
@@ -15388,8 +18017,14 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadInvoiceSubscriptionAutoCreated) | ({
     type: 'invoice.updated';
 } & WebhookEventPayloadInvoiceUpdated) | ({
+    type: 'invoice.issued';
+} & WebhookEventPayloadInvoiceIssued) | ({
     type: 'invoice.sent';
 } & WebhookEventPayloadInvoiceSent) | ({
+    type: 'invoice.marked_sent';
+} & WebhookEventPayloadInvoiceMarkedSent) | ({
+    type: 'invoice.unsent';
+} & WebhookEventPayloadInvoiceUnsent) | ({
     type: 'invoice.paid';
 } & WebhookEventPayloadInvoicePaid) | ({
     type: 'invoice.cancelled';
@@ -15627,7 +18262,49 @@ export type WebhookEventPayload = ({
     type: 'order.invoiced';
 } & WebhookEventPayloadOrderInvoiced) | ({
     type: 'order.refunded';
-} & WebhookEventPayloadOrderRefunded);
+} & WebhookEventPayloadOrderRefunded) | ({
+    type: 'task.created';
+} & WebhookEventPayloadTaskCreated) | ({
+    type: 'task.updated';
+} & WebhookEventPayloadTaskUpdated) | ({
+    type: 'task.deleted';
+} & WebhookEventPayloadTaskDeleted) | ({
+    type: 'task.status_changed';
+} & WebhookEventPayloadTaskStatusChanged) | ({
+    type: 'task.completed';
+} & WebhookEventPayloadTaskCompleted) | ({
+    type: 'task.assigned';
+} & WebhookEventPayloadTaskAssigned) | ({
+    type: 'task.unassigned';
+} & WebhookEventPayloadTaskUnassigned) | ({
+    type: 'task.moved';
+} & WebhookEventPayloadTaskMoved) | ({
+    type: 'task.due_soon';
+} & WebhookEventPayloadTaskDueSoon) | ({
+    type: 'task.overdue';
+} & WebhookEventPayloadTaskOverdue) | ({
+    type: 'task_comment.created';
+} & WebhookEventPayloadTaskCommentCreated) | ({
+    type: 'task_comment.updated';
+} & WebhookEventPayloadTaskCommentUpdated) | ({
+    type: 'task_comment.deleted';
+} & WebhookEventPayloadTaskCommentDeleted) | ({
+    type: 'task_time_entry.created';
+} & WebhookEventPayloadTaskTimeEntryCreated) | ({
+    type: 'task_time_entry.updated';
+} & WebhookEventPayloadTaskTimeEntryUpdated) | ({
+    type: 'task_time_entry.deleted';
+} & WebhookEventPayloadTaskTimeEntryDeleted) | ({
+    type: 'task_time_entry.invoiced';
+} & WebhookEventPayloadTaskTimeEntryInvoiced) | ({
+    type: 'project.created';
+} & WebhookEventPayloadProjectCreated) | ({
+    type: 'project.updated';
+} & WebhookEventPayloadProjectUpdated) | ({
+    type: 'project.archived';
+} & WebhookEventPayloadProjectArchived) | ({
+    type: 'project.deleted';
+} & WebhookEventPayloadProjectDeleted);
 
 /**
  * WebhookEventPayloadAbsenceApproved
@@ -17369,6 +20046,80 @@ export type WebhookEventPayloadInvoiceEmailSent = {
 };
 
 /**
+ * WebhookEventPayloadInvoiceIssued
+ *
+ * Webhook delivery body for the `invoice.issued` event.
+ */
+export type WebhookEventPayloadInvoiceIssued = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.issued`.
+     */
+    type: 'invoice.issued';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceIssued;
+};
+
+/**
+ * WebhookEventPayloadInvoiceMarkedSent
+ *
+ * Webhook delivery body for the `invoice.marked_sent` event.
+ */
+export type WebhookEventPayloadInvoiceMarkedSent = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.marked_sent`.
+     */
+    type: 'invoice.marked_sent';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceMarkedSent;
+};
+
+/**
  * WebhookEventPayloadInvoiceMetadataChanged
  *
  * Webhook delivery body for the `invoice.metadata_changed` event.
@@ -17593,7 +20344,9 @@ export type WebhookEventPayloadInvoiceRectified = {
 /**
  * WebhookEventPayloadInvoiceSent
  *
- * Webhook delivery body for the `invoice.sent` event.
+ * Webhook delivery body for the `invoice.sent` event. Deprecated: alias of `invoice.issued`, emitted at the same instant and with the same `data.object`. New integrations should subscribe to `invoice.issued`; its removal will be announced with a `Sunset` date.
+ *
+ * @deprecated
  */
 export type WebhookEventPayloadInvoiceSent = {
     /**
@@ -17773,6 +20526,43 @@ export type WebhookEventPayloadInvoiceSubstitutedByComplete = {
      */
     correlation_id: string | null;
     data: EventDataInvoiceSubstitutedByComplete;
+};
+
+/**
+ * WebhookEventPayloadInvoiceUnsent
+ *
+ * Webhook delivery body for the `invoice.unsent` event.
+ */
+export type WebhookEventPayloadInvoiceUnsent = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.unsent`.
+     */
+    type: 'invoice.unsent';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceUnsent;
 };
 
 /**
@@ -18624,6 +21414,154 @@ export type WebhookEventPayloadProformaUpdated = {
      */
     correlation_id: string | null;
     data: EventDataProformaUpdated;
+};
+
+/**
+ * WebhookEventPayloadProjectArchived
+ *
+ * Webhook delivery body for the `project.archived` event.
+ */
+export type WebhookEventPayloadProjectArchived = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `project.archived`.
+     */
+    type: 'project.archived';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataProjectArchived;
+};
+
+/**
+ * WebhookEventPayloadProjectCreated
+ *
+ * Webhook delivery body for the `project.created` event.
+ */
+export type WebhookEventPayloadProjectCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `project.created`.
+     */
+    type: 'project.created';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataProjectCreated;
+};
+
+/**
+ * WebhookEventPayloadProjectDeleted
+ *
+ * Webhook delivery body for the `project.deleted` event.
+ */
+export type WebhookEventPayloadProjectDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `project.deleted`.
+     */
+    type: 'project.deleted';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataProjectDeleted;
+};
+
+/**
+ * WebhookEventPayloadProjectUpdated
+ *
+ * Webhook delivery body for the `project.updated` event.
+ */
+export type WebhookEventPayloadProjectUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `project.updated`.
+     */
+    type: 'project.updated';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataProjectUpdated;
 };
 
 /**
@@ -20070,6 +23008,635 @@ export type WebhookEventPayloadSeriesYearReset = {
 };
 
 /**
+ * WebhookEventPayloadTaskAssigned
+ *
+ * Webhook delivery body for the `task.assigned` event.
+ */
+export type WebhookEventPayloadTaskAssigned = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.assigned`.
+     */
+    type: 'task.assigned';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskAssigned;
+};
+
+/**
+ * WebhookEventPayloadTaskCommentCreated
+ *
+ * Webhook delivery body for the `task_comment.created` event.
+ */
+export type WebhookEventPayloadTaskCommentCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task_comment.created`.
+     */
+    type: 'task_comment.created';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskCommentCreated;
+};
+
+/**
+ * WebhookEventPayloadTaskCommentDeleted
+ *
+ * Webhook delivery body for the `task_comment.deleted` event.
+ */
+export type WebhookEventPayloadTaskCommentDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task_comment.deleted`.
+     */
+    type: 'task_comment.deleted';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskCommentDeleted;
+};
+
+/**
+ * WebhookEventPayloadTaskCommentUpdated
+ *
+ * Webhook delivery body for the `task_comment.updated` event.
+ */
+export type WebhookEventPayloadTaskCommentUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task_comment.updated`.
+     */
+    type: 'task_comment.updated';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskCommentUpdated;
+};
+
+/**
+ * WebhookEventPayloadTaskCompleted
+ *
+ * Webhook delivery body for the `task.completed` event.
+ */
+export type WebhookEventPayloadTaskCompleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.completed`.
+     */
+    type: 'task.completed';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskCompleted;
+};
+
+/**
+ * WebhookEventPayloadTaskCreated
+ *
+ * Webhook delivery body for the `task.created` event.
+ */
+export type WebhookEventPayloadTaskCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.created`.
+     */
+    type: 'task.created';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskCreated;
+};
+
+/**
+ * WebhookEventPayloadTaskDeleted
+ *
+ * Webhook delivery body for the `task.deleted` event.
+ */
+export type WebhookEventPayloadTaskDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.deleted`.
+     */
+    type: 'task.deleted';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskDeleted;
+};
+
+/**
+ * WebhookEventPayloadTaskDueSoon
+ *
+ * Webhook delivery body for the `task.due_soon` event.
+ */
+export type WebhookEventPayloadTaskDueSoon = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.due_soon`.
+     */
+    type: 'task.due_soon';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskDueSoon;
+};
+
+/**
+ * WebhookEventPayloadTaskMoved
+ *
+ * Webhook delivery body for the `task.moved` event.
+ */
+export type WebhookEventPayloadTaskMoved = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.moved`.
+     */
+    type: 'task.moved';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskMoved;
+};
+
+/**
+ * WebhookEventPayloadTaskOverdue
+ *
+ * Webhook delivery body for the `task.overdue` event.
+ */
+export type WebhookEventPayloadTaskOverdue = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.overdue`.
+     */
+    type: 'task.overdue';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskOverdue;
+};
+
+/**
+ * WebhookEventPayloadTaskStatusChanged
+ *
+ * Webhook delivery body for the `task.status_changed` event.
+ */
+export type WebhookEventPayloadTaskStatusChanged = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.status_changed`.
+     */
+    type: 'task.status_changed';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskStatusChanged;
+};
+
+/**
+ * WebhookEventPayloadTaskTimeEntryCreated
+ *
+ * Webhook delivery body for the `task_time_entry.created` event.
+ */
+export type WebhookEventPayloadTaskTimeEntryCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task_time_entry.created`.
+     */
+    type: 'task_time_entry.created';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskTimeEntryCreated;
+};
+
+/**
+ * WebhookEventPayloadTaskTimeEntryDeleted
+ *
+ * Webhook delivery body for the `task_time_entry.deleted` event.
+ */
+export type WebhookEventPayloadTaskTimeEntryDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task_time_entry.deleted`.
+     */
+    type: 'task_time_entry.deleted';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskTimeEntryDeleted;
+};
+
+/**
+ * WebhookEventPayloadTaskTimeEntryInvoiced
+ *
+ * Webhook delivery body for the `task_time_entry.invoiced` event.
+ */
+export type WebhookEventPayloadTaskTimeEntryInvoiced = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task_time_entry.invoiced`.
+     */
+    type: 'task_time_entry.invoiced';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskTimeEntryInvoiced;
+};
+
+/**
+ * WebhookEventPayloadTaskTimeEntryUpdated
+ *
+ * Webhook delivery body for the `task_time_entry.updated` event.
+ */
+export type WebhookEventPayloadTaskTimeEntryUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task_time_entry.updated`.
+     */
+    type: 'task_time_entry.updated';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskTimeEntryUpdated;
+};
+
+/**
+ * WebhookEventPayloadTaskUnassigned
+ *
+ * Webhook delivery body for the `task.unassigned` event.
+ */
+export type WebhookEventPayloadTaskUnassigned = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.unassigned`.
+     */
+    type: 'task.unassigned';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskUnassigned;
+};
+
+/**
+ * WebhookEventPayloadTaskUpdated
+ *
+ * Webhook delivery body for the `task.updated` event.
+ */
+export type WebhookEventPayloadTaskUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `task.updated`.
+     */
+    type: 'task.updated';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTaskUpdated;
+};
+
+/**
  * WebhookEventPayloadTaxExternalReferenceChanged
  *
  * Webhook delivery body for the `tax.external_reference_changed` event.
@@ -20845,6 +24412,247 @@ export type PublicApiV1RecurringInvoicesActivateResponses = {
 
 export type PublicApiV1RecurringInvoicesActivateResponse = PublicApiV1RecurringInvoicesActivateResponses[keyof PublicApiV1RecurringInvoicesActivateResponses];
 
+export type PublicApiV1TasksCommentsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: {
+        /**
+         * Number of comments to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last comment of the previous page (the `next_cursor` you received). An `id` that is not a comment of this task returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+    };
+    url: '/tasks/{task}/comments';
+};
+
+export type PublicApiV1TasksCommentsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksCommentsListError = PublicApiV1TasksCommentsListErrors[keyof PublicApiV1TasksCommentsListErrors];
+
+export type PublicApiV1TasksCommentsListResponses = {
+    200: PaginatedList & TaskCommentList;
+};
+
+export type PublicApiV1TasksCommentsListResponse = PublicApiV1TasksCommentsListResponses[keyof PublicApiV1TasksCommentsListResponses];
+
+export type PublicApiV1TasksCommentsCreateData = {
+    body: AddTaskCommentV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/comments';
+};
+
+export type PublicApiV1TasksCommentsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksCommentsCreateError = PublicApiV1TasksCommentsCreateErrors[keyof PublicApiV1TasksCommentsCreateErrors];
+
+export type PublicApiV1TasksCommentsCreateResponses = {
+    201: {
+        data: TaskComment;
+    };
+};
+
+export type PublicApiV1TasksCommentsCreateResponse = PublicApiV1TasksCommentsCreateResponses[keyof PublicApiV1TasksCommentsCreateResponses];
+
+export type PublicApiV1TasksExternalLinksListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/external-links';
+};
+
+export type PublicApiV1TasksExternalLinksListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksExternalLinksListError = PublicApiV1TasksExternalLinksListErrors[keyof PublicApiV1TasksExternalLinksListErrors];
+
+export type PublicApiV1TasksExternalLinksListResponses = {
+    200: PaginatedList & TaskExternalLinkList;
+};
+
+export type PublicApiV1TasksExternalLinksListResponse = PublicApiV1TasksExternalLinksListResponses[keyof PublicApiV1TasksExternalLinksListResponses];
+
+export type PublicApiV1TasksExternalLinksCreateData = {
+    body: AddTaskExternalLinkV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/external-links';
+};
+
+export type PublicApiV1TasksExternalLinksCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksExternalLinksCreateError = PublicApiV1TasksExternalLinksCreateErrors[keyof PublicApiV1TasksExternalLinksCreateErrors];
+
+export type PublicApiV1TasksExternalLinksCreateResponses = {
+    201: {
+        data: TaskExternalLink;
+    };
+};
+
+export type PublicApiV1TasksExternalLinksCreateResponse = PublicApiV1TasksExternalLinksCreateResponses[keyof PublicApiV1TasksExternalLinksCreateResponses];
+
 export type PublicApiV1InvoicesAnnulData = {
     body: AnnulInvoiceV1Request;
     headers: {
@@ -21223,6 +25031,66 @@ export type PublicApiV1ContactsArchiveResponses = {
 };
 
 export type PublicApiV1ContactsArchiveResponse = PublicApiV1ContactsArchiveResponses[keyof PublicApiV1ContactsArchiveResponses];
+
+export type PublicApiV1ProjectsArchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/archive';
+};
+
+export type PublicApiV1ProjectsArchiveErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsArchiveError = PublicApiV1ProjectsArchiveErrors[keyof PublicApiV1ProjectsArchiveErrors];
+
+export type PublicApiV1ProjectsArchiveResponses = {
+    200: {
+        data: Project;
+    };
+};
+
+export type PublicApiV1ProjectsArchiveResponse = PublicApiV1ProjectsArchiveResponses[keyof PublicApiV1ProjectsArchiveResponses];
 
 export type PublicApiV1PurchaseScansArchiveData = {
     body: VersionedPurchaseScanRequest;
@@ -21805,6 +25673,134 @@ export type PublicApiV1WorkSchedulesAssignResponses = {
 
 export type PublicApiV1WorkSchedulesAssignResponse = PublicApiV1WorkSchedulesAssignResponses[keyof PublicApiV1WorkSchedulesAssignResponses];
 
+export type PublicApiV1TasksLabelsAssignData = {
+    body: AssignTaskLabelV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/labels';
+};
+
+export type PublicApiV1TasksLabelsAssignErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksLabelsAssignError = PublicApiV1TasksLabelsAssignErrors[keyof PublicApiV1TasksLabelsAssignErrors];
+
+export type PublicApiV1TasksLabelsAssignResponses = {
+    200: {
+        data: TaskLabelAssignment;
+    };
+};
+
+export type PublicApiV1TasksLabelsAssignResponse = PublicApiV1TasksLabelsAssignResponses[keyof PublicApiV1TasksLabelsAssignResponses];
+
+export type PublicApiV1TasksAssignData = {
+    body: AssignTaskV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/assign';
+};
+
+export type PublicApiV1TasksAssignErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksAssignError = PublicApiV1TasksAssignErrors[keyof PublicApiV1TasksAssignErrors];
+
+export type PublicApiV1TasksAssignResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksAssignResponse = PublicApiV1TasksAssignResponses[keyof PublicApiV1TasksAssignResponses];
+
 export type PublicApiV1PurchaseInvoicesAttachFileData = {
     body: AttachPurchaseInvoiceFileRequest;
     headers: {
@@ -21846,11 +25842,11 @@ export type PublicApiV1PurchaseInvoicesAttachFileErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -22056,6 +26052,64 @@ export type PublicApiV1ContactsBulkChangeContactRoleStatusResponses = {
 };
 
 export type PublicApiV1ContactsBulkChangeContactRoleStatusResponse = PublicApiV1ContactsBulkChangeContactRoleStatusResponses[keyof PublicApiV1ContactsBulkChangeContactRoleStatusResponses];
+
+export type PublicApiV1TasksBulkStatusData = {
+    body: BulkChangeTaskStatusV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/bulk-status';
+};
+
+export type PublicApiV1TasksBulkStatusErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksBulkStatusError = PublicApiV1TasksBulkStatusErrors[keyof PublicApiV1TasksBulkStatusErrors];
+
+export type PublicApiV1TasksBulkStatusResponses = {
+    200: {
+        data: TaskBulkResult;
+    };
+};
+
+export type PublicApiV1TasksBulkStatusResponse = PublicApiV1TasksBulkStatusResponses[keyof PublicApiV1TasksBulkStatusResponses];
 
 export type PublicApiV1ContactsBulkCreateData = {
     body: BulkCreateBusinessContactsV1Request;
@@ -22505,11 +26559,11 @@ export type PublicApiV1PurchaseInvoicesBulkDeleteErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -22647,6 +26701,64 @@ export type PublicApiV1RecurringInvoicesBulkDeleteResponses = {
 };
 
 export type PublicApiV1RecurringInvoicesBulkDeleteResponse = PublicApiV1RecurringInvoicesBulkDeleteResponses[keyof PublicApiV1RecurringInvoicesBulkDeleteResponses];
+
+export type PublicApiV1TasksBulkDeleteData = {
+    body: BulkDeleteTasksV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/bulk-delete';
+};
+
+export type PublicApiV1TasksBulkDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksBulkDeleteError = PublicApiV1TasksBulkDeleteErrors[keyof PublicApiV1TasksBulkDeleteErrors];
+
+export type PublicApiV1TasksBulkDeleteResponses = {
+    200: {
+        data: TaskBulkResult;
+    };
+};
+
+export type PublicApiV1TasksBulkDeleteResponse = PublicApiV1TasksBulkDeleteResponses[keyof PublicApiV1TasksBulkDeleteResponses];
 
 export type PublicApiV1DeliveryNotesBulkPdfData = {
     body: BulkPdfDeliveryNotesV1Request;
@@ -23399,11 +27511,11 @@ export type PublicApiV1PurchaseInvoicesBulkStatusErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -23602,6 +27714,64 @@ export type PublicApiV1ProductsBulkUpdateStockResponses = {
 };
 
 export type PublicApiV1ProductsBulkUpdateStockResponse = PublicApiV1ProductsBulkUpdateStockResponses[keyof PublicApiV1ProductsBulkUpdateStockResponses];
+
+export type PublicApiV1TasksBulkUpdateData = {
+    body: BulkUpdateTasksV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/bulk-update';
+};
+
+export type PublicApiV1TasksBulkUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksBulkUpdateError = PublicApiV1TasksBulkUpdateErrors[keyof PublicApiV1TasksBulkUpdateErrors];
+
+export type PublicApiV1TasksBulkUpdateResponses = {
+    200: {
+        data: TaskBulkResult;
+    };
+};
+
+export type PublicApiV1TasksBulkUpdateResponse = PublicApiV1TasksBulkUpdateResponses[keyof PublicApiV1TasksBulkUpdateResponses];
 
 export type PublicApiV1TaxesCalculateData = {
     body: CalculateTaxRequest;
@@ -24255,6 +28425,70 @@ export type PublicApiV1EmployeeSeatsChangeQuantityResponses = {
 };
 
 export type PublicApiV1EmployeeSeatsChangeQuantityResponse = PublicApiV1EmployeeSeatsChangeQuantityResponses[keyof PublicApiV1EmployeeSeatsChangeQuantityResponses];
+
+export type PublicApiV1TasksStatusData = {
+    body?: ChangeTaskStatusV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/status';
+};
+
+export type PublicApiV1TasksStatusErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksStatusError = PublicApiV1TasksStatusErrors[keyof PublicApiV1TasksStatusErrors];
+
+export type PublicApiV1TasksStatusResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksStatusResponse = PublicApiV1TasksStatusResponses[keyof PublicApiV1TasksStatusResponses];
 
 export type PublicApiV1InvoicesSimplifiedEligibilityData = {
     body: SimplifiedInvoiceEligibilityV1Request;
@@ -26612,6 +30846,10 @@ export type PublicApiV1InvoicesListData = {
         original_invoice_id?: string | null;
         verifactu_status?: 'no_verifactu' | 'pending' | 'accepted' | 'rejected' | null;
         /**
+         * Delivery filter, independent of the fiscal status: `true` returns only the invoices marked as delivered to the customer (an email accepted by the mail server or a manual mark), `false` only the ones not delivered yet. Available in every API version.
+         */
+        is_sent?: 'true' | 'false' | '1' | '0' | null;
+        /**
          * Number of objects to return. Integer between 1 and 100. Defaults to 25.
          */
         limit?: number;
@@ -26624,7 +30862,7 @@ export type PublicApiV1InvoicesListData = {
          */
         ending_before?: string;
         /**
-         * Invoice status. Exact match on `status`.
+         * Invoice status (`draft`, `scheduled`, `issued`, `paid`, `partially_paid`, `cancelled`, `overdue`, `annulled`). Exact match on `status`. `sent` is accepted as an alias of `issued` in every API version, so `status=sent` returns the same invoices as `status=issued`.
          */
         status?: string;
         /**
@@ -27730,6 +31968,239 @@ export type PublicApiV1ProformasCreateResponses = {
 
 export type PublicApiV1ProformasCreateResponse = PublicApiV1ProformasCreateResponses[keyof PublicApiV1ProformasCreateResponses];
 
+export type PublicApiV1ProjectsColumnsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/columns';
+};
+
+export type PublicApiV1ProjectsColumnsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsColumnsListError = PublicApiV1ProjectsColumnsListErrors[keyof PublicApiV1ProjectsColumnsListErrors];
+
+export type PublicApiV1ProjectsColumnsListResponses = {
+    200: PaginatedList & ProjectColumnList;
+};
+
+export type PublicApiV1ProjectsColumnsListResponse = PublicApiV1ProjectsColumnsListResponses[keyof PublicApiV1ProjectsColumnsListResponses];
+
+export type PublicApiV1ProjectsColumnsCreateData = {
+    body: CreateProjectColumnV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/columns';
+};
+
+export type PublicApiV1ProjectsColumnsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsColumnsCreateError = PublicApiV1ProjectsColumnsCreateErrors[keyof PublicApiV1ProjectsColumnsCreateErrors];
+
+export type PublicApiV1ProjectsColumnsCreateResponses = {
+    201: {
+        data: ProjectColumn;
+    };
+};
+
+export type PublicApiV1ProjectsColumnsCreateResponse = PublicApiV1ProjectsColumnsCreateResponses[keyof PublicApiV1ProjectsColumnsCreateResponses];
+
+export type PublicApiV1ProjectsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Number of projects to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last project of the previous page (the `next_cursor` you received). An `id` that is not a project of your company returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+        /**
+         * Also return archived projects. Defaults to `false` (active projects only).
+         */
+        include_archived?: boolean;
+    };
+    url: '/projects';
+};
+
+export type PublicApiV1ProjectsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsListError = PublicApiV1ProjectsListErrors[keyof PublicApiV1ProjectsListErrors];
+
+export type PublicApiV1ProjectsListResponses = {
+    200: PaginatedList & ProjectList;
+};
+
+export type PublicApiV1ProjectsListResponse = PublicApiV1ProjectsListResponses[keyof PublicApiV1ProjectsListResponses];
+
+export type PublicApiV1ProjectsCreateData = {
+    body: CreateProjectV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/projects';
+};
+
+export type PublicApiV1ProjectsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsCreateError = PublicApiV1ProjectsCreateErrors[keyof PublicApiV1ProjectsCreateErrors];
+
+export type PublicApiV1ProjectsCreateResponses = {
+    201: {
+        data: Project;
+    };
+};
+
+export type PublicApiV1ProjectsCreateResponse = PublicApiV1ProjectsCreateResponses[keyof PublicApiV1ProjectsCreateResponses];
+
 export type PublicApiV1PurchaseInvoicesListData = {
     body?: never;
     headers?: {
@@ -27872,7 +32343,7 @@ export type PublicApiV1PurchaseInvoicesListErrors = {
      */
     403: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -27926,11 +32397,11 @@ export type PublicApiV1PurchaseInvoicesCreateErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -28701,6 +33172,580 @@ export type PublicApiV1ProductsSupplierOffersCreateResponses = {
 };
 
 export type PublicApiV1ProductsSupplierOffersCreateResponse = PublicApiV1ProductsSupplierOffersCreateResponses[keyof PublicApiV1ProductsSupplierOffersCreateResponses];
+
+export type PublicApiV1ProjectsCustomFieldsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/custom-fields';
+};
+
+export type PublicApiV1ProjectsCustomFieldsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsCustomFieldsListError = PublicApiV1ProjectsCustomFieldsListErrors[keyof PublicApiV1ProjectsCustomFieldsListErrors];
+
+export type PublicApiV1ProjectsCustomFieldsListResponses = {
+    200: PaginatedList & ProjectCustomFieldList;
+};
+
+export type PublicApiV1ProjectsCustomFieldsListResponse = PublicApiV1ProjectsCustomFieldsListResponses[keyof PublicApiV1ProjectsCustomFieldsListResponses];
+
+export type PublicApiV1ProjectsCustomFieldsCreateData = {
+    body: CreateTaskCustomFieldV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/custom-fields';
+};
+
+export type PublicApiV1ProjectsCustomFieldsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsCustomFieldsCreateError = PublicApiV1ProjectsCustomFieldsCreateErrors[keyof PublicApiV1ProjectsCustomFieldsCreateErrors];
+
+export type PublicApiV1ProjectsCustomFieldsCreateResponses = {
+    201: {
+        data: ProjectCustomField;
+    };
+};
+
+export type PublicApiV1ProjectsCustomFieldsCreateResponse = PublicApiV1ProjectsCustomFieldsCreateResponses[keyof PublicApiV1ProjectsCustomFieldsCreateResponses];
+
+export type PublicApiV1TaskLabelsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Number of labels to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last label of the previous page (the `next_cursor` you received). Labels are ordered by name. An `id` that is not a label of your company returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+    };
+    url: '/task-labels';
+};
+
+export type PublicApiV1TaskLabelsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaskLabelsListError = PublicApiV1TaskLabelsListErrors[keyof PublicApiV1TaskLabelsListErrors];
+
+export type PublicApiV1TaskLabelsListResponses = {
+    200: PaginatedList & TaskLabelList;
+};
+
+export type PublicApiV1TaskLabelsListResponse = PublicApiV1TaskLabelsListResponses[keyof PublicApiV1TaskLabelsListResponses];
+
+export type PublicApiV1TaskLabelsCreateData = {
+    body: CreateTaskLabelV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/task-labels';
+};
+
+export type PublicApiV1TaskLabelsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaskLabelsCreateError = PublicApiV1TaskLabelsCreateErrors[keyof PublicApiV1TaskLabelsCreateErrors];
+
+export type PublicApiV1TaskLabelsCreateResponses = {
+    201: {
+        data: TaskLabel;
+    };
+};
+
+export type PublicApiV1TaskLabelsCreateResponse = PublicApiV1TaskLabelsCreateResponses[keyof PublicApiV1TaskLabelsCreateResponses];
+
+export type PublicApiV1TasksRelationsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/relations';
+};
+
+export type PublicApiV1TasksRelationsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksRelationsListError = PublicApiV1TasksRelationsListErrors[keyof PublicApiV1TasksRelationsListErrors];
+
+export type PublicApiV1TasksRelationsListResponses = {
+    200: PaginatedList & TaskRelationList;
+};
+
+export type PublicApiV1TasksRelationsListResponse = PublicApiV1TasksRelationsListResponses[keyof PublicApiV1TasksRelationsListResponses];
+
+export type PublicApiV1TasksRelationsCreateData = {
+    body: CreateTaskRelationV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/relations';
+};
+
+export type PublicApiV1TasksRelationsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksRelationsCreateError = PublicApiV1TasksRelationsCreateErrors[keyof PublicApiV1TasksRelationsCreateErrors];
+
+export type PublicApiV1TasksRelationsCreateResponses = {
+    201: {
+        data: TaskRelation;
+    };
+};
+
+export type PublicApiV1TasksRelationsCreateResponse = PublicApiV1TasksRelationsCreateResponses[keyof PublicApiV1TasksRelationsCreateResponses];
+
+export type PublicApiV1TasksUploadLinksCreateData = {
+    body?: CreateTaskUploadLinkV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/upload-links';
+};
+
+export type PublicApiV1TasksUploadLinksCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksUploadLinksCreateError = PublicApiV1TasksUploadLinksCreateErrors[keyof PublicApiV1TasksUploadLinksCreateErrors];
+
+export type PublicApiV1TasksUploadLinksCreateResponses = {
+    201: {
+        data: TaskUploadLink;
+    };
+};
+
+export type PublicApiV1TasksUploadLinksCreateResponse = PublicApiV1TasksUploadLinksCreateResponses[keyof PublicApiV1TasksUploadLinksCreateResponses];
+
+export type PublicApiV1TasksSearchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Free text matched against the task title and description. A value shaped like a task key (`DEV-12`) also matches that task by its key or a previous alias. Maximum 512 characters.
+         */
+        q?: string | null;
+        /**
+         * UUID of a project of your company: only its tasks are returned.
+         */
+        project_id?: string;
+        /**
+         * Board status: `planned` (backlog), `active` (in a column of the board) or `archived`.
+         */
+        status?: 'planned' | 'active' | 'archived';
+        /**
+         * UUID of a board column: only tasks in that column are returned.
+         */
+        column_id?: string;
+        /**
+         * Task priority: `none`, `low`, `medium`, `high` or `urgent`.
+         */
+        priority?: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+        /**
+         * UUID of the assigned member, or `me` for the member who owns the API key.
+         */
+        assignee_id?: string;
+        /**
+         * UUID of a task label: only tasks carrying that label are returned.
+         */
+        label_id?: string;
+        /**
+         * Only tasks due on or before this date (`YYYY-MM-DD`).
+         */
+        due_before?: string;
+        /**
+         * Only tasks due on or after this date (`YYYY-MM-DD`).
+         */
+        due_after?: string;
+        /**
+         * `true` returns only completed tasks; `false` only open ones. Omit it to return both.
+         */
+        completed?: boolean;
+        /**
+         * Sort order: a field for ascending or a `-` prefix for descending. Allowed fields: `created_at`, `updated_at`, `due_on`, `priority`, `number`. Defaults to `-created_at`; ties are broken by `id`, so pagination stays stable.
+         */
+        sort?: 'created_at' | '-created_at' | 'updated_at' | '-updated_at' | 'due_on' | '-due_on' | 'priority' | '-priority' | 'number' | '-number';
+        /**
+         * Number of tasks to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last task of the previous page (the `next_cursor` you received). An `id` that is not a task of your company returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+    };
+    url: '/tasks';
+};
+
+export type PublicApiV1TasksSearchErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksSearchError = PublicApiV1TasksSearchErrors[keyof PublicApiV1TasksSearchErrors];
+
+export type PublicApiV1TasksSearchResponses = {
+    200: PaginatedList & TaskList;
+};
+
+export type PublicApiV1TasksSearchResponse = PublicApiV1TasksSearchResponses[keyof PublicApiV1TasksSearchResponses];
+
+export type PublicApiV1TasksCreateData = {
+    body: CreateTaskV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks';
+};
+
+export type PublicApiV1TasksCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksCreateError = PublicApiV1TasksCreateErrors[keyof PublicApiV1TasksCreateErrors];
+
+export type PublicApiV1TasksCreateResponses = {
+    201: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksCreateResponse = PublicApiV1TasksCreateResponses[keyof PublicApiV1TasksCreateResponses];
 
 export type PublicApiV1TaxesListData = {
     body?: never;
@@ -31270,6 +36315,329 @@ export type PublicApiV1ProformasUpdateResponses = {
 
 export type PublicApiV1ProformasUpdateResponse = PublicApiV1ProformasUpdateResponses[keyof PublicApiV1ProformasUpdateResponses];
 
+export type PublicApiV1ProjectsColumnsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+        column: string;
+    };
+    query?: {
+        /**
+         * UUID of another column of the same project that receives the tasks of the deleted column. Required when the column still has tasks: without it the call returns 409 `column_has_tasks`; a column that does not exist, belongs to another project or is the one being deleted returns 422 `invalid_move_target_column`. With a valid target, the tasks are appended to the end of that column, in their order, and the column is deleted in the same transaction.
+         */
+        move_to_column_id?: string | null;
+    };
+    url: '/projects/{project}/columns/{column}';
+};
+
+export type PublicApiV1ProjectsColumnsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsColumnsDeleteError = PublicApiV1ProjectsColumnsDeleteErrors[keyof PublicApiV1ProjectsColumnsDeleteErrors];
+
+export type PublicApiV1ProjectsColumnsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'project_column';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1ProjectsColumnsDeleteResponse = PublicApiV1ProjectsColumnsDeleteResponses[keyof PublicApiV1ProjectsColumnsDeleteResponses];
+
+export type PublicApiV1ProjectsColumnsUpdateData = {
+    body?: UpdateProjectColumnV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+        column: string;
+    };
+    query?: never;
+    url: '/projects/{project}/columns/{column}';
+};
+
+export type PublicApiV1ProjectsColumnsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsColumnsUpdateError = PublicApiV1ProjectsColumnsUpdateErrors[keyof PublicApiV1ProjectsColumnsUpdateErrors];
+
+export type PublicApiV1ProjectsColumnsUpdateResponses = {
+    200: {
+        data: ProjectColumn;
+    };
+};
+
+export type PublicApiV1ProjectsColumnsUpdateResponse = PublicApiV1ProjectsColumnsUpdateResponses[keyof PublicApiV1ProjectsColumnsUpdateResponses];
+
+export type PublicApiV1ProjectsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}';
+};
+
+export type PublicApiV1ProjectsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsDeleteError = PublicApiV1ProjectsDeleteErrors[keyof PublicApiV1ProjectsDeleteErrors];
+
+export type PublicApiV1ProjectsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'project';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1ProjectsDeleteResponse = PublicApiV1ProjectsDeleteResponses[keyof PublicApiV1ProjectsDeleteResponses];
+
+export type PublicApiV1ProjectsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}';
+};
+
+export type PublicApiV1ProjectsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsShowError = PublicApiV1ProjectsShowErrors[keyof PublicApiV1ProjectsShowErrors];
+
+export type PublicApiV1ProjectsShowResponses = {
+    200: {
+        data: Project;
+    };
+};
+
+export type PublicApiV1ProjectsShowResponse = PublicApiV1ProjectsShowResponses[keyof PublicApiV1ProjectsShowResponses];
+
+export type PublicApiV1ProjectsUpdateData = {
+    body?: UpdateProjectV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}';
+};
+
+export type PublicApiV1ProjectsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsUpdateError = PublicApiV1ProjectsUpdateErrors[keyof PublicApiV1ProjectsUpdateErrors];
+
+export type PublicApiV1ProjectsUpdateResponses = {
+    200: {
+        data: Project;
+    };
+};
+
+export type PublicApiV1ProjectsUpdateResponse = PublicApiV1ProjectsUpdateResponses[keyof PublicApiV1ProjectsUpdateResponses];
+
 export type PublicApiV1PurchaseInvoicesDeleteData = {
     body?: never;
     headers: {
@@ -31307,11 +36675,11 @@ export type PublicApiV1PurchaseInvoicesDeleteErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -31424,11 +36792,11 @@ export type PublicApiV1PurchaseInvoicesUpdateErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -31488,7 +36856,7 @@ export type PublicApiV1PurchaseInvoicesDeleteFileErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
@@ -32054,6 +37422,1016 @@ export type PublicApiV1ProductsSupplierOffersUpdateResponses = {
 };
 
 export type PublicApiV1ProductsSupplierOffersUpdateResponse = PublicApiV1ProductsSupplierOffersUpdateResponses[keyof PublicApiV1ProductsSupplierOffersUpdateResponses];
+
+export type PublicApiV1TasksAttachmentsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        attachment: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/attachments/{attachment}';
+};
+
+export type PublicApiV1TasksAttachmentsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksAttachmentsDeleteError = PublicApiV1TasksAttachmentsDeleteErrors[keyof PublicApiV1TasksAttachmentsDeleteErrors];
+
+export type PublicApiV1TasksAttachmentsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_attachment';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksAttachmentsDeleteResponse = PublicApiV1TasksAttachmentsDeleteResponses[keyof PublicApiV1TasksAttachmentsDeleteResponses];
+
+export type PublicApiV1TasksAttachmentsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        attachment: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/attachments/{attachment}';
+};
+
+export type PublicApiV1TasksAttachmentsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksAttachmentsShowError = PublicApiV1TasksAttachmentsShowErrors[keyof PublicApiV1TasksAttachmentsShowErrors];
+
+export type PublicApiV1TasksAttachmentsShowResponses = {
+    200: {
+        data: TaskAttachment;
+    };
+};
+
+export type PublicApiV1TasksAttachmentsShowResponse = PublicApiV1TasksAttachmentsShowResponses[keyof PublicApiV1TasksAttachmentsShowResponses];
+
+export type PublicApiV1TasksCommentsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        comment: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/comments/{comment}';
+};
+
+export type PublicApiV1TasksCommentsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksCommentsDeleteError = PublicApiV1TasksCommentsDeleteErrors[keyof PublicApiV1TasksCommentsDeleteErrors];
+
+export type PublicApiV1TasksCommentsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_comment';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksCommentsDeleteResponse = PublicApiV1TasksCommentsDeleteResponses[keyof PublicApiV1TasksCommentsDeleteResponses];
+
+export type PublicApiV1TasksCommentsUpdateData = {
+    body: EditTaskCommentV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        comment: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/comments/{comment}';
+};
+
+export type PublicApiV1TasksCommentsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksCommentsUpdateError = PublicApiV1TasksCommentsUpdateErrors[keyof PublicApiV1TasksCommentsUpdateErrors];
+
+export type PublicApiV1TasksCommentsUpdateResponses = {
+    200: {
+        data: TaskComment;
+    };
+};
+
+export type PublicApiV1TasksCommentsUpdateResponse = PublicApiV1TasksCommentsUpdateResponses[keyof PublicApiV1TasksCommentsUpdateResponses];
+
+export type PublicApiV1ProjectsCustomFieldsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+        field: string;
+    };
+    query?: never;
+    url: '/projects/{project}/custom-fields/{field}';
+};
+
+export type PublicApiV1ProjectsCustomFieldsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsCustomFieldsDeleteError = PublicApiV1ProjectsCustomFieldsDeleteErrors[keyof PublicApiV1ProjectsCustomFieldsDeleteErrors];
+
+export type PublicApiV1ProjectsCustomFieldsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'project_custom_field';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1ProjectsCustomFieldsDeleteResponse = PublicApiV1ProjectsCustomFieldsDeleteResponses[keyof PublicApiV1ProjectsCustomFieldsDeleteResponses];
+
+export type PublicApiV1ProjectsCustomFieldsUpdateData = {
+    body?: UpdateTaskCustomFieldV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+        field: string;
+    };
+    query?: never;
+    url: '/projects/{project}/custom-fields/{field}';
+};
+
+export type PublicApiV1ProjectsCustomFieldsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsCustomFieldsUpdateError = PublicApiV1ProjectsCustomFieldsUpdateErrors[keyof PublicApiV1ProjectsCustomFieldsUpdateErrors];
+
+export type PublicApiV1ProjectsCustomFieldsUpdateResponses = {
+    200: {
+        data: ProjectCustomField;
+    };
+};
+
+export type PublicApiV1ProjectsCustomFieldsUpdateResponse = PublicApiV1ProjectsCustomFieldsUpdateResponses[keyof PublicApiV1ProjectsCustomFieldsUpdateResponses];
+
+export type PublicApiV1TaskLabelsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        label: string;
+    };
+    query?: never;
+    url: '/task-labels/{label}';
+};
+
+export type PublicApiV1TaskLabelsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaskLabelsDeleteError = PublicApiV1TaskLabelsDeleteErrors[keyof PublicApiV1TaskLabelsDeleteErrors];
+
+export type PublicApiV1TaskLabelsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_label';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TaskLabelsDeleteResponse = PublicApiV1TaskLabelsDeleteResponses[keyof PublicApiV1TaskLabelsDeleteResponses];
+
+export type PublicApiV1TaskLabelsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        label: string;
+    };
+    query?: never;
+    url: '/task-labels/{label}';
+};
+
+export type PublicApiV1TaskLabelsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaskLabelsShowError = PublicApiV1TaskLabelsShowErrors[keyof PublicApiV1TaskLabelsShowErrors];
+
+export type PublicApiV1TaskLabelsShowResponses = {
+    200: {
+        data: TaskLabel;
+    };
+};
+
+export type PublicApiV1TaskLabelsShowResponse = PublicApiV1TaskLabelsShowResponses[keyof PublicApiV1TaskLabelsShowResponses];
+
+export type PublicApiV1TaskLabelsUpdateData = {
+    body?: UpdateTaskLabelV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        label: string;
+    };
+    query?: never;
+    url: '/task-labels/{label}';
+};
+
+export type PublicApiV1TaskLabelsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaskLabelsUpdateError = PublicApiV1TaskLabelsUpdateErrors[keyof PublicApiV1TaskLabelsUpdateErrors];
+
+export type PublicApiV1TaskLabelsUpdateResponses = {
+    200: {
+        data: TaskLabel;
+    };
+};
+
+export type PublicApiV1TaskLabelsUpdateResponse = PublicApiV1TaskLabelsUpdateResponses[keyof PublicApiV1TaskLabelsUpdateResponses];
+
+export type PublicApiV1TasksRelationsDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        relation: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/relations/{relation}';
+};
+
+export type PublicApiV1TasksRelationsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksRelationsDeleteError = PublicApiV1TasksRelationsDeleteErrors[keyof PublicApiV1TasksRelationsDeleteErrors];
+
+export type PublicApiV1TasksRelationsDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_relation';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksRelationsDeleteResponse = PublicApiV1TasksRelationsDeleteResponses[keyof PublicApiV1TasksRelationsDeleteResponses];
+
+export type PublicApiV1TasksTimeEntriesDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        time_entry: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/time-entries/{time_entry}';
+};
+
+export type PublicApiV1TasksTimeEntriesDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksTimeEntriesDeleteError = PublicApiV1TasksTimeEntriesDeleteErrors[keyof PublicApiV1TasksTimeEntriesDeleteErrors];
+
+export type PublicApiV1TasksTimeEntriesDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_time_entry';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksTimeEntriesDeleteResponse = PublicApiV1TasksTimeEntriesDeleteResponses[keyof PublicApiV1TasksTimeEntriesDeleteResponses];
+
+export type PublicApiV1TasksTimeEntriesShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        time_entry: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/time-entries/{time_entry}';
+};
+
+export type PublicApiV1TasksTimeEntriesShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksTimeEntriesShowError = PublicApiV1TasksTimeEntriesShowErrors[keyof PublicApiV1TasksTimeEntriesShowErrors];
+
+export type PublicApiV1TasksTimeEntriesShowResponses = {
+    200: {
+        data: TaskTimeEntry;
+    };
+};
+
+export type PublicApiV1TasksTimeEntriesShowResponse = PublicApiV1TasksTimeEntriesShowResponses[keyof PublicApiV1TasksTimeEntriesShowResponses];
+
+export type PublicApiV1TasksTimeEntriesUpdateData = {
+    body?: UpdateTaskTimeEntryV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        time_entry: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/time-entries/{time_entry}';
+};
+
+export type PublicApiV1TasksTimeEntriesUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksTimeEntriesUpdateError = PublicApiV1TasksTimeEntriesUpdateErrors[keyof PublicApiV1TasksTimeEntriesUpdateErrors];
+
+export type PublicApiV1TasksTimeEntriesUpdateResponses = {
+    200: {
+        data: TaskTimeEntry;
+    };
+};
+
+export type PublicApiV1TasksTimeEntriesUpdateResponse = PublicApiV1TasksTimeEntriesUpdateResponses[keyof PublicApiV1TasksTimeEntriesUpdateResponses];
+
+export type PublicApiV1TasksDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}';
+};
+
+export type PublicApiV1TasksDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksDeleteError = PublicApiV1TasksDeleteErrors[keyof PublicApiV1TasksDeleteErrors];
+
+export type PublicApiV1TasksDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksDeleteResponse = PublicApiV1TasksDeleteResponses[keyof PublicApiV1TasksDeleteResponses];
+
+export type PublicApiV1TasksShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}';
+};
+
+export type PublicApiV1TasksShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksShowError = PublicApiV1TasksShowErrors[keyof PublicApiV1TasksShowErrors];
+
+export type PublicApiV1TasksShowResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksShowResponse = PublicApiV1TasksShowResponses[keyof PublicApiV1TasksShowResponses];
+
+export type PublicApiV1TasksUpdateData = {
+    body?: UpdateTaskV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}';
+};
+
+export type PublicApiV1TasksUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksUpdateError = PublicApiV1TasksUpdateErrors[keyof PublicApiV1TasksUpdateErrors];
+
+export type PublicApiV1TasksUpdateResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksUpdateResponse = PublicApiV1TasksUpdateResponses[keyof PublicApiV1TasksUpdateResponses];
 
 export type PublicApiV1TaxesDeleteData = {
     body?: never;
@@ -33429,6 +39807,57 @@ export type PublicApiV1QuotesPdfResponses = {
 
 export type PublicApiV1QuotesPdfResponse = PublicApiV1QuotesPdfResponses[keyof PublicApiV1QuotesPdfResponses];
 
+export type PublicApiV1TasksAttachmentsDownloadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        attachment: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/attachments/{attachment}/download';
+};
+
+export type PublicApiV1TasksAttachmentsDownloadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksAttachmentsDownloadError = PublicApiV1TasksAttachmentsDownloadErrors[keyof PublicApiV1TasksAttachmentsDownloadErrors];
+
+export type PublicApiV1TasksAttachmentsDownloadResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1TasksAttachmentsDownloadResponse = PublicApiV1TasksAttachmentsDownloadResponses[keyof PublicApiV1TasksAttachmentsDownloadResponses];
+
 export type PublicApiV1TaxReportsDownloadData = {
     body?: never;
     headers?: {
@@ -33782,6 +40211,74 @@ export type PublicApiV1QuotesDuplicateResponses = {
 
 export type PublicApiV1QuotesDuplicateResponse = PublicApiV1QuotesDuplicateResponses[keyof PublicApiV1QuotesDuplicateResponses];
 
+export type PublicApiV1TasksDuplicateData = {
+    body?: DuplicateTaskV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/duplicate';
+};
+
+export type PublicApiV1TasksDuplicateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksDuplicateError = PublicApiV1TasksDuplicateErrors[keyof PublicApiV1TasksDuplicateErrors];
+
+export type PublicApiV1TasksDuplicateResponses = {
+    201: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksDuplicateResponse = PublicApiV1TasksDuplicateResponses[keyof PublicApiV1TasksDuplicateResponses];
+
 export type PublicApiV1InvoicesExportExcelData = {
     body?: ExportInvoicesExcelV1Request;
     headers: {
@@ -33841,6 +40338,58 @@ export type PublicApiV1InvoicesExportExcelResponses = {
 };
 
 export type PublicApiV1InvoicesExportExcelResponse = PublicApiV1InvoicesExportExcelResponses[keyof PublicApiV1InvoicesExportExcelResponses];
+
+export type PublicApiV1ProjectsTasksExportData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/tasks/export';
+};
+
+export type PublicApiV1ProjectsTasksExportErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsTasksExportError = PublicApiV1ProjectsTasksExportErrors[keyof PublicApiV1ProjectsTasksExportErrors];
+
+export type PublicApiV1ProjectsTasksExportResponses = {
+    200: {
+        data: ProjectTasksExport;
+    };
+};
+
+export type PublicApiV1ProjectsTasksExportResponse = PublicApiV1ProjectsTasksExportResponses[keyof PublicApiV1ProjectsTasksExportResponses];
 
 export type PublicApiV1ContactsFindByExternalIdData = {
     body: FindBusinessContactByExternalIdV1Request;
@@ -34332,6 +40881,64 @@ export type PublicApiV1ProformasFindByExternalIdResponses = {
 
 export type PublicApiV1ProformasFindByExternalIdResponse = PublicApiV1ProformasFindByExternalIdResponses[keyof PublicApiV1ProformasFindByExternalIdResponses];
 
+export type PublicApiV1ProjectsFindByKeyData = {
+    body: FindProjectByKeyV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/projects/find-by-key';
+};
+
+export type PublicApiV1ProjectsFindByKeyErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsFindByKeyError = PublicApiV1ProjectsFindByKeyErrors[keyof PublicApiV1ProjectsFindByKeyErrors];
+
+export type PublicApiV1ProjectsFindByKeyResponses = {
+    200: {
+        data: Project;
+    };
+};
+
+export type PublicApiV1ProjectsFindByKeyResponse = PublicApiV1ProjectsFindByKeyResponses[keyof PublicApiV1ProjectsFindByKeyResponses];
+
 export type PublicApiV1PurchaseInvoicesFindByExternalIdData = {
     body: FindPurchaseInvoiceByExternalIdRequest;
     headers?: {
@@ -34359,11 +40966,11 @@ export type PublicApiV1PurchaseInvoicesFindByExternalIdErrors = {
      */
     403: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -34704,6 +41311,64 @@ export type PublicApiV1SeriesFindByCodeResponses = {
 };
 
 export type PublicApiV1SeriesFindByCodeResponse = PublicApiV1SeriesFindByCodeResponses[keyof PublicApiV1SeriesFindByCodeResponses];
+
+export type PublicApiV1TasksFindByKeyData = {
+    body: FindTaskByKeyV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/find-by-key';
+};
+
+export type PublicApiV1TasksFindByKeyErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksFindByKeyError = PublicApiV1TasksFindByKeyErrors[keyof PublicApiV1TasksFindByKeyErrors];
+
+export type PublicApiV1TasksFindByKeyResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksFindByKeyResponse = PublicApiV1TasksFindByKeyResponses[keyof PublicApiV1TasksFindByKeyResponses];
 
 export type PublicApiV1TaxReportsFindByPeriodData = {
     body: FindTaxReportByPeriodV1Request;
@@ -35265,6 +41930,75 @@ export type PublicApiV1TaxesActiveResponses = {
 
 export type PublicApiV1TaxesActiveResponse = PublicApiV1TaxesActiveResponses[keyof PublicApiV1TaxesActiveResponses];
 
+export type PublicApiV1AgendaListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * First day of the window (`YYYY-MM-DD`, included). Required.
+         */
+        from: string;
+        /**
+         * Last day of the window (`YYYY-MM-DD`, included). Required. The window spans at most 93 days: a longer or inverted window returns 400 `parameter_invalid_range` on `to`.
+         */
+        to: string;
+        /**
+         * Comma-separated layers to include: `tasks`, `invoice_due`, `purchase_invoice_due`, `quote_expiry`, `proforma_expiry`, `recurring_invoice_run`, `fiscal_deadline`, `absence`, `holiday`. Omit it to include every layer; an empty value includes none. Each layer also requires the read scope of its resource (for example `invoices:read` for `invoice_due`) and its module: layers the key cannot read are left out without an error, and the `sources` of the response lists only the layers actually served. An unknown layer returns 400 `parameter_invalid_enum`.
+         */
+        sources?: string;
+        /**
+         * Only filters the `tasks` layer: `me` for the member who owns the API key, or the UUID of a member of your company. Any other value returns 422 `invalid_param_value`.
+         */
+        assignee_id?: string | null;
+    };
+    url: '/agenda';
+};
+
+export type PublicApiV1AgendaListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AgendaListError = PublicApiV1AgendaListErrors[keyof PublicApiV1AgendaListErrors];
+
+export type PublicApiV1AgendaListResponses = {
+    200: PaginatedList & AgendaList;
+};
+
+export type PublicApiV1AgendaListResponse = PublicApiV1AgendaListResponses[keyof PublicApiV1AgendaListResponses];
+
 export type PublicApiV1AutomationsCatalogShowData = {
     body?: never;
     headers?: {
@@ -35738,6 +42472,56 @@ export type PublicApiV1TimeEntriesCurrentResponses = {
 };
 
 export type PublicApiV1TimeEntriesCurrentResponse = PublicApiV1TimeEntriesCurrentResponses[keyof PublicApiV1TimeEntriesCurrentResponses];
+
+export type PublicApiV1UsersMeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/users/me';
+};
+
+export type PublicApiV1UsersMeErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1UsersMeError = PublicApiV1UsersMeErrors[keyof PublicApiV1UsersMeErrors];
+
+export type PublicApiV1UsersMeResponses = {
+    200: {
+        data: User;
+    };
+};
+
+export type PublicApiV1UsersMeResponse = PublicApiV1UsersMeResponses[keyof PublicApiV1UsersMeResponses];
 
 export type PublicApiV1VerifactuDeclaracionHistoryData = {
     body?: never;
@@ -37348,6 +44132,71 @@ export type PublicApiV1ProformasStatsResponses = {
 
 export type PublicApiV1ProformasStatsResponse = PublicApiV1ProformasStatsResponses[keyof PublicApiV1ProformasStatsResponses];
 
+export type PublicApiV1ProjectsTimeSummaryShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: {
+        /**
+         * First day included in the summary (`YYYY-MM-DD`), in the company time zone. Optional.
+         */
+        from?: string;
+        /**
+         * Last day included in the summary (`YYYY-MM-DD`), equal to or after `from`. Optional.
+         */
+        to?: string;
+    };
+    url: '/projects/{project}/time-summary';
+};
+
+export type PublicApiV1ProjectsTimeSummaryShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsTimeSummaryShowError = PublicApiV1ProjectsTimeSummaryShowErrors[keyof PublicApiV1ProjectsTimeSummaryShowErrors];
+
+export type PublicApiV1ProjectsTimeSummaryShowResponses = {
+    200: {
+        data: ProjectTimeSummary;
+    };
+};
+
+export type PublicApiV1ProjectsTimeSummaryShowResponse = PublicApiV1ProjectsTimeSummaryShowResponses[keyof PublicApiV1ProjectsTimeSummaryShowResponses];
+
 export type PublicApiV1PurchaseInvoicesStatsData = {
     body?: never;
     headers?: {
@@ -37661,6 +44510,52 @@ export type PublicApiV1RecurringInvoicesStatsResponses = {
 
 export type PublicApiV1RecurringInvoicesStatsResponse = PublicApiV1RecurringInvoicesStatsResponses[keyof PublicApiV1RecurringInvoicesStatsResponses];
 
+export type PublicApiV1TaskTimersCurrentData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/task-timers/current';
+};
+
+export type PublicApiV1TaskTimersCurrentErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaskTimersCurrentError = PublicApiV1TaskTimersCurrentErrors[keyof PublicApiV1TaskTimersCurrentErrors];
+
+export type PublicApiV1TaskTimersCurrentResponses = {
+    200: {
+        data: TaskTimeEntry | null;
+    };
+};
+
+export type PublicApiV1TaskTimersCurrentResponse = PublicApiV1TaskTimersCurrentResponses[keyof PublicApiV1TaskTimersCurrentResponses];
+
 export type PublicApiV1CompaniesSeatChargePreviewData = {
     body?: never;
     headers?: {
@@ -37944,6 +44839,69 @@ export type PublicApiV1StripeAutoinvoicingConfigUpdateResponses = {
 };
 
 export type PublicApiV1StripeAutoinvoicingConfigUpdateResponse = PublicApiV1StripeAutoinvoicingConfigUpdateResponses[keyof PublicApiV1StripeAutoinvoicingConfigUpdateResponses];
+
+export type PublicApiV1TasksActivitiesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: {
+        /**
+         * Number of activity entries to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor for forward pagination: pass back the `next_cursor` of the previous page as is. Activity entries have no `id` of their own, so this is not a UUID; never build one yourself. An unreadable cursor restarts from the first page.
+         */
+        starting_after?: string;
+    };
+    url: '/tasks/{task}/activities';
+};
+
+export type PublicApiV1TasksActivitiesListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksActivitiesListError = PublicApiV1TasksActivitiesListErrors[keyof PublicApiV1TasksActivitiesListErrors];
+
+export type PublicApiV1TasksActivitiesListResponses = {
+    200: PaginatedList & TaskActivityList;
+};
+
+export type PublicApiV1TasksActivitiesListResponse = PublicApiV1TasksActivitiesListResponses[keyof PublicApiV1TasksActivitiesListResponses];
 
 export type PublicApiV1TaxCatalogShowData = {
     body?: never;
@@ -38914,6 +45872,316 @@ export type PublicApiV1ContactsImportResponses = {
 };
 
 export type PublicApiV1ContactsImportResponse = PublicApiV1ContactsImportResponses[keyof PublicApiV1ContactsImportResponses];
+
+export type PublicApiV1ProjectsTasksImportData = {
+    body: ImportProjectTasksV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/tasks/import';
+};
+
+export type PublicApiV1ProjectsTasksImportErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsTasksImportError = PublicApiV1ProjectsTasksImportErrors[keyof PublicApiV1ProjectsTasksImportErrors];
+
+export type PublicApiV1ProjectsTasksImportResponses = {
+    200: {
+        data: ProjectTasksImport;
+    };
+};
+
+export type PublicApiV1ProjectsTasksImportResponse = PublicApiV1ProjectsTasksImportResponses[keyof PublicApiV1ProjectsTasksImportResponses];
+
+export type PublicApiV1ProjectsTimeInvoicesCreateData = {
+    body: InvoiceTaskTimeV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/time-invoices';
+};
+
+export type PublicApiV1ProjectsTimeInvoicesCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsTimeInvoicesCreateError = PublicApiV1ProjectsTimeInvoicesCreateErrors[keyof PublicApiV1ProjectsTimeInvoicesCreateErrors];
+
+export type PublicApiV1ProjectsTimeInvoicesCreateResponses = {
+    201: {
+        data: TaskTimeInvoice;
+    };
+};
+
+export type PublicApiV1ProjectsTimeInvoicesCreateResponse = PublicApiV1ProjectsTimeInvoicesCreateResponses[keyof PublicApiV1ProjectsTimeInvoicesCreateResponses];
+
+export type PublicApiV1InvoicesIssueData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        invoice: string;
+    };
+    query?: never;
+    url: '/invoices/{invoice}/issue';
+};
+
+export type PublicApiV1InvoicesIssueErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesIssueError = PublicApiV1InvoicesIssueErrors[keyof PublicApiV1InvoicesIssueErrors];
+
+export type PublicApiV1InvoicesIssueResponses = {
+    200: {
+        data: Invoice;
+    };
+};
+
+export type PublicApiV1InvoicesIssueResponse = PublicApiV1InvoicesIssueResponses[keyof PublicApiV1InvoicesIssueResponses];
+
+export type PublicApiV1TasksEntityLinksListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/entity-links';
+};
+
+export type PublicApiV1TasksEntityLinksListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksEntityLinksListError = PublicApiV1TasksEntityLinksListErrors[keyof PublicApiV1TasksEntityLinksListErrors];
+
+export type PublicApiV1TasksEntityLinksListResponses = {
+    200: PaginatedList & TaskEntityLinkList;
+};
+
+export type PublicApiV1TasksEntityLinksListResponse = PublicApiV1TasksEntityLinksListResponses[keyof PublicApiV1TasksEntityLinksListResponses];
+
+export type PublicApiV1TasksEntityLinksCreateData = {
+    body: LinkTaskToEntityV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/entity-links';
+};
+
+export type PublicApiV1TasksEntityLinksCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksEntityLinksCreateError = PublicApiV1TasksEntityLinksCreateErrors[keyof PublicApiV1TasksEntityLinksCreateErrors];
+
+export type PublicApiV1TasksEntityLinksCreateResponses = {
+    201: {
+        data: TaskEntityLink;
+    };
+};
+
+export type PublicApiV1TasksEntityLinksCreateResponse = PublicApiV1TasksEntityLinksCreateResponses[keyof PublicApiV1TasksEntityLinksCreateResponses];
 
 export type PublicApiV1AbsenceBalancesListData = {
     body?: never;
@@ -40751,6 +48019,71 @@ export type PublicApiV1InvoicesStatusesResponses = {
 
 export type PublicApiV1InvoicesStatusesResponse = PublicApiV1InvoicesStatusesResponses[keyof PublicApiV1InvoicesStatusesResponses];
 
+export type PublicApiV1NotificationsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Read status: `unread` or `read`. Omit it to list both. Archived notifications never appear.
+         */
+        status?: 'unread' | 'read';
+        /**
+         * Notification category, for example `invoice`, `quote` or `task`.
+         */
+        category?: 'invoice' | 'quote' | 'proforma' | 'delivery_note' | 'purchase_invoice' | 'inventory' | 'verifactu' | 'error' | 'task';
+        /**
+         * Number of notifications to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last notification of the previous page (the `next_cursor` you received). An `id` that is not one of your notifications returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+    };
+    url: '/notifications';
+};
+
+export type PublicApiV1NotificationsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1NotificationsListError = PublicApiV1NotificationsListErrors[keyof PublicApiV1NotificationsListErrors];
+
+export type PublicApiV1NotificationsListResponses = {
+    200: PaginatedList & NotificationList;
+};
+
+export type PublicApiV1NotificationsListResponse = PublicApiV1NotificationsListResponses[keyof PublicApiV1NotificationsListResponses];
+
 export type PublicApiV1PurchaseInvoicesOverdueData = {
     body?: never;
     headers?: {
@@ -41547,11 +48880,11 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -42044,6 +49377,320 @@ export type PublicApiV1StripeAutoinvoicingPaymentsListResponses = {
 };
 
 export type PublicApiV1StripeAutoinvoicingPaymentsListResponse = PublicApiV1StripeAutoinvoicingPaymentsListResponses[keyof PublicApiV1StripeAutoinvoicingPaymentsListResponses];
+
+export type PublicApiV1TasksAttachmentsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/attachments';
+};
+
+export type PublicApiV1TasksAttachmentsListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksAttachmentsListError = PublicApiV1TasksAttachmentsListErrors[keyof PublicApiV1TasksAttachmentsListErrors];
+
+export type PublicApiV1TasksAttachmentsListResponses = {
+    200: PaginatedList & TaskAttachmentList;
+};
+
+export type PublicApiV1TasksAttachmentsListResponse = PublicApiV1TasksAttachmentsListResponses[keyof PublicApiV1TasksAttachmentsListResponses];
+
+export type PublicApiV1TasksAttachmentsCreateData = {
+    body: UploadTaskAttachmentV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/attachments';
+};
+
+export type PublicApiV1TasksAttachmentsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     */
+    413: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksAttachmentsCreateError = PublicApiV1TasksAttachmentsCreateErrors[keyof PublicApiV1TasksAttachmentsCreateErrors];
+
+export type PublicApiV1TasksAttachmentsCreateResponses = {
+    201: {
+        data: TaskAttachment;
+    };
+};
+
+export type PublicApiV1TasksAttachmentsCreateResponse = PublicApiV1TasksAttachmentsCreateResponses[keyof PublicApiV1TasksAttachmentsCreateResponses];
+
+export type PublicApiV1TasksTimeEntriesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: {
+        /**
+         * Number of time entries to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last time entry of the previous page (the `next_cursor` you received). An `id` that is not a time entry of this task returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+    };
+    url: '/tasks/{task}/time-entries';
+};
+
+export type PublicApiV1TasksTimeEntriesListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksTimeEntriesListError = PublicApiV1TasksTimeEntriesListErrors[keyof PublicApiV1TasksTimeEntriesListErrors];
+
+export type PublicApiV1TasksTimeEntriesListResponses = {
+    200: PaginatedList & TaskTimeEntryList;
+};
+
+export type PublicApiV1TasksTimeEntriesListResponse = PublicApiV1TasksTimeEntriesListResponses[keyof PublicApiV1TasksTimeEntriesListResponses];
+
+export type PublicApiV1TasksTimeEntriesCreateData = {
+    body: LogTaskTimeV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/time-entries';
+};
+
+export type PublicApiV1TasksTimeEntriesCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksTimeEntriesCreateError = PublicApiV1TasksTimeEntriesCreateErrors[keyof PublicApiV1TasksTimeEntriesCreateErrors];
+
+export type PublicApiV1TasksTimeEntriesCreateResponses = {
+    201: {
+        data: TaskTimeEntry;
+    };
+};
+
+export type PublicApiV1TasksTimeEntriesCreateResponse = PublicApiV1TasksTimeEntriesCreateResponses[keyof PublicApiV1TasksTimeEntriesCreateResponses];
+
+export type PublicApiV1TasksLinkedData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Type of the Factuarea entity the tasks are linked to: `invoice`, `quote`, `proforma`, `delivery_note`, `purchase_invoice`, `recurring_invoice`, `contact`, `product` or `employee`.
+         */
+        entity_type: 'invoice' | 'quote' | 'proforma' | 'delivery_note' | 'purchase_invoice' | 'recurring_invoice' | 'contact' | 'product' | 'employee';
+        /**
+         * UUID of the entity. An entity that does not exist or belongs to another company returns an empty list, never an error.
+         */
+        entity_id: string;
+        /**
+         * Number of tasks to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last task of the previous page (the `next_cursor` you received). An `id` that is not in this list returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+    };
+    url: '/tasks/linked';
+};
+
+export type PublicApiV1TasksLinkedErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksLinkedError = PublicApiV1TasksLinkedErrors[keyof PublicApiV1TasksLinkedErrors];
+
+export type PublicApiV1TasksLinkedResponses = {
+    200: PaginatedList & LinkedTaskList;
+};
+
+export type PublicApiV1TasksLinkedResponse = PublicApiV1TasksLinkedResponses[keyof PublicApiV1TasksLinkedResponses];
 
 export type PublicApiV1TaxReportsHistoryData = {
     body?: never;
@@ -42611,6 +50258,60 @@ export type PublicApiV1WebhookEndpointsDeliveriesListResponses = {
 
 export type PublicApiV1WebhookEndpointsDeliveriesListResponse = PublicApiV1WebhookEndpointsDeliveriesListResponses[keyof PublicApiV1WebhookEndpointsDeliveriesListResponses];
 
+export type PublicApiV1NotificationsMarkAllReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/mark-all-read';
+};
+
+export type PublicApiV1NotificationsMarkAllReadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1NotificationsMarkAllReadError = PublicApiV1NotificationsMarkAllReadErrors[keyof PublicApiV1NotificationsMarkAllReadErrors];
+
+export type PublicApiV1NotificationsMarkAllReadResponses = {
+    200: {
+        data: NotificationCounts;
+    };
+};
+
+export type PublicApiV1NotificationsMarkAllReadResponse = PublicApiV1NotificationsMarkAllReadResponses[keyof PublicApiV1NotificationsMarkAllReadResponses];
+
 export type PublicApiV1DeliveryNotesMarkDeliveredData = {
     body?: MarkDeliveredRequest;
     headers?: {
@@ -42803,6 +50504,66 @@ export type PublicApiV1InvoicesMarkSentResponses = {
 
 export type PublicApiV1InvoicesMarkSentResponse = PublicApiV1InvoicesMarkSentResponses[keyof PublicApiV1InvoicesMarkSentResponses];
 
+export type PublicApiV1NotificationsReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        notification: string;
+    };
+    query?: never;
+    url: '/notifications/{notification}/read';
+};
+
+export type PublicApiV1NotificationsReadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1NotificationsReadError = PublicApiV1NotificationsReadErrors[keyof PublicApiV1NotificationsReadErrors];
+
+export type PublicApiV1NotificationsReadResponses = {
+    200: {
+        data: NotificationCounts;
+    };
+};
+
+export type PublicApiV1NotificationsReadResponse = PublicApiV1NotificationsReadResponses[keyof PublicApiV1NotificationsReadResponses];
+
 export type PublicApiV1PurchaseInvoicesMarkPaidData = {
     body?: MarkPurchaseInvoicePaidRequest;
     headers?: {
@@ -42840,11 +50601,11 @@ export type PublicApiV1PurchaseInvoicesMarkPaidErrors = {
      */
     404: Error;
     /**
-     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received invoice as received), an attempt to delete a paid expense, or a reused idempotency key.
+     * The expense request conflicts with its current state — e.g. an invalid status transition (marking an already-received expense as received), an attempt to delete a paid expense, or a reused idempotency key.
      */
     409: Error;
     /**
-     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received invoice as received). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -42979,6 +50740,134 @@ export type PublicApiV1SeriesShowResponses = {
 };
 
 export type PublicApiV1SeriesShowResponse = PublicApiV1SeriesShowResponses[keyof PublicApiV1SeriesShowResponses];
+
+export type PublicApiV1TasksRepositionData = {
+    body?: MoveTaskOnBoardV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/reposition';
+};
+
+export type PublicApiV1TasksRepositionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksRepositionError = PublicApiV1TasksRepositionErrors[keyof PublicApiV1TasksRepositionErrors];
+
+export type PublicApiV1TasksRepositionResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksRepositionResponse = PublicApiV1TasksRepositionResponses[keyof PublicApiV1TasksRepositionResponses];
+
+export type PublicApiV1TasksMoveData = {
+    body: MoveTaskToProjectV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/move';
+};
+
+export type PublicApiV1TasksMoveErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksMoveError = PublicApiV1TasksMoveErrors[keyof PublicApiV1TasksMoveErrors];
+
+export type PublicApiV1TasksMoveResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksMoveResponse = PublicApiV1TasksMoveResponses[keyof PublicApiV1TasksMoveResponses];
 
 export type PublicApiV1AutomationsRulesPauseData = {
     body?: never;
@@ -43563,6 +51452,66 @@ export type PublicApiV1RecurringInvoicesPreviewResponses = {
 };
 
 export type PublicApiV1RecurringInvoicesPreviewResponse = PublicApiV1RecurringInvoicesPreviewResponses[keyof PublicApiV1RecurringInvoicesPreviewResponses];
+
+export type PublicApiV1ProjectsTimeInvoicesPreviewData = {
+    body: PreviewTaskTimeInvoiceV1Request;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/time-invoices/preview';
+};
+
+export type PublicApiV1ProjectsTimeInvoicesPreviewErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsTimeInvoicesPreviewError = PublicApiV1ProjectsTimeInvoicesPreviewErrors[keyof PublicApiV1ProjectsTimeInvoicesPreviewErrors];
+
+export type PublicApiV1ProjectsTimeInvoicesPreviewResponses = {
+    200: {
+        data: TaskTimeInvoicePreview;
+    };
+};
+
+export type PublicApiV1ProjectsTimeInvoicesPreviewResponse = PublicApiV1ProjectsTimeInvoicesPreviewResponses[keyof PublicApiV1ProjectsTimeInvoicesPreviewResponses];
 
 export type PublicApiV1TaxReportsPreviewData = {
     body: PreviewTaxReportV1Request;
@@ -44258,6 +52207,71 @@ export type PublicApiV1TimeCorrectionsRejectResponses = {
 
 export type PublicApiV1TimeCorrectionsRejectResponse = PublicApiV1TimeCorrectionsRejectResponses[keyof PublicApiV1TimeCorrectionsRejectResponses];
 
+export type PublicApiV1TasksExternalLinksDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        link: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/external-links/{link}';
+};
+
+export type PublicApiV1TasksExternalLinksDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksExternalLinksDeleteError = PublicApiV1TasksExternalLinksDeleteErrors[keyof PublicApiV1TasksExternalLinksDeleteErrors];
+
+export type PublicApiV1TasksExternalLinksDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_external_link';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksExternalLinksDeleteResponse = PublicApiV1TasksExternalLinksDeleteResponses[keyof PublicApiV1TasksExternalLinksDeleteResponses];
+
 export type PublicApiV1MonthlyTimeRecordClosesReopenData = {
     body?: never;
     headers?: {
@@ -44317,6 +52331,68 @@ export type PublicApiV1MonthlyTimeRecordClosesReopenResponses = {
 };
 
 export type PublicApiV1MonthlyTimeRecordClosesReopenResponse = PublicApiV1MonthlyTimeRecordClosesReopenResponses[keyof PublicApiV1MonthlyTimeRecordClosesReopenResponses];
+
+export type PublicApiV1ProjectsColumnsReorderData = {
+    body: ReorderProjectColumnsV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/columns/reorder';
+};
+
+export type PublicApiV1ProjectsColumnsReorderErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsColumnsReorderError = PublicApiV1ProjectsColumnsReorderErrors[keyof PublicApiV1ProjectsColumnsReorderErrors];
+
+export type PublicApiV1ProjectsColumnsReorderResponses = {
+    200: ProjectColumnList;
+};
+
+export type PublicApiV1ProjectsColumnsReorderResponse = PublicApiV1ProjectsColumnsReorderResponses[keyof PublicApiV1ProjectsColumnsReorderResponses];
 
 export type PublicApiV1AutomationsRunsReplayData = {
     body?: never;
@@ -46533,6 +54609,67 @@ export type PublicApiV1PurchaseScansCreateResponses = {
 
 export type PublicApiV1PurchaseScansCreateResponse = PublicApiV1PurchaseScansCreateResponses[keyof PublicApiV1PurchaseScansCreateResponses];
 
+export type PublicApiV1UsersListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Text matched against the member name or email, ignoring case and accents. Maximum 120 characters.
+         */
+        q?: string | null;
+        /**
+         * Number of users to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: the `id` of the last user of the previous page (the `next_cursor` you received). An `id` that is not in this list returns 422 `invalid_param_value`.
+         */
+        starting_after?: string;
+    };
+    url: '/users';
+};
+
+export type PublicApiV1UsersListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1UsersListError = PublicApiV1UsersListErrors[keyof PublicApiV1UsersListErrors];
+
+export type PublicApiV1UsersListResponses = {
+    200: PaginatedList & UserList;
+};
+
+export type PublicApiV1UsersListResponse = PublicApiV1UsersListResponses[keyof PublicApiV1UsersListResponses];
+
 export type PublicApiV1DeliveryNotesSendData = {
     body: SendDeliveryNoteRequest;
     headers: {
@@ -46989,6 +55126,71 @@ export type PublicApiV1ProductsSupplierOffersPreferredResponses = {
 };
 
 export type PublicApiV1ProductsSupplierOffersPreferredResponse = PublicApiV1ProductsSupplierOffersPreferredResponses[keyof PublicApiV1ProductsSupplierOffersPreferredResponses];
+
+export type PublicApiV1TasksCustomFieldsSetData = {
+    body: SetTaskCustomFieldValueV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        field: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/custom-fields/{field}';
+};
+
+export type PublicApiV1TasksCustomFieldsSetErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksCustomFieldsSetError = PublicApiV1TasksCustomFieldsSetErrors[keyof PublicApiV1TasksCustomFieldsSetErrors];
+
+export type PublicApiV1TasksCustomFieldsSetResponses = {
+    200: {
+        data: TaskCustomFieldValue;
+    };
+};
+
+export type PublicApiV1TasksCustomFieldsSetResponse = PublicApiV1TasksCustomFieldsSetResponses[keyof PublicApiV1TasksCustomFieldsSetResponses];
 
 export type PublicApiV1TaxesSetDefaultData = {
     body?: never;
@@ -48589,6 +56791,124 @@ export type PublicApiV1RecurringInvoicesSkipResponses = {
 
 export type PublicApiV1RecurringInvoicesSkipResponse = PublicApiV1RecurringInvoicesSkipResponses[keyof PublicApiV1RecurringInvoicesSkipResponses];
 
+export type PublicApiV1TasksTimerStartData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/timer/start';
+};
+
+export type PublicApiV1TasksTimerStartErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksTimerStartError = PublicApiV1TasksTimerStartErrors[keyof PublicApiV1TasksTimerStartErrors];
+
+export type PublicApiV1TasksTimerStartResponses = {
+    201: {
+        data: TaskTimeEntry;
+    };
+};
+
+export type PublicApiV1TasksTimerStartResponse = PublicApiV1TasksTimerStartResponses[keyof PublicApiV1TasksTimerStartResponses];
+
+export type PublicApiV1TaskTimersStopData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/task-timers/stop';
+};
+
+export type PublicApiV1TaskTimersStopErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaskTimersStopError = PublicApiV1TaskTimersStopErrors[keyof PublicApiV1TaskTimersStopErrors];
+
+export type PublicApiV1TaskTimersStopResponses = {
+    200: {
+        data: TaskTimeEntry;
+    };
+};
+
+export type PublicApiV1TaskTimersStopResponse = PublicApiV1TaskTimersStopResponses[keyof PublicApiV1TaskTimersStopResponses];
+
 export type PublicApiV1VerifactuRecordsSubsanarData = {
     body?: never;
     headers: {
@@ -49151,6 +57471,66 @@ export type PublicApiV1AbsenceTypesUnarchiveResponses = {
 
 export type PublicApiV1AbsenceTypesUnarchiveResponse = PublicApiV1AbsenceTypesUnarchiveResponses[keyof PublicApiV1AbsenceTypesUnarchiveResponses];
 
+export type PublicApiV1ProjectsUnarchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        project: string;
+    };
+    query?: never;
+    url: '/projects/{project}/unarchive';
+};
+
+export type PublicApiV1ProjectsUnarchiveErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProjectsUnarchiveError = PublicApiV1ProjectsUnarchiveErrors[keyof PublicApiV1ProjectsUnarchiveErrors];
+
+export type PublicApiV1ProjectsUnarchiveResponses = {
+    200: {
+        data: Project;
+    };
+};
+
+export type PublicApiV1ProjectsUnarchiveResponse = PublicApiV1ProjectsUnarchiveResponses[keyof PublicApiV1ProjectsUnarchiveResponses];
+
 export type PublicApiV1SeriesUnarchiveData = {
     body?: never;
     headers?: {
@@ -49400,6 +57780,197 @@ export type PublicApiV1WorkSchedulesUnassignResponses = {
 };
 
 export type PublicApiV1WorkSchedulesUnassignResponse = PublicApiV1WorkSchedulesUnassignResponses[keyof PublicApiV1WorkSchedulesUnassignResponses];
+
+export type PublicApiV1TasksLabelsUnassignData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        label: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/labels/{label}';
+};
+
+export type PublicApiV1TasksLabelsUnassignErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksLabelsUnassignError = PublicApiV1TasksLabelsUnassignErrors[keyof PublicApiV1TasksLabelsUnassignErrors];
+
+export type PublicApiV1TasksLabelsUnassignResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_label_assignment';
+            task_id: string;
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksLabelsUnassignResponse = PublicApiV1TasksLabelsUnassignResponses[keyof PublicApiV1TasksLabelsUnassignResponses];
+
+export type PublicApiV1TasksUnassignData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/unassign';
+};
+
+export type PublicApiV1TasksUnassignErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksUnassignError = PublicApiV1TasksUnassignErrors[keyof PublicApiV1TasksUnassignErrors];
+
+export type PublicApiV1TasksUnassignResponses = {
+    200: {
+        data: Task;
+    };
+};
+
+export type PublicApiV1TasksUnassignResponse = PublicApiV1TasksUnassignResponses[keyof PublicApiV1TasksUnassignResponses];
+
+export type PublicApiV1TasksEntityLinksDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        task: string;
+        link: string;
+    };
+    query?: never;
+    url: '/tasks/{task}/entity-links/{link}';
+};
+
+export type PublicApiV1TasksEntityLinksDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TasksEntityLinksDeleteError = PublicApiV1TasksEntityLinksDeleteErrors[keyof PublicApiV1TasksEntityLinksDeleteErrors];
+
+export type PublicApiV1TasksEntityLinksDeleteResponses = {
+    200: {
+        data: {
+            id: string;
+            object: 'task_entity_link';
+            deleted: boolean;
+        };
+    };
+};
+
+export type PublicApiV1TasksEntityLinksDeleteResponse = PublicApiV1TasksEntityLinksDeleteResponses[keyof PublicApiV1TasksEntityLinksDeleteResponses];
 
 export type PublicApiV1InvoicesUnscheduleData = {
     body?: never;
