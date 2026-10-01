@@ -9618,7 +9618,7 @@ export type Notification = {
      */
     entity_type: string | null;
     /**
-     * UUID of the related resource, or `null` (always `null` for task notifications).
+     * UUID of the related resource, or `null`. For task notifications (`entity_type` = `task`) it is the UUID of the task, ready for `GET /v1/tasks/{task}`.
      */
     entity_id: string | null;
     /**
@@ -14488,7 +14488,7 @@ export type TaskEntityLink = {
      */
     entity_id: string;
     /**
-     * `false` when the entity was deleted or its module is no longer accessible.
+     * `false` when the entity was deleted or its module is no longer accessible, or when the key lacks the read scope of the entity resource (for example `invoices:read`); the link is still returned, with `summary: null`.
      */
     available: boolean;
     /**
