@@ -17957,7 +17957,7 @@
     "/tasks/bulk-delete": {
       "post": {
         "operationId": "public-api.v1.tasks.bulk_delete",
-        "description": "Permanently delete up to 200 tasks (`task_ids`) with their comments, attachments and time entries. Tasks that no longer exist are skipped; the result reports how many were deleted. Irreversible: there is no trash or restore, so send an `Idempotency-Key` header (required) to retry safely.",
+        "description": "Permanently delete up to 200 tasks (`task_ids`) with their comments, attachments and time entries. Tasks that no longer exist are skipped; the result reports how many were deleted. If any task in the selection has invoiced hours the whole request is rejected with 422 `task_time_entry_invoiced` and nothing is deleted. Irreversible: there is no trash or restore, so send an `Idempotency-Key` header (required) to retry safely.",
         "summary": "Bulk delete tasks",
         "tags": [
           "Tasks"
@@ -79083,7 +79083,7 @@
     "/projects/{project}": {
       "delete": {
         "operationId": "public-api.v1.projects.delete",
-        "description": "Permanently delete a project together with all its tasks, comments, attachments and time entries. Irreversible: there is no trash or restore, so send an `Idempotency-Key` header (required) to retry safely.",
+        "description": "Permanently delete a project together with all its tasks, comments, attachments and time entries. A project that has invoiced hours (in a live time-invoicing batch or on any of its tasks) cannot be deleted: 422 `task_time_entry_invoiced` and nothing is removed until the invoice is deleted. Irreversible: there is no trash or restore, so send an `Idempotency-Key` header (required) to retry safely.",
         "summary": "Delete a project",
         "tags": [
           "Projects"
@@ -79505,7 +79505,7 @@
       },
       "get": {
         "operationId": "public-api.v1.projects.show",
-        "description": "Retrieve a project with its columns, billing settings and task statistics. A project of another company, or an `id` that does not exist, returns 404 `project_not_found`.",
+        "description": "Retrieve a project with its billing settings and task statistics. Its columns are read with `GET /v1/projects/{project}/columns`. A project of another company, or an `id` that does not exist, returns 404 `project_not_found`.",
         "summary": "Retrieve a project",
         "tags": [
           "Projects"
@@ -79838,7 +79838,7 @@
       },
       "put": {
         "operationId": "public-api.v1.projects.update",
-        "description": "Partially update a project: only the fields you send change (`PUT` with partial semantics). You can change the `name`, the `key` (tasks keep answering to their previous key as an alias), the `icon`, the `description` (explicit `null` clears it) and the billing defaults used to invoice logged time (`billing_contact_id`, `billing_product_id`, `billing_hourly_rate`). A `key` already in use returns 409 `project_key_in_use`.",
+        "description": "Partially update a project: only the fields you send change (`PUT` with partial semantics). You can change the `name`, the `key` (tasks keep answering to their previous key as an alias), the `icon`, the `description` (explicit `null` clears it) and the billing defaults used to invoice logged time (`billing_contact_id`, `billing_product_id`, `billing_hourly_rate`, up to 99,999,999.99 per hour so that the tax of one hour always fits an invoice line). A `key` already in use returns 409 `project_key_in_use`.",
         "summary": "Update a project",
         "tags": [
           "Projects"
@@ -91097,7 +91097,7 @@
     "/tasks/{task}": {
       "delete": {
         "operationId": "public-api.v1.tasks.delete",
-        "description": "Permanently delete a task with its comments, attachments, relations and time entries. Irreversible: there is no trash or restore, so send an `Idempotency-Key` header (required) to retry safely.",
+        "description": "Permanently delete a task with its comments, attachments, relations and time entries. A task that has invoiced hours cannot be deleted (422 `task_time_entry_invoiced`) until the invoice is deleted. Irreversible: there is no trash or restore, so send an `Idempotency-Key` header (required) to retry safely.",
         "summary": "Delete a task",
         "tags": [
           "Tasks"
@@ -104496,7 +104496,7 @@
     "/projects/{project}/tasks/export": {
       "get": {
         "operationId": "public-api.v1.projects.tasks.export",
-        "description": "Export the tasks of a project as a JSON document in the `factuarea.tasks.v1` format: the project, its labels, its custom fields and every task with its comments. The document can be imported back with `POST /v1/projects/{project}/tasks/import`.",
+        "description": "Export the tasks of a project as a JSON document in the `factuarea.tasks.v1` format: the project, its labels, its custom fields and every task with its comments. The document can be imported back with `POST /v1/projects/{project}/tasks/import`. Requires `projects:read` only: the export includes every task with its description and comments even if the key has no `tasks:read`, so grant `projects:read` with that in mind.",
         "summary": "Export project tasks",
         "tags": [
           "Projects"
@@ -129341,7 +129341,7 @@
     "/projects/{project}/time-summary": {
       "get": {
         "operationId": "public-api.v1.projects.time_summary.show",
-        "description": "Summarize the time logged on the tasks of a project, optionally between `from` and `to` (dates in the company time zone): total, billable, invoiced and pending-to-invoice seconds, broken down by member and by task.",
+        "description": "Summarize the time logged on the tasks of a project, optionally between `from` and `to` (dates in the company time zone): total, billable, invoiced and pending-to-invoice seconds, broken down by member (with their names) and by task. Requires `projects:read` only, without `tasks:read` or `users:read`.",
         "summary": "Retrieve a project time summary",
         "tags": [
           "Projects"
@@ -140094,7 +140094,7 @@
     "/projects/{project}/tasks/import": {
       "post": {
         "operationId": "public-api.v1.projects.tasks.import",
-        "description": "Import tasks into a project from a JSON document (`factuarea.tasks.v1`, or an export of other task tools in a supported format). The import is synchronous only and accepts up to 200 tasks per call: more than 200 returns 422, so split the file. The report lists, per task, its `index` in the document, the created `id` and `key` or the `error` that prevented it; it has no `mode` or `run_id` because the API does not create background import runs. Requires an `Idempotency-Key`.",
+        "description": "Import tasks into a project from a JSON document (`factuarea.tasks.v1`, or an export of other task tools in a supported format). The import is synchronous only and accepts up to 200 tasks per call: more than 200 returns 422, so split the file. The report lists, per task, its `index` in the document, the created `id` and `key` or the `error` that prevented it; it has no `mode` or `run_id` because the API does not create background import runs. Requires `projects:write` only: it creates tasks and comments even if the key has no `tasks:write`. Requires an `Idempotency-Key`.",
         "summary": "Import tasks into a project",
         "tags": [
           "Projects"
@@ -140582,7 +140582,7 @@
     "/projects/{project}/time-invoices": {
       "post": {
         "operationId": "public-api.v1.projects.time_invoices.create",
-        "description": "Turn the selected billable time into a DRAFT invoice for the project billing contact, grouped by `grouping`, and mark those entries as invoiced. Requires the `invoices:write` scope (it creates an invoice), not a projects scope. The draft is numbered when issued from the invoice API. Entries already invoiced return 422 `task_time_entry_invoiced`; if the plan has used up its invoices or yearly documents, 402 `limit_exceeded` and nothing is created. Deleting the draft invoice releases the entries.",
+        "description": "Turn the selected billable time into a DRAFT invoice for the project billing contact, grouped by `grouping`, and mark those entries as invoiced. Requires the `invoices:write` scope (it creates an invoice), not a projects scope. The draft is numbered when issued from the invoice API. Entries already invoiced return 422 `task_time_entry_invoiced`; if the plan has used up its invoices or yearly documents, 402 `limit_exceeded` and nothing is created. Sending the same `batch_id` again with the same request returns the same invoice; reusing a `batch_id` with a different project selection, grouping or entries (or after its invoice was deleted) returns 409 `idempotency_key_reused`. Deleting the draft invoice releases the entries.",
         "summary": "Invoice project time",
         "tags": [
           "Projects"
@@ -142025,7 +142025,7 @@
       },
       "get": {
         "operationId": "public-api.v1.tasks.entity_links.list",
-        "description": "List the Factuarea entities a task is linked to (invoices, quotes, contacts, products…), with their display label. Entities whose module your company cannot access are left out. Returns a plain list, without pagination.",
+        "description": "List the Factuarea entities a task is linked to (invoices, quotes, contacts, products…), with their display label. A link is always returned; when its entity was deleted, when its module is not accessible to your company or when the key lacks the read scope of the entity resource (for example `invoices:read` for an invoice, `contacts:read` for a contact), it comes with `available: false` and `summary: null`, so the link can still be removed. Returns a plain list, without pagination.",
         "summary": "List task entity links",
         "tags": [
           "Tasks"
@@ -174272,7 +174272,7 @@
     "/projects/{project}/time-invoices/preview": {
       "post": {
         "operationId": "public-api.v1.projects.time_invoices.preview",
-        "description": "Preview the invoice lines that invoicing the selected time would produce, without creating anything: select either `entry_ids` or a `period`, and a `grouping`. Entries that cannot be invoiced (not billable, already invoiced or without a price) return 422 `task_time_not_invoiceable`. A read-only POST: it does not need an `Idempotency-Key`.",
+        "description": "Preview the invoice lines that invoicing the selected time would produce, without creating anything: select either `entry_ids` or a `period`, and a `grouping`. Entries that cannot be invoiced (not billable, already invoiced, without a price or whose invoice line amounts would exceed the invoice limits) return 422 `task_time_not_invoiceable`. A read-only POST: it does not need an `Idempotency-Key`.",
         "summary": "Preview a project time invoice",
         "tags": [
           "Projects"
@@ -239561,7 +239561,8 @@
               "string",
               "null"
             ],
-            "description": "Description in Markdown."
+            "description": "Description in Markdown.",
+            "maxLength": 400000
           },
           "priority": {
             "type": "string",
@@ -252091,7 +252092,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "UUID of the related resource, or `null` (always `null` for task notifications)."
+            "description": "UUID of the related resource, or `null`. For task notifications (`entity_type` = `task`) it is the UUID of the task, ready for `GET /v1/tasks/{task}`."
           },
           "created_at": {
             "type": "string",
@@ -270215,7 +270216,7 @@
           },
           "available": {
             "type": "boolean",
-            "description": "`false` when the entity was deleted or its module is no longer accessible.",
+            "description": "`false` when the entity was deleted or its module is no longer accessible, or when the key lacks the read scope of the entity resource (for example `invoices:read`); the link is still returned, with `summary: null`.",
             "example": true,
             "examples": [
               true
@@ -277536,7 +277537,7 @@
             ],
             "description": "Hourly rate (decimal with up to 2 decimal places); `null` removes it.",
             "minimum": 0,
-            "maximum": 9999999999.99
+            "maximum": 99999999.99
           }
         },
         "title": "UpdateProjectV1Request"
@@ -279156,7 +279157,8 @@
               "string",
               "null"
             ],
-            "description": "Description in Markdown; `null` clears it."
+            "description": "Description in Markdown; `null` clears it.",
+            "maxLength": 400000
           },
           "start_on": {
             "type": [
