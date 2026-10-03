@@ -300,11 +300,7 @@ export type AcceptProformaRequest = {
 /**
  * AcceptQuoteRequest
  *
- * Public REST API v1 — POST /v1/quotes/{uuid}/accept.
- *
- * Optional body: `accepted_on` (date, defaults to today), `notes`.
- * The controller performs the cross-field validation for `quote_expired`
- * (`valid_until < today` → 422).
+ * Optional body to record the acceptance of the quote: `accepted_on` (date, defaults to today) and `notes`. A quote whose `valid_until` date has already passed cannot be accepted (422 `quote_expired`).
  */
 export type AcceptQuoteRequest = {
     accepted_on?: string | null;
@@ -791,14 +787,17 @@ export type AlternativeId = {
 /**
  * AnnulInvoiceV1Request
  *
- * Public REST API v1 — POST /v1/invoices/{uuid}/annul.
- *
- * Body: `reason` (string, required, max. 500). The reason is persisted
- * on the Invoice aggregate and included in the VeriFactu cancellation record
- * (AnulacionRecord) when applicable.
+ * Annul an issued invoice. `reason` (3–500 characters) is required and is kept in the audit trail and, with VeriFactu, in the cancellation record. `revert_collections` (default `false`) reverts every live payment of the invoice and annuls it in one atomic operation — only for an invoice issued by mistake.
  */
 export type AnnulInvoiceV1Request = {
+    /**
+     * Why the invoice is annulled (3–500 characters). It is kept in the audit trail and, when the company is enrolled in VeriFactu, it becomes the reason of the AEAT cancellation record. When `revert_collections` is `true` it is also the note of every reverted payment.
+     */
     reason: string;
+    /**
+     * When `true`, every live payment of the invoice is reverted with the reserved reason `issued_in_error` and the invoice is annulled, all in ONE atomic operation: if any step fails no payment stays reverted. Use it only when the invoice was issued by mistake (a duplicated charge at a kiosk); if the customer has to get the money back, issue a corrective instead. Defaults to `false`: an invoice with live payments is then rejected with 422 `invoice_has_active_collections`.
+     */
+    revert_collections?: boolean | null;
 };
 
 /**
@@ -1802,7 +1801,7 @@ export type AvailableInvoiceQuarter = {
 /**
  * BankAccount
  *
- * Cuenta bancaria de un cliente. El IBAN es obligatorio; el resto de campos son opcionales.
+ * Bank account of a client. The IBAN is required; every other field is optional.
  */
 export type BankAccount = {
     object: 'bank_account';
@@ -1817,7 +1816,7 @@ export type BankAccount = {
 /**
  * BicString
  *
- * Bank Identifier Code / SWIFT (ISO 9362), 8 u 11 caracteres en mayúsculas.
+ * Bank Identifier Code / SWIFT (ISO 9362), 8 or 11 uppercase characters.
  */
 export type BicString = string;
 
@@ -1960,11 +1959,7 @@ export type BulkDeleteInvoicesV1Request = {
 /**
  * BulkDeleteProductsRequest
  *
- * Public REST API v1 — POST /v1/products/bulk-delete.
- *
- * Body: `{ ids: string[] }`. Accepts between 1 and 200 IDs (UUID v7). Tenant
- * membership validation is performed by the Handler (filtered by company_id);
- * foreign IDs are silently ignored and will appear in `skipped`.
+ * Delete several products in one request. `ids` is an array of 1 to 200 product UUIDs; identifiers that do not belong to your company are ignored and reported under `skipped`.
  */
 export type BulkDeleteProductsRequest = {
     ids: Array<string>;
@@ -2230,16 +2225,7 @@ export type BulkStatusRecurringInvoicesV1Request = {
 /**
  * BulkUpdateProductStockRequest
  *
- * Public REST API v1 — POST /v1/products/bulk-update-stock.
- *
- * Body: `{ updates: [{ product_id: string, stock: numeric-string, operation?: 'set'|'add'|'subtract', variant_id?: uuid }] }`.
- * Accepts up to 500 updates in a single operation. `variant_id` targets the
- * own balance of a variant of that product; a variant that does not belong to
- * the product is skipped like an unknown product (skip-on-miss).
- *
- * We accept `items` as an alias of the canonical `updates` field for
- * forgiveness with integrators following the most common convention. The
- * controller normalizes it to `updates`.
+ * Update the stock of up to 500 products in a single operation. `updates[]` holds the entries, each with `product_id`, `stock` (numeric string), an optional `operation` (`set`, `add` or `subtract`) and an optional `variant_id` that targets the own balance of a variant of that product. A product or variant that is unknown (or does not belong to the product) is skipped. `items` is accepted as an alias of `updates`.
  */
 export type BulkUpdateProductStockRequest = {
     /**
@@ -2247,8 +2233,7 @@ export type BulkUpdateProductStockRequest = {
      */
     updates: Array<{
         /**
-         * Tenant-scoped resolution happens in the controller to preserve the
-         * bulk skip-on-miss contract without revealing cross-tenant UUIDs.
+         * UUID (v7) of the product. A product that does not exist or does not belong to your company is skipped, without revealing whether it exists.
          */
         product_id: string;
         stock: number;
@@ -2511,11 +2496,7 @@ export type BusinessContactStats = {
 /**
  * CalculateTaxRequest
  *
- * Public REST API v1 — POST /v1/taxes/calculate.
- *
- * Body: `{ base: float, taxes_id: string }`. `taxes_id` es la FK a la tabla
- * global `taxes` (valor UUID v7) — plural (D1), NUNCA `tax_id` (NIF/CIF fiscal).
- * Devuelve `{ base, tax_rate, tax_amount, total_amount, tax }`.
+ * Calculate the tax amount of a base amount. Body: `base` (number) and `taxes_id` (UUID v7 of a tax of the catalog; it is `taxes_id` in the plural because `tax_id` already means the fiscal ID, NIF/CIF). Returns `base`, `tax_rate`, `tax_amount`, `total_amount` and the `tax`.
  */
 export type CalculateTaxRequest = {
     base: number;
@@ -2528,15 +2509,7 @@ export type CalculateTaxRequest = {
 /**
  * CalculateTotalsRequest
  *
- * Public REST API v1 — POST /v1/taxes/calculate-totals.
- *
- * Body: `{ lines: [{ quantity, unit_price, discount?, vat_rate?,
- * retention_rate?, surcharge_rate? }] }`. Returns subtotal, VAT, surcharge,
- * withholding and total.
- *
- * The canonical field is `unit_price` (aligned with Invoice/Quote lines).
- * `price` is accepted as a legacy alias so as not to break integrators that
- * already send the previous shape; the controller normalizes it to `unit_price`.
+ * Calculate the totals of a set of lines. Body: `lines[]`, each with `quantity`, `unit_price` and the optional `discount`, `vat_rate`, `retention_rate` and `surcharge_rate`. Returns the subtotal, VAT, surcharge, withholding and total. `price` is accepted as a legacy alias of `unit_price`.
  */
 export type CalculateTotalsRequest = {
     lines: Array<{
@@ -2552,7 +2525,7 @@ export type CalculateTotalsRequest = {
 /**
  * CanAnnulInvoice
  *
- * Result of the pre-cancellation validator of an invoice: whether it can be cancelled, the blocking reasons (when it cannot) and whether the cancellation will create an additional VeriFactu record.
+ * Result of the pre-cancellation validator of an invoice: whether it can be cancelled, the blocking reasons (when it cannot), whether the cancellation will create an additional VeriFactu record and whether its live payments are the only obstacle (`requires_collection_reversal`). `can_annul` is the verdict of `POST .../annul` WITHOUT `revert_collections`.
  */
 export type CanAnnulInvoice = {
     /**
@@ -2571,16 +2544,20 @@ export type CanAnnulInvoice = {
      * Additional informational messages about the cancellation (non-blocking warnings). Empty `[]` when there are none.
      */
     info: Array<string>;
+    /**
+     * `true` when the live payments of the invoice are the ONLY obstacle to annulling it: `POST /v1/invoices/{invoice}/annul` with `revert_collections: true` would succeed. `can_annul` stays `false` in that case, because it is the verdict without `revert_collections`. `false` when there are no live payments or when something else also blocks the annulment.
+     */
+    requires_collection_reversal: boolean;
+    /**
+     * Amount, in euros, of the live payments of the invoice — what `revert_collections` would revert. `0` when there are none.
+     */
+    active_collections_amount: number;
 };
 
 /**
  * CancelFaceSubmissionV1Request
  *
- * Public REST API v1 — POST /v1/face-submissions/{faceSubmission}/cancel.
- *
- * The cancellation reason (`reason`) is required: it travels to the FACe
- * web service alongside the cancellation request (code 4200). Same contract
- * as the SPA surface (`CancelFaceSubmissionRequest`).
+ * Cancel a FACe submission. `reason` is required: it travels to the FACe web service alongside the cancellation request (code 4200).
  */
 export type CancelFaceSubmissionV1Request = {
     reason: string;
@@ -2771,7 +2748,7 @@ export type Client = {
      */
     default_retention_rate?: number | null;
     /**
-     * Indica si al cliente se le aplica recargo de equivalencia.
+     * Whether the equivalence surcharge (*recargo de equivalencia*, the Spanish special VAT regime for retailers) applies to the client.
      */
     is_surcharge_subject?: boolean;
     /**
@@ -3037,6 +3014,64 @@ export type CompanyList = {
 };
 
 /**
+ * CompanyRepresentation
+ *
+ * The representation with which your company authorizes Factuarea to remit its VeriFactu records to AEAT on its behalf: social collaboration (annex I of the Resolution of 18-12-2024) or a power of attorney registered with AEAT. There is at most ONE active representation per company; a revoked one is kept in the history and never reactivated. The custodied document is never returned.
+ */
+export type CompanyRepresentation = {
+    /**
+     * UUID (v7) of the representation.
+     */
+    id: string;
+    object: 'verifactu_representation';
+    /**
+     * `social_collaboration_annex_i`: the signed annex I (social collaboration). `aeat_power_of_attorney`: a power of attorney registered with AEAT.
+     */
+    kind: 'social_collaboration_annex_i' | 'aeat_power_of_attorney';
+    /**
+     * Name of the person who signed the authorization.
+     */
+    signer_name: string;
+    /**
+     * Tax ID (NIF) of the signer.
+     */
+    signer_tax_id: string;
+    /**
+     * Date on which the authorization was granted.
+     */
+    granted_on: string;
+    /**
+     * Whether the signed document (annex I or power-of-attorney proof) is custodied. The document itself never leaves the system.
+     */
+    has_document: boolean;
+    /**
+     * Reference of the power of attorney in the AEAT register, or `null`.
+     */
+    power_of_attorney_reference: string | null;
+    /**
+     * Last day of validity (YYYY-MM-DD, Europe/Madrid), or `null` when the representation does not expire.
+     */
+    valid_until: string | null;
+    /**
+     * `true` once the last day of validity has passed. An expired representation does NOT enable third-party remission any more, so register a new one before it expires (you are warned 30 and 7 days ahead and when it expires).
+     */
+    is_expired: boolean;
+    /**
+     * `true` while the representation has not been revoked, that is, it is the CURRENT one — even when it has expired. It only enables third-party remission when `is_active` is `true` AND `is_expired` is `false`.
+     */
+    is_active: boolean;
+    /**
+     * Instant of the revocation, or `null` while it is active.
+     */
+    revoked_at: string | null;
+    /**
+     * Reason recorded on revocation, or `null` while it is active.
+     */
+    revocation_reason: string | null;
+    created_at: string;
+};
+
+/**
  * CompanySeatChargePreview
  */
 export type CompanySeatChargePreview = {
@@ -3285,11 +3320,7 @@ export type ConvertDeliveryNoteRequest = {
 /**
  * ConvertProformaRequest
  *
- * Public REST API v1 — POST /v1/proformas/{uuid}/convert.
- *
- * Required body: `target` ∈ {invoice}. Only conversion to invoice is
- * supported — other targets (`proforma`, `delivery_note`) do NOT apply
- * because a proforma can only be converted to an invoice by BC design.
+ * Convert a proforma. Required body: `target`, whose only accepted value is `invoice`: a proforma can only be converted to an invoice, so the other targets (`proforma`, `delivery_note`) do not apply.
  */
 export type ConvertProformaRequest = {
     target: 'invoice';
@@ -3495,9 +3526,7 @@ export type CreateBusinessContactV1Request = {
     longitude?: number | null;
     customer_profile?: {
         /**
-         * Resolver `any`: estas reglas las consumen la SPA (usuario en sesión) y
-         * la v1 (API key sin usuario autenticado). Con `exists` —resolver
-         * `auth_user`— la v1 respondía 500 al recibir una tarifa.
+         * UUID (v7) of an active price list of your company to apply by default to this customer.
          */
         default_price_list_uuid?: string | null;
         discount?: number | null;
@@ -3506,6 +3535,9 @@ export type CreateBusinessContactV1Request = {
         surcharge_subject?: boolean;
         operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
         payment_method?: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other' | null;
+        /**
+         * Payment term in days (0-365). For a new contact, omitted or null means 30 days; an explicit 0 means immediate payment. For an existing contact upsert, an omitted profile is preserved and a supplied profile replaces its defaults.
+         */
         payment_terms_days?: number | null;
         dir3_accounting_office?: string | null;
         dir3_managing_body?: string | null;
@@ -3519,6 +3551,9 @@ export type CreateBusinessContactV1Request = {
         surcharge_subject?: boolean;
         operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
         payment_method?: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other' | null;
+        /**
+         * Payment term in days (0-365). For a new contact, omitted or null means 30 days; an explicit 0 means immediate payment. For an existing contact upsert, an omitted profile is preserved and a supplied profile replaces its defaults.
+         */
         payment_terms_days?: number | null;
     };
     roles: Array<'customer' | 'supplier' | 'lead'>;
@@ -3608,7 +3643,7 @@ export type CreateCompanyV1Request = {
 /**
  * CreateCorrectiveInvoiceRequest
  *
- * Generate a corrective (rectificativa) invoice for a previously issued invoice. `correction_reason` (required) maps to a VeriFactu R-code; `correction_type` is `full` or `partial`; the optional `correction_code` (`R1`..`R5`) forces the explicit R-code and is validated against the AEAT legal matrix for the original invoice type. Optional `justification`, `notes`, and `lines[]` (required when `correction_type` is `partial`).
+ * Generate a corrective (rectificativa) invoice for a previously issued invoice. `correction_reason` (required) maps to a VeriFactu R-code; `correction_type` is `full` or `partial`; the optional `correction_code` (`R1`..`R5`) forces the explicit R-code and is validated against the AEAT legal matrix for the original invoice type. Optional `justification`, `notes`, and `lines[]` (required when `correction_type` is `partial`). Each line may also declare the fiscal nature of the line it corrects — `unit`, `regime_key`, `exemption_reason` and `exemption_reason_text` — with the same rules as `POST /v1/invoices`: a key you OMIT inherits the value of the original line at the same index, a key you SEND (even `null`) replaces it, and `null` means explicitly none.
  */
 export type CreateCorrectiveInvoiceRequest = {
     correction_reason: 'error_fundado' | 'concurso' | 'incobrable' | 'error_importe' | 'error_cliente' | 'devolucion' | 'descuento' | 'otras';
@@ -3640,6 +3675,22 @@ export type CreateCorrectiveInvoiceRequest = {
          */
         line_type?: 'NORMAL' | 'SUPLIDO' | null;
         source_invoice_reference?: string | null;
+        /**
+         * Unit of measure printed next to the quantity on the corrected line (`hours`, `kg`, `units`, …), up to 20 characters. Presentation only. OMIT it and the line inherits the unit of the original line at the same index; SEND it (even `null`) and it replaces it, `null` meaning no unit.
+         */
+        unit?: string | null;
+        /**
+         * VeriFactu special-regime key of the corrected line (the closed AEAT catalog, e.g. `01` general regime, `14` or `15` for operations whose VAT accrues later than the issue date). OMIT it and the line inherits the key of the original line at the same index; SEND it (even `null`) and it replaces it, `null` meaning no special regime.
+         */
+        regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20' | null;
+        /**
+         * Cause of VAT exemption of the corrected line (the closed catalog of `POST /v1/invoices`). OMIT it and the line inherits the exemption of the original line at the same index; SEND it and it replaces it; send `null` for explicitly none — for example, `exemption_reason: null` turns an exempt original line into a taxed one.
+         */
+        exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
+        /**
+         * Free-text wording of the exemption provision of the corrected line (up to 255 characters), printed under the line description (art. 6.1.j of Royal Decree 1619/2012). OMIT it and the line inherits the text of the original line at the same index; SEND it (even `null`) and it replaces it, `null` meaning no text.
+         */
+        exemption_reason_text?: string | null;
         configuration_uuid?: string | null;
         options?: Array<{
             group_uuid: string;
@@ -3691,6 +3742,9 @@ export type CreateDeliveryNoteRequest = {
         quantity: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -3767,10 +3821,42 @@ export type CreateEmployeeRequest = {
 /**
  * CreateInvoiceRequest
  *
- * Create an invoice. Required: `client_id`, `series_id`, `issued_on`, `due_on` and `lines[]` (at least one). Optional: `notes`, `metadata`, `tags`, `custom_fields`, and an `options` object to atomically create, issue, send and wait for the PDF in a single call. Without `options` the invoice is created as a draft. A line may also be a DISBURSEMENT (`line_type: "SUPLIDO"`): an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) that is re-invoiced at cost and, under art. 78.Tres.3 of the Spanish VAT Act (LIVA), stays out of the taxable base — it carries no VAT, withholding, surcharge, discount or product, requires `source_invoice_reference`, and is not allowed on a simplified (`F2`) invoice. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line returns `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00.
+ * Create an invoice. Required: `series_id`, `issued_on`, `due_on`, `lines[]` (at least one) and `client_id` — except on a simplified invoice (`type: F2`), where the client is optional. A terminal can issue an already-paid simplified invoice in ONE idempotent call (unattended checkout): send `type: F2`, `prices_include_tax`, a `payment` block and `options.register_verifactu`, and identify the operation with `external_id`. Optional: `notes`, `metadata`, `tags`, `custom_fields`, and an `options` object to atomically create, issue, send and wait for the PDF in a single call. Without `options` the invoice is created as a draft. A line may also be a DISBURSEMENT (`line_type: "SUPLIDO"`): an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) that is re-invoiced at cost and, under art. 78.Tres.3 of the Spanish VAT Act (LIVA), stays out of the taxable base — it carries no VAT, withholding, surcharge, discount or product, requires `source_invoice_reference`, and is not allowed on a simplified (`F2`) invoice. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line returns `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00.
  */
 export type CreateInvoiceRequest = {
-    client_id: string;
+    /**
+     * Invoice type: `F1` (complete invoice, the default) or `F2` (simplified invoice, the ticket of a terminal). A simplified invoice needs simplified invoices enabled for the company (422 `simplified_invoices_disabled`) and cannot exceed the absolute cap of 3,000 € VAT included (422 `simplified_invoice_not_allowed`).
+     */
+    type?: 'F1' | 'F2' | null;
+    /**
+     * Id of the client (UUID v7). Required with `type: F1` (or without `type`), and the client must have a complete tax ID. Optional with `type: F2`: without it the invoice is an anonymous ticket; with it, a qualified simplified invoice (the client must belong to your company).
+     */
+    client_id?: string;
+    /**
+     * When `true`, the `unit_price` of every line is the FINAL price with taxes (VAT included) and the system computes the net base to the cent, so the invoice total equals the sum of the amounts you sent. If no distribution of the cents reaches that total the request is rejected with 422 `amount_reconciliation_failed` and nothing is issued. Catalog lines (`product_id`) are not accepted in this mode. Defaults to `false`.
+     */
+    prices_include_tax?: boolean | null;
+    /**
+     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012). It cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. It is printed on the PDF and reported in the VeriFactu record.
+     */
+    operation_on?: string | null;
+    /**
+     * Payment recorded in the same call: after issuing, a payment is registered for the whole amount due and the invoice ends up paid. It implies issuing. Its presence makes the request an unattended checkout.
+     */
+    payment?: {
+        /**
+         * Payment method, from the catalog of `GET /v1/payment-methods`. Required when `payment` is sent.
+         */
+        method: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other';
+        /**
+         * Date of the payment (ISO 8601); only its date is used. Defaults to the issue date.
+         */
+        paid_at?: string | null;
+        /**
+         * Reference of the payment, for example the transaction id of the card terminal (up to 100 characters).
+         */
+        reference?: string | null;
+    };
     series_id: string;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
@@ -3790,6 +3876,9 @@ export type CreateInvoiceRequest = {
         quantity: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -3840,10 +3929,26 @@ export type CreateInvoiceRequest = {
         option_adjustments_absorbed?: boolean | null;
     }>;
     options?: {
+        /**
+         * When `true`, the invoice is issued right after it is created (definitive number, frozen document) instead of staying as a draft.
+         */
         issue_directly?: boolean | null;
+        /**
+         * When `true`, the invoice is emailed once issued; it implies issuing. The recipient is `options.send_to` or, when you omit it, the email of the client. If there is no possible recipient (no client, or a client with no email, and no `send_to`) the request is rejected with 422 `missing_required_param` and `param` = `options.send_to` BEFORE anything is created: no draft is left behind and no number is consumed. Repeating the request of an `external_id` that is already issued does not email it again while that email is queued or delivered.
+         */
         send_automatically?: boolean | null;
+        /**
+         * Recipient email for `options.send_automatically`. Optional when the client has an email; required (422 `missing_required_param`) when you ask for the sending with no client or with a client that has no email. An empty value is rejected as well.
+         */
         send_to?: string | null;
+        /**
+         * When `true`, the response waits up to about 15 seconds for the A4 PDF to be materialized (`pdf.status: ready`); if it is not ready by then `pdf.status` is `pending`. It implies issuing.
+         */
         wait_for_pdf?: boolean | null;
+        /**
+         * When `true`, the VeriFactu alta is generated synchronously, BEFORE responding, and the response carries its huella and QR in the `verifactu` block. It implies issuing. If the alta cannot be generated the invoice stays issued and the block reports `status: failed` with its `error_code`. Its transmission to AEAT follows its course in batches.
+         */
+        register_verifactu?: boolean | null;
     };
 };
 
@@ -3949,22 +4054,22 @@ export type CreateProductVariantRequest = {
     sku?: string | null;
     barcode?: string | null;
     /**
-     * Precio propio de la variante POR UNIDAD BASE. `null` = la variante
-     * no altera el precio del producto.
+     * Own price of the variant PER BASE UNIT. `null` = the variant does not
+     * change the price of the product.
      */
     base_price_override?: number | null;
     /**
-     * Coste propio de la variante POR UNIDAD BASE.
+     * Own cost of the variant PER BASE UNIT.
      */
     unit_cost_override?: number | null;
     /**
-     * Alias publicado de `base_price_override`.
+     * Alias of `base_price_override`.
      *
      * @deprecated
      */
     price_override?: number | null;
     /**
-     * Alias publicado de `unit_cost_override`.
+     * Alias of `unit_cost_override`.
      *
      * @deprecated
      */
@@ -4011,6 +4116,9 @@ export type CreateProformaRequest = {
         quantity: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -4199,6 +4307,9 @@ export type CreateQuoteRequest = {
         quantity: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -4310,6 +4421,9 @@ export type CreateRecurringInvoiceRequest = {
         variant_id?: string | null;
         presentation_id?: string | null;
         confirmed_base_quantity?: number | null;
+        /**
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         */
         tax_rate?: number | null;
         retention?: number | null;
         surcharge?: number | null;
@@ -4623,7 +4737,7 @@ export type CustomHeaders = {
 /**
  * DailyPresence
  *
- * An office/remote presence declaration for the Control Horario (time tracking) module: an employee’s declared work location for a single day (one row per company + employee + day). Read-only over the public API — the declaration itself is made from the app (SPA-only).
+ * An office/remote presence declaration for the Control Horario (time tracking) module: an employee’s declared work location for a single day (one row per company + employee + day). Read-only over the public API — the declaration itself is made from the Factuarea app.
  */
 export type DailyPresence = {
     /**
@@ -4730,9 +4844,13 @@ export type DeclaracionResponsable = {
      */
     system_id: string;
     /**
-     * Name of the invoicing software system.
+     * Name of the invoicing software system (not its code: that is `system_id`).
      */
     system_name: string;
+    /**
+     * Components of the system (art. 15.d of Order HAC/1177/2024). An empty string in declarations that predate the full art. 15 content.
+     */
+    components: string;
     /**
      * Tax ID (NIF) of the SIF producer.
      */
@@ -4742,13 +4860,21 @@ export type DeclaracionResponsable = {
      */
     producer_name: string;
     /**
-     * Indicates whether the system operates only in VeriFactu mode (tipo_uso = "S").
+     * Postal address of the SIF producer (art. 15.j). An empty string in declarations that predate the full art. 15 content.
+     */
+    producer_address: string;
+    /**
+     * Whether the system can ONLY operate as VERI*FACTU (art. 15.e, `TipoUsoPosibleSoloVerifactu`). It declares a possibility of the system, not the mode of a company.
      */
     verifactu_only: boolean;
     /**
-     * Indicator of multiple taxpayers.
+     * Whether the system can serve several obliged taxpayers (art. 15.f, `TipoUsoPosibleMultiOT`). It declares a possibility of the system; the per-customer `IndicadorMultiplesOT` reported on each record is computed separately and is not part of art. 15.
      */
     multi_ot: boolean;
+    /**
+     * Signature types the system uses when it also works outside VERI*FACTU (art. 15.g). `null` when the system only works as VERI*FACTU and in declarations that predate the full art. 15 content.
+     */
+    signature_types: string | null;
     /**
      * Date of the declaration.
      */
@@ -5008,7 +5134,7 @@ export type DeliveryNoteLine = {
 /**
  * DeliveryNoteStats
  *
- * Resumen agregado de los albaranes de la empresa autenticada: total, importe acumulado, desglose por estado interno, pendientes de firma y convertidos a factura este mes. Devuelto por `GET /v1/delivery_notes/stats`.
+ * Aggregated summary of the delivery notes (*albaranes*) of the authenticated company: total, accumulated amount, breakdown by status, pending signature and converted to invoice this month. Returned by `GET /v1/delivery_notes/stats`.
  */
 export type DeliveryNoteStats = {
     /**
@@ -5605,7 +5731,7 @@ export type Error = {
          */
         type: 'api_error' | 'authentication_error' | 'authorization_error' | 'conflict_error' | 'idempotency_error' | 'invalid_request_error' | 'not_found_error' | 'payment_required_error' | 'permission_error' | 'rate_limit_error' | 'service_unavailable_error';
         /**
-         * Stable error code, e.g. missing_api_key, insufficient_scope, parameter_invalid, invalid_status_transition. Full reference of every code grouped by bounded context: https://docs.factuarea.com/guides/errors/all.
+         * Stable error code, e.g. missing_api_key, insufficient_scope, parameter_invalid, invalid_status_transition. Full reference of every code, grouped by area: https://docs.factuarea.com/guides/errors/all.
          */
         code: string;
         /**
@@ -5620,6 +5746,10 @@ export type Error = {
          * Field that caused the error (for parameter_invalid and similar invalid_request_error codes). On multi-field validation errors it points to the FIRST failed field; the full set lives in `errors[]`.
          */
         param?: string | null;
+        /**
+         * Zero-based position of the document line that raised the error, the same `N` as in a validation path `lines.N.field`. Present only when a domain rule rejects ONE specific line of the document (a product, variant, presentation, configuration or option that does not exist or is deactivated, a missing price or VAT rate, an exemption cause or regime key outside its catalog, a disbursement line carrying what it may not, a line total that does not match, …) and absent on every other error. It is additive: `param` keeps naming the field exactly as before, so a client can ignore `line_index`. Use it to highlight the offending line without parsing `message`.
+         */
+        line_index?: number;
         /**
          * Present on 422 validation errors: ALL failed fields, one item per field (not only the first). Each item carries `param`/`code`/`message` plus the optional hints `expected_format`/`allowed_values`. Additive and backward-compatible — `error.param`/`error.message` still mirror the first failed field.
          */
@@ -6901,9 +7031,9 @@ export type EventDataPaymentReversed = {
     object: InvoicePaymentDetail;
     reversal: {
         /**
-         * Reason the payment was reverted, from the closed catalog.
+         * Reason the payment was reverted, from the closed catalog. `issued_in_error` is set only by annulling an invoice issued by mistake with `revert_collections` (`POST /v1/invoices/{invoice}/annul`); it cannot be requested for a single payment.
          */
-        reason: 'direct_debit_return' | 'card_dispute' | 'misapplied_payment' | 'bounced_effect' | 'recording_error';
+        reason: 'direct_debit_return' | 'card_dispute' | 'misapplied_payment' | 'bounced_effect' | 'recording_error' | 'issued_in_error';
         /**
          * Where the reversal came from: `gateway` when the payment provider reported a return, dispute or chargeback (a bank movement already happened); `manual` when a user recorded it.
          */
@@ -7919,7 +8049,7 @@ export type ExportInvoicesExcelV1Request = {
      */
     format?: 'SUMMARY' | 'ITEMS' | null;
     /**
-     * Formato de fichero: xlsx o csv.
+     * File format: `xlsx` or `csv`.
      */
     file_format?: 'xlsx' | 'csv' | null;
 };
@@ -8056,7 +8186,7 @@ export type FindInvoiceByNumberRequest = {
     number: string;
     year?: number | null;
     /**
-     * Identificador de la serie que emitió la factura. Desambigua cuando dos series comparten número.
+     * Identifier of the series that issued the invoice. Disambiguates when two series share the same number.
      */
     series_id?: string | null;
 };
@@ -8133,13 +8263,7 @@ export type FindRecurringInvoiceByExternalIdRequest = {
 /**
  * FindSeriesByCodeRequest
  *
- * Public REST API v1 — POST /v1/series/find-by-code.
- *
- * Looks up a series by its `code` (normalized to uppercase in the handler)
- * within the authenticated company. The `code` travels in the JSON body (not in
- * query params) because it is a private attribute that should not end up in
- * proxy logs. `document_type` is optional and disambiguates matches when the
- * same `code` is associated with several types.
+ * Look up a series by its `code` (normalized to uppercase) within the authenticated company. The `code` travels in the JSON body, not in the query string, because it is a private attribute that should not end up in proxy logs. `document_type` is optional and disambiguates the matches when the same `code` is associated with several document types.
  */
 export type FindSeriesByCodeRequest = {
     code: string;
@@ -8183,9 +8307,8 @@ export type GenerateModelo130V1Request = {
     resultado_complementaria_centimos?: number | null;
     pagos_fraccionados_anteriores_override_centimos?: number | null;
     /**
-     * [13] Rendimiento neto del EJERCICIO ANTERIOR (base de la minoración
-     * del art. 110.3.c RIRPF). SIN `min:0`: el ejercicio anterior puede
-     * haber cerrado en pérdidas y un valor negativo es fiscalmente válido.
+     * Net income of the PREVIOUS fiscal year, in cents (basis of the reduction of art. 110.3.c of the IRPF regulation).
+     * It may be negative: the previous year may have closed with a loss.
      */
     rendimiento_neto_ejercicio_anterior_centimos?: number | null;
 };
@@ -8263,7 +8386,7 @@ export type Holiday = {
 /**
  * IbanString
  *
- * International Bank Account Number (IBAN), forma canónica normalizada sin espacios y en mayúsculas (ISO 13616, longitud total 15..34). En entrada se toleran espacios y minúsculas.
+ * International Bank Account Number (IBAN) in its canonical form: no spaces and uppercase (ISO 13616, total length 15..34). On input, spaces and lowercase letters are tolerated and normalized.
  */
 export type IbanString = string;
 
@@ -8348,7 +8471,7 @@ export type IntegrationEvent = {
      */
     is_actionable: boolean;
     /**
-     * CONTRACT of the replay operation: when it is `true`, `POST /v1/integrations/events/{event}/replay` does not answer 422. It is the conjunction of three conditions — the event is parked, it still holds its content, and its discard reason admits reprocessing — evaluated by the same handler that guards the replay. It turns to `false` on its own once the 30-day retention window purges the content, even though the event stays parked.
+     * CONTRACT of the replay operation: when it is `true`, `POST /v1/integrations/events/{event}/replay` does not answer 422. It is the conjunction of three conditions — the event is parked, it still holds its content, and its discard reason admits reprocessing — evaluated by the same check that guards the replay. It turns to `false` on its own once the 30-day retention window purges the content, even though the event stays parked.
      */
     is_replayable: boolean;
     /**
@@ -8406,7 +8529,7 @@ export type Invoice = {
      */
     is_number_assigned: boolean;
     /**
-     * AEAT invoice type code: `F1` (ordinaria), `F2` (simplificada), `F3` (sustitutiva de simplificadas), `R1`–`R5` (rectificativa).
+     * AEAT invoice type code: `F1` (ordinary invoice, *ordinaria*), `F2` (simplified invoice, *simplificada*), `F3` (invoice replacing simplified ones, *sustitutiva de simplificadas*), `R1`–`R5` (corrective invoice, *rectificativa*).
      */
     type: string;
     series: SeriesRef;
@@ -8425,6 +8548,10 @@ export type Invoice = {
     price_list_name: string | null;
     issued_on: string;
     due_on: string | null;
+    /**
+     * Date the operation took place when it differs from `issued_on` (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`).
+     */
+    operation_on: string | null;
     subtotal: number;
     /**
      * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on an expense the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
@@ -8486,7 +8613,7 @@ export type Invoice = {
      */
     legal_mentions: Array<string>;
     /**
-     * Read-only flag: whether this invoice is excluded from the annual Modelo 347 report. The public API cannot mutate it (the create/update FormRequest does not accept it); managing the flag is exclusive to the internal app.
+     * Read-only flag: whether this invoice is excluded from the annual Modelo 347 report. The public API cannot change it; the flag is managed from the Factuarea app.
      */
     exclude_347: boolean;
     /**
@@ -8575,7 +8702,7 @@ export type Invoice = {
 export type InvoiceActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `invoice.created`, `invoice.paid`).
+     * Domain event type (e.g. `invoice.created`, `invoice.paid`).
      */
     event_type: string;
     /**
@@ -8642,11 +8769,11 @@ export type InvoiceCorrective = {
      */
     correction_nature: string | null;
     /**
-     * Base imponible rectificada.
+     * Corrected taxable base.
      */
     base_rectificada: number | null;
     /**
-     * Cuota (IVA) rectificada.
+     * Corrected VAT amount.
      */
     cuota_rectificada: number | null;
     /**
@@ -8783,7 +8910,7 @@ export type InvoiceLine = {
 /**
  * InvoicePayment
  *
- * Datos del cobro de la factura. Presente (objeto) cuando `status` es `paid`, `null` en otro caso.
+ * Payment data of the invoice. An object when `status` is `paid`, `null` otherwise.
  */
 export type InvoicePayment = {
     /**
@@ -8851,9 +8978,9 @@ export type InvoicePaymentDetail = {
      */
     reversed_at: string | null;
     /**
-     * Reason the payment was reverted, from the closed catalog. `null` while the payment is in force.
+     * Reason the payment was reverted, from the closed catalog. `issued_in_error` appears only on payments reverted by annulling an invoice issued by mistake with `revert_collections`; it cannot be requested for a single payment. `null` while the payment is in force.
      */
-    reversal_reason: 'direct_debit_return' | 'card_dispute' | 'misapplied_payment' | 'bounced_effect' | 'recording_error' | null;
+    reversal_reason: 'direct_debit_return' | 'card_dispute' | 'misapplied_payment' | 'bounced_effect' | 'recording_error' | 'issued_in_error' | null;
     /**
      * Human-readable label of the reversal reason (Spanish), or `null`.
      */
@@ -8907,7 +9034,7 @@ export type InvoiceReminderPreview = {
      */
     from_name: string;
     /**
-     * Destinatario principal resuelto.
+     * Resolved main recipient.
      */
     to: string;
     /**
@@ -9082,6 +9209,72 @@ export type InvoiceTaskTimeV1Request = {
 };
 
 /**
+ * InvoiceWithCheckoutBlocks
+ *
+ * The invoice returned by `POST /v1/invoices` (an `Invoice` with every one of its keys) plus the three blocks a terminal needs, present ONLY when the request is a cashier checkout — `type: F2`, a `payment` block or `options.register_verifactu`. A request that is not a checkout returns the bare `Invoice`: the blocks are absent, not `null`. The same body is returned with `200` and the `Idempotent-Replayed: true` header when a late retry repeats the `external_id` of an invoice already issued.
+ */
+export type InvoiceWithCheckoutBlocks = Invoice & {
+    /**
+     * State of the VeriFactu registration (alta) generated by the issuance, ready to print on the receipt. `null` when the alta was not requested and the invoice has no record (an `F2` or a payment without `options.register_verifactu`): the terminal tells "no alta" apart from "alta failed". The alta is generated BEFORE responding; its transmission to AEAT follows its course in batches afterwards.
+     */
+    verifactu?: {
+        /**
+         * `registered`: the alta exists. `failed`: the invoice is issued but the alta could not be generated — `error_code` says why and a retry with the same `external_id` completes it.
+         */
+        status: 'registered' | 'failed';
+        /**
+         * Why the alta failed. `null` unless `status` is `failed`.
+         */
+        error_code: 'certificate_missing' | 'certificate_expired' | 'certificate_revoked' | 'certificate_nif_mismatch' | 'clock_drift_exceeded' | 'representation_required' | 'system_certificate_unavailable' | 'verifactu_not_enabled' | null;
+        /**
+         * Status of the record before AEAT (`pending`, `submitted`, `accepted`, `rejected` or `error`), or `null` when there is no record.
+         */
+        aeat_status: string | null;
+        /**
+         * SHA-256 fingerprint of the record (64 hexadecimal characters), or `null` while it does not exist.
+         */
+        huella: string | null;
+        /**
+         * AEAT verification URL carried by the QR, with its four parameters (`nif`, `numserie`, `fecha`, `importe`), or `null`.
+         */
+        qr_url: string | null;
+        /**
+         * The QR as a PNG image, base64-encoded without a data-URI prefix (error-correction level M), ready to print, or `null`.
+         */
+        qr_png_base64: string | null;
+        /**
+         * Legend to print next to the QR, with the wording AEAT requires: `VERI*FACTU` when the platform operates in VERI*FACTU mode (the usual case) or `Factura verificable en la sede electrónica de la AEAT` in NO VERI*FACTU mode. `null` when there is no QR to print (for example when the alta could not be generated).
+         */
+        legend: string | null;
+        /**
+         * AEAT secure verification code (CSV). `null` until AEAT accepts the submission.
+         */
+        csv: string | null;
+    } | null;
+    /**
+     * The A4 PDF of the invoice. `null` while the invoice is still a draft (it has no PDF yet). For another paper — 80 or 58 mm tickets — call `GET /v1/invoices/{invoice}/pdf?format=ticket_80|ticket_58`, which renders in the request.
+     */
+    pdf?: {
+        /**
+         * `ready`: the PDF is already in the private cache and `url` serves it at once (only with `options.wait_for_pdf`, which enqueues the render and waits up to about 15 s). `pending`: the render was enqueued and `url` answers 404 until the worker materializes it (seconds) — also the state of a `wait_for_pdf` whose wait expired. It is never an error.
+         */
+        status: 'ready' | 'pending';
+        /**
+         * Signed, temporary URL to the PDF. It needs no API key, only opens this invoice and stops working at `expires_at`.
+         */
+        url: string;
+        /**
+         * Instant after which the signed `url` stops working.
+         */
+        expires_at: string;
+    } | null;
+    /**
+     * Public link of the invoice (`/d/{id}`) from which the end customer downloads it — the same as `public_link.url`. `null` while the invoice is a draft or when its public link is disabled.
+     */
+    public_url?: string | null;
+};
+
+/**
  * LinkTaskToEntityV1Request
  */
 export type LinkTaskToEntityV1Request = {
@@ -9187,11 +9380,7 @@ export type LogTaskTimeV1Request = {
 /**
  * MarkDeliveredRequest
  *
- * Public REST API v1 — POST /v1/delivery_notes/{uuid}/mark-delivered.
- *
- * REST sub-resource that transitions the delivery note `draft → delivered`. Optional
- * body: `delivery_date` (ISO 8601 `YYYY-MM-DD`). If omitted, the BC uses
- * the delivery date already recorded or, failing that, the current date.
+ * Mark a delivery note as delivered (`draft` → `delivered`). Optional body: `delivery_date` (ISO 8601 `YYYY-MM-DD`). If omitted, the delivery date already recorded is used and, failing that, the current date.
  */
 export type MarkDeliveredRequest = {
     delivery_date?: string | null;
@@ -9618,7 +9807,7 @@ export type Notification = {
      */
     entity_type: string | null;
     /**
-     * UUID of the related resource, or `null` (always `null` for task notifications).
+     * UUID of the related resource, or `null`. For task notifications (`entity_type` = `task`) it is the UUID of the task, ready for `GET /v1/tasks/{task}`.
      */
     entity_id: string | null;
     /**
@@ -9744,7 +9933,7 @@ export type PdfCapabilities = {
 /**
  * PhoneString
  *
- * Número de teléfono internacional permisivo: `+` opcional, dígitos, espacios, guiones y paréntesis (6..20 caracteres).
+ * Permissive international phone number: optional `+`, digits, spaces, hyphens and parentheses (6..20 characters).
  */
 export type PhoneString = string;
 
@@ -9802,15 +9991,7 @@ export type PreviewTaskTimeInvoiceV1Request = {
 /**
  * PreviewTaxReportV1Request
  *
- * Public REST API v1 — POST /v1/tax_reports/preview.
- *
- * Computes the report breakdown without persisting any generation or file.
- * Useful for showing the user what they are about to declare before confirming.
- *
- * We accept `303` / `347` as aliases of the canonical values
- * `modelo_303` / `modelo_347`, keeping consistency with the paths
- * `POST /v1/tax_reports/303` and `POST /v1/tax_reports/347`. The handler
- * normalizes the value before instantiating the VO `TaxReportType`.
+ * Compute the breakdown of a tax report without persisting any generation or file. Useful to show what is about to be declared before confirming. `303` and `347` are accepted as aliases of `modelo_303` and `modelo_347`, consistent with `POST /v1/tax_reports/303` and `POST /v1/tax_reports/347`.
  */
 export type PreviewTaxReportV1Request = {
     type: 'modelo_303' | 'modelo_347' | 'modelo_130';
@@ -9944,7 +10125,7 @@ export type Product = {
          */
         url: string;
         /**
-         * MIME type de la imagen (e.g. `image/jpeg`).
+         * MIME type of the image (e.g. `image/jpeg`).
          */
         content_type: string;
     }>;
@@ -10006,7 +10187,7 @@ export type Product = {
      */
     is_low_stock: boolean;
     /**
-     * Indica si hay stock disponible (> 0).
+     * Whether there is stock available (> 0).
      */
     is_in_stock: boolean;
     /**
@@ -10031,7 +10212,7 @@ export type Product = {
  */
 export type ProductActivity = {
     /**
-     * Tipo de evento de dominio (p. ej. `product.updated`, `invoice.created`).
+     * Domain event type (e.g. `product.updated`, `invoice.created`).
      */
     event_type: string;
     /**
@@ -10236,11 +10417,11 @@ export type ProductStats = {
      */
     total_products: number;
     /**
-     * Productos marcados como activos.
+     * Products marked as active.
      */
     active_products: number;
     /**
-     * Productos sin stock disponible (stock = 0).
+     * Products with no stock available (stock = 0).
      */
     out_of_stock_count: number;
     /**
@@ -10336,11 +10517,11 @@ export type Proforma = {
      */
     total: number;
     /**
-     * Additional shipping cost added to the total.
+     * Shipping cost, expressed WITH VAT INCLUDED, added to the amount to pay. It is not part of `subtotal`, `total_vat` or `total`. When the proforma is converted to an invoice it becomes a "Gastos de envío" line whose base is `shipping_cost / (1 + r)` with VAT `r`, so the invoice total equals `total_with_shipping`.
      */
     shipping_cost: number;
     /**
-     * Final total including the shipping cost (= total + shipping_cost).
+     * Final total including the shipping cost (= total + shipping_cost). The invoice generated from the proforma has exactly this total.
      */
     total_with_shipping: number;
     currency: string;
@@ -10353,7 +10534,7 @@ export type Proforma = {
      */
     payment_terms_days: number | null;
     /**
-     * Condiciones de entrega en formato libre.
+     * Delivery terms, free-form text.
      */
     delivery_terms: string | null;
     /**
@@ -11052,7 +11233,7 @@ export type PurchaseInvoice = {
      */
     bank_account: null;
     /**
-     * Cuenta contable de gasto asociada, o `null`.
+     * Associated expense ledger account, or `null`.
      */
     expense_account: string | null;
     /**
@@ -11102,7 +11283,7 @@ export type PurchaseInvoice = {
 /**
  * PurchaseInvoiceAttachment
  *
- * Fichero adjunto (PDF/imagen) del gasto. `null` cuando no hay adjunto.
+ * File attached to the expense (PDF or image). `null` when there is no attachment.
  */
 export type PurchaseInvoiceAttachment = {
     /**
@@ -11983,7 +12164,7 @@ export type QuoteLine = {
 /**
  * QuoteStats
  *
- * Resumen agregado de los presupuestos de la empresa autenticada: total, importe acumulado, conteo por estado, expirados y convertidos a factura. Devuelto por `GET /v1/quotes/stats`.
+ * Aggregated summary of the quotes of the authenticated company: total, accumulated amount, count by status, expired and converted to invoice. Returned by `GET /v1/quotes/stats`.
  */
 export type QuoteStats = {
     /**
@@ -12216,7 +12397,7 @@ export type RecurringInvoice = {
 export type RecurringInvoiceActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `recurring_invoice.activated`, `recurring_invoice.executed`, `recurring_invoice.cancelled`).
+     * Domain event type (e.g. `recurring_invoice.activated`, `recurring_invoice.executed`, `recurring_invoice.cancelled`).
      */
     event_type: string;
     /**
@@ -12431,7 +12612,7 @@ export type RecurringInvoicePreviewDocument = {
 export type RecurringInvoiceStats = {
     object: 'recurring_invoice_stats';
     /**
-     * Total de recurrencias registradas.
+     * Total number of recurring invoices.
      */
     total: number;
     /**
@@ -12439,11 +12620,11 @@ export type RecurringInvoiceStats = {
      */
     active: number;
     /**
-     * Recurrencias pausadas (reanudables).
+     * Paused recurring invoices (they can be resumed).
      */
     paused: number;
     /**
-     * Recurrencias canceladas (estado terminal irreversible).
+     * Cancelled recurring invoices (terminal, irreversible status).
      */
     cancelled: number;
     /**
@@ -12463,7 +12644,7 @@ export type RecurringInvoiceStats = {
      */
     generated_this_month: number;
     /**
-     * Ejecuciones de recurrencia fallidas durante el mes en curso.
+     * Recurrence runs that failed during the current month.
      */
     failed_this_month: number;
     /**
@@ -12477,7 +12658,7 @@ export type RecurringInvoiceStats = {
      */
     next_scheduled: Array<{
         /**
-         * UUID (v7) de la recurrencia.
+         * UUID (v7) of the recurring invoice.
          */
         id: string | null;
         /**
@@ -12493,6 +12674,42 @@ export type RecurringInvoiceStats = {
      * Remaining scheduled template estimate from today through month end (EUR); it is not issued revenue, collections, or guaranteed cash.
      */
     estimated_revenue_this_month: number;
+};
+
+/**
+ * RegisterCompanyRepresentationV1Request
+ *
+ * Register the representation that authorizes Factuarea to remit your VeriFactu records to AEAT on your behalf. Send `multipart/form-data`: `kind`, `signer_name`, `signer_tax_id` and `granted_on` are required, plus the evidence — `document` (PDF, up to 5 MB) for the signed annex I, and `document` or `power_of_attorney_reference` for a power of attorney. The optional `valid_until` sets the last day of validity: without it the representation does not expire. An active representation that already exists is revoked and kept in the history.
+ */
+export type RegisterCompanyRepresentationV1Request = {
+    /**
+     * Kind of representation: `social_collaboration_annex_i` (social collaboration, with the signed annex I of the Resolution of 18-12-2024) or `aeat_power_of_attorney` (a power of attorney registered with AEAT).
+     */
+    kind: RepresentationKind;
+    /**
+     * Name of the person who signed the authorization.
+     */
+    signer_name: string;
+    /**
+     * Tax ID (NIF) of the signer.
+     */
+    signer_tax_id: string;
+    /**
+     * Date on which the authorization was granted (YYYY-MM-DD). It cannot be in the future.
+     */
+    granted_on: string;
+    /**
+     * Last day of validity of the representation (YYYY-MM-DD), optional: without it the representation does not expire. It cannot be earlier than `granted_on` nor more than 5 years after it (power of attorney registered in the AEAT register, art. 6.4 of Law 39/2015); otherwise 422 with `param=valid_until`. Once the day has passed the representation is reported with `is_expired: true` and stops enabling third-party remission.
+     */
+    valid_until?: string | null;
+    /**
+     * Reference of the power of attorney in the AEAT register. For a power of attorney, send this or the `document`.
+     */
+    power_of_attorney_reference?: string | null;
+    /**
+     * Signed evidence as a PDF (up to 5 MB, validated by magic bytes): required for the annex I, and for a power of attorney when no `power_of_attorney_reference` is sent. It is custodied encrypted, counts against your storage quota and is never returned.
+     */
+    document?: Blob | File | null;
 };
 
 /**
@@ -12560,6 +12777,13 @@ export type RejectTimeCorrectionRequest = {
 };
 
 /**
+ * RemissionMode
+ *
+ * Who submits the VeriFactu records of your company to AEAT. It does not change whether the company operates in VERI*FACTU or NO VERI*FACTU mode: it only decides whose electronic certificate signs and submits the records. `own_certificate` (default): the records are submitted with the electronic certificate of the company itself. `social_collaborator`: Factuarea submits the records on your behalf as a social collaborator, with the certificate of Factuarea; it needs an active `social_collaboration_annex_i` representation. `power_of_attorney`: Factuarea submits the records on your behalf as an attorney-in-fact, with the certificate of Factuarea; it needs an active `aeat_power_of_attorney` representation.
+ */
+export type RemissionMode = 'own_certificate' | 'social_collaborator' | 'power_of_attorney';
+
+/**
  * ReorderProjectColumnsV1Request
  */
 export type ReorderProjectColumnsV1Request = {
@@ -12568,6 +12792,13 @@ export type ReorderProjectColumnsV1Request = {
      */
     column_ids: Array<string>;
 };
+
+/**
+ * RepresentationKind
+ *
+ * Kind of representation that authorizes Factuarea to submit the VeriFactu records of your company to AEAT on your behalf. `social_collaboration_annex_i`: social collaboration, evidenced by the signed annex I of the Resolution of 18-12-2024; it enables the `social_collaborator` remission mode. `aeat_power_of_attorney`: a power of attorney registered in the Register of Powers of Attorney of AEAT, evidenced by the registry receipt or its reference; it enables the `power_of_attorney` remission mode.
+ */
+export type RepresentationKind = 'social_collaboration_annex_i' | 'aeat_power_of_attorney';
 
 /**
  * RequestTimeCorrectionRequest
@@ -12625,9 +12856,9 @@ export type ResolveCatalogSelectionRequest = {
     variant_id?: string | null;
     presentation_id?: string | null;
     /**
-     * Opciones ya elegidas: un ÚNICO valor por grupo. La selección
-     * múltiple queda fuera de alcance y dos valores del mismo grupo son
-     * una petición inválida, no una selección parcial.
+     * Options already chosen: a SINGLE value per group. Multiple selection
+     * is out of scope and two values of the same group are an invalid
+     * request, not a partial selection.
      */
     options?: Array<{
         group_id: string;
@@ -12672,15 +12903,15 @@ export type ResolvedCatalogPrice = {
     variant_id: string | null;
     presentation_id: string | null;
     /**
-     * Combinación comercial contra la que se resolvió el precio. Puede venir informada aunque la petición solo enviase la firma: una firma que casa con una combinación materializada se normaliza a su identidad antes de valorar.
+     * Commercial combination against which the price was resolved. It may be present even when the request sent only the signature: a signature that matches a materialized combination is normalized to its identity before pricing.
      */
     configuration_id: string | null;
     /**
-     * Firma canónica (64 hexadecimales) de la selección resuelta.
+     * Canonical signature (64 hexadecimal characters) of the resolved selection.
      */
     selection_signature: string | null;
     /**
-     * Tarifa CONSULTADA, no la fuente del precio: viene informada aunque `source` sea `product`. Para saber de dónde salió el importe, mira `source`.
+     * Price list CONSULTED, not necessarily the source of the price: it is present even when `source` is `product`. To know where the amount came from, look at `source`.
      */
     price_list_id: string | null;
     price_list_name: string | null;
@@ -12690,19 +12921,19 @@ export type ResolvedCatalogPrice = {
     base_unit: string;
     source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
     /**
-     * Semántica del importe de la fuente ganadora. `per_base_unit` se convierte una vez por el factor de la presentación; `per_commercial_unit` nunca se convierte.
+     * Semantics of the amount of the winning source. `per_base_unit` is converted once by the factor of the presentation; `per_commercial_unit` is never converted.
      */
     unit_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
     /**
-     * Importe de la fuente ganadora, ya convertido a `price_unit` y ANTES de los ajustes de opción: `source_amount + option_adjustment_total = unit_price`.
+     * Amount of the winning source, already converted to `price_unit` and BEFORE the option adjustments: `source_amount + option_adjustment_total = unit_price`.
      */
     source_amount: string | null;
     /**
-     * Suma de los ajustes de los valores de opción elegidos, por unidad comercial.
+     * Sum of the adjustments of the chosen option values, per commercial unit.
      */
     option_adjustment_total: string | null;
     /**
-     * Si la fuente ganadora ya incluía los ajustes de opción. `null` significa que el resolvedor no se pronunció, nunca `false`.
+     * Whether the winning source already included the option adjustments. `null` means the resolver did not take a position, never `false`.
      */
     option_adjustments_absorbed: boolean | null;
 };
@@ -12710,19 +12941,19 @@ export type ResolvedCatalogPrice = {
 /**
  * ResolvedCatalogPriceList
  *
- * Precios resueltos del lote, uno por selección enviada. El orden no es contrato: emparéjalos por `index`.
+ * Prices resolved for the batch, one per selection sent. The order is not part of the contract: pair them by `index`.
  */
 export type ResolvedCatalogPriceList = Array<ResolvedCatalogPricePreview>;
 
 /**
  * ResolvedCatalogPricePreview
  *
- * Una línea del repricing: el precio que resuelve hoy la selección, el que la línea tiene congelado y la diferencia entre los dos.
+ * One repricing line: the price the selection resolves to today, the price the line has frozen and the difference between the two.
  */
 export type ResolvedCatalogPricePreview = {
     object: 'resolved_catalog_price_preview';
     /**
-     * Posición de la selección en `targets`. Es lo que empareja cada precio con su línea sin depender del orden de la respuesta.
+     * Position of the selection in `targets`. It is what pairs each price with its line without depending on the order of the response.
      */
     index: number;
     product_id: string;
@@ -12738,31 +12969,31 @@ export type ResolvedCatalogPricePreview = {
     base_unit: string;
     source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
     /**
-     * Semántica del importe de la fuente ganadora. `per_base_unit` se convierte una vez por el factor de la presentación; `per_commercial_unit` nunca se convierte.
+     * Semantics of the amount of the winning source. `per_base_unit` is converted once by the factor of the presentation; `per_commercial_unit` is never converted.
      */
     unit_semantics: 'per_base_unit' | 'per_commercial_unit' | null;
     /**
-     * Importe de la fuente ganadora, ya convertido a `price_unit` y ANTES de los ajustes de opción: `source_amount + option_adjustment_total = unit_price`.
+     * Amount of the winning source, already converted to `price_unit` and BEFORE the option adjustments: `source_amount + option_adjustment_total = unit_price`.
      */
     source_amount: string | null;
     /**
-     * Suma de los ajustes de los valores de opción elegidos, por unidad comercial.
+     * Sum of the adjustments of the chosen option values, per commercial unit.
      */
     option_adjustment_total: string | null;
     /**
-     * Si la fuente ganadora ya incluía los ajustes de opción. `null` significa que el resolvedor no se pronunció, nunca `false`.
+     * Whether the winning source already included the option adjustments. `null` means the resolver did not take a position, never `false`.
      */
     option_adjustments_absorbed: boolean | null;
     /**
-     * Precio unitario que la línea tiene congelado hoy, tal y como se envió.
+     * Unit price the line has frozen today, as it was sent.
      */
     current_unit_price: string | null;
     /**
-     * `null` cuando no se envió `current_unit_price`: sin él no hay nada que comparar.
+     * `null` when `current_unit_price` was not sent: without it there is nothing to compare.
      */
     changed: boolean | null;
     /**
-     * `unit_price - current_unit_price`. `null` cuando no se envió `current_unit_price`.
+     * `unit_price - current_unit_price`. `null` when `current_unit_price` was not sent.
      */
     difference: string | null;
 };
@@ -12872,7 +13103,7 @@ export type RetiredPriceListTarget = {
  */
 export type RevertInvoicePaymentRequest = {
     /**
-     * Why the payment is being reverted. One of the closed catalog: `direct_debit_return` (returned SEPA direct debit), `card_dispute` (card chargeback or reversal), `misapplied_payment` (booked against the wrong invoice), `bounced_effect` (dishonoured bill) or `recording_error`. Any other value returns 422 `payment_reversal_reason_invalid`.
+     * Why the payment is being reverted. One of the closed catalog: `direct_debit_return` (returned SEPA direct debit), `card_dispute` (card chargeback or reversal), `misapplied_payment` (booked against the wrong invoice), `bounced_effect` (dishonoured bill) or `recording_error`. `issued_in_error` also belongs to the catalog but is reserved to annulling the invoice (`POST /v1/invoices/{invoice}/annul` with `revert_collections=true`): sent here it returns 422 `reversal_reason_reserved`. Any other value returns 422 `payment_reversal_reason_invalid`.
      */
     reason: string;
     /**
@@ -13297,23 +13528,14 @@ export type ScheduleInvoiceRequest = {
 /**
  * SendDeliveryNoteRequest
  *
- * Public REST API v1 — POST /v1/delivery_notes/{uuid}/send.
- *
- * Required body: `email`. Optional: `subject`, `message` (max 2000 chars),
- * `template_id` (catalog id of the email template).
- *
- * `template_id` is the integer identifier of the global system table
- * `templates` (shared catalog, without `company_id` or `uuid` column). It is
- * validated against the PK `id`, like the internal SPA endpoint. That is why
- * it does NOT follow the public UUID convention of the other FKs.
+ * Email a delivery note. Required body: `email`. Optional: `subject`, `message` (max 2000 characters) and `template_id` (id of the email template). `template_id` is the integer id of the shared catalog of email templates, so it does NOT follow the UUID convention of the other identifiers.
  */
 export type SendDeliveryNoteRequest = {
     email: string;
     subject?: string | null;
     message?: string | null;
     /**
-     * uuid-audit-allow: global system catalog (`templates` table without
-     * company_id or uuid column; integer catalog PK, like the internal SPA).
+     * Integer id of the email template, from the shared catalog of templates (it is not a UUID).
      */
     template_id?: number | null;
 };
@@ -13331,11 +13553,7 @@ export type SendEmployeeInvitationRequest = {
 /**
  * SendInvoiceReminderV1Request
  *
- * Public REST API v1 — POST /v1/invoices/{uuid}/send-reminder
- * and POST /v1/invoices/{uuid}/reminder-preview (same fields).
- *
- * All fields are optional — without overrides the handler uses the
- * canonical payment reminder template.
+ * Fields of the payment reminder, shared by `POST /v1/invoices/{invoice}/send-reminder` and `POST /v1/invoices/{invoice}/reminder-preview`. Every field is optional: without overrides the standard payment reminder template is used.
  */
 export type SendInvoiceReminderV1Request = {
     /**
@@ -13351,11 +13569,11 @@ export type SendInvoiceReminderV1Request = {
      */
     message?: string | null;
     /**
-     * Direcciones en copia.
+     * Email addresses in copy (cc).
      */
     cc?: Array<string> | null;
     /**
-     * Direcciones en copia oculta.
+     * Email addresses in blind copy (bcc).
      */
     bcc?: Array<string> | null;
     /**
@@ -13371,12 +13589,7 @@ export type SendInvoiceReminderV1Request = {
 /**
  * SendInvoiceRequest
  *
- * Public REST API v1 — POST /v1/invoices/{uuid}/send.
- *
- * Optional body: `to` (string), `cc[]`, `bcc[]` (arrays of emails),
- * `subject` (max 200), `body` (string). The controller performs the
- * cross-field validation: if the client has no email and `to` is
- * absent, it returns 422 `missing_required_param`.
+ * Email an invoice. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters) and `body` (string). If the client has no email and `to` is absent, it returns 422 `missing_required_param`.
  */
 export type SendInvoiceRequest = {
     to?: string | null;
@@ -13389,12 +13602,7 @@ export type SendInvoiceRequest = {
 /**
  * SendProformaRequest
  *
- * Public REST API v1 — POST /v1/proformas/{uuid}/send.
- *
- * Optional body: `to` (string), `cc[]`, `bcc[]` (arrays of emails),
- * `subject` (max 200), `body` (string). The controller performs the
- * cross-field validation: if the client has no email and `to` is
- * absent, it returns 422 `missing_required_param`.
+ * Email a proforma. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters) and `body` (string). If the client has no email and `to` is absent, it returns 422 `missing_required_param`.
  */
 export type SendProformaRequest = {
     to?: string | null;
@@ -13407,12 +13615,7 @@ export type SendProformaRequest = {
 /**
  * SendQuoteRequest
  *
- * Public REST API v1 — POST /v1/quotes/{uuid}/send.
- *
- * Optional body: `to` (string), `cc[]`, `bcc[]` (arrays of emails),
- * `subject` (max 200), `body` (string). The controller performs the
- * cross-field validation: if the client has no email and `to` is
- * absent, it returns 422 `missing_required_param`.
+ * Email a quote. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters) and `body` (string). If the client has no email and `to` is absent, it returns 422 `missing_required_param`.
  */
 export type SendQuoteRequest = {
     to?: string | null;
@@ -13489,7 +13692,7 @@ export type Series = {
 export type SeriesActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `series.created`, `series.archived`, `series.number_consumed`).
+     * Domain event type (e.g. `series.created`, `series.archived`, `series.number_consumed`).
      */
     event_type: string;
     /**
@@ -13646,17 +13849,7 @@ export type ShopifyConnectionCheck = {
 /**
  * SignDeliveryNoteRequest
  *
- * Public REST API v1 — POST /v1/delivery_notes/{uuid}/sign.
- *
- * Optional body: `signed_by` (alias of `recipient_name`, BC invariant),
- * `recipient_dni` (BC invariant — Spanish DNI/NIE, required by
- * `SignatureData`), `signature_image_base64` (raw base64 PNG; decode +
- * size + magic bytes are validated by the controller to respond 422
- * `payload_too_large`/`invalid_param_format`), `signed_at` (ISO 8601
- * optional, default now).
- *
- * The controller converts `signed_by` → `recipient_name` and prefixes the
- * base64 with `data:image/png;base64,` before dispatching to the BC.
+ * Sign a delivery note on receipt. Required: `signed_by` (name of the person who receives it), `recipient_dni` (Spanish DNI/NIE of the signer) and `signature_image_base64` (the signature as a raw base64 PNG, without the `data:` prefix). Optional: `signed_at` (ISO 8601, defaults to now). A signature image that cannot be decoded or is too large returns 422 `invalid_param_format` or `payload_too_large`.
  */
 export type SignDeliveryNoteRequest = {
     signed_by: string;
@@ -14488,7 +14681,7 @@ export type TaskEntityLink = {
      */
     entity_id: string;
     /**
-     * `false` when the entity was deleted or its module is no longer accessible.
+     * `false` when the entity was deleted or its module is no longer accessible, or when the key lacks the read scope of the entity resource (for example `invoices:read`); the link is still returned, with `summary: null`.
      */
     available: boolean;
     /**
@@ -15053,7 +15246,7 @@ export type Tax = {
      */
     reverse_charge: boolean;
     /**
-     * Zona AEAT a efectos fiscales: `peninsula` + Baleares, `canarias` (IGIC), `ceuta` (IPSI), `melilla` (IPSI).
+     * AEAT tax zone: `peninsula` (including the Balearic Islands), `canarias` (IGIC), `ceuta` (IPSI) or `melilla` (IPSI).
      */
     country_aeat_zone: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
     /**
@@ -15072,7 +15265,7 @@ export type Tax = {
 /**
  * TaxCalculation
  *
- * Resultado de aplicar un tax a un importe base. Devuelto por `POST /v1/taxes/calculate`.
+ * Result of applying a tax to a base amount. Returned by `POST /v1/taxes/calculate`.
  */
 export type TaxCalculation = {
     /**
@@ -15372,7 +15565,7 @@ export type TaxReport = {
 export type TaxReportActivity = {
     object: 'activity';
     /**
-     * Tipo de evento de dominio (p. ej. `tax_report.generated`).
+     * Domain event type (e.g. `tax_report.generated`).
      */
     event_type: string;
     /**
@@ -15537,15 +15730,15 @@ export type TaxReportStats = {
      */
     by_type: {
         /**
-         * Declaraciones Modelo 303 generadas.
+         * Modelo 303 declarations generated.
          */
         modelo_303: number;
         /**
-         * Declaraciones Modelo 347 generadas.
+         * Modelo 347 declarations generated.
          */
         modelo_347: number;
         /**
-         * Declaraciones Modelo 130 generadas.
+         * Modelo 130 declarations generated.
          */
         modelo_130: number;
     };
@@ -15554,15 +15747,15 @@ export type TaxReportStats = {
      */
     by_format: {
         /**
-         * Ficheros en formato oficial AEAT.
+         * Files in the official AEAT format.
          */
         txt_aeat: number;
         /**
-         * Ficheros PDF.
+         * PDF files.
          */
         pdf: number;
         /**
-         * Ficheros Excel.
+         * Excel files.
          */
         excel: number;
     };
@@ -15571,7 +15764,7 @@ export type TaxReportStats = {
      */
     total_size_bytes: number;
     /**
-     * Trimestre fiscal en curso (UTC).
+     * Current fiscal quarter (UTC).
      */
     current_quarter: {
         year: number;
@@ -15586,7 +15779,7 @@ export type TaxReportStats = {
 /**
  * TaxStats
  *
- * Aggregated KPIs over the company tax catalog (includes global system taxes). Breakdown por `type` y por `external_reference` AEAT.
+ * Aggregated KPIs over the company tax catalog (includes global system taxes). Broken down by `type` and by AEAT `external_reference`.
  */
 export type TaxStats = {
     object: 'tax_stats';
@@ -15690,7 +15883,7 @@ export type TaxTotalsLine = {
 /**
  * TaxUsage
  *
- * Desglose del uso de un tax across bounded contexts. Permite decidir si es seguro borrar o desactivar un tax (`in_use=false` ⇒ delete seguro).
+ * Where a tax is used across your catalog and documents. It lets you decide whether it is safe to delete or deactivate the tax (`in_use=false` means it is safe to delete).
  */
 export type TaxUsage = {
     object: 'tax_usage';
@@ -15699,27 +15892,27 @@ export type TaxUsage = {
      */
     taxes_id: string;
     /**
-     * true si `total_count > 0`.
+     * `true` when `total_count > 0`.
      */
     in_use: boolean;
     /**
-     * Aggregate sum of the 6 keys in `used_by`.
+     * Sum of the six counters in `used_by`.
      */
     total_count: number;
     /**
-     * Count by consumer BC. Excludes `purchase_invoice_lines` (no FK) and `recurring_invoices` (JSON lines).
+     * Number of references by kind of resource. Purchase invoice lines (they store a rate, not a tax reference) and recurring invoices (their lines are stored as a template) are not counted.
      */
     used_by: {
         /**
-         * `products.tax_id` referencias.
+         * Products that reference the tax.
          */
         products: number;
         /**
-         * `suppliers.default_tax_id` referencias.
+         * Suppliers that use the tax as their default tax.
          */
         suppliers: number;
         /**
-         * `invoice_lines.{vat_id,retention_id,surcharge_id,tax_id}` referencias.
+         * Invoice lines that reference the tax as VAT, withholding, surcharge or generic tax.
          */
         invoice_lines: number;
         quote_lines: number;
@@ -16387,11 +16580,7 @@ export type UpdateDeliveryNotePublicLinkRequest = {
 /**
  * UpdateDeliveryNoteRequest
  *
- * Public REST API v1 — PUT /v1/delivery_notes/{uuid}.
- *
- * Partial update: omitted fields are kept. Only allowed when
- * the delivery note is in `draft` status (the controller maps the
- * transition exception to 422 `invalid_status_transition`).
+ * Partial update of a delivery note: omitted fields are kept. Only allowed while the delivery note is in `draft` status (otherwise 422 `invalid_status_transition`).
  */
 export type UpdateDeliveryNoteRequest = {
     client_id?: string;
@@ -16432,6 +16621,9 @@ export type UpdateDeliveryNoteRequest = {
         quantity?: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -16529,6 +16721,10 @@ export type UpdateInvoiceRequest = {
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
     issued_on?: string;
     due_on?: string;
+    /**
+     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date. It can only be changed while the invoice is a draft, and it cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15.
+     */
+    operation_on?: string | null;
     notes?: string | null;
     external_id?: string | null;
     metadata?: Metadata;
@@ -16543,6 +16739,9 @@ export type UpdateInvoiceRequest = {
         quantity?: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -16707,22 +16906,22 @@ export type UpdateProductVariantRequest = {
     sku?: string | null;
     barcode?: string | null;
     /**
-     * Precio propio de la variante POR UNIDAD BASE. `null` = la variante
-     * no altera el precio del producto.
+     * Own price of the variant PER BASE UNIT. `null` = the variant does not
+     * change the price of the product.
      */
     base_price_override?: number | null;
     /**
-     * Coste propio de la variante POR UNIDAD BASE.
+     * Own cost of the variant PER BASE UNIT.
      */
     unit_cost_override?: number | null;
     /**
-     * Alias publicado de `base_price_override`.
+     * Alias of `base_price_override`.
      *
      * @deprecated
      */
     price_override?: number | null;
     /**
-     * Alias publicado de `unit_cost_override`.
+     * Alias of `unit_cost_override`.
      *
      * @deprecated
      */
@@ -16756,11 +16955,7 @@ export type UpdateProformaPublicLinkRequest = {
 /**
  * UpdateProformaRequest
  *
- * Public REST API v1 — PUT /v1/proformas/{uuid}.
- *
- * Partial update: omitted fields are kept. Only allowed when
- * the proforma is in `draft` status (the controller maps the
- * transition exception to 422 `invalid_status_transition`).
+ * Partial update of a proforma: omitted fields are kept. Only allowed while the proforma is in `draft` status (otherwise 422 `invalid_status_transition`).
  */
 export type UpdateProformaRequest = {
     client_id?: string;
@@ -16792,6 +16987,9 @@ export type UpdateProformaRequest = {
         quantity?: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -16974,11 +17172,7 @@ export type UpdateQuotePublicLinkRequest = {
 /**
  * UpdateQuoteRequest
  *
- * Public REST API v1 — PUT /v1/quotes/{uuid}.
- *
- * Partial update: omitted fields are kept. Only allowed when
- * the quote is in `draft` status (the controller maps the
- * transition exception to 422 `invalid_status_transition`).
+ * Partial update of a quote: omitted fields are kept. Only allowed while the quote is in `draft` status (otherwise 422 `invalid_status_transition`).
  */
 export type UpdateQuoteRequest = {
     client_id?: string;
@@ -17002,6 +17196,9 @@ export type UpdateQuoteRequest = {
         quantity?: number;
         unit_price?: number | null;
         tax_rate_id?: string | null;
+        /**
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         */
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -17081,6 +17278,9 @@ export type UpdateRecurringInvoiceRequest = {
         variant_id?: string | null;
         presentation_id?: string | null;
         confirmed_base_quantity?: number | null;
+        /**
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         */
         tax_rate?: number | null;
         retention?: number | null;
         surcharge?: number | null;
@@ -17380,6 +17580,10 @@ export type UpdateVeriFactuSettingsV1Request = {
     auto_transmit?: boolean;
     environment?: 'sandbox' | 'production';
     notification_emails?: Array<string>;
+    /**
+     * Who remits your records to AEAT: `own_certificate` (your own certificate, the default), `social_collaborator` or `power_of_attorney` (Factuarea remits with its certificate). A third-party mode requires an active representation of the kind it asks for — register it first with `POST /v1/verifactu/representation` — otherwise 422 with subcode `representation_required`.
+     */
+    remission_mode?: RemissionMode;
 };
 
 /**
@@ -17451,14 +17655,7 @@ export type UploadCompanyCertificateV1Request = {
 /**
  * UploadProductGalleryImageRequest
  *
- * Public REST API v1 — POST /v1/products/{uuid}/gallery.
- *
- * Multipart upload: `photo` or `image` (alias) field — jpeg/png/jpg/gif/webp,
- * max 3 MB.
- *
- * We accept `image` as an alias of the canonical `photo` field for
- * forgiveness with integrators that send it following the more intuitive
- * convention. The controller normalizes it to `photo`.
+ * Upload an image to the product gallery as `multipart/form-data`: the `photo` field (`image` is accepted as an alias) — jpeg, png, jpg, gif or webp, max 3 MB.
  */
 export type UploadProductGalleryImageRequest = {
     /**
@@ -17470,9 +17667,7 @@ export type UploadProductGalleryImageRequest = {
 /**
  * UploadProductVideoRequest
  *
- * Public REST API v1 — POST /v1/products/{uuid}/video.
- *
- * Multipart upload: campo `video` (mp4/mov/avi/webm, max 50 MB).
+ * Upload the product video as `multipart/form-data`: the `video` field — mp4, mov, avi or webm, max 50 MB.
  */
 export type UploadProductVideoRequest = {
     /**
@@ -17574,7 +17769,7 @@ export type UserList = {
 export type VeriFactuActivity = {
     object: 'verifactu_activity';
     /**
-     * Tipo de evento de dominio (p. ej. `verifactu.record_created`, `verifactu.transmission_accepted`).
+     * Domain event type (e.g. `verifactu.record_created`, `verifactu.transmission_accepted`).
      */
     event_type: string;
     /**
@@ -17630,7 +17825,7 @@ export type VeriFactuConfig = {
      */
     auto_transmit: boolean;
     /**
-     * Entorno AEAT (`sandbox` / `production`).
+     * AEAT environment (`sandbox` / `production`).
      */
     environment: string;
     /**
@@ -17642,7 +17837,7 @@ export type VeriFactuConfig = {
      */
     is_locked_until: string | null;
     /**
-     * Indica si hay un certificado activo configurado.
+     * Whether there is an active certificate configured.
      */
     has_active_certificate: boolean;
     /**
@@ -17650,6 +17845,38 @@ export type VeriFactuConfig = {
      */
     active_certificate_id: string | null;
     updated_at: string | null;
+    /**
+     * Who remits your records to AEAT: `own_certificate` (the default: your own certificate), `social_collaborator` (Factuarea remits with its certificate as social collaborator, annex I of the Resolution of 18-12-2024) or `power_of_attorney` (Factuarea remits under a power of attorney registered with AEAT). A third-party mode requires an active representation of the kind it asks for (`POST /v1/verifactu/representation`); change it with `PUT /v1/verifactu/settings`.
+     */
+    remission_mode: 'own_certificate' | 'social_collaborator' | 'power_of_attorney';
+    /**
+     * Whether the company has a current representation that has NOT expired — the one that enables third-party remission — regardless of the mode. A representation that has expired keeps `active_representation_id` and `_kind` but this field is `false` (see `active_representation_is_expired`).
+     */
+    has_active_representation: boolean;
+    /**
+     * UUID (v7) of the current (not revoked) representation, even if it has expired, or `null` if there is none.
+     */
+    active_representation_id: string | null;
+    /**
+     * Kind of the current (not revoked) representation, even if it has expired, or `null` if there is none.
+     */
+    active_representation_kind: 'social_collaboration_annex_i' | 'aeat_power_of_attorney' | null;
+    /**
+     * Last day of validity (YYYY-MM-DD, Europe/Madrid) of the current representation, or `null` when there is none or it does not expire.
+     */
+    active_representation_valid_until: string | null;
+    /**
+     * Whether the current representation has expired. `false` when there is none.
+     */
+    active_representation_is_expired: boolean;
+    /**
+     * Whether this instance offers the `social_collaborator` remission mode (the social-collaboration agreement with AEAT is in force). It is a fact of the instance, the same for every company: while it is `false`, `PUT /v1/verifactu/settings` with that mode returns 422 `social_collaborator_unavailable` and `power_of_attorney` covers the same use case.
+     */
+    social_collaborator_available: boolean;
+    /**
+     * State of the certificate that the remission would present given `remission_mode`: yours in `own_certificate`, the one of Factuarea in a third-party mode. `valid`: usable; `invalid`: configured but expired, revoked or for another tax ID; `not_configured`: there is none. The certificate of Factuarea never exposes its holder, tax ID, serial number or identifier.
+     */
+    presenter_certificate_status: 'valid' | 'invalid' | 'not_configured';
 };
 
 /**
@@ -17695,12 +17922,12 @@ export type VeriFactuEvent = {
 /**
  * VeriFactuEventSummary
  *
- * Resumen agregado de los eventos del SIF de la empresa: total y desglose por tipo y por estado. Devuelto por `GET /v1/verifactu/events/summary`.
+ * Aggregated summary of the VeriFactu events of the company: total and breakdown by type and by status. Returned by `GET /v1/verifactu/events/summary`.
  */
 export type VeriFactuEventSummary = {
     object: 'verifactu_event_summary';
     /**
-     * Total de eventos registrados.
+     * Total number of recorded events.
      */
     total_events: number;
     /**
@@ -17769,7 +17996,7 @@ export type VeriFactuRecord = {
      */
     aeat_csv: string | null;
     /**
-     * Entorno AEAT (`sandbox` / `production`).
+     * AEAT environment (`sandbox` / `production`).
      */
     environment: string;
     /**
@@ -17785,17 +18012,33 @@ export type VeriFactuRecord = {
      */
     is_substitute_for_simplified: boolean;
     created_at: string;
+    /**
+     * Error code of the last AEAT rejection or failure (for example `1110` or `4112`), the internal code of a record that is stopped (`MISSING_CERTIFICATE`, `MISSING_REPRESENTATION`, `SYSTEM_CERTIFICATE_UNAVAILABLE`), `SCHEMA_INVALID` on a `rejected` record that was never sent because it does not meet the AEAT XML schema (fix it with a subsanation), or the warning code of a record accepted with errors; `null` when there is none. Without it you cannot tell a `4112` (presenter not enabled by AEAT) from a network failure.
+     */
+    aeat_error_code: string | null;
+    /**
+     * Whether the record is BLOCKED: it is in `error` with NO automatic retry, so it does not go out again until someone reactivates it (fix the cause, then `POST /v1/verifactu/records/retry-blocked`, or `POST /v1/verifactu/records/{id}/retry` one by one), and it holds back the rest of the chain of the company. `false` for a record that retries by itself, with a backoff of at most one hour (art. 16.4 of Order HAC/1177/2024).
+     */
+    is_blocked: boolean;
+    /**
+     * Why the remission of the record is stopped, or `null`. `MISSING_CERTIFICATE`: your company has no usable certificate (missing, expired, revoked or for another tax ID). `MISSING_REPRESENTATION`: the remission mode is a third-party one and there is no current representation of the kind it asks for. `PRESENTER_NOT_ENABLED`: AEAT says the presenter is not enabled (`4112` or `3003`). `SUBMISSION_REJECTED`: AEAT rejected the submission for a client-side fault. These four need an action from you and make `is_blocked` true. `SYSTEM_CERTIFICATE_UNAVAILABLE`: the certificate of Factuarea that remits in the third-party modes is not available; it is on our side, does NOT block (`is_blocked` stays `false`) and the record retries by itself.
+     */
+    block_reason: 'MISSING_CERTIFICATE' | 'MISSING_REPRESENTATION' | 'SYSTEM_CERTIFICATE_UNAVAILABLE' | 'PRESENTER_NOT_ENABLED' | 'SUBMISSION_REJECTED' | null;
+    /**
+     * Whether the record admits `POST /v1/verifactu/records/{id}/subsanar`: an `alta` that is ACCEPTED (or accepted with errors) or REJECTED by AEAT and is the last one of its invoice, which has not been annulled. It is the very rule that endpoint applies, so `true` guarantees it will not refuse the record by its state; whether there is something to correct and whether it changes a field of the hash (`requires_annulment`) is only known when you subsanar.
+     */
+    can_subsanar: boolean;
 };
 
 /**
  * VeriFactuStats
  *
- * Resumen agregado de los registros VeriFactu de la empresa autenticada: conteos por estado y desglose por tipo. Devuelto por `GET /v1/verifactu/stats`.
+ * Aggregated summary of the VeriFactu records of the authenticated company: counts by status and breakdown by type. Returned by `GET /v1/verifactu/stats`.
  */
 export type VeriFactuStats = {
     object: 'verifactu_stats';
     /**
-     * Total de registros VeriFactu.
+     * Total number of VeriFactu records.
      */
     total_records: number;
     /**
@@ -17815,7 +18058,7 @@ export type VeriFactuStats = {
      */
     rejected: number;
     /**
-     * Registros en estado de error.
+     * Records in error status.
      */
     error: number;
     /**
@@ -17834,6 +18077,18 @@ export type VeriFactuStats = {
      * Date of the last transmission to AEAT, or `null` if there is none.
      */
     last_transmission_at: string | null;
+    /**
+     * Records still waiting to be remitted to AEAT: `pending` (or without a state yet), `error` of ANY kind (those that retry by themselves and the blocked ones), `submitted` (in flight, or orphaned until the next sweep) and `rejected` records that have already been subsanados. NOT counted: `accepted`, `rejected` records still waiting for your correction, and sandbox (test mode) companies. The query filters never affect it. Art. 16 of Order HAC/1177/2024 requires the taxpayer to see how many records are pending.
+     */
+    pending_incident_count: number;
+    /**
+     * Of the pending records, the BLOCKED ones: `error` with NO automatic retry (missing certificate or representation, presenter not enabled by AEAT, or a client-side rejection). They do not go out until someone reactivates them (`POST /v1/verifactu/records/retry-blocked`) and they hold back the chain of the company. It is a subset of `pending_incident_count`; the query filters never affect it.
+     */
+    blocked_incident_count: number;
+    /**
+     * Generation timestamp of the oldest of the pending records counted by `pending_incident_count`, or `null` when there is none. The query filters never affect it.
+     */
+    oldest_pending_at: string | null;
 };
 
 /**
@@ -24694,7 +24949,7 @@ export type PublicApiV1InvoicesAnnulErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -25586,7 +25841,7 @@ export type PublicApiV1InvoicesAssignRealNumberErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -26208,7 +26463,7 @@ export type PublicApiV1InvoicesBulkCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -26389,7 +26644,7 @@ export type PublicApiV1InvoicesBulkDeleteErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -26867,7 +27122,7 @@ export type PublicApiV1InvoicesBulkPdfErrors = {
      */
     413: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -27109,7 +27364,7 @@ export type PublicApiV1InvoicesBulkSendErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -27341,7 +27596,7 @@ export type PublicApiV1InvoicesBulkStatusErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -28517,7 +28772,7 @@ export type PublicApiV1InvoicesSimplifiedEligibilityErrors = {
      */
     403: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -29075,6 +29330,14 @@ export type PublicApiV1DeliveryNotesConvertError = PublicApiV1DeliveryNotesConve
 export type PublicApiV1DeliveryNotesConvertResponses = {
     201: {
         data: Invoice;
+        /**
+         * Non-blocking warnings about the invoice that was created, in Spanish. Present ONLY when there is something to warn about, so a normal response does not carry the field. Paired one-to-one (same index) with `warning_codes`. Today there is one: a normal (non-disbursement) line at 0 % VAT with no exemption reason, because quotes, proformas and delivery notes do not model the exemption cause (E1–E6) or the non-subjection cause (N1, N2). The invoice is created as a draft anyway; set the cause on it before issuing it.
+         */
+        warnings?: Array<string>;
+        /**
+         * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.
+         */
+        warning_codes?: Array<string>;
     };
 };
 
@@ -29139,6 +29402,14 @@ export type PublicApiV1ProformasConvertError = PublicApiV1ProformasConvertErrors
 export type PublicApiV1ProformasConvertResponses = {
     201: {
         data: Invoice;
+        /**
+         * Non-blocking warnings about the invoice that was created, in Spanish. Present ONLY when there is something to warn about, so a normal response does not carry the field. Paired one-to-one (same index) with `warning_codes`. Today there is one: a normal (non-disbursement) line at 0 % VAT with no exemption reason, because quotes, proformas and delivery notes do not model the exemption cause (E1–E6) or the non-subjection cause (N1, N2). The invoice is created as a draft anyway; set the cause on it before issuing it.
+         */
+        warnings?: Array<string>;
+        /**
+         * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.
+         */
+        warning_codes?: Array<string>;
     };
 };
 
@@ -29274,6 +29545,14 @@ export type PublicApiV1QuotesConvertError = PublicApiV1QuotesConvertErrors[keyof
 export type PublicApiV1QuotesConvertResponses = {
     201: {
         data: Invoice;
+        /**
+         * Non-blocking warnings about the invoice that was created, in Spanish. Present ONLY when there is something to warn about, so a normal response does not carry the field. Paired one-to-one (same index) with `warning_codes`. Today there is one: a normal (non-disbursement) line at 0 % VAT with no exemption reason, because quotes, proformas and delivery notes do not model the exemption cause (E1–E6) or the non-subjection cause (N1, N2). The invoice is created as a draft anyway; set the cause on it before issuing it.
+         */
+        warnings?: Array<string>;
+        /**
+         * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.
+         */
+        warning_codes?: Array<string>;
     };
 };
 
@@ -29986,14 +30265,20 @@ export type PublicApiV1ContactsListData = {
         'tags[]'?: Array<string>;
         is_archived?: boolean | null;
         /**
-         * Coincidencia exacta de ciudad y provincia; país ISO 3166-1 alpha-2 exacto.
+         * Exact match on the city.
          */
         city?: string | null;
+        /**
+         * Exact match on the province.
+         */
         province?: string | null;
+        /**
+         * Exact ISO 3166-1 alpha-2 country code.
+         */
         country_code?: 'AD' | 'AE' | 'AF' | 'AG' | 'AI' | 'AL' | 'AM' | 'AO' | 'AQ' | 'AR' | 'AS' | 'AT' | 'AU' | 'AW' | 'AX' | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BI' | 'BJ' | 'BL' | 'BM' | 'BN' | 'BO' | 'BQ' | 'BR' | 'BS' | 'BT' | 'BV' | 'BW' | 'BY' | 'BZ' | 'CA' | 'CC' | 'CD' | 'CF' | 'CG' | 'CH' | 'CI' | 'CK' | 'CL' | 'CM' | 'CN' | 'CO' | 'CR' | 'CU' | 'CV' | 'CW' | 'CX' | 'CY' | 'CZ' | 'DE' | 'DJ' | 'DK' | 'DM' | 'DO' | 'DZ' | 'EC' | 'EE' | 'EG' | 'EH' | 'ER' | 'ES' | 'ET' | 'FI' | 'FJ' | 'FK' | 'FM' | 'FO' | 'FR' | 'GA' | 'GB' | 'GD' | 'GE' | 'GF' | 'GG' | 'GH' | 'GI' | 'GL' | 'GM' | 'GN' | 'GP' | 'GQ' | 'GR' | 'GS' | 'GT' | 'GU' | 'GW' | 'GY' | 'HK' | 'HM' | 'HN' | 'HR' | 'HT' | 'HU' | 'ID' | 'IE' | 'IL' | 'IM' | 'IN' | 'IO' | 'IQ' | 'IR' | 'IS' | 'IT' | 'JE' | 'JM' | 'JO' | 'JP' | 'KE' | 'KG' | 'KH' | 'KI' | 'KM' | 'KN' | 'KP' | 'KR' | 'KW' | 'KY' | 'KZ' | 'LA' | 'LB' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT' | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MF' | 'MG' | 'MH' | 'MK' | 'ML' | 'MM' | 'MN' | 'MO' | 'MP' | 'MQ' | 'MR' | 'MS' | 'MT' | 'MU' | 'MV' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NC' | 'NE' | 'NF' | 'NG' | 'NI' | 'NL' | 'NO' | 'NP' | 'NR' | 'NU' | 'NZ' | 'OM' | 'PA' | 'PE' | 'PF' | 'PG' | 'PH' | 'PK' | 'PL' | 'PM' | 'PN' | 'PR' | 'PS' | 'PT' | 'PW' | 'PY' | 'QA' | 'RE' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SB' | 'SC' | 'SD' | 'SE' | 'SG' | 'SH' | 'SI' | 'SJ' | 'SK' | 'SL' | 'SM' | 'SN' | 'SO' | 'SR' | 'SS' | 'ST' | 'SV' | 'SX' | 'SY' | 'SZ' | 'TC' | 'TD' | 'TF' | 'TG' | 'TH' | 'TJ' | 'TK' | 'TL' | 'TM' | 'TN' | 'TO' | 'TR' | 'TT' | 'TV' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UM' | 'US' | 'UY' | 'UZ' | 'VA' | 'VC' | 'VE' | 'VG' | 'VI' | 'VN' | 'VU' | 'WF' | 'WS' | 'YE' | 'YT' | 'ZA' | 'ZM' | 'ZW' | null;
         has_email?: boolean | null;
         /**
-         * Verdadero si hay teléfono fijo O móvil; falso si ambos están vacíos.
+         * `true` returns contacts that have a landline OR a mobile phone; `false` returns contacts where both are empty.
          */
         has_phone?: boolean | null;
         created_from?: string | null;
@@ -30235,7 +30520,7 @@ export type PublicApiV1CompaniesListData = {
     path?: never;
     query?: {
         /**
-         * Filtrar por estado del vínculo de gestoría. Sin filtro se ocultan las archivadas (solo `active` e `inactive`).
+         * Filter by the status of the managed-company link (gestoría). Without a filter the archived companies are hidden (only `active` and `inactive` are returned).
          */
         status?: 'active' | 'inactive' | 'archived' | null;
     };
@@ -30379,7 +30664,7 @@ export type PublicApiV1InvoicesCorrectiveErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -30400,7 +30685,7 @@ export type PublicApiV1InvoicesCorrectiveResponses = {
      */
     201: {
         data: Invoice;
-        warnings: Array<string>;
+        warnings?: Array<string>;
     };
 };
 
@@ -30981,7 +31266,7 @@ export type PublicApiV1InvoicesListErrors = {
      */
     403: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -31039,7 +31324,7 @@ export type PublicApiV1InvoicesCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -31056,10 +31341,16 @@ export type PublicApiV1InvoicesCreateError = PublicApiV1InvoicesCreateErrors[key
 
 export type PublicApiV1InvoicesCreateResponses = {
     /**
-     * Invoice created successfully. The `Location` header contains the canonical URL of the newly created resource.
+     * Late retry of an unattended checkout: the `external_id` already belongs to an invoice issued in your company, so that invoice is returned unchanged — with the `Idempotent-Replayed: true` header — after completing the VeriFactu alta and the payment if they were missing. Nothing new is created and the invoice number is not consumed again. If the type or the total of the request differ from the issued invoice, the answer is `409` `unattended_replay_mismatch` instead.
+     */
+    200: {
+        data: InvoiceWithCheckoutBlocks;
+    };
+    /**
+     * Invoice created successfully. In an unattended checkout (`type: F2`, a `payment` block or `options.register_verifactu`) the body also carries the `verifactu`, `pdf` and `public_url` blocks. The `Location` header contains the canonical URL of the newly created resource.
      */
     201: {
-        data: Invoice;
+        data: InvoiceWithCheckoutBlocks;
     };
 };
 
@@ -31162,7 +31453,7 @@ export type PublicApiV1InvoicesVerifactuCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -32694,7 +32985,7 @@ export type PublicApiV1InvoicesCreateRecurringErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -35102,7 +35393,7 @@ export type PublicApiV1InvoicesDeleteErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -35219,7 +35510,7 @@ export type PublicApiV1InvoicesUpdateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -35571,9 +35862,9 @@ export type PublicApiV1ProductsShowData = {
     };
     query?: {
         /**
-         * Recursos anidados a incluir, separados por comas. Hoy solo
-         * `configurable_catalog`, que adjunta los grupos de opciones
-         * vendibles y las combinaciones comerciales del producto.
+         * Nested resources to include, comma-separated. Currently only
+         * `configurable_catalog`, which attaches the sellable option groups
+         * and the commercial combinations of the product.
          */
         include?: string | null;
     };
@@ -39284,7 +39575,7 @@ export type PublicApiV1DeliveryNotesPdfData = {
     };
     query?: {
         /**
-         * Cuando es truthy (`1`/`true`), fuerza `Content-Disposition: attachment` (descarga de fichero) en lugar de `inline`.
+         * When truthy (`1`/`true`), forces `Content-Disposition: attachment` (file download) instead of `inline`.
          */
         download?: string;
     };
@@ -39358,7 +39649,7 @@ export type PublicApiV1InvoicesFacturaeErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -39395,6 +39686,10 @@ export type PublicApiV1InvoicesPdfData = {
         invoice: string;
     };
     query?: {
+        /**
+         * Paper of the PDF: `a4` (default, with the company template), `ticket_80` (80 mm thermal roll) or `ticket_58` (58 mm roll). Any other value returns 422 with a `parameter_invalid_enum` entry (and its `allowed_values`) in `error.errors[]`. The format does not change the company template; each format is rendered and cached separately and has its own `ETag`.
+         */
+        format?: 'a4' | 'ticket_80' | 'ticket_58' | null;
         download?: string;
     };
     url: '/invoices/{invoice}/pdf';
@@ -39414,6 +39709,10 @@ export type PublicApiV1InvoicesPdfErrors = {
      */
     404: Error;
     /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -39426,6 +39725,9 @@ export type PublicApiV1InvoicesPdfErrors = {
 export type PublicApiV1InvoicesPdfError = PublicApiV1InvoicesPdfErrors[keyof PublicApiV1InvoicesPdfErrors];
 
 export type PublicApiV1InvoicesPdfResponses = {
+    /**
+     * Binary PDF stream of the invoice (`application/pdf`) in the paper chosen with `format` (`a4` by default, `ticket_80` or `ticket_58`). Use `?download=1` to receive `Content-Disposition: attachment`; otherwise the disposition is `inline`. The response carries an `ETag`; send it back via `If-None-Match` to get a `304 Not Modified` when nothing changed.
+     */
     200: Blob | File;
 };
 
@@ -40318,7 +40620,7 @@ export type PublicApiV1InvoicesExportExcelErrors = {
      */
     413: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -40642,7 +40944,7 @@ export type PublicApiV1InvoicesFindByExternalIdErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -40696,7 +40998,7 @@ export type PublicApiV1InvoicesFindByNumberErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -42372,6 +42674,189 @@ export type PublicApiV1CompaniesCreationStatusResponses = {
 
 export type PublicApiV1CompaniesCreationStatusResponse = PublicApiV1CompaniesCreationStatusResponses[keyof PublicApiV1CompaniesCreationStatusResponses];
 
+export type PublicApiV1VerifactuRepresentationRevokeData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Why the representation is revoked, 3 to 500 characters. Optional, in the JSON body or in the query: when omitted «Revocada vía API v1.» is recorded. A text outside that range returns 422 with `param=reason` instead of being silently trimmed.
+         */
+        reason?: string | null;
+    };
+    url: '/verifactu/representation';
+};
+
+export type PublicApiV1VerifactuRepresentationRevokeErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1VerifactuRepresentationRevokeError = PublicApiV1VerifactuRepresentationRevokeErrors[keyof PublicApiV1VerifactuRepresentationRevokeErrors];
+
+export type PublicApiV1VerifactuRepresentationRevokeResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1VerifactuRepresentationRevokeResponse = PublicApiV1VerifactuRepresentationRevokeResponses[keyof PublicApiV1VerifactuRepresentationRevokeResponses];
+
+export type PublicApiV1VerifactuRepresentationShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/verifactu/representation';
+};
+
+export type PublicApiV1VerifactuRepresentationShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1VerifactuRepresentationShowError = PublicApiV1VerifactuRepresentationShowErrors[keyof PublicApiV1VerifactuRepresentationShowErrors];
+
+export type PublicApiV1VerifactuRepresentationShowResponses = {
+    200: {
+        data: CompanyRepresentation;
+    };
+};
+
+export type PublicApiV1VerifactuRepresentationShowResponse = PublicApiV1VerifactuRepresentationShowResponses[keyof PublicApiV1VerifactuRepresentationShowResponses];
+
+export type PublicApiV1VerifactuRepresentationRegisterData = {
+    body: RegisterCompanyRepresentationV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/verifactu/representation';
+};
+
+export type PublicApiV1VerifactuRepresentationRegisterErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1VerifactuRepresentationRegisterError = PublicApiV1VerifactuRepresentationRegisterErrors[keyof PublicApiV1VerifactuRepresentationRegisterErrors];
+
+export type PublicApiV1VerifactuRepresentationRegisterResponses = {
+    /**
+     * The newly registered representation and the remission mode that results. A `Location` header points to `/v1/verifactu/representation`.
+     */
+    201: {
+        data: CompanyRepresentation;
+        /**
+         * Remission mode of the company AFTER registering: registering a representation moves a company that remits through a third-party mode to the mode of the new kind (or back to `own_certificate` when that mode cannot be used); with `own_certificate` it does not change.
+         */
+        remission_mode: 'own_certificate' | 'social_collaborator' | 'power_of_attorney';
+    };
+};
+
+export type PublicApiV1VerifactuRepresentationRegisterResponse = PublicApiV1VerifactuRepresentationRegisterResponses[keyof PublicApiV1VerifactuRepresentationRegisterResponses];
+
 export type PublicApiV1GestoriaWorkforceSummaryData = {
     body?: never;
     headers?: {
@@ -43299,7 +43784,12 @@ export type PublicApiV1InvoicesPdfLinkData = {
     path: {
         invoice: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Paper of the PDF the signed link serves: `a4` (default, with the company template), `ticket_80` (80 mm thermal roll) or `ticket_58` (58 mm roll). Any other value returns 422 with a `parameter_invalid_enum` entry (and its `allowed_values`) in `error.errors[]`. Each format is rendered and cached separately.
+         */
+        format?: 'a4' | 'ticket_80' | 'ticket_58' | null;
+    };
     url: '/invoices/{invoice}/pdf-link';
 };
 
@@ -43316,6 +43806,10 @@ export type PublicApiV1InvoicesPdfLinkErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -43448,7 +43942,7 @@ export type PublicApiV1InvoicesPublicLinkUpdateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -43501,7 +43995,7 @@ export type PublicApiV1InvoicesStatsErrors = {
      */
     403: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -44571,7 +45065,7 @@ export type PublicApiV1CompaniesSeatChargePreviewData = {
     path?: never;
     query: {
         /**
-         * Número de empresas hijas que se activarían en bloque (≥1, default 1).
+         * Number of child companies that would be activated in bulk (≥1, default 1).
          */
         count?: number | null;
         'company_ids[]': Array<string>;
@@ -46046,7 +46540,7 @@ export type PublicApiV1InvoicesIssueErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -47834,7 +48328,7 @@ export type PublicApiV1InvoicesFaceSubmissionsSubmitErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -47950,7 +48444,7 @@ export type PublicApiV1InvoicesPaymentsCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -48100,9 +48594,7 @@ export type PublicApiV1PurchaseInvoicesOverdueData = {
     query?: {
         per_page?: string;
         /**
-         * Default `'25'` (string) por consistencia OpenAPI: Scramble infiere
-         * schema.type=string para `request->input()` y el default debe ser
-         * string (Spectral rechaza `default: 25` int con `type: string`).
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25. Alias: `per_page`; if both are sent, `limit` wins.
          */
         limit?: string;
         cursor?: string;
@@ -48337,7 +48829,7 @@ export type PublicApiV1PurchaseInvoicesPendingData = {
     query?: {
         per_page?: string;
         /**
-         * Default `'25'` (string) por consistencia OpenAPI/Spectral.
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25. Alias: `per_page`; if both are sent, `limit` wins.
          */
         limit?: string;
         cursor?: string;
@@ -48687,15 +49179,15 @@ export type PublicApiV1ProductsStockMovementsListData = {
     };
     query?: {
         /**
-         * Máximo de movimientos por página (1-100, por defecto 25).
+         * Maximum number of movements per page (1-100, default 25).
          */
         limit?: number;
         /**
-         * Id del último movimiento ya recibido; la página empieza justo después.
+         * Id of the last movement already received; the page starts right after it.
          */
         starting_after?: string | null;
         /**
-         * `in` = entradas (delta positivo), `out` = salidas (delta negativo). Ausente = el ledger completo.
+         * `in` = inbound movements (positive delta), `out` = outbound movements (negative delta). Omitted = the whole ledger.
          */
         direction?: 'in' | 'out' | null;
     };
@@ -49165,7 +49657,7 @@ export type PublicApiV1RecurringInvoicesLogsData = {
     query?: {
         per_page?: string;
         /**
-         * Default `'25'` (string) por consistencia OpenAPI/Spectral.
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25. Alias: `per_page`; if both are sent, `limit` wins.
          */
         limit?: string;
         cursor?: string;
@@ -50417,7 +50909,7 @@ export type PublicApiV1InvoicesMarkPaidErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -50481,7 +50973,7 @@ export type PublicApiV1InvoicesMarkSentErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -51321,7 +51813,7 @@ export type PublicApiV1InvoicesReminderPreviewErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -51676,7 +52168,7 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipErrors = {
      */
     413: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -51732,7 +52224,7 @@ export type PublicApiV1InvoicesQuarterlySendEmailErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -52715,7 +53207,7 @@ export type PublicApiV1InvoicesRescheduleErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -53352,6 +53844,67 @@ export type PublicApiV1TimeEntriesResumeResponses = {
 
 export type PublicApiV1TimeEntriesResumeResponse = PublicApiV1TimeEntriesResumeResponses[keyof PublicApiV1TimeEntriesResumeResponses];
 
+export type PublicApiV1VerifactuRecordsRetryBlockedData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/verifactu/records/retry-blocked';
+};
+
+export type PublicApiV1VerifactuRecordsRetryBlockedErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1VerifactuRecordsRetryBlockedError = PublicApiV1VerifactuRecordsRetryBlockedErrors[keyof PublicApiV1VerifactuRecordsRetryBlockedErrors];
+
+export type PublicApiV1VerifactuRecordsRetryBlockedResponses = {
+    202: {
+        data: {
+            object: 'verifactu_retry_blocked';
+            reactivated: number;
+        };
+    };
+};
+
+export type PublicApiV1VerifactuRecordsRetryBlockedResponse = PublicApiV1VerifactuRecordsRetryBlockedResponses[keyof PublicApiV1VerifactuRecordsRetryBlockedResponses];
+
 export type PublicApiV1PurchaseScansRetryData = {
     body: VersionedPurchaseScanRequest;
     headers: {
@@ -53599,7 +54152,7 @@ export type PublicApiV1InvoicesPaymentsRevertErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -53708,7 +54261,7 @@ export type PublicApiV1CompaniesApiKeysRevokeData = {
     };
     query?: {
         /**
-         * Motivo opcional de la revocación (queda en audit log).
+         * Optional reason for the revocation, kept in the audit trail. Up to 500 characters.
          */
         reason?: string | null;
     };
@@ -54177,7 +54730,7 @@ export type PublicApiV1InvoicesScheduleErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -54779,7 +55332,7 @@ export type PublicApiV1InvoicesSendErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -54843,7 +55396,7 @@ export type PublicApiV1InvoicesSendReminderErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -56968,6 +57521,9 @@ export type PublicApiV1VerifactuRecordsSubsanarError = PublicApiV1VerifactuRecor
 export type PublicApiV1VerifactuRecordsSubsanarResponses = {
     202: {
         data: {
+            /**
+             * UUID (v7) of the NEW record created by the correction (subsanación), the one that is transmitted to AEAT. The original record is never modified.
+             */
             id: string;
             message: 'Subsanación encolada. El registro se reenviará a la AEAT en unos segundos.';
         };
@@ -57077,7 +57633,7 @@ export type PublicApiV1InvoicesSubstituteSimplifiedErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**
@@ -58554,7 +59110,7 @@ export type PublicApiV1ProductsGalleryUploadResponses = {
              */
             url: string;
             /**
-             * MIME type de la imagen.
+             * MIME type of the image.
              */
             content_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' | 'application/octet-stream';
             /**
@@ -58880,7 +59436,7 @@ export type PublicApiV1InvoicesVoidErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
     /**

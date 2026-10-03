@@ -48,6 +48,20 @@ const outDir = cliArgs.out ? resolve(cliArgs.out) : join(root, "src", "resources
 
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
 
+/**
+ * Operations that shipped as `(…, config?)` and later gained their first query
+ * parameter. The generator emits `(…, params?, config?)` for every operation
+ * with a query, which would move `config` to the third position under callers
+ * already on the previous release. These operations keep both call shapes
+ * through an overload: a second argument whose keys are all `RequestConfig`
+ * keys is the request config (`splitQueryAndConfig` in `src/core/resource.ts`).
+ *
+ * Add an operation here when a spec sync gives an existing parameterless
+ * operation a query parameter, and remove it at the next major version. Only
+ * plain GET operations are supported; the generator fails on any other shape.
+ */
+const LEGACY_CONFIG_SECOND = new Set(["public-api.v1.invoices.pdf_link"]);
+
 function camel(segment) {
   const parts = segment.replace(/-/g, "_").split("_");
   return (
@@ -192,6 +206,8 @@ for (const [path, methods] of Object.entries(spec.paths)) {
       isBinary: isBinary(op),
       isMultipart: isMultipart(op),
       idempotent: idempotencyRequiredOffPost(method, op, spec),
+      operationId: op.operationId,
+      legacyConfigSecond: LEGACY_CONFIG_SECOND.has(op.operationId),
       summary: op.summary ?? "",
     };
     node.ops.push(entry);
@@ -230,11 +246,20 @@ function methodSource(entry) {
     isBinary: bin,
     isMultipart: mp,
     idempotent,
+    operationId,
+    legacyConfigSecond,
     summary,
   } = entry;
   const lines = [];
   const doc = summary ? summary.replace(/\n/g, " ") : `${method} ${path}`;
   lines.push(`  /** ${doc} */`);
+
+  if (legacyConfigSecond && (method !== "GET" || cursor || bin || mp || !hq)) {
+    throw new Error(
+      `build-resources: ${operationId} is in LEGACY_CONFIG_SECOND but is not a plain GET with a query; ` +
+        "the overload is only implemented for that shape."
+    );
+  }
 
   const sig = [];
   const callPathParams = pp.length > 0;
@@ -290,6 +315,23 @@ function methodSource(entry) {
     lines.push(`  async ${action}(${sig.join(", ")}): Promise<unknown> {`);
     lines.push(`    const path = ${pathExpr};`);
     lines.push(`    return this._sendForm<unknown>(path, formData, config);`);
+    lines.push(`  }`);
+    return lines.join("\n");
+  }
+
+  // ---- GET (non-list) that gained its first query after shipping as `(…, config?)`
+  if (legacyConfigSecond) {
+    const head = sig.join(", ");
+    const lead = head ? `${head}, ` : "";
+    const q = "Record<string, unknown>";
+    lines.push(`  ${action}(${lead}config?: RequestConfig): Promise<unknown>;`);
+    lines.push(`  ${action}(${lead}params?: ${q}, config?: RequestConfig): Promise<unknown>;`);
+    lines.push(
+      `  async ${action}(${lead}paramsOrConfig?: ${q} | RequestConfig, config?: RequestConfig): Promise<unknown> {`
+    );
+    lines.push(`    const path = ${pathExpr};`);
+    lines.push(`    const args = splitQueryAndConfig(paramsOrConfig, config);`);
+    lines.push(`    return this._get<unknown>(path, args.params, args.config);`);
     lines.push(`  }`);
     return lines.join("\n");
   }
@@ -391,10 +433,20 @@ const sortedTops = [...tree.keys()].sort();
 
 for (const top of sortedTops) {
   const node = tree.get(top);
-  const parts = [header];
   // descendant classes first (referenced by their parents)
   const topClass = classSource(pascal(top), node);
-  parts.push(...topClass.nested, topClass.source);
+  const body = [...topClass.nested, topClass.source];
+  // Only the files that emit a legacy overload import the splitter.
+  const usesSplitter = body.some((source) => source.includes("splitQueryAndConfig("));
+  const parts = [
+    usesSplitter
+      ? header.replace(
+          "import { BaseResource, type RequestConfig }",
+          "import { BaseResource, splitQueryAndConfig, type RequestConfig }"
+        )
+      : header,
+    ...body,
+  ];
 
   const fileName = `${top}.ts`;
   writeFileSync(join(outDir, fileName), parts.join("\n\n") + "\n", "utf8");
