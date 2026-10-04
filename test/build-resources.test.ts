@@ -2,7 +2,8 @@
 // written to a scratch directory, via its `--spec <path>` / `--out <dir>`
 // flags (design D4). Covers: the happy path, the hardened guard against
 // operations missing `x-speakeasy-group` (which used to be dropped silently),
-// and the spec-guided `Idempotency-Key` opt-in for non-POST mutations (D6).
+// the spec-guided `Idempotency-Key` opt-in for non-POST mutations (D6), and the
+// `(…, config?)` overload of operations that later gained their first query.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -259,5 +260,102 @@ describe("build-resources.mjs --spec/--out", () => {
     const source = readFileSync(join(outDir, "widgets.ts"), "utf8");
     expect(source).toContain('return this._send<unknown>("POST", path, body, config);');
     expect(source).not.toContain("{ idempotent: true }");
+  });
+
+  it("keeps the (…, config?) call shape of a listed legacy GET that gained a query parameter", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/invoices/{invoice}/pdf-link": {
+          get: {
+            operationId: "public-api.v1.invoices.pdf_link",
+            "x-speakeasy-group": "invoices",
+            parameters: [
+              { name: "invoice", in: "path", required: true, schema: { type: "string" } },
+              { name: "format", in: "query", schema: { type: "string" } },
+            ],
+            responses: { "200": { content: { "application/json": {} } } },
+          },
+        },
+        "/widgets/{widget}": {
+          get: {
+            operationId: "public-api.v1.widgets.show",
+            "x-speakeasy-group": "widgets",
+            parameters: [
+              { name: "widget", in: "path", required: true, schema: { type: "string" } },
+              { name: "include", in: "query", schema: { type: "string" } },
+            ],
+            responses: { "200": { content: { "application/json": {} } } },
+          },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).toBe(0);
+    const legacy = readFileSync(join(outDir, "invoices.ts"), "utf8");
+    expect(legacy).toContain("pdfLink(invoice: string, config?: RequestConfig): Promise<unknown>;");
+    expect(legacy).toContain("pdfLink(invoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown>;");
+    expect(legacy).toContain("const args = splitQueryAndConfig(paramsOrConfig, config);");
+    expect(legacy).toContain("return this._get<unknown>(path, args.params, args.config);");
+    expect(legacy).toContain("import { BaseResource, splitQueryAndConfig, type RequestConfig }");
+    // An unlisted GET with a query keeps the plain (params?, config?) shape and no splitter import.
+    const plain = readFileSync(join(outDir, "widgets.ts"), "utf8");
+    expect(plain).toContain("async show(widget: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {");
+    expect(plain).not.toContain("splitQueryAndConfig");
+  });
+
+  it("fails when a legacy-listed operation is not a plain GET with a query", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/invoices/{invoice}/pdf-link": {
+          post: {
+            operationId: "public-api.v1.invoices.pdf_link",
+            "x-speakeasy-group": "invoices",
+            parameters: [{ name: "invoice", in: "path", required: true, schema: { type: "string" } }],
+            responses: { "200": { content: { "application/json": {} } } },
+          },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("LEGACY_CONFIG_SECOND");
+  });
+
+  it("returns a listed text/csv operation as a BinaryResponse and leaves other CSV operations alone", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const csv = { "200": { content: { "text/csv": {} } } };
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/contacts/imports/{id}/errors.csv": {
+          get: {
+            operationId: "public-api.v1.contacts.imports.errors",
+            "x-speakeasy-group": "contacts.imports",
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+            responses: csv,
+          },
+        },
+        "/widgets/template": {
+          get: { operationId: "public-api.v1.widgets.template", "x-speakeasy-group": "widgets", responses: csv },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(outDir, "contacts.ts"), "utf8")).toContain("async errors(id: string, config?: RequestConfig): Promise<BinaryResponse> {");
+    expect(readFileSync(join(outDir, "widgets.ts"), "utf8")).toContain("async template(config?: RequestConfig): Promise<unknown> {");
   });
 });

@@ -4,7 +4,7 @@
 //
 // Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
-import { BaseResource, type RequestConfig } from "../core/resource.js";
+import { BaseResource, splitQueryAndConfig, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
@@ -58,9 +58,12 @@ export class SeriesResource extends BaseResource {
   }
 
   /** List active series by document type */
-  async active(config?: RequestConfig): Promise<unknown> {
+  active(config?: RequestConfig): Promise<unknown>;
+  active(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown>;
+  async active(paramsOrConfig?: Record<string, unknown> | RequestConfig, config?: RequestConfig): Promise<unknown> {
     const path = "/series/active";
-    return this._get<unknown>(path, undefined, config);
+    const args = splitQueryAndConfig(paramsOrConfig, config);
+    return this._get<unknown>(path, args.params, args.config);
   }
 
   /** Mark a series as default for its type */
@@ -73,6 +76,12 @@ export class SeriesResource extends BaseResource {
   async show(series: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/series/{series}", { "series": series });
     return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Update a series */
+  async update(series: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/series/{series}", { "series": series });
+    return this._send<unknown>("PUT", path, body, config);
   }
 
   /** Unarchive a series */

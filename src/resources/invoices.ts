@@ -4,7 +4,7 @@
 //
 // Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
-import { BaseResource, type RequestConfig } from "../core/resource.js";
+import { BaseResource, splitQueryAndConfig, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
@@ -197,9 +197,12 @@ export class InvoicesResource extends BaseResource {
   }
 
   /** Generate temporary PDF link */
-  async pdfLink(invoice: string, config?: RequestConfig): Promise<unknown> {
+  pdfLink(invoice: string, config?: RequestConfig): Promise<unknown>;
+  pdfLink(invoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown>;
+  async pdfLink(invoice: string, paramsOrConfig?: Record<string, unknown> | RequestConfig, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/invoices/{invoice}/pdf-link", { "invoice": invoice });
-    return this._get<unknown>(path, undefined, config);
+    const args = splitQueryAndConfig(paramsOrConfig, config);
+    return this._get<unknown>(path, args.params, args.config);
   }
 
   /** Retrieve invoice public link */

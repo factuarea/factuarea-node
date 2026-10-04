@@ -165,3 +165,24 @@ export type {
   User,
   UserList,
 } from "./generated/types.gen.js";
+
+// Unattended checkout and VERI*FACTU: the request, the checkout blocks of the
+// response, the annulment, and the remission representation.
+export type {
+  AnnulInvoiceV1Request,
+  BusinessContactImport,
+  CanAnnulInvoice,
+  CompanyRepresentation,
+  CreateCorrectiveInvoiceRequest,
+  CreateInvoiceRequest,
+  CreateSeriesRequest,
+  InvoiceWithCheckoutBlocks,
+  RegisterCompanyRepresentationV1Request,
+  RemissionMode,
+  RepresentationKind,
+  UpdateInvoiceRequest,
+  UpdateSeriesRequest,
+  VeriFactuConfig,
+  VeriFactuRecord,
+  VeriFactuStats,
+} from "./generated/types.gen.js";

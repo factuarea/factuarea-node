@@ -9,7 +9,28 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
+export class ContactsImportsResource extends BaseResource {
+  /** Download contact import errors */
+  async errors(id: string, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/contacts/imports/{id}/errors.csv", { "id": id });
+    return this._binary(path, "GET", undefined, undefined, config);
+  }
+
+  /** Retrieve a contact import */
+  async show(id: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/contacts/imports/{id}", { "id": id });
+    return this._get<unknown>(path, undefined, config);
+  }
+}
+
 export class ContactsResource extends BaseResource {
+  readonly imports: ContactsImportsResource;
+
+  constructor(client: HttpClient) {
+    super(client);
+    this.imports = new ContactsImportsResource(client);
+  }
+
   /** Archive a contact */
   async archive(contact: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/contacts/{contact}/archive", { "contact": contact });
