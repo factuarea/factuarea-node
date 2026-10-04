@@ -17433,35 +17433,35 @@ export type UpdateRecurringInvoiceRequest = {
  */
 export type UpdateSeriesRequest = {
     /**
-     * Nombre de la serie (1-100 caracteres).
+     * Series name (1-100 characters).
      */
     name?: string;
     /**
-     * Prefijo de la serie (1-10 caracteres: letras, números, `-` y `_`). Solo editable mientras la serie no tiene documentos (`series_code_immutable_with_documents`).
+     * Series prefix (1-10 characters: letters, digits, `-` and `_`). Editable only while the series has no documents (`series_code_immutable_with_documents`); it cannot repeat the code of another series of the same document type.
      */
     code?: string;
     /**
-     * Política de reinicio del contador: `never`, `annual` o `monthly` (`monthly` exige el token `{MM}` en la máscara). Cambio prospectivo.
+     * Counter reset policy: `never`, `annual` or `monthly` (`monthly` requires the `{MM}` token in the mask). Prospective change: numbers already issued are not renumbered.
      */
     counter_reset?: 'never' | 'annual' | 'monthly';
     /**
-     * DEPRECADO: alias booleano de `counter_reset` (`true` = `annual`, `false` = `never`). `counter_reset` manda si llegan los dos.
+     * DEPRECATED: boolean alias of `counter_reset` (`true` = `annual`, `false` = `never`). `counter_reset` wins when both are sent.
      */
     year_reset?: boolean;
     /**
-     * Máscara de numeración (p. ej. `{code}-{YYYY}-{000}`). Solo editable hasta la primera emisión (`series_format_immutable_with_documents`).
+     * Numbering mask (e.g. `{code}-{YYYY}-{000}`). Editable only until the first document is issued (`series_format_immutable_with_documents`).
      */
     number_format?: string;
     /**
-     * Número inicial del contador (>= 1). Sin saltos con documentos del año en curso (`series_initial_number_creates_gap`).
+     * Initial counter number (>= 1). With documents in the current year it cannot leave a gap (`series_initial_number_creates_gap`).
      */
     initial_number?: number;
     /**
-     * Propósito de una serie de facturas: `complete`, `simplified`, `corrective` o `simplified_corrective`. Fijo con la primera factura (`series_invoice_kind_locked`).
+     * Purpose of an invoice series: `complete`, `simplified`, `corrective` or `simplified_corrective`. Fixed once the series has invoices (`series_invoice_kind_locked`).
      */
     invoice_kind?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
     /**
-     * El tipo de documento de una serie no se puede cambiar.
+     * Not accepted: the document type of a series cannot be changed.
      */
     document_type?: string;
 };
