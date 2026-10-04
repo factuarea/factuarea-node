@@ -11,7 +11,7 @@ import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
 useMockServer();
 
 /**
- * Unattended checkout (kiosks, parking and toll machines): one idempotent
+ * Unattended checkout (self-service kiosks and vending machines): one idempotent
  * `POST /invoices` that issues an already-paid simplified invoice (F2) with the
  * VERI*FACTU alta generated before responding. The fixtures are the examples
  * the pinned contract publishes for the operation, so a contract change that
@@ -25,15 +25,14 @@ const createOperation = spec.paths["/invoices"].post as Json;
 const responseExample = (status: string, name: string): Json =>
   createOperation.responses[status].content["application/json"].examples[name].value as Json;
 
-/** A 5.00 € parking ticket paid by card, prices WITH VAT included, no client. */
-const parkingTicket: CreateInvoiceRequest = {
+/** A 5.00 € ticket paid by card, prices WITH VAT included, no client and no series (the default one is used). */
+const kioskTicket: CreateInvoiceRequest = {
   type: "F2",
-  series_id: "019e5584-7a72-7038-a8f6-561ed180b699",
   issued_on: "2026-06-01",
   due_on: "2026-06-01",
   external_id: "KIOSK-0042-20260601-000187",
   prices_include_tax: true,
-  lines: [{ description: "Aparcamiento 2 h 30 min", quantity: 1, unit_price: 5, tax_rate: 21 }],
+  lines: [{ description: "Lavado exprés", quantity: 1, unit_price: 5, tax_rate: 21 }],
   payment: { method: "credit_card", paid_at: "2026-06-01T10:42:11+02:00", reference: "TPV-8841-000187" },
   options: { register_verifactu: true, wait_for_pdf: true },
 };
@@ -42,8 +41,8 @@ const issued = responseExample("201", "unattended_checkout") as { data: InvoiceW
 const replayed = responseExample("200", "idempotent_replay") as { data: InvoiceWithCheckoutBlocks };
 
 describe("unattended checkout contract", () => {
-  it("sends the same parking ticket the contract documents", () => {
-    expect(spec.components.examples.invoice_cajero_ticket_anonimo.value).toEqual(parkingTicket);
+  it("sends the same kiosk ticket the contract documents", () => {
+    expect(spec.components.examples.invoice_cajero_ticket_anonimo.value).toEqual(kioskTicket);
   });
 });
 
@@ -59,9 +58,9 @@ describe("invoices.create for an unattended checkout", () => {
       }),
     );
 
-    await testClient().invoices.create(parkingTicket);
+    await testClient().invoices.create(kioskTicket);
 
-    expect(body).toEqual(parkingTicket);
+    expect(body).toEqual(kioskTicket);
     expect(body).toMatchObject({
       type: "F2",
       prices_include_tax: true,
@@ -84,8 +83,8 @@ describe("invoices.create for an unattended checkout", () => {
     );
     const client = testClient();
 
-    await client.invoices.create(parkingTicket, { idempotencyKey: parkingTicket.external_id! });
-    await client.invoices.create(parkingTicket, { idempotencyKey: parkingTicket.external_id! });
+    await client.invoices.create(kioskTicket, { idempotencyKey: kioskTicket.external_id! });
+    await client.invoices.create(kioskTicket, { idempotencyKey: kioskTicket.external_id! });
 
     expect(keys).toEqual(["KIOSK-0042-20260601-000187", "KIOSK-0042-20260601-000187"]);
   });
@@ -93,7 +92,7 @@ describe("invoices.create for an unattended checkout", () => {
   it("parses the invoice with the verifactu, pdf and public_url blocks the terminal prints", async () => {
     server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(issued, { status: 201 })));
 
-    const { data: invoice } = (await testClient().invoices.create(parkingTicket)) as { data: InvoiceWithCheckoutBlocks };
+    const { data: invoice } = (await testClient().invoices.create(kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
 
     expect(invoice.type).toBe("F2");
     expect(invoice.status).toBe("paid");
@@ -126,8 +125,8 @@ describe("invoices.create for an unattended checkout", () => {
     );
     const client = testClient();
 
-    const first = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: "/invoices", body: parkingTicket });
-    const retry = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: "/invoices", body: parkingTicket });
+    const first = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: "/invoices", body: kioskTicket });
+    const retry = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: "/invoices", body: kioskTicket });
 
     expect(first.status).toBe(201);
     expect(first.headers.get("Idempotent-Replayed")).toBe("false");
@@ -136,12 +135,12 @@ describe("invoices.create for an unattended checkout", () => {
     // The retry hands back the same invoice, number and blocks: nothing new was created.
     expect(retry.data.data.id).toBe(first.data.data.id);
     expect(retry.data.data.number).toBe("TK-2026-01307");
-    expect(retry.data.data.external_id).toBe(parkingTicket.external_id);
+    expect(retry.data.data.external_id).toBe(kioskTicket.external_id);
     expect(retry.data.data.verifactu?.huella).toBe(first.data.data.verifactu?.huella);
     expect(retry.data.data.payments.detail).toHaveLength(1);
 
     // The typed resource decodes the replay exactly like the first answer.
-    const viaResource = (await client.invoices.create(parkingTicket)) as { data: InvoiceWithCheckoutBlocks };
+    const viaResource = (await client.invoices.create(kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
     expect(viaResource.data.id).toBe(first.data.data.id);
     expect(calls).toBe(3);
   });
@@ -163,7 +162,7 @@ describe("invoices.create for an unattended checkout", () => {
       ),
     );
 
-    const { data: invoice } = (await testClient().invoices.create(parkingTicket)) as { data: InvoiceWithCheckoutBlocks };
+    const { data: invoice } = (await testClient().invoices.create(kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
 
     expect(invoice.status).toBe("paid");
     expect(invoice.number).toBe("TK-2026-01307");
@@ -179,7 +178,7 @@ describe("unattended checkout errors", () => {
   ] as const)("maps the 409 %s to a ConflictError carrying code, subcode and param", async (example, code, subcode) => {
     server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("409", example), { status: 409 })));
 
-    const error = await testClient().invoices.create(parkingTicket).catch((e: unknown) => e);
+    const error = await testClient().invoices.create(kioskTicket).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ConflictError);
     expect(error).toMatchObject({ status: 409, code, subcode, param: "external_id" });
@@ -190,7 +189,7 @@ describe("unattended checkout errors", () => {
       http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("422", "signing_certificate_unavailable"), { status: 422 })),
     );
 
-    const error = await testClient().invoices.create(parkingTicket).catch((e: unknown) => e);
+    const error = await testClient().invoices.create(kioskTicket).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ValidationError);
     expect(error).toMatchObject({ status: 422, code: "verifactu_not_eligible", subcode: "signing_certificate_unavailable", param: "certificate" });
@@ -200,7 +199,7 @@ describe("unattended checkout errors", () => {
     server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("422", "missing_send_to"), { status: 422 })));
 
     const error = await testClient()
-      .invoices.create({ ...parkingTicket, options: { send_automatically: true } })
+      .invoices.create({ ...kioskTicket, options: { send_automatically: true } })
       .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ValidationError);
@@ -227,7 +226,7 @@ describe("unattended checkout errors", () => {
     );
 
     const error = await testClient()
-      .invoices.create({ ...parkingTicket, lines: [{ description: "A", quantity: 1, unit_price: 1, tax_rate: 21 }, { description: "B", quantity: 1, unit_price: 1 }] })
+      .invoices.create({ ...kioskTicket, lines: [{ description: "A", quantity: 1, unit_price: 1, tax_rate: 21 }, { description: "B", quantity: 1, unit_price: 1 }] })
       .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ValidationError);
@@ -237,7 +236,7 @@ describe("unattended checkout errors", () => {
   it("leaves lineIndex null when the error does not point at a line", async () => {
     server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("422", "missing_send_to"), { status: 422 })));
 
-    const error = await testClient().invoices.create(parkingTicket).catch((e: unknown) => e);
+    const error = await testClient().invoices.create(kioskTicket).catch((e: unknown) => e);
 
     expect(error).toMatchObject({ lineIndex: null });
   });

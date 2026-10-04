@@ -90,7 +90,7 @@ describe("canonical contacts", () => {
   });
 
   it("exposes source headers from a dry-run preview before mapping localized columns", async () => {
-    const preview: BusinessContactImportPreview = { source_headers: ["Nombre", "Identificación fiscal"], rows: [], total: 1, create: 0, update: 0, add_role: 0, merge_candidate: 0, conflict: 0, invalid: 1, dry_run: true, queued: false };
+    const preview: BusinessContactImportPreview = { source_headers: ["Nombre", "Identificación fiscal"], rows: [], total: 1, create: 0, update: 0, add_role: 0, merge_candidate: 0, conflict: 0, invalid: 1, dry_run: true, import_uuid: null, added_count: null, skipped_count: null, failed_count: null, unprocessed_count: null, status: null, failure_reason: null, queued: false };
     server.use(http.post(`${BASE_URL}/contacts/import/preview`, () => HttpResponse.json({ data: preview })));
     const body = new FormData();
     body.append("file", new Blob(["Nombre,Identificación fiscal\nContact,B12345674\n"], { type: "text/csv" }), "contacts.csv");

@@ -330,4 +330,32 @@ describe("build-resources.mjs --spec/--out", () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("LEGACY_CONFIG_SECOND");
   });
+
+  it("returns a listed text/csv operation as a BinaryResponse and leaves other CSV operations alone", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const csv = { "200": { content: { "text/csv": {} } } };
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/contacts/imports/{id}/errors.csv": {
+          get: {
+            operationId: "public-api.v1.contacts.imports.errors",
+            "x-speakeasy-group": "contacts.imports",
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+            responses: csv,
+          },
+        },
+        "/widgets/template": {
+          get: { operationId: "public-api.v1.widgets.template", "x-speakeasy-group": "widgets", responses: csv },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(outDir, "contacts.ts"), "utf8")).toContain("async errors(id: string, config?: RequestConfig): Promise<BinaryResponse> {");
+    expect(readFileSync(join(outDir, "widgets.ts"), "utf8")).toContain("async template(config?: RequestConfig): Promise<unknown> {");
+  });
 });

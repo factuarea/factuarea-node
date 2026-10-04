@@ -2,7 +2,7 @@
 "@factuarea/sdk": minor
 ---
 
-Add unattended checkout (kiosks, parking and toll machines) and the VERI*FACTU remission controls, and re-pin `spec/openapi.json` from the current public contract (459 paths / 568 operations: 4 added, none removed). `src/generated/` and `src/resources/` are regenerated.
+Add unattended checkout (self-service kiosks and vending machines) and the VERI*FACTU remission controls, and re-pin `spec/openapi.json` from the current public contract (570 operations: 6 added, none removed). `src/generated/` and `src/resources/` are regenerated.
 
 New in the client:
 
@@ -12,6 +12,10 @@ New in the client:
 - `invoices.annul` accepts `revert_collections`, which reverts every live payment (reason `issued_in_error`) and annuls the invoice atomically. `invoices.canAnnul` also returns `requires_collection_reversal` and `active_collections_amount`.
 - `invoices.corrective` lines accept `unit`, `regime_key`, `exemption_reason` and `exemption_reason_text`; an omitted value is inherited from the original line. The conversion of a quote, a proforma or a delivery note can return `warnings` and `warning_codes` (`zero_rate_line_without_exemption`).
 - `Invoice` gains `operation_on`.
+- Series carry a purpose: `Series.invoice_kind` is `complete`, `simplified`, `corrective` or `simplified_corrective`, and `null` for a series that is not of invoices. `series.create` accepts `invoice_kind`. `series.list`, `series.default` and `series.active` accept an `invoice_kind` filter, and `series.active` also takes `document_type`; `series.active(params?, config?)` keeps the `series.active(config?)` call working with the same rule as `invoices.pdfLink`.
+- `series_id` is optional and nullable in `invoices.create`. `invoices.update` accepts `type` (`F1` or `F2`). `invoices.corrective` accepts `correction_nature` (`I` or `S`) and `series_id`. `invoices.duplicate` and `series.active` document a `422` response.
+- `contacts.imports.show` retrieves a contact import (`BusinessContactImport`), and `contacts.imports.errors` downloads its errors as CSV and returns a `BinaryResponse`. `BusinessContactImportPreview` gains `import_uuid`, `added_count`, `skipped_count`, `failed_count`, `unprocessed_count`, `status` and `failure_reason`, so code that builds that type by hand must add them; its rows gain an optional `result`.
+- The types `BusinessContactImport`, `CreateCorrectiveInvoiceRequest`, `CreateSeriesRequest` and `UpdateInvoiceRequest` are exported from `@factuarea/sdk`.
 - `verifactu.records.retryBlocked` reactivates every blocked record at once. `VeriFactuRecord` gains `aeat_error_code`, `is_blocked`, `block_reason` and `can_subsanar`, and `verifactu.records.subsanar` now returns the id of the new record. `VeriFactuStats` gains `pending_incident_count`, `blocked_incident_count` and `oldest_pending_at`.
 - `verifactu.representation` (`show`, `register`, `revoke`) manages the representation that enables remission by a third party. `VeriFactuConfig` gains `remission_mode` and the `active_representation_*` fields, and `verifactu.settings` accepts `remission_mode`.
 - `FactuareaError.lineIndex` carries `error.line_index`, the zero-based position of the document line a domain rule rejected, the `N` of `lines.N.tax_rate`. It is `null` for any other error.

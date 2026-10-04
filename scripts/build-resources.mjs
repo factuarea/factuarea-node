@@ -60,7 +60,14 @@ const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
  * operation a query parameter, and remove it at the next major version. Only
  * plain GET operations are supported; the generator fails on any other shape.
  */
-const LEGACY_CONFIG_SECOND = new Set(["public-api.v1.invoices.pdf_link"]);
+/**
+ * Operations whose `text/csv` response is returned as a `BinaryResponse`. Other
+ * operations that list `text/csv` keep their existing return type, so adding one
+ * here is an explicit decision per operation.
+ */
+const BINARY_CSV_OPERATIONS = new Set(["public-api.v1.contacts.imports.errors"]);
+
+const LEGACY_CONFIG_SECOND = new Set(["public-api.v1.invoices.pdf_link", "public-api.v1.series.active"]);
 
 function camel(segment) {
   const parts = segment.replace(/-/g, "_").split("_");
@@ -83,7 +90,8 @@ function isBinary(op) {
       if (
         ct.includes("pdf") ||
         ct.includes("octet-stream") ||
-        ct.includes("zip")
+        ct.includes("zip") ||
+        (ct.includes("csv") && BINARY_CSV_OPERATIONS.has(op.operationId))
       ) {
         return true;
       }

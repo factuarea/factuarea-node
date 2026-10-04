@@ -2419,6 +2419,39 @@ export type BusinessContactActivity = {
 };
 
 /**
+ * BusinessContactImport
+ */
+export type BusinessContactImport = {
+    id: string;
+    object: 'contact_import';
+    entity_type: 'business_contacts';
+    status: 'queued' | 'running' | 'completed' | 'partial' | 'failed';
+    source_filename: string;
+    total_rows: number;
+    added_count: number;
+    skipped_count: number;
+    failed_count: number;
+    unprocessed_count: number;
+    error_report_url: string | null;
+    failure_reason: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+    created_at: string;
+    outcomes: Array<{
+        row_number?: number;
+        result?: string;
+        action?: string;
+        group_key?: string | null;
+        target_uuid?: string | null;
+        errors?: Array<{
+            field?: string | null;
+            code?: string;
+            message?: string;
+        }>;
+    }>;
+};
+
+/**
  * BusinessContactImportPreview
  */
 export type BusinessContactImportPreview = {
@@ -2426,6 +2459,10 @@ export type BusinessContactImportPreview = {
     rows: Array<{
         row: number;
         action: 'create' | 'update' | 'add_role' | 'merge_candidate' | 'conflict' | 'invalid';
+        /**
+         * Present for confirmed execution rows; omitted from planned preview rows.
+         */
+        result?: 'applied' | 'skipped' | 'failed';
         target_uuid: string | null;
         errors: Array<{
             param: string | null;
@@ -2446,6 +2483,19 @@ export type BusinessContactImportPreview = {
     conflict: number;
     invalid: number;
     dry_run: boolean;
+    /**
+     * Persisted import reference for synchronous and queued execution; null for dry-run.
+     */
+    import_uuid: string | null;
+    added_count: number | null;
+    skipped_count: number | null;
+    failed_count: number | null;
+    unprocessed_count: number | null;
+    /**
+     * Persisted execution status; null for preview and dry-run. Synchronous responses can be failed with unprocessed rows after a concurrent closure.
+     */
+    status: 'queued' | 'running' | 'completed' | 'partial' | 'failed' | null;
+    failure_reason: string | null;
     queued: boolean;
 };
 
@@ -3643,12 +3693,17 @@ export type CreateCompanyV1Request = {
 /**
  * CreateCorrectiveInvoiceRequest
  *
- * Generate a corrective (rectificativa) invoice for a previously issued invoice. `correction_reason` (required) maps to a VeriFactu R-code; `correction_type` is `full` or `partial`; the optional `correction_code` (`R1`..`R5`) forces the explicit R-code and is validated against the AEAT legal matrix for the original invoice type. Optional `justification`, `notes`, and `lines[]` (required when `correction_type` is `partial`). Each line may also declare the fiscal nature of the line it corrects — `unit`, `regime_key`, `exemption_reason` and `exemption_reason_text` — with the same rules as `POST /v1/invoices`: a key you OMIT inherits the value of the original line at the same index, a key you SEND (even `null`) replaces it, and `null` means explicitly none.
+ * Generate a corrective (rectificativa) invoice for a previously issued invoice. `correction_reason` (required) maps to a VeriFactu R-code; `correction_type` is `full` or `partial`; the optional `correction_nature` is `I` (by differences: void the whole invoice with `full` and no `lines`, or correct amounts with `partial` and the adjustment `lines`) or `S` (substitution: `full` with the final `lines`, no negative quantity) — omitted, `full` with `lines` is `S` and the rest `I`; `unit_price` is never negative (a negative `quantity` subtracts); the optional `correction_code` (`R1`..`R5`) forces the explicit R-code and is validated against the AEAT legal matrix for the original invoice type. Optional `justification`, `notes`, and `lines[]` (none to void the whole invoice; required for a partial correction and for a substitution). Each line may also declare the fiscal nature of the line it corrects — `unit`, `regime_key`, `exemption_reason` and `exemption_reason_text` — with the same rules as `POST /v1/invoices`: a key you OMIT inherits the value of the original line at the same index, a key you SEND (even `null`) replaces it, and `null` means explicitly none.
  */
 export type CreateCorrectiveInvoiceRequest = {
     correction_reason: 'error_fundado' | 'concurso' | 'incobrable' | 'error_importe' | 'error_cliente' | 'devolucion' | 'descuento' | 'otras';
     correction_type: 'full' | 'partial';
     correction_code?: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | null;
+    /**
+     * Nature of the correction (art. 15.5 Royal Decree 1619/2012; VeriFactu `TipoRectificativa`). Optional: OMIT it and `full` with `lines` is a substitution (`S`), while `full` without `lines` and `partial` are by differences (`I`). `I`, by differences: the corrective carries the amount of the rectification, whatever its sign — void the whole invoice with `correction_type: full` and no `lines`, or correct some amounts with `partial` and the adjustment `lines` (`full` with `lines` and an explicit `I` is rejected). `S`, substitution: `correction_type: full` with the FINAL `lines` of the correct invoice (no negative quantity); registered with `ImporteRectificacion` (base and tax of the original). An incoherent combination is rejected with 422 before anything is created.
+     */
+    correction_nature?: 'I' | 'S' | null;
+    series_id?: string | null;
     justification?: string | null;
     notes?: string | null;
     tags?: Array<string> | null;
@@ -3671,7 +3726,7 @@ export type CreateCorrectiveInvoiceRequest = {
         presentation_id?: string | null;
         confirmed_base_quantity?: number | null;
         /**
-         * Kind of line: `NORMAL` (default) for an ordinary line, or `SUPLIDO` for a DISBURSEMENT — an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) re-invoiced at cost, which stays out of the taxable base (art. 78.Tres.3 LIVA) and is aggregated into `total_disbursements`. A `SUPLIDO` line must carry no VAT, withholding, surcharge, discount or product, and requires `source_invoice_reference`. Only meaningful when `correction_type` is `partial`, which is when `lines[]` is sent; a value outside the catalog is rejected with 422.
+         * Kind of line: `NORMAL` (default) for an ordinary line, or `SUPLIDO` for a DISBURSEMENT — an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) re-invoiced at cost, which stays out of the taxable base (art. 78.Tres.3 LIVA) and is aggregated into `total_disbursements`. A `SUPLIDO` line must carry no VAT, withholding, surcharge, discount or product, and requires `source_invoice_reference`. Only meaningful when `lines[]` is sent (a partial correction or a substitution); a value outside the catalog is rejected with 422.
          */
         line_type?: 'NORMAL' | 'SUPLIDO' | null;
         source_invoice_reference?: string | null;
@@ -3743,7 +3798,7 @@ export type CreateDeliveryNoteRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -3857,7 +3912,7 @@ export type CreateInvoiceRequest = {
          */
         reference?: string | null;
     };
-    series_id: string;
+    series_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
     issued_on: string;
@@ -3877,7 +3932,7 @@ export type CreateInvoiceRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -4117,7 +4172,7 @@ export type CreateProformaRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -4308,7 +4363,7 @@ export type CreateQuoteRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -4422,7 +4477,7 @@ export type CreateRecurringInvoiceRequest = {
         presentation_id?: string | null;
         confirmed_base_quantity?: number | null;
         /**
-         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT VAT of your company for this kind of document (tax settings). If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
+         * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
         retention?: number | null;
@@ -4458,6 +4513,7 @@ export type CreateSeriesRequest = {
     year_reset?: boolean | null;
     number_format?: string | null;
     initial_number?: number | null;
+    invoice_kind?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective' | null;
 };
 
 /**
@@ -8529,7 +8585,7 @@ export type Invoice = {
      */
     is_number_assigned: boolean;
     /**
-     * AEAT invoice type code: `F1` (ordinary invoice, *ordinaria*), `F2` (simplified invoice, *simplificada*), `F3` (invoice replacing simplified ones, *sustitutiva de simplificadas*), `R1`–`R5` (corrective invoice, *rectificativa*).
+     * Document type: `F1` (ordinary invoice, *ordinaria*), `F2` (simplified invoice, *simplificada*), `F3` (invoice replacing simplified ones, *sustitutiva de simplificadas*) or `R5` (corrective of a simplified invoice). A corrective of an `F1`/`F3` keeps `F1` here; its AEAT corrective code (`R1`–`R5`) is `corrective.correction_aeat_type`, and `is_corrective` tells correctives apart.
      */
     type: string;
     series: SeriesRef;
@@ -8761,19 +8817,19 @@ export type InvoiceCorrective = {
      */
     correction_reason: string | null;
     /**
-     * Type of correction (`por_diferencias` / `por_sustitucion`).
+     * Scope of the correction: `total` (the whole invoice, `correction_type: full` on input) or `partial`.
      */
     correction_type: string | null;
     /**
-     * Nature of the correction (`S` substitutive / `I` by differences).
+     * Effective nature of the correction (art. 15.5 RD 1619/2012), the same one its VeriFactu record declares as `TipoRectificativa`: `I` by differences (the corrective carries the amount of the rectification, any sign) or `S` substitution (the invoice as it ends up). A corrective with a negative base is always `I`.
      */
     correction_nature: string | null;
     /**
-     * Corrected taxable base.
+     * Taxable base of the ORIGINAL invoice being corrected; reported to VeriFactu as `ImporteRectificacion.BaseRectificada` on a substitution (`S`).
      */
     base_rectificada: number | null;
     /**
-     * Corrected VAT amount.
+     * VAT amount of the ORIGINAL invoice being corrected; reported to VeriFactu as `ImporteRectificacion.CuotaRectificada` on a substitution (`S`).
      */
     cuota_rectificada: number | null;
     /**
@@ -13649,6 +13705,10 @@ export type Series = {
      */
     document_type: string;
     /**
+     * Fixed purpose of an invoice series (RD 1619/2012 arts. 6.1.a, 7.1.a and 15): `complete` (complete invoices `F1` and the `F3` that replaces simplified invoices — the usual series), `simplified` (simplified invoices `F2`), `corrective` (corrective invoices `R1`–`R4`) or `simplified_corrective` (corrective invoices of simplified invoices `R5`). An invoice can only be issued in a series of its own purpose, otherwise issuing fails with `series_invoice_kind_mismatch`. Set on creation (default `complete`) and immutable once the series has any invoice (`series_invoice_kind_locked`). `null` for series of other document types.
+     */
+    invoice_kind: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective' | null;
+    /**
      * Legacy alias for code. Use code field. Will be removed in v2.
      */
     prefix: string;
@@ -16622,7 +16682,7 @@ export type UpdateDeliveryNoteRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -16716,6 +16776,7 @@ export type UpdateInvoicePublicLinkRequest = {
  */
 export type UpdateInvoiceRequest = {
     client_id?: string;
+    type?: 'F1' | 'F2';
     series_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
@@ -16740,7 +16801,7 @@ export type UpdateInvoiceRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -16988,7 +17049,7 @@ export type UpdateProformaRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -17197,7 +17258,7 @@ export type UpdateQuoteRequest = {
         unit_price?: number | null;
         tax_rate_id?: string | null;
         /**
-         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
         retention_rate?: number | null;
@@ -17279,7 +17340,7 @@ export type UpdateRecurringInvoiceRequest = {
         presentation_id?: string | null;
         confirmed_base_quantity?: number | null;
         /**
-         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT VAT of your company for this kind of document. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
+         * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
         retention?: number | null;
@@ -33239,6 +33300,14 @@ export type PublicApiV1SeriesListData = {
          * Comma-separated list of values (CSV).
          */
         'document_type[in]'?: string;
+        /**
+         * Purpose of an invoice series: `complete`, `simplified`, `corrective` or `simplified_corrective`. Exact match on `invoice_kind`.
+         */
+        invoice_kind?: string;
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'invoice_kind[in]'?: string;
     };
     url: '/series';
 };
@@ -39448,6 +39517,63 @@ export type PublicApiV1StoresUpdateResponses = {
 
 export type PublicApiV1StoresUpdateResponse = PublicApiV1StoresUpdateResponses[keyof PublicApiV1StoresUpdateResponses];
 
+export type PublicApiV1ContactsImportsErrorsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/imports/{id}/errors.csv';
+};
+
+export type PublicApiV1ContactsImportsErrorsErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsImportsErrorsError = PublicApiV1ContactsImportsErrorsErrors[keyof PublicApiV1ContactsImportsErrorsErrors];
+
+export type PublicApiV1ContactsImportsErrorsResponses = {
+    /**
+     * Authorized UTF-8 CSV errors with original row coordinates.
+     */
+    200: string;
+};
+
+export type PublicApiV1ContactsImportsErrorsResponse = PublicApiV1ContactsImportsErrorsResponses[keyof PublicApiV1ContactsImportsErrorsResponses];
+
 export type PublicApiV1ContactsImportTemplateData = {
     body?: never;
     headers?: {
@@ -40370,6 +40496,10 @@ export type PublicApiV1InvoicesDuplicateErrors = {
      * The invoice request conflicts with its current state — e.g. an invalid status transition (marking an already-paid invoice as paid), an attempt to edit an issued invoice (use corrective instead), or a reused idempotency key.
      */
     409: Error;
+    /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -42508,6 +42638,65 @@ export type PublicApiV1ContactsActivitiesResponses = {
 
 export type PublicApiV1ContactsActivitiesResponse = PublicApiV1ContactsActivitiesResponses[keyof PublicApiV1ContactsActivitiesResponses];
 
+export type PublicApiV1ContactsImportsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/imports/{id}';
+};
+
+export type PublicApiV1ContactsImportsShowErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ContactsImportsShowError = PublicApiV1ContactsImportsShowErrors[keyof PublicApiV1ContactsImportsShowErrors];
+
+export type PublicApiV1ContactsImportsShowResponses = {
+    /**
+     * Persisted contact import progress and original row outcomes.
+     */
+    200: {
+        data: BusinessContactImport;
+    };
+};
+
+export type PublicApiV1ContactsImportsShowResponse = PublicApiV1ContactsImportsShowResponses[keyof PublicApiV1ContactsImportsShowResponses];
+
 export type PublicApiV1ContactsOptionsData = {
     body?: never;
     headers?: {
@@ -43119,6 +43308,10 @@ export type PublicApiV1SeriesDefaultData = {
          * Document type whose default series is requested.
          */
         document_type: 'invoice' | 'quote' | 'proforma' | 'delivery_note';
+        /**
+         * Purpose of the invoice series whose default is requested (only with `document_type=invoice`). Defaults to `complete`. Returns 404 when the company has no series of that purpose yet (it is created automatically on the first issue) and 422 `series_invoice_kind_invalid` for a value outside the list.
+         */
+        invoice_kind?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
     };
     url: '/series/default';
 };
@@ -46360,6 +46553,9 @@ export type PublicApiV1ContactsImportResponses = {
     200: {
         data: BusinessContactImportPreview;
     };
+    /**
+     * Import accepted for asynchronous processing.
+     */
     202: {
         data: BusinessContactImportPreview;
     };
@@ -46863,7 +47059,16 @@ export type PublicApiV1SeriesActiveData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Optional filter by document type. Without it, every active series of the company is returned.
+         */
+        document_type?: 'invoice' | 'quote' | 'proforma' | 'delivery_note';
+        /**
+         * Restrict to invoice series of this purpose (only invoice series are returned). A value outside the list returns 422 `series_invoice_kind_invalid`.
+         */
+        invoice_kind?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    };
     url: '/series/active';
 };
 
@@ -46876,6 +47081,10 @@ export type PublicApiV1SeriesActiveErrors = {
      * The API key lacks the required scope for this operation.
      */
     403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -46890,7 +47099,7 @@ export type PublicApiV1SeriesActiveError = PublicApiV1SeriesActiveErrors[keyof P
 
 export type PublicApiV1SeriesActiveResponses = {
     /**
-     * Active document series, optionally filtered by document_type.
+     * Active document series, optionally filtered by document_type and, for invoice series, by invoice_kind.
      */
     200: {
         data: Array<Series>;

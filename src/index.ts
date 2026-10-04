@@ -170,13 +170,17 @@ export type {
 // response, the annulment, and the remission representation.
 export type {
   AnnulInvoiceV1Request,
+  BusinessContactImport,
   CanAnnulInvoice,
   CompanyRepresentation,
+  CreateCorrectiveInvoiceRequest,
   CreateInvoiceRequest,
+  CreateSeriesRequest,
   InvoiceWithCheckoutBlocks,
   RegisterCompanyRepresentationV1Request,
   RemissionMode,
   RepresentationKind,
+  UpdateInvoiceRequest,
   VeriFactuConfig,
   VeriFactuRecord,
   VeriFactuStats,
