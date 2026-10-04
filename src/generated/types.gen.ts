@@ -8753,12 +8753,12 @@ export type Invoice = {
 /**
  * InvoiceActivity
  *
- * An event in the activity timeline of an invoice. Groups domain events originated by changes to the invoice itself (creation, sending, payment, correction, etc.).
+ * An event in the activity timeline of an invoice. Groups domain events originated by changes to the invoice itself (creation, sending, payment, correction, etc.), the result of every submission of its VeriFactu records to AEAT, emails that could not be delivered, the first visit of each day to its public link and the payments registered, edited or reversed on it.
  */
 export type InvoiceActivity = {
     object: 'activity';
     /**
-     * Domain event type (e.g. `invoice.created`, `invoice.paid`).
+     * Domain event type (e.g. `invoice.created`, `invoice.paid`). These types have an exact `metadata` contract (see `metadata`): `verifactu.record_accepted` (AEAT accepted a record of the invoice — the alta, a subsanation or the annulment —, with or without admissible errors), `verifactu.record_rejected` (AEAT rejected a record), `verifactu.transmission_failed` (the submission failed because of AEAT or the network and is retried automatically; ONE per incident, not one per attempt), `verifactu.transmission_blocked` (the submission is stopped with no automatic retry until someone fixes the cause), `invoice.email_failed` (the invoice email could not be delivered after its retries) and `invoice.public_link_viewed` (first visit of the day, Europe/Madrid, to the public link; later visits that day do not add another entry), `payment.payment_created` (a payment was registered), `payment.payment_reversed` (a payment was reversed) and `payment.payment_updated` (a payment was edited). Payment events also cover the payments recorded before they were published here.
      */
     event_type: string;
     /**
@@ -8766,9 +8766,73 @@ export type InvoiceActivity = {
      */
     description: string;
     /**
-     * Event metadata. Internal identifiers (PKs) are stripped; `*_uuid` values are preserved.
+     * Event metadata. Internal identifiers (PKs) are stripped; `*_uuid` values are preserved. The event types listed in `event_type` publish EXACTLY these keys: `verifactu.record_accepted` → `record_type`, `csv`, `aeat_error_code`, `requires_subsanation`, `attempt`; `verifactu.record_rejected` → `record_type`, `aeat_error_code`, `aeat_error_message`, `attempt`; `verifactu.transmission_failed` → `record_type`, `reason`, `attempt`, `next_retry_at`; `verifactu.transmission_blocked` → `record_type`, `block_reason`; `invoice.email_failed` → `recipient`, `reason`; `invoice.public_link_viewed` → `views_today` and, only when known, `downloaded_pdf`; `payment.payment_created` → `amount`, `method`, `provider`; `payment.payment_reversed` → `amount`, `reason`, `provider`; `payment.payment_updated` → `changed_fields`, `provider`.
      */
     metadata: {
+        /**
+         * `verifactu.*` events: which record was submitted — the initial `alta`, a `subsanacion` (a new alta that corrects a previous one) or the `anulacion`.
+         */
+        record_type?: 'alta' | 'subsanacion' | 'anulacion';
+        /**
+         * `verifactu.record_accepted`: secure verification code (CSV) AEAT returned. `null` when AEAT confirmed the record as a duplicate of an earlier submission (the CSV belongs to that one).
+         */
+        csv?: string | null;
+        /**
+         * `verifactu.record_accepted`: code of the admissible error (`2xxx`) or warning AEAT accepted the record with, `null` when it was accepted without errors. `verifactu.record_rejected`: code of the rejection (`SCHEMA_INVALID` when the record was rejected without being sent because it breaks the AEAT XML schema).
+         */
+        aeat_error_code?: string | null;
+        /**
+         * `verifactu.record_accepted`: whether AEAT requires a subsanation of `aeat_error_code`. Every admissible error does except `2004` (FechaHoraHusoGenRegistro) and `2009` (ClaveRegimen with IPSI), which AEAT exempts (AEAT «Validaciones» v1.2.2, §4.3.1). `false` when there is no error.
+         */
+        requires_subsanation?: boolean;
+        /**
+         * `verifactu.record_rejected`: description of the rejection given by AEAT.
+         */
+        aeat_error_message?: string | null;
+        /**
+         * `verifactu.record_accepted`, `verifactu.record_rejected` and `verifactu.transmission_failed`: number of submission attempts of the record so far.
+         */
+        attempt?: number;
+        /**
+         * `verifactu.transmission_failed`: why the submission failed — `AEAT_UNREACHABLE` (AEAT did not answer, timed out or the network failed), `UNMATCHED_RESPONSE_LINE` (the AEAT answer did not include this record) or `SYSTEM_CERTIFICATE_UNAVAILABLE` (the Factuarea certificate used in third-party remission is not available). `invoice.email_failed`: readable reason in Spanish, without sensitive data (never the raw text of the mail server). `payment.payment_reversed`: key of the reversal reason (e.g. `issued_in_error`, `direct_debit_return`, `card_dispute`).
+         */
+        reason?: string;
+        /**
+         * `verifactu.transmission_failed`: when the automatic retry is scheduled (ISO 8601), or `null`.
+         */
+        next_retry_at?: string | null;
+        /**
+         * `verifactu.transmission_blocked`: why the submission is stopped. It does not go out again until the cause is fixed and the record is reactivated (`POST /v1/verifactu/records/retry-blocked`).
+         */
+        block_reason?: 'MISSING_CERTIFICATE' | 'MISSING_REPRESENTATION' | 'PRESENTER_NOT_ENABLED' | 'SUBMISSION_REJECTED';
+        /**
+         * `invoice.email_failed`: email address the invoice was sent to.
+         */
+        recipient?: string;
+        /**
+         * `invoice.public_link_viewed`: visits of that day when the entry was recorded. The entry is written on the first visit and not rewritten, so it is `1`.
+         */
+        views_today?: number;
+        /**
+         * `payment.payment_created` and `payment.payment_reversed`: amount of the payment in euros.
+         */
+        amount?: number;
+        /**
+         * `payment.payment_created`: payment method key, from the catalog of `GET /v1/payment-methods` (e.g. `bank_transfer`, `cash`, `credit_card`).
+         */
+        method?: string;
+        /**
+         * `payment.*`: origin of the payment when it was collected automatically — `stripe`, `gocardless`, `monei`, `woocommerce` or `shopify` — or `null` for a payment registered by hand. Read from the payment itself, so it is also present on events recorded before it existed. When `performed_by` is `null` and `provider` is set, the payment came from that gateway.
+         */
+        provider?: string | null;
+        /**
+         * `payment.payment_updated`: names of the payment fields that changed (`amount`, `date`, `method`, `reference`, `notes`).
+         */
+        changed_fields?: Array<string>;
+        /**
+         * `invoice.public_link_viewed`: `true` when the visit that opened the day was the PDF download. Absent when it is not known (a visit to the page).
+         */
+        downloaded_pdf?: boolean;
         [key: string]: unknown;
     };
     /**
@@ -13693,7 +13757,7 @@ export type SendTestEventRequest = {
 /**
  * Series
  *
- * A document numbering series. Immutable per AEAT compliance.
+ * A document numbering series. It can be edited with `PUT /v1/series/{id}` under the fiscal guards of the numbering (code, mask and purpose are fixed once documents exist) and it is never deleted: archive it instead.
  */
 export type Series = {
     id: string;
@@ -13705,7 +13769,7 @@ export type Series = {
      */
     document_type: string;
     /**
-     * Fixed purpose of an invoice series (RD 1619/2012 arts. 6.1.a, 7.1.a and 15): `complete` (complete invoices `F1` and the `F3` that replaces simplified invoices — the usual series), `simplified` (simplified invoices `F2`), `corrective` (corrective invoices `R1`–`R4`) or `simplified_corrective` (corrective invoices of simplified invoices `R5`). An invoice can only be issued in a series of its own purpose, otherwise issuing fails with `series_invoice_kind_mismatch`. Set on creation (default `complete`) and immutable once the series has any invoice (`series_invoice_kind_locked`). `null` for series of other document types.
+     * Fixed purpose of an invoice series (RD 1619/2012 arts. 6.1.a, 7.1.a and 15): `complete` (complete invoices `F1` and the `F3` that replaces simplified invoices — the usual series), `simplified` (simplified invoices `F2`), `corrective` (corrective invoices `R1`–`R4`) or `simplified_corrective` (corrective invoices of simplified invoices `R5`). An invoice can only be issued in a series of its own purpose, otherwise issuing fails with `series_invoice_kind_mismatch`. Set on creation (default `complete`), editable with `PUT /v1/series/{id}` until the series has any invoice (`series_invoice_kind_locked`) and never on the default series of its purpose (`series_default_kind_change`). `null` for series of other document types.
      */
     invoice_kind: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective' | null;
     /**
@@ -13713,7 +13777,7 @@ export type Series = {
      */
     prefix: string;
     /**
-     * Canonical numbering mask describing how the document number is rendered: padding (the block of zeros), year token (`{YYYY}` 4 digits / `{YY}` 2 digits / omitted for no year), optional month token (`{MM}` 2 digits) and separator. Example: `{code}-{YYYY}-{000}` (default) or `{code}-{YYYY}-{00000}` for 5-digit padding. When `counter_reset` is `monthly`, the mask must include the `{MM}` token (e.g. `F-{YYYY}-{MM}-{000}`) so the rendered number stays unique across months; otherwise two months would both start at `1`. Set on creation and immutable afterwards. Mirrors Holded's `format`.
+     * Canonical numbering mask describing how the document number is rendered: padding (the block of zeros), year token (`{YYYY}` 4 digits / `{YY}` 2 digits / omitted for no year), optional month token (`{MM}` 2 digits) and separator. Example: `{code}-{YYYY}-{000}` (default) or `{code}-{YYYY}-{00000}` for 5-digit padding. When `counter_reset` is `monthly`, the mask must include the `{MM}` token (e.g. `F-{YYYY}-{MM}-{000}`) so the rendered number stays unique across months; otherwise two months would both start at `1`. Set on creation and editable with `PUT /v1/series/{id}` until the first document is issued; fixed afterwards (`series_format_immutable_with_documents`). Mirrors Holded's `format`.
      */
     number_format: string;
     /**
@@ -13725,7 +13789,7 @@ export type Series = {
      */
     current_number: number;
     /**
-     * Number the counter starts from. Set on creation to continue an existing numbering when migrating (e.g. 235). Defaults to 1.
+     * Number the counter starts from. Set on creation to continue an existing numbering when migrating (e.g. 235). Defaults to 1. It can be changed with `PUT /v1/series/{id}` as long as it does not open a gap after documents of the current year (`series_initial_number_creates_gap`) and no record of the series has been accepted by AEAT.
      */
     initial_number: number;
     /**
@@ -17365,6 +17429,44 @@ export type UpdateRecurringInvoiceRequest = {
 };
 
 /**
+ * UpdateSeriesRequest
+ */
+export type UpdateSeriesRequest = {
+    /**
+     * Nombre de la serie (1-100 caracteres).
+     */
+    name?: string;
+    /**
+     * Prefijo de la serie (1-10 caracteres: letras, números, `-` y `_`). Solo editable mientras la serie no tiene documentos (`series_code_immutable_with_documents`).
+     */
+    code?: string;
+    /**
+     * Política de reinicio del contador: `never`, `annual` o `monthly` (`monthly` exige el token `{MM}` en la máscara). Cambio prospectivo.
+     */
+    counter_reset?: 'never' | 'annual' | 'monthly';
+    /**
+     * DEPRECADO: alias booleano de `counter_reset` (`true` = `annual`, `false` = `never`). `counter_reset` manda si llegan los dos.
+     */
+    year_reset?: boolean;
+    /**
+     * Máscara de numeración (p. ej. `{code}-{YYYY}-{000}`). Solo editable hasta la primera emisión (`series_format_immutable_with_documents`).
+     */
+    number_format?: string;
+    /**
+     * Número inicial del contador (>= 1). Sin saltos con documentos del año en curso (`series_initial_number_creates_gap`).
+     */
+    initial_number?: number;
+    /**
+     * Propósito de una serie de facturas: `complete`, `simplified`, `corrective` o `simplified_corrective`. Fijo con la primera factura (`series_invoice_kind_locked`).
+     */
+    invoice_kind?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    /**
+     * El tipo de documento de una serie no se puede cambiar.
+     */
+    document_type?: string;
+};
+
+/**
  * UpdateStoreV1Request
  *
  * Public REST API v1 — PUT /v1/stores/{store}.
@@ -18089,6 +18191,10 @@ export type VeriFactuRecord = {
      * Whether the record admits `POST /v1/verifactu/records/{id}/subsanar`: an `alta` that is ACCEPTED (or accepted with errors) or REJECTED by AEAT and is the last one of its invoice, which has not been annulled. It is the very rule that endpoint applies, so `true` guarantees it will not refuse the record by its state; whether there is something to correct and whether it changes a field of the hash (`requires_annulment`) is only known when you subsanar.
      */
     can_subsanar: boolean;
+    /**
+     * For a record AEAT accepted with errors (`status` `accepted` with an `aeat_error_code`), whether AEAT requires a subsanation of that admissible error: every `2xxx` code does except `2004` (FechaHoraHusoGenRegistro) and `2009` (ClaveRegimen with IPSI), which AEAT exempts (AEAT «Validaciones» v1.2.2, §4.3.1). `false` for a warning that is not an AEAT code (`duplicate_annulled`: review the invoice instead). `null` when the record is not accepted with a warning.
+     */
+    aeat_warning_requires_subsanation: boolean | null;
 };
 
 /**
@@ -51441,6 +51547,70 @@ export type PublicApiV1SeriesShowResponses = {
 };
 
 export type PublicApiV1SeriesShowResponse = PublicApiV1SeriesShowResponses[keyof PublicApiV1SeriesShowResponses];
+
+export type PublicApiV1SeriesUpdateData = {
+    body?: UpdateSeriesRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        series: string;
+    };
+    query?: never;
+    url: '/series/{series}';
+};
+
+export type PublicApiV1SeriesUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1SeriesUpdateError = PublicApiV1SeriesUpdateErrors[keyof PublicApiV1SeriesUpdateErrors];
+
+export type PublicApiV1SeriesUpdateResponses = {
+    200: {
+        data: Series;
+    };
+};
+
+export type PublicApiV1SeriesUpdateResponse = PublicApiV1SeriesUpdateResponses[keyof PublicApiV1SeriesUpdateResponses];
 
 export type PublicApiV1TasksRepositionData = {
     body?: MoveTaskOnBoardV1Request;

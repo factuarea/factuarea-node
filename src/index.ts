@@ -181,6 +181,7 @@ export type {
   RemissionMode,
   RepresentationKind,
   UpdateInvoiceRequest,
+  UpdateSeriesRequest,
   VeriFactuConfig,
   VeriFactuRecord,
   VeriFactuStats,

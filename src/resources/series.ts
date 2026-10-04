@@ -78,6 +78,12 @@ export class SeriesResource extends BaseResource {
     return this._get<unknown>(path, undefined, config);
   }
 
+  /** Update a series */
+  async update(series: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/series/{series}", { "series": series });
+    return this._send<unknown>("PUT", path, body, config);
+  }
+
   /** Unarchive a series */
   async unarchive(series: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/series/{series}/unarchive", { "series": series });

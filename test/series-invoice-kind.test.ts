@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import type { CreateCorrectiveInvoiceRequest, CreateInvoiceRequest, CreateSeriesRequest, Series, UpdateInvoiceRequest } from "../src/index.js";
+import type { CreateCorrectiveInvoiceRequest, CreateInvoiceRequest, CreateSeriesRequest, Series, UpdateInvoiceRequest, UpdateSeriesRequest } from "../src/index.js";
 import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
 
 useMockServer();
@@ -146,5 +146,47 @@ describe("contacts.imports", () => {
     expect(result.contentType).toContain("text/csv");
     expect(result.toBuffer().toString("utf8")).toBe(csv);
     expect(accept).not.toBe("application/json");
+  });
+});
+
+describe("series update", () => {
+  it("edits a series with a partial PUT and returns the updated resource", async () => {
+    let body: unknown;
+    server.use(http.put(`${BASE_URL}/series/${seriesId}`, async ({ request }) => {
+      body = await request.json();
+      return HttpResponse.json({ data: { id: seriesId, name: "Tickets 2026", counter_reset: "monthly" } });
+    }));
+    const request: UpdateSeriesRequest = { name: "Tickets 2026", counter_reset: "monthly", number_format: "{code}-{YYYY}-{MM}-{000}" };
+
+    const result = (await testClient().series.update(seriesId, request)) as { data: Pick<Series, "id" | "name" | "counter_reset"> };
+
+    expect(body).toEqual(request);
+    expect(result.data.counter_reset).toBe("monthly");
+  });
+
+  it("surfaces a fiscal guard as a 422 with its subcode and param", async () => {
+    server.use(http.put(`${BASE_URL}/series/${seriesId}`, () => HttpResponse.json(
+      { error: { type: "invalid_request_error", code: "business_rule_violation", subcode: "series_code_immutable_with_documents", message: "El prefijo no se puede cambiar.", param: "code", request_id: "req_1" } },
+      { status: 422 },
+    )));
+
+    await expect(testClient().series.update(seriesId, { code: "NEW" })).rejects.toMatchObject({
+      status: 422,
+      code: "business_rule_violation",
+      subcode: "series_code_immutable_with_documents",
+      param: "code",
+    });
+  });
+
+  it("sends the idempotency key of the call", async () => {
+    const keys: Array<string | null> = [];
+    server.use(http.put(`${BASE_URL}/series/${seriesId}`, ({ request }) => {
+      keys.push(request.headers.get("Idempotency-Key"));
+      return HttpResponse.json({ data: { id: seriesId } });
+    }));
+
+    await testClient().series.update(seriesId, { initial_number: 10 }, { idempotencyKey: "series-update-1" });
+
+    expect(keys).toEqual(["series-update-1"]);
   });
 });
