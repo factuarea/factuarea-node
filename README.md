@@ -101,7 +101,7 @@ The SDK pins the [`Factuarea-Version`](https://docs.factuarea.com/guides/version
 
 Use `factuarea.contacts` for customer, supplier and lead identities. A contact can hold multiple roles, so creating a supplier relationship does not require duplicating an existing customer's identity. Sales documents still name their reference `client_id`, and purchases use `supplier_id`; both accept the canonical contact UUID with the corresponding active role.
 
-Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog` and `webhookEndpoints`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
+Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications` and `agenda`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
 
 ### Contacts
 
@@ -202,6 +202,76 @@ The envelope of an account event carries `account`, `account_relationship` (`own
 ### Migrating from `clients` and `suppliers`
 
 The legacy `/v1/clients` and `/v1/suppliers` routes were retired from the public API on 2026-09-16, so the `clients` and `suppliers` resources were removed from the SDK in 0.6.0. Every operation has a `contacts` equivalent: filter by `roles: ["customer"]` or `roles: ["supplier"]` where the legacy resource implied the role, and use `contacts.stats`, `contacts.activities`, `contacts.bulkCreate`, `contacts.bulkDelete`, `contacts.import`, `contacts.verifyCensus`, `contacts.findByTaxId` and `contacts.findByExternalId` for the role-specific helpers. Legacy client/supplier IDs are not contact UUIDs; resolve them through the [Contact migration guide](https://docs.factuarea.com/guides/contact-migration) instead of assuming equality.
+
+## Purchase scans
+
+`purchaseScans` supports `create` (multipart batch), `list`, `show`, `stats`, `review`, `convert`, `duplicateResolution`, `retry`, `archive`, `restore` and `source` (binary). `purchaseScanEmails.list` returns inbound messages and attachment outcomes. Read operations require `purchase_invoices:read`, mutations `purchase_invoices:write`, and archive `purchase_invoices:delete`; the company's scanner/OCR entitlement must also be active.
+
+Uploads take one multipart part per file, every part named `files[]` (the API accepts PDF, JPEG or PNG originals), with limits of 20 files per batch, 20.0 MiB per file and 100.0 MiB per batch. `create`, `retry`, `duplicateResolution`, `convert`, `archive` and `restore` require `Idempotency-Key`; the SDK generates one automatically when you do not pass `idempotencyKey` yourself. `review` does not require it.
+
+```ts
+import { readFile, writeFile } from "node:fs/promises";
+import type { PurchaseScanUploadBatch, PurchaseScan } from "@factuarea/sdk";
+
+const form = new FormData();
+form.append("files[]", new Blob([await readFile("invoice.pdf")], {
+  type: "application/pdf",
+}), "invoice.pdf");
+const { data: batch } = await factuarea.purchaseScans.create(form, {
+  idempotencyKey: "purchase-upload-batch-001",
+}) as { data: PurchaseScanUploadBatch };
+console.log(batch.accepted, batch.rejected);
+
+// Processing is asynchronous. Read the current state before editing.
+const id = batch.accepted[0].id;
+const { data: scan } = await factuarea.purchaseScans.show(id) as { data: PurchaseScan };
+console.log(scan.status, scan.available_actions, scan.extraction, scan.issues);
+const original = await factuarea.purchaseScans.source(id);
+await writeFile("original.pdf", original.toBuffer());
+```
+
+An upload accepts up to 20 PDF/JPEG/PNG originals (20 MiB each, 100 MiB total). A partial rejection still returns `202`; if all files are rejected, `ValidationError.data` retains the batch result. Preserve the same idempotency key and file order when retrying that batch.
+
+Use `purchaseInvoices.expenseCategories()` to discover company category IDs for the review field `expense_category`; category names are not accepted as identifiers.
+
+Only edit when `can_save_review` is true. `review(id, { expected_version, fields, lines })` accepts partial field patches (`{ value: "..." }`), explicit `null` to clear, and line operations `update`, `add` (without `line_id`) or `remove`. Omitted values remain unchanged. Use the new returned version for the next mutation; a stale version returns `409`. On conversion failure, `ValidationError.fields` exposes the review fields that need correction.
+
+`convert(id, { expected_version }, { idempotencyKey })` creates a **draft expense**, including its original attachment; it does not issue an invoice or mark the expense paid. Follow `purchase_invoice_id` to the created expense. EUR and resolved fiscal data are required. `retry` also starts a received document when automatic scanning is disabled. Respect `available_actions`; duplicate override and supplier creation are reserved for an interactive administrator. The public duplicate resolutions are `link_existing` (with `purchase_invoice_id`) and `archive`.
+
+## Tasks and projects
+
+`projects` and `tasks` cover the task workspace: projects with their board columns and custom fields, tasks with comments, relations, labels, attachments, time entries and links to documents or contacts, plus bulk changes. `taskLabels` manages the shared label catalog, `taskTimers` reads and stops the running timer, `users` lists the members you can assign, `notifications` reads the API key owner's notifications and `agenda` returns a combined calendar of due tasks, document due dates, tax deadlines and absences. Keys need the `projects:*`, `tasks:*`, `users:read` and `notifications:*` scopes. Writes send an `Idempotency-Key` like the rest of the SDK, and every list is a `Page`.
+
+```ts
+import type { Project, Task, TaskTimeEntry } from "@factuarea/sdk";
+
+// Create a project and a task in it. `entity_link` links the task to an invoice,
+// quote, contact… in the same call; `custom_fields` maps a field id to its value.
+const { data: project } = (await factuarea.projects.create({ name: "Website", key: "WEB" })) as { data: Project };
+const { data: task } = (await factuarea.tasks.create(
+  {
+    project_id: project.id,
+    title: "Chase the unpaid invoice",
+    priority: "high",
+    due_on: "2026-10-15",
+    entity_link: { type: "invoice", id: invoice.id },
+  },
+  { idempotencyKey: "chase-invoice-4711" },
+)) as { data: Task };
+
+// Log time on it: a closed period, or a live timer that you stop later.
+await factuarea.tasks.timeEntries.create(task.id, {
+  started_at: "2026-10-01T09:00:00+02:00",
+  ended_at: "2026-10-01T10:30:00+02:00",
+  description: "Called the customer",
+  billable: true,
+});
+await factuarea.tasks.timer.start(task.id);
+const { data: entry } = (await factuarea.taskTimers.stop()) as { data: TaskTimeEntry };
+console.log(entry.duration_seconds);
+```
+
+`tasks.search` filters by `q`, `project_id`, `status`, `column_id`, `priority`, `assignee_id` (a member id or `me`), `label_id`, `due_before`, `due_after`, `completed` and `sort`, and follows the cursor across pages. `taskTimers.current()` resolves to `{ data: null }` when no timer is running. Deleting a board column that still holds tasks needs a destination: `projects.columns.delete(project.id, column.id, { move_to_column_id })`, otherwise the API answers `409 column_has_tasks`. `agenda.list({ from, to, sources: "tasks,invoice_due" })` takes its layers as a comma-separated string.
 
 ## Pagination
 
@@ -317,6 +387,7 @@ Runnable examples live in [`examples/`](./examples):
 
 - [`create-contact.ts`](./examples/create-contact.ts) — one identity with customer and supplier roles
 - [`create-invoice.ts`](./examples/create-invoice.ts) — create a contact and use its UUID in a sales document
+- [`create-task.ts`](./examples/create-task.ts) — create a project if it is missing and add a task to it
 - [`list-invoices.ts`](./examples/list-invoices.ts)
 - [`download-pdf.ts`](./examples/download-pdf.ts)
 - [`verify-webhook.ts`](./examples/verify-webhook.ts)

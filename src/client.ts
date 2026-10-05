@@ -5,20 +5,29 @@ import { createResources } from "./resources/index.js";
 import type {
   AccountResource,
   CompaniesResource,
+  AgendaResource,
   ContactsResource,
   DeliveryNotesResource,
   EventCatalogResource,
   EventsResource,
   InvoicesResource,
   ManagedAccountsResource,
+  NotificationsResource,
   ProductsResource,
   ProformasResource,
+  ProjectsResource,
   PurchaseInvoicesResource,
+  PurchaseScansResource,
+  PurchaseScanEmailsResource,
   QuotesResource,
   RecurringInvoicesResource,
   SeriesResource,
+  TaskLabelsResource,
+  TaskTimersResource,
+  TasksResource,
   TaxReportsResource,
   TaxesResource,
+  UsersResource,
   VerifactuResource,
   WebhookEndpointsResource,
 } from "./resources/index.js";
@@ -43,6 +52,8 @@ export class Factuarea {
   readonly account: AccountResource;
   /** The account's NIF portfolio (`/v1/accounts/{account}/companies`). */
   readonly companies: CompaniesResource;
+  /** Combined agenda of due tasks, document due dates, tax deadlines, absences and holidays. */
+  readonly agenda: AgendaResource;
   /** Canonical identities with cumulative customer, supplier and lead roles. */
   readonly contacts: ContactsResource;
   readonly deliveryNotes: DeliveryNotesResource;
@@ -51,14 +62,28 @@ export class Factuarea {
   readonly invoices: InvoicesResource;
   /** Accounts the caller provisions and manages, with their bulk import. */
   readonly managedAccounts: ManagedAccountsResource;
+  /** Notifications of the API key owner. */
+  readonly notifications: NotificationsResource;
   readonly products: ProductsResource;
   readonly proformas: ProformasResource;
+  /** Projects with their board columns, custom fields, time summary and time invoices. */
+  readonly projects: ProjectsResource;
   readonly purchaseInvoices: PurchaseInvoicesResource;
+  readonly purchaseScans: PurchaseScansResource;
+  readonly purchaseScanEmails: PurchaseScanEmailsResource;
   readonly quotes: QuotesResource;
   readonly recurringInvoices: RecurringInvoicesResource;
   readonly series: SeriesResource;
+  /** Company-wide task labels. */
+  readonly taskLabels: TaskLabelsResource;
+  /** The running task timer of the API key owner. */
+  readonly taskTimers: TaskTimersResource;
+  /** Tasks and their comments, relations, labels, attachments, time entries and links. */
+  readonly tasks: TasksResource;
   readonly taxReports: TaxReportsResource;
   readonly taxes: TaxesResource;
+  /** Members of the company that can be assigned to tasks. */
+  readonly users: UsersResource;
   readonly verifactu: VerifactuResource;
   readonly webhookEndpoints: WebhookEndpointsResource;
 
@@ -76,20 +101,29 @@ export class Factuarea {
     const resources = createResources(this.http);
     this.account = resources.account;
     this.companies = resources.companies;
+    this.agenda = resources.agenda;
     this.contacts = resources.contacts;
     this.deliveryNotes = resources.deliveryNotes;
     this.eventCatalog = resources.eventCatalog;
     this.events = resources.events;
     this.invoices = resources.invoices;
     this.managedAccounts = resources.managedAccounts;
+    this.notifications = resources.notifications;
     this.products = resources.products;
     this.proformas = resources.proformas;
+    this.projects = resources.projects;
     this.purchaseInvoices = resources.purchaseInvoices;
+    this.purchaseScans = resources.purchaseScans;
+    this.purchaseScanEmails = resources.purchaseScanEmails;
     this.quotes = resources.quotes;
     this.recurringInvoices = resources.recurringInvoices;
     this.series = resources.series;
+    this.taskLabels = resources.taskLabels;
+    this.taskTimers = resources.taskTimers;
+    this.tasks = resources.tasks;
     this.taxReports = resources.taxReports;
     this.taxes = resources.taxes;
+    this.users = resources.users;
     this.verifactu = resources.verifactu;
     this.webhookEndpoints = resources.webhookEndpoints;
   }

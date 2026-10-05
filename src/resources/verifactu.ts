@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -11,152 +11,175 @@ import type { Page } from "../core/pagination.js";
 
 export class VerifactuCertificatesResource extends BaseResource {
   /** Activate a company certificate */
-  async activate(company: string, certificate: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/certificates/{certificate}/activate", { "company": company, "certificate": certificate });
+  async activate(certificate: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/certificates/{certificate}/activate", { "certificate": certificate });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve the active certificate */
-  async active(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/certificates/active", { "company": company });
+  async active(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/certificates/active";
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List company certificates */
-  async list(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/certificates", { "company": company });
+  async list(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/certificates";
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Upload a company certificate */
-  async upload(company: string, formData: FormData, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/certificates", { "company": company });
+  async upload(formData: FormData, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/certificates";
     return this._sendForm<unknown>(path, formData, config);
   }
 
   /** Revoke a company certificate */
-  async revoke(company: string, certificate: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/certificates/{certificate}", { "company": company, "certificate": certificate });
-    return this._delete<unknown>(path, params, config);
+  async revoke(certificate: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/certificates/{certificate}", { "certificate": certificate });
+    return this._delete<unknown>(path, params, config, { idempotent: true });
   }
 }
 
 export class VerifactuRecordsResource extends BaseResource {
   /** Find a VeriFactu record by AEAT CSV */
-  async findByCsv(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/records/find-by-csv", { "company": company });
+  async findByCsv(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/records/find-by-csv";
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find a VeriFactu record by hash */
-  async findByHuella(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/records/find-by-huella", { "company": company });
+  async findByHuella(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/records/find-by-huella";
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find a VeriFactu record by invoice number */
-  async findByInvoiceNumber(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/records/find-by-invoice-number", { "company": company });
+  async findByInvoiceNumber(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/records/find-by-invoice-number";
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List VeriFactu record activity timeline */
-  async activities(company: string, record: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/companies/{company}/verifactu/records/{record}/activities", { "company": company, "record": record });
+  async activities(record: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/verifactu/records/{record}/activities", { "record": record });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** List VeriFactu records */
-  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/companies/{company}/verifactu/records", { "company": company });
-    return this._paginate<unknown>(path, params, "starting_after", config);
+  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    return this._paginate<unknown>("/verifactu/records", params, "starting_after", config);
+  }
+
+  /** Retry every blocked VeriFactu record */
+  async retryBlocked(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/records/retry-blocked";
+    return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retry VeriFactu transmission */
-  async retry(company: string, record: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/records/{record}/retry", { "company": company, "record": record });
+  async retry(record: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/records/{record}/retry", { "record": record });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve a VeriFactu record */
-  async show(company: string, record: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/records/{record}", { "company": company, "record": record });
+  async show(record: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/records/{record}", { "record": record });
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** Subsanar a rejected VeriFactu record */
-  async subsanar(company: string, record: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/records/{record}/subsanar", { "company": company, "record": record });
+  /** Subsanar a VeriFactu record */
+  async subsanar(record: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/records/{record}/subsanar", { "record": record });
     return this._send<unknown>("POST", path, undefined, config);
+  }
+}
+
+export class VerifactuRepresentationResource extends BaseResource {
+  /** Retrieve the active representation */
+  async show(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/representation";
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Register a representation */
+  async register(formData: FormData, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/representation";
+    return this._sendForm<unknown>(path, formData, config);
+  }
+
+  /** Revoke the active representation */
+  async revoke(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/representation";
+    return this._delete<unknown>(path, params, config, { idempotent: true });
   }
 }
 
 export class VerifactuDeclaracionResource extends BaseResource {
   /** List declaración responsable history */
-  async history(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/declaracion-responsable/history", { "company": company });
+  async history(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/declaracion-responsable/history";
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Retrieve the current declaración responsable */
-  async current(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/declaracion-responsable", { "company": company });
+  async current(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/declaracion-responsable";
     return this._get<unknown>(path, undefined, config);
   }
 }
 
 export class VerifactuEventsResource extends BaseResource {
   /** Get VeriFactu event summary */
-  async summary(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/events/summary", { "company": company });
+  async summary(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/events/summary";
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List VeriFactu events */
-  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/companies/{company}/verifactu/events", { "company": company });
-    return this._paginate<unknown>(path, params, "starting_after", config);
+  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    return this._paginate<unknown>("/verifactu/events", params, "starting_after", config);
   }
 
   /** Retry a VeriFactu event */
-  async retry(company: string, event: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/events/{event}/retry", { "company": company, "event": event });
+  async retry(event: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/events/{event}/retry", { "event": event });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Retrieve a VeriFactu event */
-  async show(company: string, event: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/events/{event}", { "company": company, "event": event });
+  async show(event: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/events/{event}", { "event": event });
     return this._get<unknown>(path, undefined, config);
   }
 }
 
 export class VerifactuAeatAccessResource extends BaseResource {
   /** List AEAT access records */
-  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/companies/{company}/verifactu/aeat-access/records", { "company": company });
-    return this._paginate<unknown>(path, params, "starting_after", config);
+  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    return this._paginate<unknown>("/verifactu/aeat-access/records", params, "starting_after", config);
   }
 
   /** Retrieve an AEAT access record */
-  async show(company: string, record: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/aeat-access/records/{record}", { "company": company, "record": record });
+  async show(record: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/verifactu/aeat-access/records/{record}", { "record": record });
     return this._get<unknown>(path, undefined, config);
   }
 }
 
 export class VerifactuSettingsResource extends BaseResource {
   /** Update VeriFactu settings */
-  async update(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/settings", { "company": company });
-    return this._send<unknown>("PATCH", path, body, config);
+  async update(body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/settings";
+    return this._send<unknown>("PUT", path, body, config, { idempotent: true });
   }
 }
 
 export class VerifactuChainResource extends BaseResource {
   /** Validate the VeriFactu hash chain */
-  async validate(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/chain/validate", { "company": company });
+  async validate(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/chain/validate";
     return this._get<unknown>(path, undefined, config);
   }
 }
@@ -164,6 +187,7 @@ export class VerifactuChainResource extends BaseResource {
 export class VerifactuResource extends BaseResource {
   readonly certificates: VerifactuCertificatesResource;
   readonly records: VerifactuRecordsResource;
+  readonly representation: VerifactuRepresentationResource;
   readonly declaracion: VerifactuDeclaracionResource;
   readonly events: VerifactuEventsResource;
   readonly aeatAccess: VerifactuAeatAccessResource;
@@ -174,6 +198,7 @@ export class VerifactuResource extends BaseResource {
     super(client);
     this.certificates = new VerifactuCertificatesResource(client);
     this.records = new VerifactuRecordsResource(client);
+    this.representation = new VerifactuRepresentationResource(client);
     this.declaracion = new VerifactuDeclaracionResource(client);
     this.events = new VerifactuEventsResource(client);
     this.aeatAccess = new VerifactuAeatAccessResource(client);
@@ -182,14 +207,14 @@ export class VerifactuResource extends BaseResource {
   }
 
   /** Retrieve VeriFactu config */
-  async config(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/config", { "company": company });
+  async config(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/config";
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Get VeriFactu stats */
-  async stats(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verifactu/stats", { "company": company });
+  async stats(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/stats";
     return this._get<unknown>(path, params, config);
   }
 }

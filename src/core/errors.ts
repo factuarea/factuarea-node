@@ -27,6 +27,8 @@ export interface ErrorEnvelope {
   subcode?: string | null;
   message?: string;
   param?: string | null;
+  /** Zero-based position of the document line that raised the error. */
+  line_index?: number | null;
   doc_url?: string | null;
   request_id?: string | null;
 }
@@ -37,11 +39,14 @@ export interface FactuareaErrorOptions {
   code?: string;
   subcode?: string | null;
   param?: string | null;
+  lineIndex?: number | null;
   docUrl?: string | null;
   requestId?: string | null;
   status?: number;
   headers?: Headers;
   cause?: unknown;
+  /** Structured response data, such as the per-file results of a rejected upload batch. */
+  data?: unknown;
 }
 
 /** Base class for every error thrown by the SDK. */
@@ -56,10 +61,17 @@ export class FactuareaError extends Error {
   readonly subcode?: string | null;
   /** Field that caused the error (`error.param`). */
   readonly param?: string | null;
+  /**
+   * Zero-based position of the document line that raised the error (`error.line_index`),
+   * the `N` of a path such as `lines.N.tax_rate`. `null` unless a domain rule rejected one
+   * specific line.
+   */
+  readonly lineIndex?: number | null;
   /** Link to the docs reference (`error.doc_url`). */
   readonly docUrl?: string | null;
   /** Request id for support (`error.request_id` / `X-Request-Id` header). */
   readonly requestId?: string | null;
+  readonly data?: unknown;
 
   constructor(options: FactuareaErrorOptions) {
     super(options.message, options.cause === undefined ? undefined : { cause: options.cause });
@@ -69,8 +81,10 @@ export class FactuareaError extends Error {
     this.code = options.code;
     this.subcode = options.subcode ?? null;
     this.param = options.param ?? null;
+    this.lineIndex = options.lineIndex ?? null;
     this.docUrl = options.docUrl ?? null;
     this.requestId = options.requestId ?? null;
+    this.data = options.data;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -149,6 +163,8 @@ function extractFields(envelope: ErrorEnvelope, body: unknown): Record<string, s
 
   // Map-style payloads: { error: { ..., fields: { name: ["msg"] } } } or top-level errors map.
   const candidate =
+    (envelope as { field_errors?: unknown }).field_errors ??
+    (isRecord(body) && isRecord(body.error) && isRecord(body.error.details) ? body.error.details.field_errors : undefined) ??
     (envelope as { fields?: unknown }).fields ??
     (isRecord(body) && isRecord(body.error) ? (body.error as { fields?: unknown }).fields : undefined) ??
     (isRecord(body) ? (body as { errors?: unknown }).errors : undefined);
@@ -199,10 +215,12 @@ export function errorFromResponse(
     code: envelope.code,
     subcode: envelope.subcode ?? null,
     param: envelope.param ?? null,
+    lineIndex: typeof envelope.line_index === "number" ? envelope.line_index : null,
     docUrl: envelope.doc_url ?? null,
     requestId,
     status,
     headers,
+    data: isRecord(body) ? body.data : undefined,
   };
 
   switch (status) {
