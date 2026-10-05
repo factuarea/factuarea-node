@@ -101,7 +101,7 @@ The SDK pins the [`Factuarea-Version`](https://docs.factuarea.com/guides/version
 
 Use `factuarea.contacts` for customer, supplier and lead identities. A contact can hold multiple roles, so creating a supplier relationship does not require duplicating an existing customer's identity. Sales documents still name their reference `client_id`, and purchases use `supplier_id`; both accept the canonical contact UUID with the corresponding active role.
 
-Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog` and `webhookEndpoints`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
+Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog` and `webhookEndpoints`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
 
 ### Contacts
 
@@ -133,6 +133,71 @@ await factuarea.contacts.restore(contact.id);
 Filter `list` and `search` with `roles`, `tags`, `search` or `is_archived`. Arrays are serialized as `roles[]` / `tags[]` and kept across cursor pages. Use `roles: ["customer"]`, `roles: ["supplier"]`, `roles: ["lead"]` or `roles: ["none"]` for unassigned contacts. The public [Contact migration guide](https://docs.factuarea.com/guides/contact-migration) covers request fields, scopes and historical IDs.
 
 `BusinessContact`, the contact list/import response types and contact request types are exported from `@factuarea/sdk`. The resource wrappers return `unknown` in 0.x, so use the exported types for request validation and response casts.
+
+### Account model
+
+Every credential belongs to one **account**, and the account owns its tax IDs (NIF). The account axis hangs off `/v1/accounts/{account}/…`, so the account `id` is the FIRST argument of the call, exactly like the company on the company axis. It is the `id` that `factuarea.account.show()` returns in `data.account.id`. The NIF portfolio, the managed accounts, the NIF transfer and the account webhooks all live on this axis.
+
+```ts
+const account = process.env.FACTUAREA_ACCOUNT_ID!;
+
+// The account's NIF portfolio: list, add and read invoicing statistics per NIF.
+const nifs = await factuarea.companies.list(account, { limit: 50 });
+await factuarea.companies.create(account, { name: "Mi Empresa SL", tax_id: "B12345674" });
+await factuarea.companies.stats(account);
+
+// Managed accounts: provision one for a client, then read it back.
+await factuarea.managedAccounts.create({
+  external_ref: "client-0042",
+  plan: "emprendedor",
+  tax_id: "B12345674",
+  legal_name: "Cliente Demo SL",
+});
+for await (const managed of await factuarea.managedAccounts.list()) {
+  console.log((managed as { id: string }).id);
+}
+await factuarea.managedAccounts.show(managedAccountId);
+```
+
+**Bulk import.** Importing accounts takes `multipart/form-data`, so the methods receive a standard `FormData` and the SDK sends it as is (it never adds a JSON content type). `accounts_file` is required, `customers_file` is optional, and the options travel as `options[...]` form fields. Preview first, then apply:
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const form = new FormData();
+form.append("accounts_file", new Blob([await readFile("accounts.csv")], { type: "text/csv" }), "accounts.csv");
+form.append("customers_file", new Blob([await readFile("customers.csv")], { type: "text/csv" }), "customers.csv");
+form.append("options[send_email]", "false");
+
+await factuarea.managedAccounts.imports.template(); // the CSV template
+await factuarea.managedAccounts.imports.preview(form); // writes nothing
+await factuarea.managedAccounts.imports.create(form);  // applies it
+```
+
+**NIF transfer.** The issuing account creates the transfer for one NIF, the receiving account accepts it with the secret it was given, and the issuer can revoke it while it is pending:
+
+```ts
+await factuarea.account.nifTransfers.create(account, { company_id: companyId, recipient_account_id: recipientAccountId });
+await factuarea.account.nifTransfers.list(account);
+await factuarea.account.nifTransfers.accept(recipientAccount, { secret: transferSecret });
+await factuarea.account.nifTransfers.revoke(account, transferId);
+```
+
+**Account webhooks and request logs.** An account endpoint receives events of your own NIFs (`own`), of the accounts you manage (`managed`) or both (`all`). It needs a live key (`fact_live_…`):
+
+```ts
+await factuarea.account.webhooks.create(account, {
+  url: "https://example.com/webhooks/factuarea",
+  enabled_events: ["account.nif_added", "invoice.paid"],
+  account_relationship: "all",
+});
+const endpoints = await factuarea.account.webhooks.list(account);
+await factuarea.account.webhooks.rotateSecret(account, webhookId);
+await factuarea.account.webhooks.deliveries.list(account, webhookId);
+await factuarea.account.requestLogs.list(account);
+```
+
+The envelope of an account event carries `account`, `account_relationship` (`own` or `managed`) and `company_id` (`null` for an event of the account itself). Verify it with the same `verify` call as any other webhook, with the endpoint's own secret; the signature scheme is identical (see [Webhooks](#webhooks)).
 
 ### Migrating from `clients` and `suppliers`
 

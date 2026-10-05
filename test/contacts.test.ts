@@ -80,7 +80,7 @@ describe("canonical contacts", () => {
         contact.is_archived = true;
         return HttpResponse.json({ data: contact });
       }),
-      http.patch(`${COMPANY_URL}/contacts/${contactId}/restore`, () => {
+      http.post(`${COMPANY_URL}/contacts/${contactId}/restore`, () => {
         contact.is_archived = false;
         return HttpResponse.json({ data: contact });
       }),

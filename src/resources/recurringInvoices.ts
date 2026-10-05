@@ -61,7 +61,7 @@ export class RecurringInvoicesResource extends BaseResource {
   /** Update a recurring invoice */
   async update(company: string, recurringInvoice: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/recurring-invoices/{recurring_invoice}", { "company": company, "recurring_invoice": recurringInvoice });
-    return this._send<unknown>("PUT", path, body, config);
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Find a recurring invoice by external ID */

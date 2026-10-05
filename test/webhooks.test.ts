@@ -82,3 +82,47 @@ describe("webhook signature verification", () => {
     expect(() => verifyWebhook(body, header, SECRET, { now })).toThrow(WebhookSignatureError);
   });
 });
+
+describe("account webhook envelope", () => {
+  const COMPANY_ID = "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01";
+  const ACCOUNT_ID = "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b01";
+  const accountBody = JSON.stringify({
+    id: "evt_account_1",
+    object: "event",
+    type: "account.nif_added",
+    api_version: "2026-06-04",
+    created: "2026-10-05T10:00:00Z",
+    livemode: true,
+    test: false,
+    correlation_id: "corr_1",
+    account: { id: ACCOUNT_ID },
+    account_relationship: "managed",
+    company_id: COMPANY_ID,
+    data: { object: { id: COMPANY_ID } },
+  });
+
+  it("returns the account event with account, account_relationship and company_id intact", () => {
+    const now = 1_700_000_000_000;
+    const header = sign(accountBody, Math.floor(now / 1000));
+    const event = verifyWebhook(accountBody, header, SECRET, { now }) as unknown as Record<string, unknown>;
+    expect(event["type"]).toBe("account.nif_added");
+    expect(event["account"]).toEqual({ id: ACCOUNT_ID });
+    expect(event["account_relationship"]).toBe("managed");
+    expect(event["company_id"]).toBe(COMPANY_ID);
+  });
+
+  it("keeps a null company_id for an event of the account itself", () => {
+    const now = 1_700_000_000_000;
+    const own = JSON.stringify({ ...JSON.parse(accountBody), account_relationship: "own", company_id: null });
+    const header = sign(own, Math.floor(now / 1000));
+    const event = verifyWebhook(own, header, SECRET, { now }) as unknown as Record<string, unknown>;
+    expect(event["account_relationship"]).toBe("own");
+    expect(event["company_id"]).toBeNull();
+  });
+
+  it("throws the signature error for an account envelope signed with another secret", () => {
+    const now = 1_700_000_000_000;
+    const header = sign(accountBody, Math.floor(now / 1000), "whsec_other");
+    expect(() => verifyWebhook(accountBody, header, SECRET, { now })).toThrow(WebhookSignatureError);
+  });
+});

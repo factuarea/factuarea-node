@@ -23,6 +23,7 @@ import { GestoriaResource } from "./gestoria.js";
 import { HolidaysResource } from "./holidays.js";
 import { IntegrationsResource } from "./integrations.js";
 import { InvoicesResource } from "./invoices.js";
+import { ManagedAccountsResource } from "./managedAccounts.js";
 import { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 import { PaymentMethodsResource } from "./paymentMethods.js";
 import { PayoutsResource } from "./payouts.js";
@@ -72,6 +73,7 @@ export { GestoriaResource } from "./gestoria.js";
 export { HolidaysResource } from "./holidays.js";
 export { IntegrationsResource } from "./integrations.js";
 export { InvoicesResource } from "./invoices.js";
+export { ManagedAccountsResource } from "./managedAccounts.js";
 export { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 export { PaymentMethodsResource } from "./paymentMethods.js";
 export { PayoutsResource } from "./payouts.js";
@@ -122,6 +124,7 @@ export interface ResourceNamespaces {
   holidays: HolidaysResource;
   integrations: IntegrationsResource;
   invoices: InvoicesResource;
+  managedAccounts: ManagedAccountsResource;
   monthlyTimeRecordCloses: MonthlyTimeRecordClosesResource;
   paymentMethods: PaymentMethodsResource;
   payouts: PayoutsResource;
@@ -174,6 +177,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     holidays: new HolidaysResource(client),
     integrations: new IntegrationsResource(client),
     invoices: new InvoicesResource(client),
+    managedAccounts: new ManagedAccountsResource(client),
     monthlyTimeRecordCloses: new MonthlyTimeRecordClosesResource(client),
     paymentMethods: new PaymentMethodsResource(client),
     payouts: new PayoutsResource(client),

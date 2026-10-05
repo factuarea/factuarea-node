@@ -4,11 +4,13 @@ import { Webhooks } from "./core/webhooks.js";
 import { createResources } from "./resources/index.js";
 import type {
   AccountResource,
+  CompaniesResource,
   ContactsResource,
   DeliveryNotesResource,
   EventCatalogResource,
   EventsResource,
   InvoicesResource,
+  ManagedAccountsResource,
   ProductsResource,
   ProformasResource,
   PurchaseInvoicesResource,
@@ -39,12 +41,16 @@ export class Factuarea {
   readonly environment: Environment;
 
   readonly account: AccountResource;
+  /** The account's NIF portfolio (`/v1/accounts/{account}/companies`). */
+  readonly companies: CompaniesResource;
   /** Canonical identities with cumulative customer, supplier and lead roles. */
   readonly contacts: ContactsResource;
   readonly deliveryNotes: DeliveryNotesResource;
   readonly eventCatalog: EventCatalogResource;
   readonly events: EventsResource;
   readonly invoices: InvoicesResource;
+  /** Accounts the caller provisions and manages, with their bulk import. */
+  readonly managedAccounts: ManagedAccountsResource;
   readonly products: ProductsResource;
   readonly proformas: ProformasResource;
   readonly purchaseInvoices: PurchaseInvoicesResource;
@@ -69,11 +75,13 @@ export class Factuarea {
 
     const resources = createResources(this.http);
     this.account = resources.account;
+    this.companies = resources.companies;
     this.contacts = resources.contacts;
     this.deliveryNotes = resources.deliveryNotes;
     this.eventCatalog = resources.eventCatalog;
     this.events = resources.events;
     this.invoices = resources.invoices;
+    this.managedAccounts = resources.managedAccounts;
     this.products = resources.products;
     this.proformas = resources.proformas;
     this.purchaseInvoices = resources.purchaseInvoices;

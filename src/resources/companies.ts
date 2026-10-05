@@ -10,43 +10,49 @@ import type { Page } from "../core/pagination.js";
 
 
 export class CompaniesResource extends BaseResource {
-  /** Activate several managed companies */
+  /** Activate several tax IDs of the account */
   async activateBatch(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/activate", { "account": account });
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Activate a managed company */
+  /** Activate a tax ID of the account */
   async activate(account: string, company: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/{company}/activate", { "account": account, "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
-  /** Deactivate a managed company */
+  /** Deactivate a tax ID of the account */
   async deactivate(account: string, company: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/{company}/deactivate", { "account": account, "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
-  /** Archive a managed company */
+  /** Archive a tax ID of the account */
   async delete(account: string, company: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/{company}", { "account": account, "company": company });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
-  /** Retrieve a managed company */
+  /** Retrieve a tax ID of the account */
   async show(account: string, company: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/{company}", { "account": account, "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** Update a managed company */
+  /** Update a tax ID of the account */
   async update(account: string, company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/{company}", { "account": account, "company": company });
     return this._send<unknown>("PATCH", path, body, config);
   }
 
-  /** Retrieve the creation status of a managed company */
+  /** Retrieve invoicing statistics per company */
+  async stats(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/stats", { "account": account });
+    return this._get<unknown>(path, params, config);
+  }
+
+  /** Retrieve the creation status of a tax ID */
   async creationStatus(account: string, company: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/{company}/creation-status", { "account": account, "company": company });
     return this._get<unknown>(path, undefined, config);
@@ -64,19 +70,19 @@ export class CompaniesResource extends BaseResource {
     return this._get<unknown>(path, params, config);
   }
 
-  /** List your managed companies */
+  /** List the tax IDs of your account */
   async list(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/accounts/{account}/companies", { "account": account });
     return this._paginate<unknown>(path, params, "cursor", config);
   }
 
-  /** Create a managed company */
+  /** Register a tax ID in the account */
   async create(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies", { "account": account });
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Verify the creation of a managed company */
+  /** Verify the creation of a tax ID */
   async verifyCreation(account: string, company: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/companies/{company}/verify-creation", { "account": account, "company": company });
     return this._send<unknown>("POST", path, undefined, config);

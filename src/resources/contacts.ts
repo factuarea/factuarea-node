@@ -139,7 +139,7 @@ export class ContactsResource extends BaseResource {
   /** Restore an archived contact */
   async restore(company: string, contact: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/contacts/{contact}/restore", { "company": company, "contact": contact });
-    return this._send<unknown>("PATCH", path, undefined, config);
+    return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Search contacts */
