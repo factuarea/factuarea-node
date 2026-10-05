@@ -11,56 +11,65 @@ import type { Page } from "../core/pagination.js";
 
 export class StripeAutoinvoicingAccountsResource extends BaseResource {
   /** Disconnect a connected Stripe account */
-  async disconnect(account: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/connected-accounts/{account}", { "account": account });
+  async disconnect(company: string, account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/connected-accounts/{account}", { "company": company, "account": account });
     return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a connected Stripe account */
-  async show(account: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/connected-accounts/{account}", { "account": account });
+  async show(company: string, account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/connected-accounts/{account}", { "company": company, "account": account });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a connected Stripe account */
-  async update(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/connected-accounts/{account}", { "account": account });
-    return this._send<unknown>("PUT", path, body, config, { idempotent: true });
+  async update(company: string, account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/connected-accounts/{account}", { "company": company, "account": account });
+    return this._send<unknown>("PATCH", path, body, config, { idempotent: true });
   }
 
   /** List connected Stripe accounts */
-  async list(config?: RequestConfig): Promise<unknown> {
-    const path = "/connected-accounts";
+  async list(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/connected-accounts", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 }
 
 export class StripeAutoinvoicingConfigResource extends BaseResource {
   /** Retrieve Stripe autoinvoicing config */
-  async show(config?: RequestConfig): Promise<unknown> {
-    const path = "/stripe-autoinvoicing/config";
+  async show(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stripe-autoinvoicing/config", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update Stripe autoinvoicing config */
-  async update(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/stripe-autoinvoicing/config";
-    return this._send<unknown>("PUT", path, body, config, { idempotent: true });
+  async update(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stripe-autoinvoicing/config", { "company": company });
+    return this._send<unknown>("PATCH", path, body, config, { idempotent: true });
   }
 }
 
 export class StripeAutoinvoicingCorrectivesResource extends BaseResource {
   /** List Stripe autoinvoiced correctives */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/stripe-autoinvoicing/correctives", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/stripe-autoinvoicing/correctives", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }
 
 export class StripeAutoinvoicingPaymentsResource extends BaseResource {
   /** List Stripe autoinvoiced charges */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/stripe-autoinvoicing/payments";
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/stripe-autoinvoicing/payments", { "company": company });
     return this._get<unknown>(path, params, config);
+  }
+}
+
+export class StripeAutoinvoicingAuthorizationsResource extends BaseResource {
+  /** Start a Stripe Connect authorization */
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/connected-accounts/authorizations", { "company": company });
+    return this._send<unknown>("POST", path, body, config);
   }
 }
 
@@ -69,6 +78,7 @@ export class StripeAutoinvoicingResource extends BaseResource {
   readonly config: StripeAutoinvoicingConfigResource;
   readonly correctives: StripeAutoinvoicingCorrectivesResource;
   readonly payments: StripeAutoinvoicingPaymentsResource;
+  readonly authorizations: StripeAutoinvoicingAuthorizationsResource;
 
   constructor(client: HttpClient) {
     super(client);
@@ -76,5 +86,6 @@ export class StripeAutoinvoicingResource extends BaseResource {
     this.config = new StripeAutoinvoicingConfigResource(client);
     this.correctives = new StripeAutoinvoicingCorrectivesResource(client);
     this.payments = new StripeAutoinvoicingPaymentsResource(client);
+    this.authorizations = new StripeAutoinvoicingAuthorizationsResource(client);
   }
 }

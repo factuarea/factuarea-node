@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -41,7 +41,7 @@ export class ManagedAccountsPlanResource extends BaseResource {
   /** Change the plan of a managed account */
   async update(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/plan", { "account": account });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<unknown>("PATCH", path, body, config, { idempotent: true });
   }
 
   /** Preview a managed account plan change */
@@ -55,7 +55,7 @@ export class ManagedAccountsManagementResource extends BaseResource {
   /** End the management of an account */
   async end(account: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/management", { "account": account });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 }
 

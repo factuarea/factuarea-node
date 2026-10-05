@@ -106,13 +106,33 @@ export class AccountMembersResource extends BaseResource {
   /** Remove a member from the account */
   async delete(account: string, member: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/members/{member}", { "account": account, "member": member });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve an account member */
   async show(account: string, member: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/members/{member}", { "account": account, "member": member });
     return this._get<unknown>(path, undefined, config);
+  }
+}
+
+export class AccountConnectReturnDomainsResource extends BaseResource {
+  /** Add a Stripe Connect return domain */
+  async create(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/connected-accounts/return-domains", { "account": account });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** List Stripe Connect return domains */
+  async list(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/accounts/{account}/connected-accounts/return-domains", { "account": account });
+    return this._paginate<unknown>(path, params, "starting_after", config);
+  }
+
+  /** Remove a Stripe Connect return domain */
+  async delete(account: string, returnDomain: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/connected-accounts/return-domains/{return_domain}", { "account": account, "return_domain": returnDomain });
+    return this._send<unknown>("DELETE", path, undefined, config);
   }
 }
 
@@ -191,7 +211,7 @@ export class AccountWebhooksResource extends BaseResource {
   /** Delete an account webhook endpoint */
   async delete(account: string, webhook: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/webhooks/{webhook}", { "account": account, "webhook": webhook });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve an account webhook endpoint */
@@ -289,13 +309,14 @@ export class AccountOwnerResource extends BaseResource {
   /** Transfer account ownership */
   async transfer(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/owner", { "account": account });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<unknown>("PATCH", path, body, config, { idempotent: true });
   }
 }
 
 export class AccountResource extends BaseResource {
   readonly nifTransfers: AccountNifTransfersResource;
   readonly members: AccountMembersResource;
+  readonly connectReturnDomains: AccountConnectReturnDomainsResource;
   readonly invitations: AccountInvitationsResource;
   readonly webhooks: AccountWebhooksResource;
   readonly apiKeys: AccountApiKeysResource;
@@ -307,6 +328,7 @@ export class AccountResource extends BaseResource {
     super(client);
     this.nifTransfers = new AccountNifTransfersResource(client);
     this.members = new AccountMembersResource(client);
+    this.connectReturnDomains = new AccountConnectReturnDomainsResource(client);
     this.invitations = new AccountInvitationsResource(client);
     this.webhooks = new AccountWebhooksResource(client);
     this.apiKeys = new AccountApiKeysResource(client);

@@ -11,7 +11,8 @@ import type { Page } from "../core/pagination.js";
 
 export class PurchaseScanEmailsResource extends BaseResource {
   /** List purchase scanner emails */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/purchase_scan_emails", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/purchase-scan-emails", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }

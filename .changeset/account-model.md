@@ -56,5 +56,19 @@ changes), and `recurringInvoices.update` goes from `PUT` to `PATCH`.
 `account.invitations.show`; `account.apiKeys.updateNifScope` (the API-key method
 for the NIF scope); and `companies.stats`.
 
+**Final axis contract, with the surfaces that landed on flat URLs in `0.8.0` and
+`0.9.0`.** The 613-operation contract is regenerated: `tasks`, `projects`,
+`taskLabels`, `taskTimers`, `purchaseScans`, `purchaseScanEmails`, `notifications`,
+`agenda`, `users`, `verifactu.representation`, `contacts.imports` and
+`series.update` now take the company `id` as their first argument and hang off
+`/v1/companies/{company}/…`. The scanner paths are `purchase-scans` (hyphen).
+
+**Every partial update is a `PATCH`** (breaking, same signatures): besides
+`recurringInvoices.update`, the `update` methods of `contacts`, `products`,
+`invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `series`,
+`tasks`, `projects`, `webhookEndpoints`, `employees`, `workSchedules`, absence
+types and policies, and `purchaseScans.review`, among others, stop using `PUT`.
+Money amounts in responses are decimal strings (`"4.13"`), not numbers.
+
 While the SDK is in `0.x` a breaking change stays a `minor`; `1.0.0` remains
 reserved for the API's GA (docs/VERSIONING.md).
