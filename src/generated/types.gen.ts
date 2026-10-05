@@ -15981,7 +15981,7 @@ export type SendTestEventRequest = {
 /**
  * Series
  *
- * A document numbering series. It can be edited with `PUT /v1/companies/{company}/series/{series}` under the fiscal guards of the numbering (code, mask and purpose are fixed once documents exist) and it is never deleted: archive it instead.
+ * A document numbering series. It can be edited with `PATCH /v1/companies/{company}/series/{series}` under the fiscal guards of the numbering (code, mask and purpose are fixed once documents exist) and it is never deleted: archive it instead.
  */
 export type Series = {
     id: string;
@@ -15993,7 +15993,7 @@ export type Series = {
      */
     document_type: string;
     /**
-     * Fixed purpose of an invoice series (RD 1619/2012 arts. 6.1.a, 7.1.a and 15): `complete` (complete invoices `F1` and the `F3` that replaces simplified invoices — the usual series), `simplified` (simplified invoices `F2`), `corrective` (corrective invoices `R1`–`R4`) or `simplified_corrective` (corrective invoices of simplified invoices `R5`). An invoice can only be issued in a series of its own purpose, otherwise issuing fails with `series_invoice_kind_mismatch`. Set on creation (default `complete`), editable with `PUT /v1/companies/{company}/series/{series}` until the series has any invoice (`series_invoice_kind_locked`) and never on the default series of its purpose (`series_default_kind_change`). `null` for series of other document types.
+     * Fixed purpose of an invoice series (RD 1619/2012 arts. 6.1.a, 7.1.a and 15): `complete` (complete invoices `F1` and the `F3` that replaces simplified invoices — the usual series), `simplified` (simplified invoices `F2`), `corrective` (corrective invoices `R1`–`R4`) or `simplified_corrective` (corrective invoices of simplified invoices `R5`). An invoice can only be issued in a series of its own purpose, otherwise issuing fails with `series_invoice_kind_mismatch`. Set on creation (default `complete`), editable with `PATCH /v1/companies/{company}/series/{series}` until the series has any invoice (`series_invoice_kind_locked`) and never on the default series of its purpose (`series_default_kind_change`). `null` for series of other document types.
      */
     invoice_kind: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective' | null;
     /**
@@ -16001,7 +16001,7 @@ export type Series = {
      */
     prefix: string;
     /**
-     * Canonical numbering mask describing how the document number is rendered: padding (the block of zeros), year token (`{YYYY}` 4 digits / `{YY}` 2 digits / omitted for no year), optional month token (`{MM}` 2 digits) and separator. Example: `{code}-{YYYY}-{000}` (default) or `{code}-{YYYY}-{00000}` for 5-digit padding. When `counter_reset` is `monthly`, the mask must include the `{MM}` token (e.g. `F-{YYYY}-{MM}-{000}`) so the rendered number stays unique across months; otherwise two months would both start at `1`. Set on creation and editable with `PUT /v1/companies/{company}/series/{series}` until the first document is issued; fixed afterwards (`series_format_immutable_with_documents`). Mirrors Holded's `format`.
+     * Canonical numbering mask describing how the document number is rendered: padding (the block of zeros), year token (`{YYYY}` 4 digits / `{YY}` 2 digits / omitted for no year), optional month token (`{MM}` 2 digits) and separator. Example: `{code}-{YYYY}-{000}` (default) or `{code}-{YYYY}-{00000}` for 5-digit padding. When `counter_reset` is `monthly`, the mask must include the `{MM}` token (e.g. `F-{YYYY}-{MM}-{000}`) so the rendered number stays unique across months; otherwise two months would both start at `1`. Set on creation and editable with `PATCH /v1/companies/{company}/series/{series}` until the first document is issued; fixed afterwards (`series_format_immutable_with_documents`). Mirrors Holded's `format`.
      */
     number_format: string;
     /**
@@ -16013,7 +16013,7 @@ export type Series = {
      */
     current_number: number;
     /**
-     * Number the counter starts from. Set on creation to continue an existing numbering when migrating (e.g. 235). Defaults to 1. It can be changed with `PUT /v1/companies/{company}/series/{series}` as long as it does not open a gap after documents of the current year (`series_initial_number_creates_gap`) and no record of the series has been accepted by AEAT.
+     * Number the counter starts from. Set on creation to continue an existing numbering when migrating (e.g. 235). Defaults to 1. It can be changed with `PATCH /v1/companies/{company}/series/{series}` as long as it does not open a gap after documents of the current year (`series_initial_number_creates_gap`) and no record of the series has been accepted by AEAT.
      */
     initial_number: number;
     /**
