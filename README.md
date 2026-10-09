@@ -97,6 +97,58 @@ Use `factuarea.contacts` for customer, supplier and lead identities. A contact c
 
 Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications` and `agenda`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
 
+### Service calendars and ticket SLA
+
+`factuarea.serviceLevel` exposes the seven native v1 operations: `status(ticket)`,
+`history(ticket, { page, per_page })`, `calendars({ page, per_page })`,
+`configure(ticket, body, config)`, `pause(ticket, body, config)`,
+`resume(ticket, body, config)` and `updateCalendar(body, config)`. Reads require
+`service_level:read`; writes require `service_level:write`, alongside the current
+CRM permissions and availability checked by the server. This SDK addition does
+not enable a capability or ratify a plan.
+
+These methods return the typed v1 envelope `{ data }`. History and calendar lists
+contain `items`, `total`, `page` and `per_page`; pass the next page explicitly.
+All public references use `id` / `*_id`. Creation uses the required nullable
+references (`id: null` for a calendar, `cycle_id: null` / `policy_id: null` for
+new SLA identities), letting the server reserve them. Existing identities remain
+unchanged and require their current `expected_version`. Calendar references and
+versions must be supplied together. No company, actor or effect identity belongs
+in the payload. The existing `headers` / `defaultHeaders` configuration carries
+the canonical `X-Company-Id` header where supported; the authenticated server
+context remains authoritative for the company and environment.
+
+```ts
+import type { UpdateServiceCalendarRequest } from "@factuarea/sdk";
+
+const body: UpdateServiceCalendarRequest = {
+  id: null, expected_version: null,
+  name: "Customer support", timezone: "Europe/Madrid", mode: "business",
+  windows: [{ weekday: 1, start_minute: 540, end_minute: 1020 }],
+  holidays: [], exceptions: [],
+};
+// Persist this original key and payload before sending the intent.
+const config = { idempotencyKey: "support-calendar-intent-001" };
+const { data: receipt } = await factuarea.serviceLevel.updateCalendar(body, config);
+const { data: calendars } = await factuarea.serviceLevel.calendars({ page: 1, per_page: 25 });
+```
+
+SLA writes require a caller-retained `idempotencyKey` and perform exactly one
+transport attempt, regardless of the client's retry defaults. They succeed only
+with the native HTTP 200 receipt containing a UUIDv7 `id` and positive `version`.
+A timeout, network failure or malformed success throws `ServiceLevelUnconfirmedError`
+with the original key; it does not establish whether the server committed. A native
+409 keeps `ConflictError` and its `subcode`, including CAS conflicts and
+`service_level_result_unconfirmed`. Producer/infrastructure unavailability keeps
+HTTP 500 `ServerError`; validation keeps HTTP 422 `ValidationError` and `fields`.
+
+After an ambiguous outcome, recovery is an explicit caller decision: invoke the
+same write method with the identical original payload and original key. The
+server revalidates current permissions and reads the original reserved receipt;
+an unconfirmed reservation remains 409. There is no separate public receipt route.
+Do not change the key or payload to retry the intent. Reads never manufacture
+customer facts or confirm an agent response merely because delivery is queued.
+
 ### Contacts
 
 | Task | Method |

@@ -6,6 +6,37 @@
  */
 
 export { Factuarea } from "./client.js";
+export { ServiceLevelResource } from "./crm/service-level.js";
+export { ServiceLevelUnconfirmedError } from "./crm/service-level-errors.js";
+export type {
+  ConfigureServiceSlaRequest,
+  PauseServiceSlaRequest,
+  ResumeServiceSlaRequest,
+  ServiceCalendar,
+  ServiceCalendarData,
+  ServiceCalendarException,
+  ServiceCalendarList,
+  ServiceCalendarMinuteWindow,
+  ServiceCalendarWindow,
+  ServiceLevelPageQuery,
+  ServiceLevelResponse,
+  ServiceLevelWriteConfig,
+  ServiceLevelWriteOperation,
+  ServiceLevelWriteResult,
+  ServiceSlaClockName,
+  ServiceSlaClockState,
+  ServiceSlaClockTarget,
+  ServiceSlaConfiguration,
+  ServiceSlaCycle,
+  ServiceSlaHistory,
+  ServiceSlaMessage,
+  ServiceSlaPause,
+  ServiceSlaProjectedClock,
+  ServiceSlaStatus,
+  ServiceSlaStoredClock,
+  ServiceSlaTargets,
+  UpdateServiceCalendarRequest,
+} from "./crm/service-level-types.js";
 
 export type { FactuareaConfig } from "./core/http-client.js";
 export type {
