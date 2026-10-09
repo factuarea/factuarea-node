@@ -1,6 +1,7 @@
 import { HttpClient, type FactuareaConfig } from "./core/http-client.js";
 import type { Environment } from "./core/auth.js";
 import { Webhooks } from "./core/webhooks.js";
+import { ServiceLevelResource } from "./crm/service-level.js";
 import { createResources } from "./resources/index.js";
 import type {
   AccountResource,
@@ -68,6 +69,8 @@ export class Factuarea {
   readonly quotes: QuotesResource;
   readonly recurringInvoices: RecurringInvoicesResource;
   readonly series: SeriesResource;
+  /** Native service calendars and ticket SLA status, history and writes. */
+  readonly serviceLevel: ServiceLevelResource;
   /** Company-wide task labels. */
   readonly taskLabels: TaskLabelsResource;
   /** The running task timer of the API key owner. */
@@ -91,6 +94,7 @@ export class Factuarea {
     this.http = new HttpClient(config);
     this.environment = this.http.environment;
     this.webhooks = new Webhooks();
+    this.serviceLevel = new ServiceLevelResource(this.http);
 
     const resources = createResources(this.http);
     this.account = resources.account;
