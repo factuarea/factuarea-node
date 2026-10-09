@@ -50,6 +50,8 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export interface RequestOptions {
+  /** Cancel waiting; cancellation does not undo server-side effects. */
+  signal?: AbortSignal;
   method: HttpMethod;
   /** Path relative to the base URL, e.g. `/invoices` or `/invoices/{id}`. */
   path: string;
@@ -157,7 +159,10 @@ export class HttpClient {
       return { data: undefined as T, status: response.status, headers, requestId };
     }
 
-    const text = await response.text();
+    const text = await withCancellation(response.text(), options.signal).catch((cause: unknown) => {
+      throw new ConnectionError({ message: "Factuarea: the response body could not be read.",
+        code: cause instanceof ConnectionError ? cause.code : undefined, requestId, cause });
+    });
     const parsed = text.length > 0 ? safeJsonParse(text) : undefined;
 
     if (!response.ok) {
@@ -173,11 +178,11 @@ export class HttpClient {
     const headers = response.headers;
 
     if (!response.ok) {
-      const text = await response.text();
+      const text = await withCancellation(response.text(), options.signal);
       throw errorFromResponse(response.status, safeJsonParse(text) ?? text, headers);
     }
 
-    const body = await response.arrayBuffer();
+    const body = await withCancellation(response.arrayBuffer(), options.signal);
     const contentType = headers.get("content-type");
     return {
       body,
@@ -213,7 +218,11 @@ export class HttpClient {
       ...authHeaders,
       ...options.headers,
     };
-    if (idempotencyKey) {
+    if (idempotencyKey !== undefined) {
+      // Header names are case-insensitive; keep exactly the resolved original key.
+      for (const name of Object.keys(headers)) {
+        if (name.toLowerCase() === "idempotency-key") delete headers[name];
+      }
       headers["Idempotency-Key"] = idempotencyKey;
     }
 
@@ -228,8 +237,13 @@ export class HttpClient {
     let lastError: FactuareaError | undefined;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (options.signal?.aborted) {
+        throw new ConnectionError({ message: "Factuarea: request was cancelled.", code: "request_aborted", cause: options.signal.reason });
+      }
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeout);
+      const abortFromCaller = () => controller.abort(options.signal?.reason);
+      options.signal?.addEventListener("abort", abortFromCaller, { once: true });
       try {
         const response = await this.#fetch(url, {
           method: options.method,
@@ -241,14 +255,19 @@ export class HttpClient {
         if (isRetryableStatus(response.status) && attempt < maxRetries) {
           const retryAfter = parseRetryAfter(response.headers);
           // Drain the body so the connection can be reused.
-          await response.arrayBuffer().catch(() => undefined);
-          await sleep(computeDelayMs(attempt, this.#retry, retryAfter));
+          await withCancellation(response.arrayBuffer(), controller.signal).catch((cause: unknown) => {
+            if (controller.signal.aborted) throw cause;
+          });
+          await waitForRetry(computeDelayMs(attempt, this.#retry, retryAfter), options.signal);
           continue;
         }
 
         const requestId = response.headers.get("x-request-id");
         return { response, requestId };
       } catch (cause) {
+        if (options.signal?.aborted) {
+          throw new ConnectionError({ message: "Factuarea: request was cancelled.", code: "request_aborted", cause });
+        }
         lastError = new ConnectionError({
           message:
             cause instanceof Error && cause.name === "AbortError"
@@ -257,11 +276,12 @@ export class HttpClient {
           cause,
         });
         if (attempt < maxRetries) {
-          await sleep(computeDelayMs(attempt, this.#retry));
+          await waitForRetry(computeDelayMs(attempt, this.#retry), options.signal);
           continue;
         }
       } finally {
         clearTimeout(timer);
+        options.signal?.removeEventListener("abort", abortFromCaller);
       }
     }
 
@@ -315,4 +335,42 @@ function safeJsonParse(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+/** Abort waiting without changing the established retry policy for unsignalled calls. */
+function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return sleep(delay);
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      reject(new ConnectionError({ message: "Factuarea: request was cancelled.", code: "request_aborted", cause: signal.reason }));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delay);
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+}
+
+/** Cancellation can also arrive after response headers while the body is being read. */
+function withCancellation<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(new ConnectionError({ message: "Factuarea: response reading was cancelled.", code: "request_aborted", cause: signal.reason }));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then((result) => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(result);
+    }, (cause: unknown) => {
+      signal.removeEventListener("abort", onAbort);
+      reject(cause);
+    });
+    if (signal.aborted) onAbort();
+  });
 }

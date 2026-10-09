@@ -6,6 +6,8 @@ import { type CursorParam, fetchPage, Page } from "./pagination.js";
  * down to the `HttpClient`.
  */
 export interface RequestConfig {
+  /** Cancel waiting; cancellation does not prove a mutation was not executed. */
+  signal?: AbortSignal;
   /** Override the auto-generated `Idempotency-Key` for this request. */
   idempotencyKey?: string;
   /** Per-request timeout (ms). */

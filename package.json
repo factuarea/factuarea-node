@@ -44,7 +44,9 @@
     "src",
     "spec/openapi.json",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "spec/crm-native.json",
+    "docs/CRM_DELIVERY.md"
   ],
   "sideEffects": false,
   "publishConfig": {
@@ -55,7 +57,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "generate": "openapi-ts && npm run generate:resources",
+    "generate": "openapi-ts && npm run generate:resources && npm run generate:crm",
     "generate:resources": "node scripts/build-resources.mjs",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
@@ -66,7 +68,8 @@
     "version": "changeset version && node scripts/sync-version.mjs && npm install --package-lock-only --ignore-scripts",
     "version:check": "node scripts/sync-version.mjs --check",
     "release": "changeset publish",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "generate:crm": "openapi-ts -f openapi-crm.config.ts && node scripts/generate-crm.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",

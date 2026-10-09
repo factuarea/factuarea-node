@@ -84,3 +84,12 @@ export type {
   UpdateSupplierProfileV1Request,
   WebhookDelivery,
 } from "./generated/types.gen.js";
+
+// CRM Source surface. Availability and authority remain native API decisions.
+export { CrmResource, CrmContactPeopleResource, CrmLeadsResource, CrmPipelinesResource } from "./crm/resources.js";
+export { CRM_OPERATIONS } from "./crm/operations.js";
+export { CrmCursorPage, CrmNumberPage } from "./crm/pagination.js";
+export type { CrmNumberMeta } from "./crm/pagination.js";
+export type { CrmRequestConfig, CrmConfirmedRequestConfig } from "./crm/resource.js";
+export { CrmUnconfirmedWriteError } from "./crm/errors.js";
+export type * from "./crm/generated/types.gen.js";

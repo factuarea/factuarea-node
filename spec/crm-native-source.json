@@ -1,0 +1,373 @@
+{
+  "status": "Source; no activation or native runtime acceptance claimed",
+  "catalog_sha256": "8ec9da765691b1ac7ce319d4ce6e7e7bb9c20df0d0d91aad6e86c7d77fb0c12c",
+  "files": {
+    "app/BusinessContact/Domain/Service/ContactCountryCatalog.php": "56e699fd1980282052a51d1abe4005356836c3c937074c33e29ed5a8ce20873c",
+    "app/BusinessContact/Infrastructure/Crm/CrmCapabilityManifest.php": "09a1c84c31ba289a62fbcd8936927b2627ce63b9f65853b137062de8d9dad0a8",
+    "app/BusinessContact/Infrastructure/Documentation/ContactPeopleOpenApiRequestSchemas.php": "5b5dd621d3b1ad7e5e720b3553c0a11368f36ba358fe18b52dc20d1deec24c8f",
+    "app/BusinessContact/Infrastructure/Documentation/ContactPeopleOpenApiSchemas.php": "4859cabf9f247195ce110e555b33efcdf2fb0a3c0c2997252b69b6bcd36349ef",
+    "app/BusinessContact/Infrastructure/Http/Controller/ArchiveContactPersonV1Controller.php": "4dda5debdf7353d83242ae37fc70e84fd23084b61432a44b77696f487c9c2226",
+    "app/BusinessContact/Infrastructure/Http/Controller/CreateContactPersonV1Controller.php": "45de9e7b329863c5857662a9024b60e2ee7de75a9a0cc2a8713b4669ec86f124",
+    "app/BusinessContact/Infrastructure/Http/Controller/FindContactPersonDuplicatesV1Controller.php": "4a30fb9aeeedc036109d5666588f0c8697de7c8bade22392e322961ded778f29",
+    "app/BusinessContact/Infrastructure/Http/Controller/FindContactPersonV1Controller.php": "404ffa35bbc92ff74dde2157ce4bd43af0a715ffc9bc414453211ee17ebcc946",
+    "app/BusinessContact/Infrastructure/Http/Controller/GetContactRelationshipOptionsV1Controller.php": "c0050e37bf303aaef7a5f023b33fbabb69ba90e24c8bffae8501b3e073f0dd74",
+    "app/BusinessContact/Infrastructure/Http/Controller/ListContactPeopleV1Controller.php": "d61a86ba4dc3093da7ee7457f2ec8801a1cfc6bd02df67b11c3807cc192ac2f8",
+    "app/BusinessContact/Infrastructure/Http/Controller/MergeContactPeopleV1Controller.php": "6636e18a715bd057f77ba6302eba25fc98e0a364c4a68ed06587933a517270ca",
+    "app/BusinessContact/Infrastructure/Http/Controller/PreviewContactNormalizationV1Controller.php": "9a2d9443b47d6793424f5a1fefffcb38908f53d9ffe7a05ee928be27a0efaaf5",
+    "app/BusinessContact/Infrastructure/Http/Controller/PreviewContactPeopleMergeV1Controller.php": "5adbd771c2cfb0ac30a9ebef7c4308920a9a6e8c533edec2b4ead7b202e777e2",
+    "app/BusinessContact/Infrastructure/Http/Controller/ReplaceContactRelationshipsV1Controller.php": "a7b8f0912ce96bcdf0ae6a17bbba01a910ebad0d0ac9c423341c25e0856c936c",
+    "app/BusinessContact/Infrastructure/Http/Controller/Support/FindBusinessContact.php": "fe5a61b05faaa8cfd31d5f6f5ff0f939fd0f070adc8633587c03c3a7968fb346",
+    "app/BusinessContact/Infrastructure/Http/Controller/Support/FormatsBusinessContactBulkResult.php": "bba03d094928a4fdd415950b438a2985d0c98c2bd8397eeeed9abcbde43ae5ae",
+    "app/BusinessContact/Infrastructure/Http/Controller/UpdateContactPersonV1Controller.php": "abc6f53ee64fa493c2322a62c1cdc6c817e209de657898235edfd0d5be6633bc",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/ArchiveBusinessContactV1Controller.php": "d5e65acbc896afb79cd772eb8b723e9affb66984a0d528570c01d7a2277f31c0",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/AssignContactRoleV1Controller.php": "c6dea986ffafe97d9f1612fb1a5f118ec9d7f80c8ef1532d52a03e251fd186a2",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/BulkArchiveBusinessContactsV1Controller.php": "98dcec8196500418013c52c56c0f7f2d0c046191dac3c0a3c0bea4851d84d8ca",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/BulkChangeContactRoleStatusV1Controller.php": "c58592ef3d74ba6abd677314d3ab7b1635ebb47c67dade784b3e48d4174a93d4",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/BulkCreateBusinessContactsV1Controller.php": "560fabd77ea905b81d628308e22c2e9db84f691e2be90461f8b04011d4a69f30",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/BulkDeleteBusinessContactsV1Controller.php": "b980d6ceec86d86e93c39e21f630ab2f83ae00398824ebede012bb10c3c074f5",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/ChangeContactRoleStatusV1Controller.php": "a93872d59eb3449005e12a3ce2291760b30eede73ca3012a1017b46e44d5a82a",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/Concerns/FindsBusinessContactV1.php": "0cfcb239b795b2b21cba4ca16b1a77bd31911c402d86512ee12e64468e98cf86",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/CreateBusinessContactV1Controller.php": "faf9de1d7755ca33595f57931cb4b5728cf60d50c85bba2aa20ad7e86447c5cb",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/DeleteBusinessContactV1Controller.php": "a95a6efb2553788ecb3dfe5a22349e1482595744b36df6519c766bc91cf697f5",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/DownloadBusinessContactImportErrorsV1Controller.php": "7bb4ae0072b738959a763a6a0d758b23b475b675b6533751441bb71708c9bb94",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/DownloadBusinessContactImportTemplateV1Controller.php": "7c3677e64bc43916990069773bba4ee9b311e6be1bb24807d23cfcaf87c130e9",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/FindBusinessContactByExternalIdV1Controller.php": "ca1b8578af3df78c993252d5a7b5cc95e37b4b30045cee374fcfccba71855bc3",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/FindBusinessContactByTaxIdV1Controller.php": "654b4d150755d75c1543ecce0463779f629b1b301569fd63101e5299e2ba7869",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/GetBusinessContactActivitiesV1Controller.php": "f30a6525ba960fdcfe5db2336262c9ef4d94a3d4a2e81b2e4c302f39143de901",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/GetBusinessContactImportV1Controller.php": "e8d4670eadc0c3c7e9da9c2fa237442ea740ff3bdf325340878fcdafaa49bbe2",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/GetBusinessContactOptionsV1Controller.php": "a4ba26427ddfccab433fb61523eb2a19c9446116e3a2315d2c73357f13659c3b",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/GetBusinessContactStatsV1Controller.php": "2f5823487ec10c30bc7cf932f70499ec92fd8969e336124a299cb8ad084e9942",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/ImportBusinessContactsV1Controller.php": "b8112e561dac8c63df31105209b27712dc786a5e030f44866ea3b96a7d0c9f7b",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/ListBusinessContactsV1Controller.php": "1c3d603b5ff940080ecba11c8c1b01d706851853ed86dc35f8d264b3e0e78c45",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/PreviewBusinessContactImportV1Controller.php": "38c1768fb7e2c44edfe7ad3b66f7e8ae072b52d7149dfffbc101cbaf9ce628ab",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/RemoveContactRoleV1Controller.php": "9a7a91751878585eefa007ef9793edbca89553e26d845414bb8b802908154085",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/RestoreBusinessContactV1Controller.php": "b393c4a1e20b11ff948712bf71b24bc39fdc650cacf21dd541d2c7e4011d7f5f",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/SearchBusinessContactsV1Controller.php": "2feea1e9305e9d7fb06486023e1a87672c3545c4e101bb9217de223695d87a60",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/ShowBusinessContactV1Controller.php": "bce8505d45fb76899a404088fb13d1560ca7c3bf6742ee7a2409a101d768ad14",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/UpdateBusinessContactBankAccountsV1Controller.php": "61f065b8b66382617acab88b7fcad445db51d19de3826e6819110c9952dd1b0f",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/UpdateBusinessContactV1Controller.php": "6dae7c75a21dd9e7918f0842e07fa1d961a023754bb898fe17b1d8a860fc358b",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/UpdateCustomerProfileV1Controller.php": "a3b7ecb155e178cf7b209de0e710592f5482f780a67c779b7b18293505f3b2ee",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/UpdateSupplierProfileV1Controller.php": "2f41dc74fbb6564c8f32e6fcda00964d7df6cb204febe106c78274a3fd8f93c6",
+    "app/BusinessContact/Infrastructure/Http/Controller/V1/VerifyBusinessContactCensusV1Controller.php": "4f10fb9a07a7469f9e89f6c76e441427001f92765d234fea61e742285f53265f",
+    "app/BusinessContact/Infrastructure/Http/Request/Support/ContactPeoplePayloadRules.php": "9df90b9e0dfa226111a45fac1d591816e5c14eb7d744fb5fdfb9bb4b9325e952",
+    "app/BusinessContact/Infrastructure/Http/Routes/v1-public.php": "9794b49778d6eb01612496dffc6826ab7d60edf6bdf592c174eca069e4ad29d6",
+    "app/BusinessContact/Infrastructure/Persistence/Eloquent/EloquentContactPeopleReadRepository.php": "4f130e1fd624b0be012c52bf0f5a6e736bcfe27d689067df1ba6398c207175c8",
+    "app/CrmAccess/Application/Port/CrmResourceFieldSchemaProviderInterface.php": "859992fe8ee426dda1a60c1cd17ee7acbdeee3c0c115868d81301557ca714631",
+    "app/Http/Controllers/Controller.php": "b18ce3d771ff64f4ed995dee173063e0c830f97e58ffd640406e9c48b57ab18b",
+    "app/Lead/Infrastructure/Crm/CrmCapabilityManifest.php": "89b5553241c4c9edd57c3e2498ffae050261ecb408ddc7bd0981d555c997807f",
+    "app/Lead/Infrastructure/Documentation/LeadOpenApiSchemas.php": "bc41dcab50464e9dccdaf15e2bee54766750e91c71ec7aa22370434dad018e92",
+    "app/Lead/Infrastructure/Http/Controller/ApplyLeadScoreRecalculationV1Controller.php": "ad637898b3a8592fc1ec760d7cb8c2f2ce5b2cefc6114ba88c80d7f384203b14",
+    "app/Lead/Infrastructure/Http/Controller/AssignLeadV1Controller.php": "beb5c29ba559730fcb09193b5ccddef006a3c7ea599a884fc2f5d9b0893e0b47",
+    "app/Lead/Infrastructure/Http/Controller/ChangeLeadStageV1Controller.php": "8a55fbc37f346d667fe02a97e1badfc72a912a0c66ff751695ae6364fdd494e8",
+    "app/Lead/Infrastructure/Http/Controller/ConvertLeadV1Controller.php": "170378952e2903425c25b278eba123b27ec64e66ab985c8d47c86110d7f61bc6",
+    "app/Lead/Infrastructure/Http/Controller/CreateLeadV1Controller.php": "d000170fa877d94a0b9072100663e126c114d848a6cf33b7b2d3bc1d41c1d5f7",
+    "app/Lead/Infrastructure/Http/Controller/DeleteLeadV1Controller.php": "d60b21716fe560e81d72d48656346e4b1de89fb3710fd47d64e26ef45d9038bf",
+    "app/Lead/Infrastructure/Http/Controller/DisqualifyLeadV1Controller.php": "19cd83cf18969bb48dbcffe0e325adb3c229be2a18c569619e5fd6c229258669",
+    "app/Lead/Infrastructure/Http/Controller/ExportLeadDataV1Controller.php": "1a5e71799d018fb000670119994c33d01ebe8d29c8f90edb88ef0fdb0867bb93",
+    "app/Lead/Infrastructure/Http/Controller/FindLeadDuplicatesV1Controller.php": "d7e82c875ec50cfeb0c3f868566cb69dd35672f34d7d055b9ff59b194414cb9a",
+    "app/Lead/Infrastructure/Http/Controller/FindLeadScoreRecalculationRunV1Controller.php": "100ead39bd61a8f036b15cb0ce4322759b810a50984f03ae275d9e6a1e74d886",
+    "app/Lead/Infrastructure/Http/Controller/FindLeadV1Controller.php": "88ec69534305a46bb55f574a9e8a0ad4cbb85ea2d2a5fd903e570a403ce2dde6",
+    "app/Lead/Infrastructure/Http/Controller/GetLeadHistoryV1Controller.php": "94a53c55959a8d72b9b74ffaaf8590d17136756e9e91db041c0ecf0d29b7f042",
+    "app/Lead/Infrastructure/Http/Controller/GetLeadStatsV1Controller.php": "fe93600ebdbbcb5227d945b5415f3395e6ea7f02b74f16cd2852e9728fefd011",
+    "app/Lead/Infrastructure/Http/Controller/ListLeadsV1Controller.php": "9fa9a599faeca8e22d7b6049ee33f54f8b4c2051bd886b17a9b163bb2ec7f9b0",
+    "app/Lead/Infrastructure/Http/Controller/PreviewLeadConversionV1Controller.php": "4c2d26f1a32f53a337c1e10941e87a6fc13e9698c696c574ee923fd350edc6f7",
+    "app/Lead/Infrastructure/Http/Controller/PreviewLeadErasureV1Controller.php": "daf1adfabfd256e716bada64820e99be7024c21816e7d59305384eb4a95c02da",
+    "app/Lead/Infrastructure/Http/Controller/PreviewLeadScoreRecalculationV1Controller.php": "e50add6d5266910f3ff7f5851b4833de67f0baf4ad4824d42705c36189257167",
+    "app/Lead/Infrastructure/Http/Controller/QualifyLeadV1Controller.php": "53863899872f87b3ee6cd213edfbd4ad8e843a15d8d08ec2a05e48af18a80dc0",
+    "app/Lead/Infrastructure/Http/Controller/RecalculateLeadScoreV1Controller.php": "ef5b0dfaf5a6829a5320dfea5932ef01e3459fc473da88b2572467a14a65f9c5",
+    "app/Lead/Infrastructure/Http/Controller/RecordLeadConsentV1Controller.php": "6fef76bc8c3d990d5841dc4880b4be4a5c407b3c0823c7e1db017551b1568abc",
+    "app/Lead/Infrastructure/Http/Controller/ReopenLeadV1Controller.php": "548f190c3b2715042b53922d135d5a1b03f45f8082c8ba62a06dabc55d43867f",
+    "app/Lead/Infrastructure/Http/Controller/SearchLeadsV1Controller.php": "6c919e9e9f31420e66bc73131ca8b9da2ecc81d8af692c9444dbff2574c5790c",
+    "app/Lead/Infrastructure/Http/Controller/UpdateLeadV1Controller.php": "82f023847ee69837e494f54d45132a74d5623370565cdc34fa37e960c1c6046e",
+    "app/Lead/Infrastructure/Http/Request/ApplyLeadScoreRecalculationRequest.php": "f415ea8691556f5f5b3f4e275758c7ef0f0f18e4c855c196fe4c4c7dd6c41df8",
+    "app/Lead/Infrastructure/Http/Request/LeadAssignmentRequest.php": "38a37ac316e7a963214fcbbc59956bfc4296555ebeccf065d9ea38d78696a92f",
+    "app/Lead/Infrastructure/Http/Request/LeadConsentRequest.php": "e18a40d3f71b8304db3face124a215ccadd5f9a4e3276724245b7307276c69da",
+    "app/Lead/Infrastructure/Http/Request/LeadConversionRequest.php": "8b2dbe0b4e5871928c67f2528db151a254c52c597ae9a5fd602d9eb44ea6d4f9",
+    "app/Lead/Infrastructure/Http/Request/LeadCreateRequest.php": "1fd823b36244f4fb046a5033045dad3f96b9b4733edcaa5046d5864a43ac89ca",
+    "app/Lead/Infrastructure/Http/Request/LeadErasureRequest.php": "018eb0c2df46dffe71d1af0f5a5f3967d2126462a90f4c8d71d6241087221400",
+    "app/Lead/Infrastructure/Http/Request/LeadRequestContext.php": "556c35a8cb6c0a24dc2a42714a3018e0e48f54d7829608e058060e9749cee642",
+    "app/Lead/Infrastructure/Http/Request/LeadStageRequest.php": "44144360c8974c4896edb3bbe2f276a4a125493d837ac89b1d3e6ab7069eeb34",
+    "app/Lead/Infrastructure/Http/Request/LeadTransitionRequest.php": "ee019e5319318001a0d980b0638935b1919e708deeb15d01a5cbd9e5445c567b",
+    "app/Lead/Infrastructure/Http/Request/LeadUpdateRequest.php": "340bf63ed66d17932e37fd9503899bdb892d35a7aa010b6b0743533ac38adfb1",
+    "app/Lead/Infrastructure/Http/Request/PreviewLeadScoreRecalculationRequest.php": "0e1dc851771e1b20c297682d32a352190aa5e46558c37e3401d5e930c4b315af",
+    "app/Lead/Infrastructure/Http/Routes/v1-public.php": "3fdbe985f08c9ce545e7f9ad033a2c71a20e17d951fc93ba3b31478666f55fd6",
+    "app/Lead/Infrastructure/Webhook/LeadEventSchema.php": "1421b9103b87daecc28d24d0d9ad60f7cc7e27041cb74d056f3f96d4dad2770b",
+    "app/Pipeline/Infrastructure/Crm/CrmCapabilityManifest.php": "2f871a494c43d9588cb935cdce363e42285bfea06ea757b64b41ab38051f55f1",
+    "app/Pipeline/Infrastructure/Documentation/PipelineOpenApiSchemas.php": "49c544b7378643d88a70c69ff131990b7331a841d18f58289acfb366683b2583",
+    "app/Pipeline/Infrastructure/Documentation/StageHealthConfigurationOpenApiSchemas.php": "34327cfd9140483cded016ec991d79df47aaf956537ebd26b63d25c2a423038a",
+    "app/Pipeline/Infrastructure/Http/Controller/ArchivePipelineStageV1Controller.php": "4fb799d32f30518c7734eafbda0e7cd08f0fd851f67fbfcb0398e2cbd7f40055",
+    "app/Pipeline/Infrastructure/Http/Controller/ArchivePipelineV1Controller.php": "afd04ff2d2f3e6e297bc83a46012ffae931fc4928588915c63fcd79febe5a0ff",
+    "app/Pipeline/Infrastructure/Http/Controller/CreateCrmStagePlaybookV1Controller.php": "0dfe169999253b0d80dfb11f9427a21ef22ec4dec021faabc542b5e925a37e5c",
+    "app/Pipeline/Infrastructure/Http/Controller/CreatePipelineV1Controller.php": "022c7008ae5af101f0f0228883346f0bfb99571c0e9a1b6187e4f27cd683703b",
+    "app/Pipeline/Infrastructure/Http/Controller/FindCrmStagePlaybookV1Controller.php": "89f5e94bda5164a24850a223f629eebe482b54ea0d00392eccc4db83e8509196",
+    "app/Pipeline/Infrastructure/Http/Controller/GetPipelineV1Controller.php": "60691b5189674346a712fccd486561e7a749178c1fc9c005601b5761c8b9489b",
+    "app/Pipeline/Infrastructure/Http/Controller/ListPipelinesV1Controller.php": "83ebbc55e3c5d3e2198682a56676ea696befdd9def64032dbf472b2efc02ac20",
+    "app/Pipeline/Infrastructure/Http/Controller/PreviewStageRemapV1Controller.php": "87fdc068ec36dd65b3a144f013f0e3f3be009b69f276e6865d20949a0618e860",
+    "app/Pipeline/Infrastructure/Http/Controller/PublishCrmStagePlaybookV1Controller.php": "d889dd42ebf09e66257d94425966b03f1dea9744fa1ac0b76067df473ccd99e0",
+    "app/Pipeline/Infrastructure/Http/Controller/ReorderPipelineStagesV1Controller.php": "272f642d79d676c2c45e1fa79d73ace4deee5c38f87bc46e9246b6aef0d9a148",
+    "app/Pipeline/Infrastructure/Http/Controller/SaveCrmStagePlaybookV1Controller.php": "bf08930a036355fe578cae416e599e8f6b8cc4c6100e383f5b072a68250f4760",
+    "app/Pipeline/Infrastructure/Http/Controller/SaveLossReasonV1Controller.php": "23cb368b5ac20e62454b26cbb8e3b86d6df725d2194946872f8dd57db8f18eda",
+    "app/Pipeline/Infrastructure/Http/Controller/SavePipelineStageV1Controller.php": "317850fad81229c348d6705eae9ba40897c29b427dae7d28f8cdf780700854de",
+    "app/Pipeline/Infrastructure/Http/Controller/SaveStageHealthConfigurationV1Controller.php": "84407bdfd9f904d4cb321362ff5d55f8760e7214593c92d57e49b6f16c3b3452",
+    "app/Pipeline/Infrastructure/Http/Controller/UpdatePipelineV1Controller.php": "6dcc559ea8caba9284ff8f02a2b06418c9888f1485f0612ed65e64084e19910c",
+    "app/Pipeline/Infrastructure/Http/Request/ArchivePipelineRequest.php": "113b8e1c584b20ba4db1e77f47da0f615630838c418a4c50824ee6d75c401420",
+    "app/Pipeline/Infrastructure/Http/Request/ArchivePipelineStageRequest.php": "eb5665e7003cc713417004776093412cb71a7c55127df56438415051ded6054b",
+    "app/Pipeline/Infrastructure/Http/Request/CreateCrmStagePlaybookRequest.php": "8d40d22a90b0bd6e5a95116af85b5f933d3e19a450f0090045e34fd6f91ff20e",
+    "app/Pipeline/Infrastructure/Http/Request/CreatePipelineRequest.php": "c4def13e6f12fbd4d63e48305c492e12a322b1877fa80bdd922e2428fed2fcd3",
+    "app/Pipeline/Infrastructure/Http/Request/FindCrmStagePlaybookRequest.php": "0827d09d1892cf59191947eb5c60ad6462298c480d6c189c358571045b8b851c",
+    "app/Pipeline/Infrastructure/Http/Request/GetPipelineRequest.php": "aabf2c3d9261df20681e3b97acda3abb4ab05f858038980195c342de30d5aa9e",
+    "app/Pipeline/Infrastructure/Http/Request/ListPipelinesRequest.php": "85f93093479bb114285a070e516c2aca703d27076f9bd52666da5ad8efe610bf",
+    "app/Pipeline/Infrastructure/Http/Request/PipelineRequest.php": "438d0f6d62e9805828373eee53041668d33e2c7e97b5cccb6846a0d332c3bdf2",
+    "app/Pipeline/Infrastructure/Http/Request/PreviewStageRemapRequest.php": "ad5dcd931e26534e9c5b243d7e11e7362e52483f3d46a1efc0aed25b8a41489a",
+    "app/Pipeline/Infrastructure/Http/Request/PublishCrmStagePlaybookRequest.php": "29564c225d792d82621033d305b49593f0346cc3480bf2dea5dec0b36c2c5597",
+    "app/Pipeline/Infrastructure/Http/Request/ReorderPipelineStagesRequest.php": "5ea5b52c22b90b48e82bb14fdc7d2ae1bf917b24a65b58b6ae8ea5ada5500e68",
+    "app/Pipeline/Infrastructure/Http/Request/SaveCrmStagePlaybookRequest.php": "5fe2debc6eafa0a11343527d11c9c5e85dbbcd89894d41f0eeb09bab6acc1b8b",
+    "app/Pipeline/Infrastructure/Http/Request/SaveLossReasonRequest.php": "7dc2bdd2eeb43bb1ec6a6c1034a319f1bd0c74f1b52cdd6010f13626c8dd9d2f",
+    "app/Pipeline/Infrastructure/Http/Request/SavePipelineStageRequest.php": "0c5129c9503bbb32a019a18311cde19077bc93206a50a2042270f7564285df11",
+    "app/Pipeline/Infrastructure/Http/Request/SaveStageHealthConfigurationRequest.php": "ccd2c92df0cdd55ac91248e473f128eaf21c4fab5898ede53432f1253cf4650a",
+    "app/Pipeline/Infrastructure/Http/Request/UpdatePipelineRequest.php": "a26472430bd5dd566fc8c06636d7c4d5defc56b92594659031766ecd39b02ed0",
+    "app/Pipeline/Infrastructure/Http/Routes/v1-public.php": "ea9967e120854b20b3e575717e8c16e8e18e135d26c8252dc0d7214777fbbd7d",
+    "app/PublicApi/Infrastructure/Documentation/OpenApiDocumentContributorInterface.php": "130dd8f401a3d52bf3564b8ff7a073883bae0b4ab76f01d2fe9ab4be18ab3ed1",
+    "app/PublicApi/Infrastructure/Documentation/RawSchemaType.php": "d6eb342c4d2f8af0fd9885c0fed537163f5c84888c4d2675c290c4b245bb7481",
+    "app/Shared/Application/Crm/CrmCapabilityManifestInterface.php": "6f16e0636264f0a742214a4e29467481c45d788ef8d9e1769ee2419760a608fb",
+    "app/Shared/Domain/Crm/CrmCapabilityDefinition.php": "49f793f480e136945f22f3f012691eb51621c18ddc3136537f9d427ecf0bd885",
+    "app/Shared/Domain/Crm/CrmCatalogSnapshot.php": "bbdade1da42da7426a950823ff7b779e319ff2f85fb1fbe0a52a1a09996560c1",
+    "app/Shared/Domain/Crm/CrmEventDefinition.php": "e30743bdb4ec8682a5fb4e6d08d0a65ca4dca40fe6a0500e805fbc31587f2031",
+    "app/Shared/Domain/Crm/CrmOperationDefinition.php": "323bdcee1bcc15fef5ac3776776b9671e6599528f06185ce02a685b7ae2b5e45",
+    "app/Shared/Domain/Crm/CrmSurfaceDefinition.php": "f2f9a6da9305d7559bb6f3fac05a4e4ba8b8c95e30b31c5280c84b266fb74159",
+    "app/Shared/Infrastructure/Http/Concerns/MapsDomainErrors.php": "b52ded0e946e1f54734b94f392b1b33ced7cd08a7ef01b5ee0db99ba762a8a5d",
+    "app/Shared/Infrastructure/Http/currentUserContext.php": "0a293e1374b5f33c97f4c9829f4c7d3df4c62840220ed54ef4278b7fbcc1156e",
+    "app/helpers.php": "680e3ba65c154539a9b7c193a8e3745fe596a1378c6206b1119bfffd2185be07"
+  },
+  "app_commit": "ee9496346f99209383cc7795ea7de8178b7fd55a",
+  "full_native_export": {
+    "status": "passed; process-private Source only; no HTTP execution or activation",
+    "sha256": "9759f8e07cdbd4ba7b477e7f3f785c1b2d198f0657f64dc97c87bdea542bc837",
+    "handoff_sha256": "f64897dff09b6baf2188d31dac9936c037e254ff3d06073477c5cc89e28b5661",
+    "producer": {
+      "command": "public-api:export-spec",
+      "profile": "public-api",
+      "generator": "Dedoc\\Scramble\\Generator",
+      "document_transformers": "Existing PublicApiServiceProvider callbacks, all existing tagged native contributors, WebhooksBlockTransformer",
+      "native_route_scope_selector": "All requested owner manifest route names, intersected with unchanged native public resolver; all selected routes asserted present",
+      "all_requested_routes_preserved": true,
+      "schemas_rebuilt_or_corrected_by_hand": false,
+      "unsupported_extension_added": false,
+      "operation_ids_renamed": false
+    },
+    "operation_count": 49,
+    "path_count": 40,
+    "schema_count": 73,
+    "input_freeze": {
+      "path": "/tmp/dev2-delivery-current-crm-openapi-schema-fix-20261009/source-before.json",
+      "sha256": "90e2c6c7e6a1906bdfae2afe6e91d7ab4b314daa50c5e6a20bd68ce7b29fc11d",
+      "count": 1189,
+      "changed": []
+    },
+    "reference_integrity": {
+      "local_refs_resolve": true,
+      "native_operation_and_component_equality": true,
+      "external_refs": []
+    },
+    "persisted_activation": false
+  },
+  "handler_contracts_by_crm_operation": {
+    "crm_leads.delete": {
+      "handlerClass": "App\\Lead\\Application\\Command\\DeleteLead\\DeleteLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_contact_people.index": {
+      "handlerClass": "App\\BusinessContact\\Application\\Query\\ListContactPeople\\ListContactPeopleQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_contact_people.options": {
+      "handlerClass": "App\\BusinessContact\\Application\\Query\\GetContactRelationshipOptions\\GetContactRelationshipOptionsQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_contact_people.show": {
+      "handlerClass": "App\\BusinessContact\\Application\\Query\\FindContactPerson\\FindContactPersonQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_contact_people.duplicates": {
+      "handlerClass": "App\\BusinessContact\\Application\\Query\\FindContactPersonDuplicates\\FindContactPersonDuplicatesQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.find_score_recalculation_run": {
+      "handlerClass": "App\\Lead\\Application\\QueryHandler\\FindLeadScoreRecalculationRunQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.index": {
+      "handlerClass": "App\\Lead\\Application\\Query\\ListLeads\\ListLeadsQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.search": {
+      "handlerClass": "App\\Lead\\Application\\Query\\SearchLeads\\SearchLeadsQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.stats": {
+      "handlerClass": "App\\Lead\\Application\\Query\\GetLeadStats\\GetLeadStatsQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.show": {
+      "handlerClass": "App\\Lead\\Application\\Query\\FindLead\\FindLeadQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.duplicates": {
+      "handlerClass": "App\\Lead\\Application\\Query\\FindLeadDuplicates\\FindLeadDuplicatesQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.export": {
+      "handlerClass": "App\\Lead\\Application\\Query\\ExportLeadData\\ExportLeadDataQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.history": {
+      "handlerClass": "App\\Lead\\Application\\Query\\GetLeadHistory\\GetLeadHistoryQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_pipelines.index": {
+      "handlerClass": "App\\Pipeline\\Application\\Query\\ListPipelines\\ListPipelinesQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_pipelines.show": {
+      "handlerClass": "App\\Pipeline\\Application\\Query\\GetPipeline\\GetPipelineQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_pipelines.find_playbook": {
+      "handlerClass": "App\\Pipeline\\Application\\QueryHandler\\FindCrmStagePlaybookQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_contact_people.update": {
+      "handlerClass": "App\\BusinessContact\\Application\\Command\\UpdateContactPerson\\UpdateContactPersonCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.update": {
+      "handlerClass": "App\\Lead\\Application\\Command\\UpdateLead\\UpdateLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.update": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\UpdatePipeline\\UpdatePipelineCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_contact_people.create": {
+      "handlerClass": "App\\BusinessContact\\Application\\Command\\CreateContactPerson\\CreateContactPersonCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_contact_people.merge": {
+      "handlerClass": "App\\BusinessContact\\Application\\Command\\MergeContactPeople\\MergeContactPeopleCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_contact_people.merge_preview": {
+      "handlerClass": "App\\BusinessContact\\Application\\Query\\PreviewContactPeopleMerge\\PreviewContactPeopleMergeQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_contact_people.normalize": {
+      "handlerClass": "App\\BusinessContact\\Application\\Query\\PreviewContactNormalization\\PreviewContactNormalizationQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_contact_people.archive": {
+      "handlerClass": "App\\BusinessContact\\Application\\Command\\ArchiveContactPerson\\ArchiveContactPersonCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.preview_score_recalculation": {
+      "handlerClass": "App\\Lead\\Application\\CommandHandler\\PreviewLeadScoreRecalculationCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.apply_score_recalculation": {
+      "handlerClass": "App\\Lead\\Application\\CommandHandler\\ApplyLeadScoreRecalculationCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.create": {
+      "handlerClass": "App\\Lead\\Application\\Command\\CreateLead\\CreateLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.consent": {
+      "handlerClass": "App\\Lead\\Application\\Command\\RecordLeadConsent\\RecordLeadConsentCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.conversion_preview": {
+      "handlerClass": "App\\Lead\\Application\\Query\\PreviewLeadConversion\\PreviewLeadConversionQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.convert": {
+      "handlerClass": "App\\Lead\\Application\\Command\\ConvertLead\\ConvertLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.disqualify": {
+      "handlerClass": "App\\Lead\\Application\\Command\\DisqualifyLead\\DisqualifyLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.erasure_preview": {
+      "handlerClass": "App\\Lead\\Application\\Query\\PreviewLeadErasure\\PreviewLeadErasureQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_leads.qualify": {
+      "handlerClass": "App\\Lead\\Application\\Command\\QualifyLead\\QualifyLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.reopen": {
+      "handlerClass": "App\\Lead\\Application\\Command\\ReopenLead\\ReopenLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.score": {
+      "handlerClass": "App\\Lead\\Application\\Command\\RecalculateLeadScore\\RecalculateLeadScoreCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.create": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\CreatePipeline\\CreatePipelineCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.archive": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\ArchivePipeline\\ArchivePipelineCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.preview_remap": {
+      "handlerClass": "App\\Pipeline\\Application\\Query\\PreviewStageRemap\\PreviewStageRemapQueryHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Query\\QueryHandlerInterface"
+    },
+    "crm_pipelines.save_loss_reason": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\SaveLossReason\\SaveLossReasonCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.save_stage": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\SavePipelineStage\\SavePipelineStageCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.archive_stage": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\ArchivePipelineStage\\ArchivePipelineStageCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.create_playbook": {
+      "handlerClass": "App\\Pipeline\\Application\\CommandHandler\\CreateCrmStagePlaybookCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.publish_playbook": {
+      "handlerClass": "App\\Pipeline\\Application\\CommandHandler\\PublishCrmStagePlaybookCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_contact_people.relationships": {
+      "handlerClass": "App\\BusinessContact\\Application\\Command\\ReplaceContactRelationships\\ReplaceContactRelationshipsCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.assign": {
+      "handlerClass": "App\\Lead\\Application\\Command\\AssignLead\\AssignLeadCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_leads.stage": {
+      "handlerClass": "App\\Lead\\Application\\Command\\ChangeLeadStage\\ChangeLeadStageCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.reorder_stages": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\ReorderPipelineStages\\ReorderPipelineStagesCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.save_health_configuration": {
+      "handlerClass": "App\\Pipeline\\Application\\Command\\SaveStageHealthConfiguration\\SaveStageHealthConfigurationCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    },
+    "crm_pipelines.save_playbook": {
+      "handlerClass": "App\\Pipeline\\Application\\CommandHandler\\SaveCrmStagePlaybookCommandHandler",
+      "handlerContract": "App\\Shared\\Application\\Bus\\Command\\CommandHandlerInterface"
+    }
+  },
+  "provisional_contributor_contract_sha256": "ff0a71538d2aa24cae34d236ece3e9885a24d708df158d3f01d79d1471626b98"
+}

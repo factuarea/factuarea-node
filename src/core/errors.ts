@@ -29,6 +29,8 @@ export interface ErrorEnvelope {
   param?: string | null;
   doc_url?: string | null;
   request_id?: string | null;
+  /** Native multi-field validation issues; codes and messages remain server-supplied. */
+  errors?: Array<{ param: string; code: string; message: string }>;
 }
 
 export interface FactuareaErrorOptions {
@@ -44,6 +46,8 @@ export interface FactuareaErrorOptions {
   cause?: unknown;
   /** Structured response data, such as the per-file results of a rejected upload batch. */
   data?: unknown;
+  /** Original parsed error response body, without normalising away native metadata. */
+  rawResponse?: unknown;
 }
 
 /** Base class for every error thrown by the SDK. */
@@ -63,6 +67,8 @@ export class FactuareaError extends Error {
   /** Request id for support (`error.request_id` / `X-Request-Id` header). */
   readonly requestId?: string | null;
   readonly data?: unknown;
+  /** Original parsed error response body. */
+  readonly rawResponse?: unknown;
 
   constructor(options: FactuareaErrorOptions) {
     super(options.message, options.cause === undefined ? undefined : { cause: options.cause });
@@ -75,6 +81,7 @@ export class FactuareaError extends Error {
     this.docUrl = options.docUrl ?? null;
     this.requestId = options.requestId ?? null;
     this.data = options.data;
+    this.rawResponse = options.rawResponse;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -151,6 +158,19 @@ export function parseRetryAfter(headers: Headers | undefined, now: number = Date
 function extractFields(envelope: ErrorEnvelope, body: unknown): Record<string, string[]> {
   const fields: Record<string, string[]> = {};
 
+  // Native shape: error.errors = [{ param, code, message }, ...].
+  if (Array.isArray(envelope.errors)) {
+    const issues = new Map<string, string[]>();
+    for (const issue of envelope.errors) {
+      if (isRecord(issue) && typeof issue.param === "string" && typeof issue.message === "string") {
+        const messages = issues.get(issue.param) ?? [];
+        messages.push(issue.message);
+        issues.set(issue.param, messages);
+      }
+    }
+    if (issues.size > 0) return Object.fromEntries(issues);
+  }
+
   // Map-style payloads: { error: { ..., fields: { name: ["msg"] } } } or top-level errors map.
   const candidate =
     (envelope as { field_errors?: unknown }).field_errors ??
@@ -210,6 +230,7 @@ export function errorFromResponse(
     status,
     headers,
     data: isRecord(body) ? body.data : undefined,
+    rawResponse: body,
   };
 
   switch (status) {
