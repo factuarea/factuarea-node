@@ -76,3 +76,45 @@ export class CrmNumberPage<T> implements AsyncIterable<T> {
     return items;
   }
 }
+
+/** The owner's native data.items/total/page/per_page search result. */
+export interface CrmKnowledgePageData<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export class CrmKnowledgePage<T> implements AsyncIterable<T> {
+  readonly hasMore: boolean;
+
+  constructor(
+    readonly data: CrmKnowledgePageData<T>,
+    readonly requestId: string | null,
+    private readonly next: (page: number) => Promise<CrmKnowledgePage<T>>,
+  ) {
+    this.hasMore = data.page * data.per_page < data.total;
+  }
+
+  async getNextPage(): Promise<CrmKnowledgePage<T> | null> {
+    return this.hasMore ? this.next(this.data.page + 1) : null;
+  }
+
+  async *[Symbol.asyncIterator](): AsyncIterator<T> {
+    let page: CrmKnowledgePage<T> | null = this;
+    while (page !== null) {
+      for (const item of page.data.items) yield item;
+      const next: CrmKnowledgePage<T> | null = await page.getNextPage();
+      if (next !== null && next.data.page <= page.data.page) {
+        throw new TypeError("Factuarea: repeated Knowledge article page.");
+      }
+      page = next;
+    }
+  }
+
+  async toArray(): Promise<T[]> {
+    const items: T[] = [];
+    for await (const item of this) items.push(item);
+    return items;
+  }
+}

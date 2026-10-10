@@ -4,7 +4,7 @@ process.umask(0o022);
 
 /** CRM Source contract only; runtime availability remains with the native API. */
 export default defineConfig({
-  input: "./spec/crm-native.json",
+  input: "./spec/crm-native77.json",
   output: { path: "./src/crm/generated", postProcess: [] },
   plugins: [{ name: "@hey-api/typescript", enums: false }],
 });

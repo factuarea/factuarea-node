@@ -86,10 +86,11 @@ export type {
 } from "./generated/types.gen.js";
 
 // CRM Source surface. Availability and authority remain native API decisions.
-export { CrmResource, CrmContactPeopleResource, CrmLeadsResource, CrmPipelinesResource } from "./crm/resources.js";
+export { CrmResource, CrmContactPeopleResource, CrmLeadsResource, CrmPipelinesResource, CrmKnowledgeArticlesResource, CrmPublicHelpCentersResource } from "./crm/resources.js";
 export { CRM_OPERATIONS } from "./crm/operations.js";
-export { CrmCursorPage, CrmNumberPage } from "./crm/pagination.js";
-export type { CrmNumberMeta } from "./crm/pagination.js";
-export type { CrmRequestConfig, CrmConfirmedRequestConfig } from "./crm/resource.js";
+export { CrmCursorPage, CrmNumberPage, CrmKnowledgePage } from "./crm/pagination.js";
+export type { CrmNumberMeta, CrmKnowledgePageData } from "./crm/pagination.js";
+export type { CrmRequestConfig, CrmConfirmedRequestConfig, CrmOriginalKeyRequestConfig, CrmConfirmedOriginalKeyRequestConfig } from "./crm/resource.js";
+export type { KnowledgeCategorySaveIntent, PublicHelpCenterPublishIntent } from "./crm/intents.js";
 export { CrmUnconfirmedWriteError } from "./crm/errors.js";
 export type * from "./crm/generated/types.gen.js";

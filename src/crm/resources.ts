@@ -1,7 +1,8 @@
-// AUTO-GENERATED from spec/crm-native.json. Run npm run generate:crm.
-import { CrmBaseResource, type CrmRequestConfig, type CrmConfirmedRequestConfig } from "./resource.js";
+// AUTO-GENERATED from spec/crm-native77.json. Run npm run generate:crm.
+import { CrmBaseResource, type CrmRequestConfig, type CrmConfirmedRequestConfig, type CrmOriginalKeyRequestConfig, type CrmConfirmedOriginalKeyRequestConfig } from "./resource.js";
 import type { HttpClient } from "../core/http-client.js";
-import type { CrmNumberPage, CrmCursorPage } from "./pagination.js";
+import type { CrmNumberPage, CrmCursorPage, CrmKnowledgePage } from "./pagination.js";
+import type { KnowledgeCategorySaveIntent, PublicHelpCenterPublishIntent } from "./intents.js";
 import type * as T from "./generated/types.gen.js";
 
 
@@ -307,14 +308,233 @@ export class CrmPipelinesResource extends CrmBaseResource {
   }
 }
 
+export class CrmKnowledgeArticlesResource extends CrmBaseResource {
+  /** Versions knowledge articles (crmGetKnowledgeArticleVersions). */
+  async versions(article: string, config?: CrmRequestConfig): Promise<T.CrmGetKnowledgeArticleVersionsResponses[keyof T.CrmGetKnowledgeArticleVersionsResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}/versions", { "article": article });
+    return this.getCrm<T.CrmGetKnowledgeArticleVersionsResponses[keyof T.CrmGetKnowledgeArticleVersionsResponses]>(path, undefined, config, true);
+  }
+
+  /** List knowledge categories (listKnowledgeCategories). */
+  async categories(config?: CrmRequestConfig): Promise<T.ListKnowledgeCategoriesResponses[keyof T.ListKnowledgeCategoriesResponses]> {
+    const path = "/crm/knowledge/categories";
+    return this.getCrm<T.ListKnowledgeCategoriesResponses[keyof T.ListKnowledgeCategoriesResponses]>(path, undefined, config, true);
+  }
+
+  /** Recover the original create receipt (crmRecoverKnowledgeArticleCreateReceipt). */
+  async receiptCreate(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticleCreateReceiptResponses[keyof T.CrmRecoverKnowledgeArticleCreateReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.create";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticleCreateReceiptResponses[keyof T.CrmRecoverKnowledgeArticleCreateReceiptResponses]>(path, undefined, config, true, "knowledge_articles.create");
+  }
+
+  /** Recover the original save receipt (crmRecoverKnowledgeArticleSaveReceipt). */
+  async receiptSave(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticleSaveReceiptResponses[keyof T.CrmRecoverKnowledgeArticleSaveReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.save";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticleSaveReceiptResponses[keyof T.CrmRecoverKnowledgeArticleSaveReceiptResponses]>(path, undefined, config, true, "knowledge_articles.save");
+  }
+
+  /** Recover the original submit receipt (crmRecoverKnowledgeArticleSubmitReceipt). */
+  async receiptSubmit(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticleSubmitReceiptResponses[keyof T.CrmRecoverKnowledgeArticleSubmitReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.submit";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticleSubmitReceiptResponses[keyof T.CrmRecoverKnowledgeArticleSubmitReceiptResponses]>(path, undefined, config, true, "knowledge_articles.submit");
+  }
+
+  /** Recover the original approve receipt (crmRecoverKnowledgeArticleApproveReceipt). */
+  async receiptApprove(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticleApproveReceiptResponses[keyof T.CrmRecoverKnowledgeArticleApproveReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.approve";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticleApproveReceiptResponses[keyof T.CrmRecoverKnowledgeArticleApproveReceiptResponses]>(path, undefined, config, true, "knowledge_articles.approve");
+  }
+
+  /** Recover the original publish receipt (crmRecoverKnowledgeArticlePublishReceipt). */
+  async receiptPublish(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticlePublishReceiptResponses[keyof T.CrmRecoverKnowledgeArticlePublishReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.publish";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticlePublishReceiptResponses[keyof T.CrmRecoverKnowledgeArticlePublishReceiptResponses]>(path, undefined, config, true, "knowledge_articles.publish");
+  }
+
+  /** Recover the original unpublish receipt (crmRecoverKnowledgeArticleUnpublishReceipt). */
+  async receiptUnpublish(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticleUnpublishReceiptResponses[keyof T.CrmRecoverKnowledgeArticleUnpublishReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.unpublish";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticleUnpublishReceiptResponses[keyof T.CrmRecoverKnowledgeArticleUnpublishReceiptResponses]>(path, undefined, config, true, "knowledge_articles.unpublish");
+  }
+
+  /** Recover the original archive receipt (crmRecoverKnowledgeArticleArchiveReceipt). */
+  async receiptArchive(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticleArchiveReceiptResponses[keyof T.CrmRecoverKnowledgeArticleArchiveReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.archive";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticleArchiveReceiptResponses[keyof T.CrmRecoverKnowledgeArticleArchiveReceiptResponses]>(path, undefined, config, true, "knowledge_articles.archive");
+  }
+
+  /** Recover the original link receipt (crmRecoverKnowledgeArticleLinkReceipt). */
+  async receiptLink(config: CrmOriginalKeyRequestConfig): Promise<T.CrmRecoverKnowledgeArticleLinkReceiptResponses[keyof T.CrmRecoverKnowledgeArticleLinkReceiptResponses]> {
+    const path = "/crm/knowledge/receipts/knowledge_articles.link";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.CrmRecoverKnowledgeArticleLinkReceiptResponses[keyof T.CrmRecoverKnowledgeArticleLinkReceiptResponses]>(path, undefined, config, true, "knowledge_articles.link");
+  }
+
+  /** Recover the original category receipt (recoverKnowledgeCategoryReceipt). */
+  async categoryReceipt(config: CrmOriginalKeyRequestConfig): Promise<T.RecoverKnowledgeCategoryReceiptResponses[keyof T.RecoverKnowledgeCategoryReceiptResponses]> {
+    const path = "/crm/knowledge/categories/receipts/category-save";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.RecoverKnowledgeCategoryReceiptResponses[keyof T.RecoverKnowledgeCategoryReceiptResponses]>(path, undefined, config, true, "knowledge_articles.category_save");
+  }
+
+  /** Save a knowledge category (saveKnowledgeCategory). */
+  async categorySave(body: KnowledgeCategorySaveIntent, config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.SaveKnowledgeCategoryResponses[keyof T.SaveKnowledgeCategoryResponses]> {
+    const path = "/crm/knowledge/categories/save";
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.SaveKnowledgeCategoryResponses[keyof T.SaveKnowledgeCategoryResponses]>("POST", path, body, config, true, "saveKnowledgeCategory", "knowledge_articles.category_save");
+  }
+
+  /** Search knowledge articles (crmSearchKnowledgeArticles). */
+  async search(params?: NonNullable<T.CrmSearchKnowledgeArticlesData["query"]>, config?: CrmRequestConfig): Promise<CrmKnowledgePage<T.KnowledgeArticle>> {
+    const path = "/crm/knowledge/articles";
+    return this.knowledgePage<T.KnowledgeArticle>(path, params, config);
+  }
+
+  /** Create knowledge articles (crmCreateKnowledgeArticle). */
+  async create(body: T.CrmCreateKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmCreateKnowledgeArticleResponses[keyof T.CrmCreateKnowledgeArticleResponses]> {
+    const path = "/crm/knowledge/articles";
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmCreateKnowledgeArticleResponses[keyof T.CrmCreateKnowledgeArticleResponses]>("POST", path, body, config, true, "crmCreateKnowledgeArticle", "knowledge_articles.create");
+  }
+
+  /** Show knowledge articles (crmGetKnowledgeArticle). */
+  async show(article: string, config?: CrmRequestConfig): Promise<T.CrmGetKnowledgeArticleResponses[keyof T.CrmGetKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}", { "article": article });
+    return this.getCrm<T.CrmGetKnowledgeArticleResponses[keyof T.CrmGetKnowledgeArticleResponses]>(path, undefined, config, true);
+  }
+
+  /** Save knowledge articles (crmSaveKnowledgeArticle). */
+  async save(article: string, body: T.CrmSaveKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmSaveKnowledgeArticleResponses[keyof T.CrmSaveKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}", { "article": article });
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmSaveKnowledgeArticleResponses[keyof T.CrmSaveKnowledgeArticleResponses]>("PUT", path, body, config, true, "crmSaveKnowledgeArticle", "knowledge_articles.save");
+  }
+
+  /** Suggest knowledge articles (suggestServiceArticles). */
+  async suggest(ticket: string, params: NonNullable<T.SuggestServiceArticlesData["query"]>, config?: CrmRequestConfig): Promise<T.SuggestServiceArticlesResponses[keyof T.SuggestServiceArticlesResponses]> {
+    const path = this.buildPath("/crm/knowledge/tickets/{ticket}/suggestions", { "ticket": ticket });
+    this.requireExactCas(params);
+    return this.getCrm<T.SuggestServiceArticlesResponses[keyof T.SuggestServiceArticlesResponses]>(path, params, config, true);
+  }
+
+  /** Submit knowledge articles (crmSubmitKnowledgeArticle). */
+  async submit(article: string, body: T.CrmSubmitKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmSubmitKnowledgeArticleResponses[keyof T.CrmSubmitKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}/submit", { "article": article });
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmSubmitKnowledgeArticleResponses[keyof T.CrmSubmitKnowledgeArticleResponses]>("POST", path, body, config, true, "crmSubmitKnowledgeArticle", "knowledge_articles.submit");
+  }
+
+  /** Approve knowledge articles (crmApproveKnowledgeArticle). */
+  async approve(article: string, body: T.CrmApproveKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmApproveKnowledgeArticleResponses[keyof T.CrmApproveKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}/approve", { "article": article });
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmApproveKnowledgeArticleResponses[keyof T.CrmApproveKnowledgeArticleResponses]>("POST", path, body, config, true, "crmApproveKnowledgeArticle", "knowledge_articles.approve");
+  }
+
+  /** Publish knowledge articles (crmPublishKnowledgeArticle). */
+  async publish(article: string, body: T.CrmPublishKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmPublishKnowledgeArticleResponses[keyof T.CrmPublishKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}/publish", { "article": article });
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmPublishKnowledgeArticleResponses[keyof T.CrmPublishKnowledgeArticleResponses]>("POST", path, body, config, true, "crmPublishKnowledgeArticle", "knowledge_articles.publish");
+  }
+
+  /** Unpublish knowledge articles (crmUnpublishKnowledgeArticle). */
+  async unpublish(article: string, body: T.CrmUnpublishKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmUnpublishKnowledgeArticleResponses[keyof T.CrmUnpublishKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}/unpublish", { "article": article });
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmUnpublishKnowledgeArticleResponses[keyof T.CrmUnpublishKnowledgeArticleResponses]>("POST", path, body, config, true, "crmUnpublishKnowledgeArticle", "knowledge_articles.unpublish");
+  }
+
+  /** Archive knowledge articles (crmArchiveKnowledgeArticle). */
+  async archive(article: string, body: T.CrmArchiveKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmArchiveKnowledgeArticleResponses[keyof T.CrmArchiveKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}/archive", { "article": article });
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmArchiveKnowledgeArticleResponses[keyof T.CrmArchiveKnowledgeArticleResponses]>("POST", path, body, config, true, "crmArchiveKnowledgeArticle", "knowledge_articles.archive");
+  }
+
+  /** Link knowledge articles (crmLinkKnowledgeArticle). */
+  async link(article: string, body: T.CrmLinkKnowledgeArticleData["body"], config: CrmConfirmedOriginalKeyRequestConfig): Promise<T.CrmLinkKnowledgeArticleResponses[keyof T.CrmLinkKnowledgeArticleResponses]> {
+    const path = this.buildPath("/crm/knowledge/articles/{article}/link", { "article": article });
+    this.requireHumanConfirmation(config);
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.CrmLinkKnowledgeArticleResponses[keyof T.CrmLinkKnowledgeArticleResponses]>("POST", path, body, config, true, "crmLinkKnowledgeArticle", "knowledge_articles.link");
+  }
+}
+
+export class CrmPublicHelpCentersResource extends CrmBaseResource {
+  /** Get current help center administration (public-api.v1.crm-public-help-center.get). */
+  async administrationGet(config?: CrmRequestConfig): Promise<T.PublicApiV1CrmPublicHelpCenterGetResponses[keyof T.PublicApiV1CrmPublicHelpCenterGetResponses]> {
+    const path = "/crm/public-help-center";
+    return this.getCrm<T.PublicApiV1CrmPublicHelpCenterGetResponses[keyof T.PublicApiV1CrmPublicHelpCenterGetResponses]>(path, undefined, config, true);
+  }
+
+  /** Recover the original publish receipt (public-api.v1.crm-public-help-center.receipt-publish). */
+  async publishReceipt(config: CrmOriginalKeyRequestConfig): Promise<T.PublicApiV1CrmPublicHelpCenterReceiptPublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterReceiptPublishResponses]> {
+    const path = "/crm/public-help-center/receipts/publish";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.PublicApiV1CrmPublicHelpCenterReceiptPublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterReceiptPublishResponses]>(path, undefined, config, true, "public_help_centers.publish");
+  }
+
+  /** Recover the original unpublish receipt (public-api.v1.crm-public-help-center.receipt-unpublish). */
+  async unpublishReceipt(config: CrmOriginalKeyRequestConfig): Promise<T.PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponses]> {
+    const path = "/crm/public-help-center/receipts/unpublish";
+    this.requireOriginalKey(config);
+    return this.getCrm<T.PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponses]>(path, undefined, config, true, "public_help_centers.unpublish");
+  }
+
+  /** Publish the help center with its original intent (public-api.v1.crm-public-help-center.publish). */
+  async publish(body: PublicHelpCenterPublishIntent, config: CrmOriginalKeyRequestConfig): Promise<T.PublicApiV1CrmPublicHelpCenterPublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterPublishResponses]> {
+    const path = "/crm/public-help-center/publish";
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.PublicApiV1CrmPublicHelpCenterPublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterPublishResponses]>("POST", path, body, config, true, "public-api.v1.crm-public-help-center.publish", "public_help_centers.publish");
+  }
+
+  /** Withdraw the help center with its original intent (public-api.v1.crm-public-help-center.unpublish). */
+  async unpublish(center: string, body: T.PublicApiV1CrmPublicHelpCenterUnpublishData["body"], config: CrmOriginalKeyRequestConfig): Promise<T.PublicApiV1CrmPublicHelpCenterUnpublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterUnpublishResponses]> {
+    const path = this.buildPath("/crm/public-help-center/{center}/unpublish", { "center": center });
+    this.requireOriginalKey(config);
+    this.requireExactCas(body);
+    return this.sendCrm<T.PublicApiV1CrmPublicHelpCenterUnpublishResponses[keyof T.PublicApiV1CrmPublicHelpCenterUnpublishResponses]>("POST", path, body, config, true, "public-api.v1.crm-public-help-center.unpublish", "public_help_centers.unpublish");
+  }
+}
+
 export class CrmResource {
   readonly contactPeople: CrmContactPeopleResource;
   readonly leads: CrmLeadsResource;
   readonly pipelines: CrmPipelinesResource;
+  readonly knowledgeArticles: CrmKnowledgeArticlesResource;
+  readonly publicHelpCenters: CrmPublicHelpCentersResource;
 
   constructor(client: HttpClient) {
     this.contactPeople = new CrmContactPeopleResource(client);
     this.leads = new CrmLeadsResource(client);
     this.pipelines = new CrmPipelinesResource(client);
+    this.knowledgeArticles = new CrmKnowledgeArticlesResource(client);
+    this.publicHelpCenters = new CrmPublicHelpCentersResource(client);
   }
 }

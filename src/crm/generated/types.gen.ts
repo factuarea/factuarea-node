@@ -5,6 +5,40 @@ export type ClientOptions = {
 };
 
 /**
+ * KnowledgeArticleLinkOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticleLinkOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.link';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticle
+ *
+ * Native authenticated article projected with current masks. Only public UUIDv7 id and CAS version are mandatory; unreadable content and publication facts are omitted. Audience is a stored fact and grants no portal or anonymous access. Links and private actor/Company/UUID carriers are not returned.
+ */
+export type KnowledgeArticle = {
+    id: string;
+    version: number;
+    slug?: string;
+    title?: string;
+    body?: string;
+    editorial_locale?: 'es' | 'en' | 'ca';
+    category_ids?: Array<string>;
+    workflow_state?: 'draft' | 'review' | 'approved' | 'archived';
+    revision_number?: number;
+    review_state?: 'draft' | 'review' | 'approved';
+    published_version?: number | null;
+    audience?: 'internal' | 'portal' | 'public' | null;
+    archived?: boolean;
+};
+
+/**
  * Error
  */
 export type Error = {
@@ -134,6 +168,239 @@ export type Error = {
          */
         request_id?: string | null;
     };
+};
+
+/**
+ * KnowledgeArticleLinkRequest
+ */
+export type KnowledgeArticleLinkRequest = {
+    expected_version: number;
+    target_type: 'ticket' | 'document';
+    target_id: string;
+    target_version: number;
+};
+
+/**
+ * KnowledgeArticleArchiveOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticleArchiveOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.archive';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticleArchiveRequest
+ */
+export type KnowledgeArticleArchiveRequest = {
+    expected_version: number;
+};
+
+/**
+ * KnowledgeArticleUnpublishOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticleUnpublishOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.unpublish';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticleUnpublishRequest
+ */
+export type KnowledgeArticleUnpublishRequest = {
+    expected_version: number;
+};
+
+/**
+ * KnowledgeArticlePublishOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticlePublishOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.publish';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticlePublishRequest
+ */
+export type KnowledgeArticlePublishRequest = {
+    expected_version: number;
+    published_version: number;
+    audience: 'internal' | 'portal' | 'public';
+};
+
+/**
+ * KnowledgeArticleApproveOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticleApproveOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.approve';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticleApproveRequest
+ */
+export type KnowledgeArticleApproveRequest = {
+    expected_version: number;
+};
+
+/**
+ * KnowledgeArticleSubmitOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticleSubmitOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.submit';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticleSubmitRequest
+ */
+export type KnowledgeArticleSubmitRequest = {
+    expected_version: number;
+};
+
+/**
+ * PublicHelpCenterOriginalUnpublishReceipt
+ *
+ * Original confirmed unpublish receipt with fresh Company/realm, credential, C7 and masks. center.version is expected_version+1 and effect_id and center snapshot belong to the original key. Recovery does not replace this receipt with the current head, dispatch, reserve or confirm an ambiguous effect.
+ */
+export type PublicHelpCenterOriginalUnpublishReceipt = {
+    confirmed: true;
+    operation: 'public_help_centers.unpublish';
+    effect_id: string;
+    expected_version: number;
+    center: PublicHelpCenterAdministrativeCenter & {
+        enabled?: false;
+    };
+};
+
+/**
+ * PublicHelpCenterAdministrativeCenter
+ *
+ * Native administrative projection. Current authorization requires all seven fields; no publisher, Company, article bindings, visitor token or private metadata is exposed. enabled records the opt-in state and is not an anonymous access grant.
+ */
+export type PublicHelpCenterAdministrativeCenter = {
+    id: string;
+    version: number;
+    slug: string;
+    display_name: string;
+    locale: 'es' | 'en' | 'ca';
+    article_slugs: Array<string>;
+    enabled: boolean;
+};
+
+/**
+ * PublicHelpCenterAdministrativeUnpublishRequest
+ *
+ * Original closed withdrawal intent with literal confirmed=true, the existing route UUID and its original positive CAS. No publication manifest or alternative effect is accepted.
+ */
+export type PublicHelpCenterAdministrativeUnpublishRequest = {
+    confirmed: true;
+    expected_version: number;
+};
+
+/**
+ * PublicHelpCenterOriginalPublishReceipt
+ *
+ * Original confirmed publish receipt with fresh Company/realm, credential, C7 and masks. center.version is expected_version+1 and effect_id and center snapshot belong to the original key. Recovery does not replace this receipt with the current head, dispatch, reserve or confirm an ambiguous effect.
+ */
+export type PublicHelpCenterOriginalPublishReceipt = {
+    confirmed: true;
+    operation: 'public_help_centers.publish';
+    effect_id: string;
+    expected_version: number;
+    center: PublicHelpCenterAdministrativeCenter & {
+        enabled?: true;
+    };
+};
+
+/**
+ * PublicHelpCenterAdministrativePublishRequest
+ *
+ * Original closed publication intent. Creation omits id or uses id=null with expected_version=0; editing requires the existing id UUIDv7 and original positive CAS. confirmed must be literal true. article_slugs enrolls only actual originally approved public publications; an empty list is valid. Company, actor, realm, key and effect identity never come from JSON.
+ */
+export type PublicHelpCenterAdministrativePublishRequest = unknown & {
+    confirmed: true;
+    expected_version: number;
+    slug: string;
+    display_name: string;
+    locale: 'es' | 'en' | 'ca';
+    article_slugs: Array<string>;
+    id?: string | null;
+};
+
+/**
+ * KnowledgeArticleSuggestionsResult
+ */
+export type KnowledgeArticleSuggestionsResult = {
+    items: Array<KnowledgeArticleSuggestion>;
+    total: number;
+    ticket_id: string;
+    ticket_version: number;
+    audience: 'internal' | 'portal' | 'public';
+};
+
+/**
+ * KnowledgeArticleSuggestion
+ */
+export type KnowledgeArticleSuggestion = {
+    id: string;
+    version: number;
+    slug?: string;
+    title?: string;
+    body?: string;
+    editorial_locale?: 'es' | 'en' | 'ca';
+    revision_number: number;
+    review_state?: 'approved';
+    published_version: number;
+    audience: 'internal' | 'portal' | 'public';
+};
+
+/**
+ * KnowledgeArticleSaveOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticleSaveOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.save';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticleSaveRequest
+ */
+export type KnowledgeArticleSaveRequest = {
+    expected_version: number;
+    title: string;
+    body: string;
+    editorial_locale: 'es' | 'en' | 'ca';
+    category_ids: Array<string>;
 };
 
 /**
@@ -338,6 +605,41 @@ export type LeadFilters = {
 };
 
 /**
+ * KnowledgeArticleCreateOriginalReceipt
+ *
+ * Original confirmed effect and currently masked original snapshot. article.version equals expected_version + 1; creation has expected_version 0. Recovery never substitutes the latest head or discloses a claim token.
+ */
+export type KnowledgeArticleCreateOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.create';
+    expected_version: number;
+    article: KnowledgeArticle;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeArticleCreateRequest
+ */
+export type KnowledgeArticleCreateRequest = {
+    expected_version: number;
+    title: string;
+    body: string;
+    editorial_locale: 'es' | 'en' | 'ca';
+    category_ids: Array<string>;
+    slug: string;
+};
+
+/**
+ * KnowledgeArticleSearchResult
+ */
+export type KnowledgeArticleSearchResult = {
+    items: Array<KnowledgeArticle>;
+    total: number;
+    page: number;
+    per_page: number;
+};
+
+/**
  * PipelineConfirmedReceipt
  */
 export type PipelineConfirmedReceipt = {
@@ -405,6 +707,53 @@ export type PipelineSaveLossReasonRequest = unknown & {
     explanation_required?: boolean;
     status?: 'active' | 'archived';
     confirmed?: boolean;
+};
+
+/**
+ * KnowledgeCategoryOriginalReceipt
+ *
+ * Only the original confirmed receipt. category.version is 1 for creation or expected_version + 1 for editing; category.taxonomy_version is expected_taxonomy_version + 1. The effect_id and snapshot are original, never a latest-head replacement, claim token, permission or unconfirmed success.
+ */
+export type KnowledgeCategoryOriginalReceipt = {
+    effect_id: string;
+    operation: 'knowledge_articles.category_save';
+    expected_version: number | null;
+    expected_taxonomy_version: number;
+    category: KnowledgeCategoryOriginalReceiptCategory;
+    confirmed: true;
+};
+
+/**
+ * KnowledgeCategoryOriginalReceiptCategory
+ *
+ * Original confirmed category snapshot, projected with current masks. Five identity/CAS/parent fields are mandatory; name, slug, visibility and status are omitted when unreadable. Public visibility is a stored fact and grants no anonymous access.
+ */
+export type KnowledgeCategoryOriginalReceiptCategory = {
+    id: string;
+    version: number;
+    taxonomy_id: string;
+    taxonomy_version: number;
+    parent_id: string | null;
+    name?: string;
+    slug?: string;
+    visibility?: 'internal' | 'portal' | 'public';
+    status?: 'active' | 'archived';
+};
+
+export type KnowledgeCategorySaveRequest = ({
+    expected_version?: null;
+} | {
+    expected_version?: number;
+}) & {
+    id?: string;
+    taxonomy_id: string;
+    expected_taxonomy_version: number;
+    expected_version: number | null;
+    name: string;
+    slug: string;
+    parent_id: string | null;
+    visibility: 'internal' | 'portal' | 'public';
+    status: 'active' | 'archived';
 };
 
 /**
@@ -1133,6 +1482,28 @@ export type MergeContactPeopleV1Request = {
 };
 
 /**
+ * KnowledgeCategoriesResult
+ */
+export type KnowledgeCategoriesResult = {
+    items: Array<KnowledgeCategory>;
+    total: number;
+};
+
+/**
+ * KnowledgeCategory
+ */
+export type KnowledgeCategory = {
+    id: string;
+    taxonomy_id: string;
+    version: number;
+    taxonomy_version: number;
+    name: string;
+    slug: string;
+    parent_id: string | null;
+    visibility: 'internal' | 'portal' | 'public';
+};
+
+/**
  * PipelineUpdatePipelineRequest
  */
 export type PipelineUpdatePipelineRequest = {
@@ -1222,6 +1593,34 @@ export type LeadHistoryItem = {
     snapshot: {
         type: 'lead.created' | 'lead.updated' | 'lead.assigned' | 'lead.stage_changed' | 'lead.qualified' | 'lead.disqualified' | 'lead.reopened' | 'lead.converted' | 'lead.deleted' | 'lead.consent_changed' | 'lead.score_recalculated';
     };
+};
+
+/**
+ * KnowledgeArticleVersionsResult
+ */
+export type KnowledgeArticleVersionsResult = {
+    items: Array<KnowledgeArticleRevision>;
+};
+
+/**
+ * KnowledgeArticleRevision
+ */
+export type KnowledgeArticleRevision = {
+    id: string;
+    version: number;
+    title?: string;
+    body?: string;
+    editorial_locale?: 'es' | 'en' | 'ca';
+    category_ids?: Array<string>;
+    revision_number: number;
+    review_state?: 'draft' | 'review' | 'approved';
+};
+
+/**
+ * PublicHelpCenterAdministration
+ */
+export type PublicHelpCenterAdministration = {
+    center: PublicHelpCenterAdministrativeCenter | null;
 };
 
 export type CrmContactRelationshipOption = unknown & {
@@ -3668,6 +4067,133 @@ export type CrmContactPeopleOptionsResponses = {
 
 export type CrmContactPeopleOptionsResponse = CrmContactPeopleOptionsResponses[keyof CrmContactPeopleOptionsResponses];
 
+export type PublicApiV1CrmPublicHelpCenterGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/public-help-center';
+};
+
+export type PublicApiV1CrmPublicHelpCenterGetErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The center, publication or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, idempotency payload or effect conflicts, or the effect remains unconfirmed. Retain the original intent; no automatic replay follows.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1CrmPublicHelpCenterGetError = PublicApiV1CrmPublicHelpCenterGetErrors[keyof PublicApiV1CrmPublicHelpCenterGetErrors];
+
+export type PublicApiV1CrmPublicHelpCenterGetResponses = {
+    /**
+     * Current administrative center or null when no configuration exists.
+     */
+    200: {
+        data: PublicHelpCenterAdministration;
+    };
+};
+
+export type PublicApiV1CrmPublicHelpCenterGetResponse = PublicApiV1CrmPublicHelpCenterGetResponses[keyof PublicApiV1CrmPublicHelpCenterGetResponses];
+
+export type CrmGetKnowledgeArticleVersionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}/versions';
+};
+
+export type CrmGetKnowledgeArticleVersionsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmGetKnowledgeArticleVersionsError = CrmGetKnowledgeArticleVersionsErrors[keyof CrmGetKnowledgeArticleVersionsErrors];
+
+export type CrmGetKnowledgeArticleVersionsResponses = {
+    /**
+     * Native authenticated result projected with current masks.
+     */
+    200: {
+        data: KnowledgeArticleVersionsResult;
+    };
+};
+
+export type CrmGetKnowledgeArticleVersionsResponse = CrmGetKnowledgeArticleVersionsResponses[keyof CrmGetKnowledgeArticleVersionsResponses];
+
 export type CrmGetLeadHistoryData = {
     body?: never;
     headers?: {
@@ -3935,6 +4461,67 @@ export type UpdatePipelineResponses = {
 };
 
 export type UpdatePipelineResponse = UpdatePipelineResponses[keyof UpdatePipelineResponses];
+
+export type ListKnowledgeCategoriesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/categories';
+};
+
+export type ListKnowledgeCategoriesErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native category taxonomy is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * The current native taxonomy or context fence changed; refresh the read context.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type ListKnowledgeCategoriesError = ListKnowledgeCategoriesErrors[keyof ListKnowledgeCategoriesErrors];
+
+export type ListKnowledgeCategoriesResponses = {
+    /**
+     * Native category list with all required fields under current taxonomy masks.
+     */
+    200: {
+        data: KnowledgeCategoriesResult;
+    };
+};
+
+export type ListKnowledgeCategoriesResponse = ListKnowledgeCategoriesResponses[keyof ListKnowledgeCategoriesResponses];
 
 export type CrmContactPeopleMergeData = {
     /**
@@ -4701,6 +5288,721 @@ export type CrmRecordLeadConsentResponses = {
 
 export type CrmRecordLeadConsentResponse = CrmRecordLeadConsentResponses[keyof CrmRecordLeadConsentResponses];
 
+export type PublicApiV1CrmPublicHelpCenterReceiptPublishData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Original caller key, unchanged. Recovery reads only its originally confirmed receipt under fresh authority; it does not reserve or redispatch a mutation.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/public-help-center/receipts/publish';
+};
+
+export type PublicApiV1CrmPublicHelpCenterReceiptPublishErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The center, publication or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, idempotency payload or effect conflicts, or the effect remains unconfirmed. Retain the original intent; no automatic replay follows.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1CrmPublicHelpCenterReceiptPublishError = PublicApiV1CrmPublicHelpCenterReceiptPublishErrors[keyof PublicApiV1CrmPublicHelpCenterReceiptPublishErrors];
+
+export type PublicApiV1CrmPublicHelpCenterReceiptPublishResponses = {
+    /**
+     * Original confirmed receipt with the original effect identity, CAS and center snapshot.
+     */
+    200: {
+        data: PublicHelpCenterOriginalPublishReceipt;
+    };
+};
+
+export type PublicApiV1CrmPublicHelpCenterReceiptPublishResponse = PublicApiV1CrmPublicHelpCenterReceiptPublishResponses[keyof PublicApiV1CrmPublicHelpCenterReceiptPublishResponses];
+
+export type PublicApiV1CrmPublicHelpCenterReceiptUnpublishData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Original caller key, unchanged. Recovery reads only its originally confirmed receipt under fresh authority; it does not reserve or redispatch a mutation.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/public-help-center/receipts/unpublish';
+};
+
+export type PublicApiV1CrmPublicHelpCenterReceiptUnpublishErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The center, publication or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, idempotency payload or effect conflicts, or the effect remains unconfirmed. Retain the original intent; no automatic replay follows.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1CrmPublicHelpCenterReceiptUnpublishError = PublicApiV1CrmPublicHelpCenterReceiptUnpublishErrors[keyof PublicApiV1CrmPublicHelpCenterReceiptUnpublishErrors];
+
+export type PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponses = {
+    /**
+     * Original confirmed receipt with the original effect identity, CAS and center snapshot.
+     */
+    200: {
+        data: PublicHelpCenterOriginalUnpublishReceipt;
+    };
+};
+
+export type PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponse = PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponses[keyof PublicApiV1CrmPublicHelpCenterReceiptUnpublishResponses];
+
+export type CrmRecoverKnowledgeArticleCreateReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.create';
+};
+
+export type CrmRecoverKnowledgeArticleCreateReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticleCreateReceiptError = CrmRecoverKnowledgeArticleCreateReceiptErrors[keyof CrmRecoverKnowledgeArticleCreateReceiptErrors];
+
+export type CrmRecoverKnowledgeArticleCreateReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleCreateOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticleCreateReceiptResponse = CrmRecoverKnowledgeArticleCreateReceiptResponses[keyof CrmRecoverKnowledgeArticleCreateReceiptResponses];
+
+export type CrmRecoverKnowledgeArticleSaveReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.save';
+};
+
+export type CrmRecoverKnowledgeArticleSaveReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticleSaveReceiptError = CrmRecoverKnowledgeArticleSaveReceiptErrors[keyof CrmRecoverKnowledgeArticleSaveReceiptErrors];
+
+export type CrmRecoverKnowledgeArticleSaveReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleSaveOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticleSaveReceiptResponse = CrmRecoverKnowledgeArticleSaveReceiptResponses[keyof CrmRecoverKnowledgeArticleSaveReceiptResponses];
+
+export type CrmRecoverKnowledgeArticleSubmitReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.submit';
+};
+
+export type CrmRecoverKnowledgeArticleSubmitReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticleSubmitReceiptError = CrmRecoverKnowledgeArticleSubmitReceiptErrors[keyof CrmRecoverKnowledgeArticleSubmitReceiptErrors];
+
+export type CrmRecoverKnowledgeArticleSubmitReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleSubmitOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticleSubmitReceiptResponse = CrmRecoverKnowledgeArticleSubmitReceiptResponses[keyof CrmRecoverKnowledgeArticleSubmitReceiptResponses];
+
+export type CrmRecoverKnowledgeArticleApproveReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.approve';
+};
+
+export type CrmRecoverKnowledgeArticleApproveReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticleApproveReceiptError = CrmRecoverKnowledgeArticleApproveReceiptErrors[keyof CrmRecoverKnowledgeArticleApproveReceiptErrors];
+
+export type CrmRecoverKnowledgeArticleApproveReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleApproveOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticleApproveReceiptResponse = CrmRecoverKnowledgeArticleApproveReceiptResponses[keyof CrmRecoverKnowledgeArticleApproveReceiptResponses];
+
+export type CrmRecoverKnowledgeArticlePublishReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.publish';
+};
+
+export type CrmRecoverKnowledgeArticlePublishReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticlePublishReceiptError = CrmRecoverKnowledgeArticlePublishReceiptErrors[keyof CrmRecoverKnowledgeArticlePublishReceiptErrors];
+
+export type CrmRecoverKnowledgeArticlePublishReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticlePublishOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticlePublishReceiptResponse = CrmRecoverKnowledgeArticlePublishReceiptResponses[keyof CrmRecoverKnowledgeArticlePublishReceiptResponses];
+
+export type CrmRecoverKnowledgeArticleUnpublishReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.unpublish';
+};
+
+export type CrmRecoverKnowledgeArticleUnpublishReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticleUnpublishReceiptError = CrmRecoverKnowledgeArticleUnpublishReceiptErrors[keyof CrmRecoverKnowledgeArticleUnpublishReceiptErrors];
+
+export type CrmRecoverKnowledgeArticleUnpublishReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleUnpublishOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticleUnpublishReceiptResponse = CrmRecoverKnowledgeArticleUnpublishReceiptResponses[keyof CrmRecoverKnowledgeArticleUnpublishReceiptResponses];
+
+export type CrmRecoverKnowledgeArticleArchiveReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.archive';
+};
+
+export type CrmRecoverKnowledgeArticleArchiveReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticleArchiveReceiptError = CrmRecoverKnowledgeArticleArchiveReceiptErrors[keyof CrmRecoverKnowledgeArticleArchiveReceiptErrors];
+
+export type CrmRecoverKnowledgeArticleArchiveReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleArchiveOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticleArchiveReceiptResponse = CrmRecoverKnowledgeArticleArchiveReceiptResponses[keyof CrmRecoverKnowledgeArticleArchiveReceiptResponses];
+
+export type CrmRecoverKnowledgeArticleLinkReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/receipts/knowledge_articles.link';
+};
+
+export type CrmRecoverKnowledgeArticleLinkReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmRecoverKnowledgeArticleLinkReceiptError = CrmRecoverKnowledgeArticleLinkReceiptErrors[keyof CrmRecoverKnowledgeArticleLinkReceiptErrors];
+
+export type CrmRecoverKnowledgeArticleLinkReceiptResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleLinkOriginalReceipt;
+    };
+};
+
+export type CrmRecoverKnowledgeArticleLinkReceiptResponse = CrmRecoverKnowledgeArticleLinkReceiptResponses[keyof CrmRecoverKnowledgeArticleLinkReceiptResponses];
+
+export type RecoverKnowledgeCategoryReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * The original caller key, unchanged. Recovery reads only that original confirmed receipt with fresh authorization and masks; it neither reserves nor retries a mutation.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/categories/receipts/category-save';
+};
+
+export type RecoverKnowledgeCategoryReceiptErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The original receipt is absent, foreign or invisible; no other original identity is disclosed.
+     */
+    404: Error;
+    /**
+     * Original CAS, origin or idempotency intent conflicts, or the original effect is unconfirmed. Preserve the draft and original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type RecoverKnowledgeCategoryReceiptError = RecoverKnowledgeCategoryReceiptErrors[keyof RecoverKnowledgeCategoryReceiptErrors];
+
+export type RecoverKnowledgeCategoryReceiptResponses = {
+    /**
+     * Original confirmed category receipt, with current masks and both original CAS tokens.
+     */
+    200: {
+        data: KnowledgeCategoryOriginalReceipt;
+    };
+};
+
+export type RecoverKnowledgeCategoryReceiptResponse = RecoverKnowledgeCategoryReceiptResponses[keyof RecoverKnowledgeCategoryReceiptResponses];
+
 export type CrmReopenLeadData = {
     /**
      * A closed JSON object. Authority and private effect identities come from the server. The fiscal owner validates contact drafts; parent, definition and value revisions are independent.
@@ -4912,6 +6214,80 @@ export type CrmContactPeopleRelationshipsResponses = {
 
 export type CrmContactPeopleRelationshipsResponse = CrmContactPeopleRelationshipsResponses[keyof CrmContactPeopleRelationshipsResponses];
 
+export type SaveKnowledgeCategoryData = {
+    /**
+     * Original closed JSON bytes and both original CAS tokens. Query and files are rejected; the native body limit is 8192 bytes.
+     */
+    body: KnowledgeCategorySaveRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * The original caller key, unchanged. Recovery reads only that original confirmed receipt with fresh authorization and masks; it neither reserves nor retries a mutation.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/categories/save';
+};
+
+export type SaveKnowledgeCategoryErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The original receipt is absent, foreign or invisible; no other original identity is disclosed.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type SaveKnowledgeCategoryError = SaveKnowledgeCategoryErrors[keyof SaveKnowledgeCategoryErrors];
+
+export type SaveKnowledgeCategoryResponses = {
+    /**
+     * Original confirmed category receipt, with current masks and both original CAS tokens.
+     */
+    200: {
+        data: KnowledgeCategoryOriginalReceipt;
+    };
+    /**
+     * Original confirmed creation receipt, with current masks.
+     */
+    201: {
+        data: KnowledgeCategoryOriginalReceipt;
+    };
+};
+
+export type SaveKnowledgeCategoryResponse = SaveKnowledgeCategoryResponses[keyof SaveKnowledgeCategoryResponses];
+
 export type SaveLossReasonData = {
     /**
      * Closed JSON object, maximum 256 KiB. Omitted values retain their current value; null only clears explicitly nullable fields. Stage probabilities are finite decimal strings.
@@ -5121,6 +6497,152 @@ export type SaveStageHealthConfigurationResponses = {
 
 export type SaveStageHealthConfigurationResponse = SaveStageHealthConfigurationResponses[keyof SaveStageHealthConfigurationResponses];
 
+export type CrmSearchKnowledgeArticlesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Optional native search filter.
+         */
+        query?: string;
+        /**
+         * Optional native search filter.
+         */
+        locale?: 'es' | 'en' | 'ca' | null;
+        /**
+         * Positive decimal digits without a leading zero; omit to use the native default.
+         */
+        page?: number;
+        /**
+         * Positive decimal digits without a leading zero; omit to use the native default.
+         */
+        per_page?: number;
+    };
+    url: '/crm/knowledge/articles';
+};
+
+export type CrmSearchKnowledgeArticlesErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmSearchKnowledgeArticlesError = CrmSearchKnowledgeArticlesErrors[keyof CrmSearchKnowledgeArticlesErrors];
+
+export type CrmSearchKnowledgeArticlesResponses = {
+    /**
+     * Native authenticated result projected with current masks.
+     */
+    200: {
+        data: KnowledgeArticleSearchResult;
+    };
+};
+
+export type CrmSearchKnowledgeArticlesResponse = CrmSearchKnowledgeArticlesResponses[keyof CrmSearchKnowledgeArticlesResponses];
+
+export type CrmCreateKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticleCreateRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/knowledge/articles';
+};
+
+export type CrmCreateKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The native article or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmCreateKnowledgeArticleError = CrmCreateKnowledgeArticleErrors[keyof CrmCreateKnowledgeArticleErrors];
+
+export type CrmCreateKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    201: {
+        data: KnowledgeArticleCreateOriginalReceipt;
+    };
+};
+
+export type CrmCreateKnowledgeArticleResponse = CrmCreateKnowledgeArticleResponses[keyof CrmCreateKnowledgeArticleResponses];
+
 export type CrmSearchLeadsData = {
     body?: never;
     headers?: {
@@ -5186,3 +6708,814 @@ export type CrmSearchLeadsResponses = {
 };
 
 export type CrmSearchLeadsResponse = CrmSearchLeadsResponses[keyof CrmSearchLeadsResponses];
+
+export type CrmGetKnowledgeArticleData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}';
+};
+
+export type CrmGetKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Original CAS, intent or effect conflicts, or the effect is unconfirmed. Preserve the original key; do not automatically redispatch.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmGetKnowledgeArticleError = CrmGetKnowledgeArticleErrors[keyof CrmGetKnowledgeArticleErrors];
+
+export type CrmGetKnowledgeArticleResponses = {
+    /**
+     * Native authenticated result projected with current masks.
+     */
+    200: {
+        data: KnowledgeArticle;
+    };
+};
+
+export type CrmGetKnowledgeArticleResponse = CrmGetKnowledgeArticleResponses[keyof CrmGetKnowledgeArticleResponses];
+
+export type CrmSaveKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticleSaveRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}';
+};
+
+export type CrmSaveKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmSaveKnowledgeArticleError = CrmSaveKnowledgeArticleErrors[keyof CrmSaveKnowledgeArticleErrors];
+
+export type CrmSaveKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleSaveOriginalReceipt;
+    };
+};
+
+export type CrmSaveKnowledgeArticleResponse = CrmSaveKnowledgeArticleResponses[keyof CrmSaveKnowledgeArticleResponses];
+
+export type SuggestServiceArticlesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        /**
+         * The native public ticket id (UUIDv7). Its current version and record authority are rechecked before ranking or counting publications.
+         */
+        ticket: string;
+    };
+    query: {
+        /**
+         * Positive decimal digits without a leading zero. ticket_version is the original required ticket CAS; limit defaults to 10.
+         */
+        ticket_version: number;
+        /**
+         * Optional native approved-publication suggestion filter.
+         */
+        query?: string;
+        /**
+         * Optional native approved-publication suggestion filter.
+         */
+        locale?: 'es' | 'en' | 'ca' | null;
+        /**
+         * Optional native approved-publication suggestion filter.
+         */
+        audience?: 'internal' | 'portal' | 'public';
+        /**
+         * Positive decimal digits without a leading zero. ticket_version is the original required ticket CAS; limit defaults to 10.
+         */
+        limit?: number;
+    };
+    url: '/crm/knowledge/tickets/{ticket}/suggestions';
+};
+
+export type SuggestServiceArticlesErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The original ticket version or current approved-publication fence changed; refresh the native read context.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type SuggestServiceArticlesError = SuggestServiceArticlesErrors[keyof SuggestServiceArticlesErrors];
+
+export type SuggestServiceArticlesResponses = {
+    /**
+     * Native authenticated result projected with current masks.
+     */
+    200: {
+        data: KnowledgeArticleSuggestionsResult;
+    };
+};
+
+export type SuggestServiceArticlesResponse = SuggestServiceArticlesResponses[keyof SuggestServiceArticlesResponses];
+
+export type PublicApiV1CrmPublicHelpCenterPublishData = {
+    /**
+     * Original closed JSON body, literal confirmation and original CAS. Query and files are rejected; the native body limit is 180000 bytes. Preserve exact bytes and Idempotency-Key after any failure; recovery is explicit and read only.
+     */
+    body: PublicHelpCenterAdministrativePublishRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Original caller key, unchanged. Recovery reads only its originally confirmed receipt under fresh authority; it does not reserve or redispatch a mutation.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/crm/public-help-center/publish';
+};
+
+export type PublicApiV1CrmPublicHelpCenterPublishErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The center, publication or original receipt is absent, foreign or invisible.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1CrmPublicHelpCenterPublishError = PublicApiV1CrmPublicHelpCenterPublishErrors[keyof PublicApiV1CrmPublicHelpCenterPublishErrors];
+
+export type PublicApiV1CrmPublicHelpCenterPublishResponses = {
+    /**
+     * Original confirmed receipt with the original effect identity, CAS and center snapshot.
+     */
+    200: {
+        data: PublicHelpCenterOriginalPublishReceipt;
+    };
+    /**
+     * Original confirmed creation receipt, only when id is absent or null and original CAS is zero.
+     */
+    201: {
+        data: PublicHelpCenterOriginalPublishReceipt;
+    };
+};
+
+export type PublicApiV1CrmPublicHelpCenterPublishResponse = PublicApiV1CrmPublicHelpCenterPublishResponses[keyof PublicApiV1CrmPublicHelpCenterPublishResponses];
+
+export type PublicApiV1CrmPublicHelpCenterUnpublishData = {
+    /**
+     * Original closed JSON body, literal confirmation and original CAS. Query and files are rejected; the native body limit is 180000 bytes. Preserve exact bytes and Idempotency-Key after any failure; recovery is explicit and read only.
+     */
+    body: PublicHelpCenterAdministrativeUnpublishRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Original caller key, unchanged. Recovery reads only its originally confirmed receipt under fresh authority; it does not reserve or redispatch a mutation.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Existing native UUIDv7 with its original positive CAS.
+         */
+        center: string;
+    };
+    query?: never;
+    url: '/crm/public-help-center/{center}/unpublish';
+};
+
+export type PublicApiV1CrmPublicHelpCenterUnpublishErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1CrmPublicHelpCenterUnpublishError = PublicApiV1CrmPublicHelpCenterUnpublishErrors[keyof PublicApiV1CrmPublicHelpCenterUnpublishErrors];
+
+export type PublicApiV1CrmPublicHelpCenterUnpublishResponses = {
+    /**
+     * Original confirmed receipt with the original effect identity, CAS and center snapshot.
+     */
+    200: {
+        data: PublicHelpCenterOriginalUnpublishReceipt;
+    };
+};
+
+export type PublicApiV1CrmPublicHelpCenterUnpublishResponse = PublicApiV1CrmPublicHelpCenterUnpublishResponses[keyof PublicApiV1CrmPublicHelpCenterUnpublishResponses];
+
+export type CrmSubmitKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticleSubmitRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}/submit';
+};
+
+export type CrmSubmitKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmSubmitKnowledgeArticleError = CrmSubmitKnowledgeArticleErrors[keyof CrmSubmitKnowledgeArticleErrors];
+
+export type CrmSubmitKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleSubmitOriginalReceipt;
+    };
+};
+
+export type CrmSubmitKnowledgeArticleResponse = CrmSubmitKnowledgeArticleResponses[keyof CrmSubmitKnowledgeArticleResponses];
+
+export type CrmApproveKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticleApproveRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}/approve';
+};
+
+export type CrmApproveKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmApproveKnowledgeArticleError = CrmApproveKnowledgeArticleErrors[keyof CrmApproveKnowledgeArticleErrors];
+
+export type CrmApproveKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleApproveOriginalReceipt;
+    };
+};
+
+export type CrmApproveKnowledgeArticleResponse = CrmApproveKnowledgeArticleResponses[keyof CrmApproveKnowledgeArticleResponses];
+
+export type CrmPublishKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticlePublishRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}/publish';
+};
+
+export type CrmPublishKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmPublishKnowledgeArticleError = CrmPublishKnowledgeArticleErrors[keyof CrmPublishKnowledgeArticleErrors];
+
+export type CrmPublishKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticlePublishOriginalReceipt;
+    };
+};
+
+export type CrmPublishKnowledgeArticleResponse = CrmPublishKnowledgeArticleResponses[keyof CrmPublishKnowledgeArticleResponses];
+
+export type CrmUnpublishKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticleUnpublishRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}/unpublish';
+};
+
+export type CrmUnpublishKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmUnpublishKnowledgeArticleError = CrmUnpublishKnowledgeArticleErrors[keyof CrmUnpublishKnowledgeArticleErrors];
+
+export type CrmUnpublishKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleUnpublishOriginalReceipt;
+    };
+};
+
+export type CrmUnpublishKnowledgeArticleResponse = CrmUnpublishKnowledgeArticleResponses[keyof CrmUnpublishKnowledgeArticleResponses];
+
+export type CrmArchiveKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticleArchiveRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}/archive';
+};
+
+export type CrmArchiveKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmArchiveKnowledgeArticleError = CrmArchiveKnowledgeArticleErrors[keyof CrmArchiveKnowledgeArticleErrors];
+
+export type CrmArchiveKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleArchiveOriginalReceipt;
+    };
+};
+
+export type CrmArchiveKnowledgeArticleResponse = CrmArchiveKnowledgeArticleResponses[keyof CrmArchiveKnowledgeArticleResponses];
+
+export type CrmLinkKnowledgeArticleData = {
+    /**
+     * Closed native JSON intent, maximum 450000 bytes. Query and files are rejected. Preserve the original key, bytes, public identities and expected_version for confirmation or explicit recovery.
+     */
+    body: KnowledgeArticleLinkRequest;
+    headers: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+        /**
+         * Same original caller key for one closed intent and explicit original-receipt recovery. An ambiguous failure never permits a new key or automatic redispatch.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * The native public article id (UUIDv7), never an integer primary key or an authority grant.
+         */
+        article: string;
+    };
+    query?: never;
+    url: '/crm/knowledge/articles/{article}/link';
+};
+
+export type CrmLinkKnowledgeArticleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type CrmLinkKnowledgeArticleError = CrmLinkKnowledgeArticleErrors[keyof CrmLinkKnowledgeArticleErrors];
+
+export type CrmLinkKnowledgeArticleResponses = {
+    /**
+     * Original confirmed editorial receipt projected with current masks and original CAS.
+     */
+    200: {
+        data: KnowledgeArticleLinkOriginalReceipt;
+    };
+};
+
+export type CrmLinkKnowledgeArticleResponse = CrmLinkKnowledgeArticleResponses[keyof CrmLinkKnowledgeArticleResponses];

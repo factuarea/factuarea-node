@@ -284,6 +284,34 @@ export const CRM_OPERATIONS = [
     "effect": false
   },
   {
+    "operationId": "public-api.v1.crm-public-help-center.get",
+    "operation": "public_help_centers.administration_get",
+    "method": "GET",
+    "path": "/crm/public-help-center",
+    "sdk": "crm.publicHelpCenters.administrationGet",
+    "scope": "public_help_centers:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "public_help_centers:write"
+    ]
+  },
+  {
+    "operationId": "crmGetKnowledgeArticleVersions",
+    "operation": "knowledge_articles.versions",
+    "method": "GET",
+    "path": "/crm/knowledge/articles/{article}/versions",
+    "sdk": "crm.knowledgeArticles.versions",
+    "scope": "knowledge_articles:read",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:read",
+      "knowledge_articles:read"
+    ]
+  },
+  {
     "operationId": "crmGetLeadHistory",
     "operation": "crm_leads.history",
     "method": "GET",
@@ -324,6 +352,20 @@ export const CRM_OPERATIONS = [
     "scope": "crm_pipelines:write",
     "requiresConfirmation": false,
     "effect": true
+  },
+  {
+    "operationId": "listKnowledgeCategories",
+    "operation": "knowledge_articles.categories",
+    "method": "GET",
+    "path": "/crm/knowledge/categories",
+    "sdk": "crm.knowledgeArticles.categories",
+    "scope": "knowledge_articles:read",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:read",
+      "knowledge_articles:read"
+    ]
   },
   {
     "operationId": "crmContactPeopleMerge",
@@ -442,6 +484,171 @@ export const CRM_OPERATIONS = [
     "effect": true
   },
   {
+    "operationId": "public-api.v1.crm-public-help-center.receipt-publish",
+    "operation": "public_help_centers.publish_receipt",
+    "method": "GET",
+    "path": "/crm/public-help-center/receipts/publish",
+    "sdk": "crm.publicHelpCenters.publishReceipt",
+    "scope": "public_help_centers:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "public_help_centers:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "public-api.v1.crm-public-help-center.receipt-unpublish",
+    "operation": "public_help_centers.unpublish_receipt",
+    "method": "GET",
+    "path": "/crm/public-help-center/receipts/unpublish",
+    "sdk": "crm.publicHelpCenters.unpublishReceipt",
+    "scope": "public_help_centers:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "public_help_centers:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticleCreateReceipt",
+    "operation": "knowledge_articles.receipt_create",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.create",
+    "sdk": "crm.knowledgeArticles.receiptCreate",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticleSaveReceipt",
+    "operation": "knowledge_articles.receipt_save",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.save",
+    "sdk": "crm.knowledgeArticles.receiptSave",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticleSubmitReceipt",
+    "operation": "knowledge_articles.receipt_submit",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.submit",
+    "sdk": "crm.knowledgeArticles.receiptSubmit",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticleApproveReceipt",
+    "operation": "knowledge_articles.receipt_approve",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.approve",
+    "sdk": "crm.knowledgeArticles.receiptApprove",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticlePublishReceipt",
+    "operation": "knowledge_articles.receipt_publish",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.publish",
+    "sdk": "crm.knowledgeArticles.receiptPublish",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticleUnpublishReceipt",
+    "operation": "knowledge_articles.receipt_unpublish",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.unpublish",
+    "sdk": "crm.knowledgeArticles.receiptUnpublish",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticleArchiveReceipt",
+    "operation": "knowledge_articles.receipt_archive",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.archive",
+    "sdk": "crm.knowledgeArticles.receiptArchive",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmRecoverKnowledgeArticleLinkReceipt",
+    "operation": "knowledge_articles.receipt_link",
+    "method": "GET",
+    "path": "/crm/knowledge/receipts/knowledge_articles.link",
+    "sdk": "crm.knowledgeArticles.receiptLink",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "recoverKnowledgeCategoryReceipt",
+    "operation": "knowledge_articles.category_receipt",
+    "method": "GET",
+    "path": "/crm/knowledge/categories/receipts/category-save",
+    "sdk": "crm.knowledgeArticles.categoryReceipt",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
     "operationId": "crmReopenLead",
     "operation": "crm_leads.reopen",
     "method": "POST",
@@ -471,6 +678,21 @@ export const CRM_OPERATIONS = [
     "scope": "crm_contact_people:write",
     "requiresConfirmation": false,
     "effect": true
+  },
+  {
+    "operationId": "saveKnowledgeCategory",
+    "operation": "knowledge_articles.category_save",
+    "method": "POST",
+    "path": "/crm/knowledge/categories/save",
+    "sdk": "crm.knowledgeArticles.categorySave",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
   },
   {
     "operationId": "saveLossReason",
@@ -503,6 +725,35 @@ export const CRM_OPERATIONS = [
     "effect": true
   },
   {
+    "operationId": "crmSearchKnowledgeArticles",
+    "operation": "knowledge_articles.search",
+    "method": "GET",
+    "path": "/crm/knowledge/articles",
+    "sdk": "crm.knowledgeArticles.search",
+    "scope": "knowledge_articles:read",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:read",
+      "knowledge_articles:read"
+    ]
+  },
+  {
+    "operationId": "crmCreateKnowledgeArticle",
+    "operation": "knowledge_articles.create",
+    "method": "POST",
+    "path": "/crm/knowledge/articles",
+    "sdk": "crm.knowledgeArticles.create",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
     "operationId": "crmSearchLeads",
     "operation": "crm_leads.search",
     "method": "GET",
@@ -512,5 +763,168 @@ export const CRM_OPERATIONS = [
     "oauthScope": "crm_leads.read",
     "requiresConfirmation": false,
     "effect": false
+  },
+  {
+    "operationId": "crmGetKnowledgeArticle",
+    "operation": "knowledge_articles.show",
+    "method": "GET",
+    "path": "/crm/knowledge/articles/{article}",
+    "sdk": "crm.knowledgeArticles.show",
+    "scope": "knowledge_articles:read",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:read",
+      "knowledge_articles:read"
+    ]
+  },
+  {
+    "operationId": "crmSaveKnowledgeArticle",
+    "operation": "knowledge_articles.save",
+    "method": "PUT",
+    "path": "/crm/knowledge/articles/{article}",
+    "sdk": "crm.knowledgeArticles.save",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "suggestServiceArticles",
+    "operation": "knowledge_articles.suggest",
+    "method": "GET",
+    "path": "/crm/knowledge/tickets/{ticket}/suggestions",
+    "sdk": "crm.knowledgeArticles.suggest",
+    "scope": "knowledge_articles:read",
+    "requiresConfirmation": false,
+    "effect": false,
+    "scopes": [
+      "customer_service:read",
+      "knowledge_articles:read"
+    ]
+  },
+  {
+    "operationId": "public-api.v1.crm-public-help-center.publish",
+    "operation": "public_help_centers.publish",
+    "method": "POST",
+    "path": "/crm/public-help-center/publish",
+    "sdk": "crm.publicHelpCenters.publish",
+    "scope": "public_help_centers:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "public_help_centers:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "public-api.v1.crm-public-help-center.unpublish",
+    "operation": "public_help_centers.unpublish",
+    "method": "POST",
+    "path": "/crm/public-help-center/{center}/unpublish",
+    "sdk": "crm.publicHelpCenters.unpublish",
+    "scope": "public_help_centers:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "public_help_centers:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmSubmitKnowledgeArticle",
+    "operation": "knowledge_articles.submit",
+    "method": "POST",
+    "path": "/crm/knowledge/articles/{article}/submit",
+    "sdk": "crm.knowledgeArticles.submit",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmApproveKnowledgeArticle",
+    "operation": "knowledge_articles.approve",
+    "method": "POST",
+    "path": "/crm/knowledge/articles/{article}/approve",
+    "sdk": "crm.knowledgeArticles.approve",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmPublishKnowledgeArticle",
+    "operation": "knowledge_articles.publish",
+    "method": "POST",
+    "path": "/crm/knowledge/articles/{article}/publish",
+    "sdk": "crm.knowledgeArticles.publish",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmUnpublishKnowledgeArticle",
+    "operation": "knowledge_articles.unpublish",
+    "method": "POST",
+    "path": "/crm/knowledge/articles/{article}/unpublish",
+    "sdk": "crm.knowledgeArticles.unpublish",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmArchiveKnowledgeArticle",
+    "operation": "knowledge_articles.archive",
+    "method": "POST",
+    "path": "/crm/knowledge/articles/{article}/archive",
+    "sdk": "crm.knowledgeArticles.archive",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
+  },
+  {
+    "operationId": "crmLinkKnowledgeArticle",
+    "operation": "knowledge_articles.link",
+    "method": "POST",
+    "path": "/crm/knowledge/articles/{article}/link",
+    "sdk": "crm.knowledgeArticles.link",
+    "scope": "knowledge_articles:write",
+    "requiresConfirmation": true,
+    "effect": true,
+    "scopes": [
+      "customer_service:write",
+      "knowledge_articles:write"
+    ],
+    "requiresOriginalKey": true
   }
 ] as const;

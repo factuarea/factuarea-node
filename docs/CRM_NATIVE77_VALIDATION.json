@@ -1,0 +1,120 @@
+{
+  "status": "Source extension implemented and directed SDK validation passed; native HTTP acceptance/release pending",
+  "created_at_utc": "2026-10-10T00:40:20.619385+00:00",
+  "baseline_commit": "9f30852f78ea19b4e1613de81543b532ddeb20a8",
+  "branch": "feature/dev-2-crm-node-sdk-native-20261009",
+  "scope": {
+    "new_operations": 28,
+    "knowledge_base": 23,
+    "public_help_center_administration": 5,
+    "native_command_handlers": 11,
+    "native_query_handlers": 17,
+    "total_operations": 77,
+    "paths": 66,
+    "schemas": 106
+  },
+  "native_contract": {
+    "file": "spec/crm-native77.json",
+    "sha256": "4a2cb151faef526aa8c8fd26c29a1d3f6acd019335e13b058b86671f40eb609f",
+    "packaged_sha256": "4a2cb151faef526aa8c8fd26c29a1d3f6acd019335e13b058b86671f40eb609f"
+  },
+  "immutable_previous49": {
+    "contract_sha256": "9759f8e07cdbd4ba7b477e7f3f785c1b2d198f0657f64dc97c87bdea542bc837",
+    "source_sha256": "cebe88afbaf981a95760859d3eac35403c616d0f7b1c9b785e486d5e8ad01f08",
+    "validation_sha256": "da9d7cabee037812de2a4e1fc4283fddcb4b43ffc267b574944acb9f7c3010c8",
+    "operations_schemas_methods_metadata_unchanged": true,
+    "previous125_tests_replayed": false
+  },
+  "executed": [
+    {
+      "command": "npm run generate:crm",
+      "result": "passed",
+      "log": "/tmp/node-sdk-native77-generate.8y9kEv"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed after final receipt review",
+      "log": "/tmp/node-sdk-native77-typecheck-final.IpFDkb",
+      "covers": "new compile-only negative native intents and server recipe; no HTTP execution"
+    },
+    {
+      "command": "npm test -- test/crm-knowledge.test.ts",
+      "result": "109 passed; one directed new file",
+      "log": "/tmp/node-sdk-native77-tests-reviewed.9iId5i",
+      "native_http": false
+    },
+    {
+      "command": "npm run build",
+      "result": "ESM/CJS/strict declaration bundles passed",
+      "log": "/tmp/node-sdk-native77-final.Sq3uD8/build.log"
+    },
+    {
+      "command": "npm pack --ignore-scripts --pack-destination PRIVATE_DIR",
+      "result": "passed",
+      "log": "/tmp/node-sdk-native77-final.Sq3uD8/pack.log"
+    },
+    {
+      "command": "npm install --ignore-scripts --no-audit --no-fund --offline --prefix PRIVATE_CONSUMER",
+      "result": "clean private install passed",
+      "log": "/tmp/node-sdk-native77-final.Sq3uD8/install.log"
+    },
+    {
+      "command": "node PRIVATE_CONSUMER/esm.mjs",
+      "result": "original-key unconfirmed write/recovery, native search pagination and original help-center receipt passed",
+      "log": "/tmp/node-sdk-native77-final.Sq3uD8/consumer-esm.log"
+    },
+    {
+      "command": "node PRIVATE_CONSUMER/cjs.cjs",
+      "result": "new exported resource classes and native null administrative representation passed",
+      "log": "/tmp/node-sdk-native77-final.Sq3uD8/consumer-cjs.log"
+    },
+    {
+      "command": "tsc --strict --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck --typeRoots REPO/node_modules/@types PRIVATE_CONSUMER/types.ts",
+      "result": "installed new type exports and negative intent/header contracts passed",
+      "log": "/tmp/node-sdk-native77-final.Sq3uD8/consumer-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "log": "/tmp/node-sdk-native77-final.Sq3uD8/diff-check.log"
+    }
+  ],
+  "private_package": {
+    "path": "/tmp/node-sdk-native77-final.Sq3uD8/factuarea-sdk-0.6.0.tgz",
+    "sha256": "fc2f4ba0c1aa3789c0d050221cb7daac681e64abd779384bc8403c80d205abd8",
+    "consumer": "/tmp/node-sdk-native77-final.Sq3uD8/consumer",
+    "file_hashes": "/tmp/node-sdk-native77-final.Sq3uD8/tarball-file-hashes.json",
+    "version": "0.6.0"
+  },
+  "runtime": {
+    "node": "v22.23.3",
+    "typescript": "5.9.3",
+    "openapi_generator": "0.98.1"
+  },
+  "read_only_native_evidence": "spec/crm-native77-source.json",
+  "review": {
+    "read_only_agent": "node_contract_audit",
+    "findings_fixed": [
+      "incomplete write receipt",
+      "malformed/mismatched recovery receipt",
+      "creation CAS fixture snapshots",
+      "try/catch original recovery example"
+    ]
+  },
+  "code_freeze_manifest": "/tmp/node-sdk-native77-final.Sq3uD8/source-freeze.json",
+  "limits": [
+    "Synthetic SDK HTTP mocks and installed-consumer checks do not prove native two-tenant HTTP acceptance.",
+    "New numeric CAS intent/response values must fit Number.isSafeInteger; wider native integer support is pending exact large-integer transport.",
+    "Persist original reviewed body, entity IDs, CAS and key in the host before dispatch; an ambiguous/absent recovery never authorizes a replacement key or redispatch."
+  ],
+  "not_executed": [
+    "previous125 runtime tests",
+    "app/backend/source49 export",
+    "database/SQL/PDO",
+    "Docker/shared runtime",
+    "make pr",
+    "git commit/push",
+    "package release/version bump",
+    "capability activation/ratification"
+  ]
+}

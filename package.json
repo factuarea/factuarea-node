@@ -46,6 +46,8 @@
     "README.md",
     "LICENSE",
     "spec/crm-native.json",
+    "spec/crm-native77.json",
+    "docs/CRM_NATIVE77_DELIVERY.md",
     "docs/CRM_DELIVERY.md"
   ],
   "sideEffects": false,
