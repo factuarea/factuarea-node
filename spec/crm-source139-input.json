@@ -1,13 +1,17 @@
 {
-  "native_sha256": "438b12b53be7ae7535cd6c85ba7dea06c76d84a33024db0e0232ac8ba279be63",
-  "native_catalog_sha256": "78aee740427c76d2e009d8ff010f1784c1d1df02b86cbda4ad60c7a761972fbb",
-  "native_operation_count": 958,
-  "native_carrier_count": 363,
+  "native_sha256": "59b6cd2664aa8524e96a7600565b70b5eae5f6beaa7527913d703adf653a2fca",
+  "native_input_manifest": "/tmp/dev2-development143-native-openapi-input.json",
+  "native_input_group": 143,
+  "native_catalog_sha256": "814cc0ad9a994af2acfdb25e1633557469cfacc869d49792a478d3a869b8699e",
+  "native_operation_count": 959,
+  "native_carrier_count": 364,
   "projection": "Machine selection of unchanged native operations and recursive local component references; private native profile copied unchanged.",
   "selected_operation_ids": [
+    "public-api.v1.crm-spreadsheet-imports.apply",
     "crmCreateCrmActivity",
     "crmCreateOpportunity",
     "crmDownloadCommercialDocument",
+    "public-api.v1.crm-spreadsheet-imports.show",
     "crmGetCrmActivityCreateOriginal",
     "public-api.v1.crm-spreadsheet-imports.apply-original",
     "getBookingSequenceStopDecision",
@@ -32,7 +36,8 @@
     "listBookings",
     "crmListCommercialDocuments",
     "v1.crm.sequences.list",
-    "v1.crm.sequences.preview"
+    "v1.crm.sequences.preview",
+    "crmRestoreCommercialDocument"
   ],
   "published": false,
   "ratified": false,

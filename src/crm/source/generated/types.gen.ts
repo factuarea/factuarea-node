@@ -5,6 +5,149 @@ export type ClientOptions = {
 };
 
 /**
+ * Error
+ */
+export type Error = {
+  error: {
+    /**
+     * Machine-readable category of the error. Versioned by `Factuarea-Version`: from `2026-09-01` onwards the payment gate codes `payment_method_required`, `seat_charge_failed`, `gestoria_plan_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed` are served as `payment_required_error`; requests pinned to an earlier version keep receiving `invalid_request_error` for those five. `error.code` and `error.subcode` never change — branch on `code` if you want version-independent behaviour.
+     */
+    type:
+      | "api_error"
+      | "authentication_error"
+      | "authorization_error"
+      | "conflict_error"
+      | "idempotency_error"
+      | "invalid_request_error"
+      | "not_found_error"
+      | "payment_required_error"
+      | "permission_error"
+      | "rate_limit_error"
+      | "service_unavailable_error";
+    /**
+     * Stable error code, e.g. missing_api_key, insufficient_scope, parameter_invalid, invalid_status_transition. Full reference of every code, grouped by area: https://docs.factuarea.com/guides/errors/all.
+     */
+    code: string;
+    /**
+     * Sub-code detailing the subtype within `code`. Present only on some errors, and only where `code` alone is ambiguous: on 409 duplication conflicts it pins the duplicate key (`code=resource_already_exists`, `subcode=tax_id_already_exists`), and on 402 payment errors it pins which gate rejected the call (`code=seat_charge_failed`, `subcode=seat_charge_failed`; `code=addon_required`, `subcode=webhooks_addon_required`). Like `code`, it is stable and invariant across locales and API versions.
+     */
+    subcode?: string | null;
+    /**
+     * Human-readable description in Spanish.
+     */
+    message: string;
+    /**
+     * Field that caused the error (for parameter_invalid and similar invalid_request_error codes). On multi-field validation errors it points to the FIRST failed field; the full set lives in `errors[]`.
+     */
+    param?: string | null;
+    /**
+     * Zero-based position of the document line that raised the error, the same `N` as in a validation path `lines.N.field`. Present only when a domain rule rejects ONE specific line of the document (a product, variant, presentation, configuration or option that does not exist or is deactivated, a missing price or VAT rate, an exemption cause or regime key outside its catalog, a disbursement line carrying what it may not, a line total that does not match, …) and absent on every other error. It is additive: `param` keeps naming the field exactly as before, so a client can ignore `line_index`. Use it to highlight the offending line without parsing `message`.
+     */
+    line_index?: number;
+    /**
+     * Present on 422 validation errors: ALL failed fields, one item per field (not only the first). Each item carries `param`/`code`/`message` plus the optional hints `expected_format`/`allowed_values`. Additive and backward-compatible — `error.param`/`error.message` still mirror the first failed field.
+     */
+    errors?: Array<{
+      /**
+       * Name of the failed field.
+       */
+      param: string;
+      /**
+       * Stable machine-readable code for this field, derived from the failed validation rule (e.g. parameter_missing, parameter_invalid_format, parameter_invalid_enum).
+       */
+      code: string;
+      /**
+       * Human-readable description of the field error. Localized (es/en/ca) when its `code` belongs to the stable catalog.
+       */
+      message: string;
+      /**
+       * Expected format hint (e.g. `YYYY-MM-DD`, `uuid`, `email`, `url`). Only present when the failure is a format error.
+       */
+      expected_format?: string;
+      /**
+       * Legal values of the enum. Only present when the failure is an enum/`in` error.
+       */
+      allowed_values?: Array<string>;
+    }>;
+    /**
+     * Structured details about the error, present only on some errors and with a shape that depends on the case. On 409 duplication conflicts (subcodes `tax_id_already_exists`, `external_id_already_exists`, `sku_already_exists`) it carries `existing_resource_id`, the UUID of the resource that already exists. On 402 `payment_required_error` responses caused by a missing payment method it carries `payment_setup_url`, the Billing Portal link that unblocks the operation. On the 422 subcodes raised inside the domain it carries the hint of that case: `allowed_values` (rejected value outside a closed catalog), `offending_field` (field a disbursement line may not carry) or `expected` + `received` (line total checksum mismatch).
+     */
+    details?: {
+      /**
+       * Operation in the authenticated company that must be resolved before another employee-seat mutation.
+       */
+      operation_id?: string;
+      /**
+       * Employee-batch validation failures identified by the stable row_id; no employee was charged or created.
+       */
+      row_errors?: Array<{
+        row_id: string;
+        field: string;
+        message: string;
+      }>;
+      /**
+       * Review fields that must be corrected before a purchase scan can be converted. Keys use public identifiers, for example supplier_id or lines.0.tax_rate.
+       */
+      field_errors?: {
+        [key: string]: Array<string>;
+      };
+      /**
+       * UUID of the pre-existing resource that triggered the conflict. Resolvable with a `GET /v1/{resource}/{id}` without an extra `find_by_*` call. Only present on 409 duplication conflicts.
+       */
+      existing_resource_id?: string;
+      /**
+       * Billing Portal URL where the payment method can be set up. Only present on 402 errors caused by a missing payment method (`payment_method_required`, `employee_seat_payment_method_required`); once the payment method is on file, retrying the same call succeeds. Absent on the other 402 codes (declined charge, plan or add-on required).
+       */
+      payment_setup_url?: string;
+      /**
+       * Legal values of the closed catalog the rejected value does not belong to. Present on the 422 subcodes that validate against a catalog inside the domain (`line_type_invalid`, `correction_code_illegal_for_original`). Note that a 422 raised by request validation reports the same hint per field in `error.errors[].allowed_values` instead.
+       */
+      allowed_values?: Array<string>;
+      /**
+       * Name of the line field that made the operation illegal. Present on 422 `suplido_line_cannot_carry_taxes`: a disbursement line (`line_type: "SUPLIDO"`) may not carry VAT, withholding, surcharge, discount, regime key, exemption cause or product, and this names the one that was sent.
+       */
+      offending_field?: string;
+      /**
+       * Amount this API computed for the line. Present on 422 `line_total_checksum_mismatch`, together with `received`, so the rounding mismatch with your own ERP can be located without guessing.
+       */
+      expected?: number;
+      /**
+       * Amount sent in `lines[].line_total`, which differs from `expected` by more than one cent. Present on 422 `line_total_checksum_mismatch`.
+       */
+      received?: number;
+      /**
+       * Current active automation rule count on automation_active_rules_limit_exceeded.
+       */
+      active_rules?: number;
+      /**
+       * Plan limit reached, including the active automation rule cap on automation_active_rules_limit_exceeded.
+       */
+      limit?: number;
+      /**
+       * Resource whose quota was reached on plan_limit_exceeded, for example documents_year or users.
+       */
+      resource?: string;
+      /**
+       * Current usage of the resource on plan_limit_exceeded.
+       */
+      current?: number;
+      /**
+       * End of the quota period on plan_limit_exceeded; null for resources without a period, including platform users.
+       */
+      period_end?: string | null;
+    };
+    /**
+     * Link to error reference in docs.
+     */
+    doc_url?: string | null;
+    /**
+     * Request ID for support/debugging.
+     */
+    request_id?: string | null;
+  };
+};
+
+/**
  * crmCreateCrmActivityRequest
  */
 export type CrmCreateCrmActivityRequest = {
@@ -649,149 +792,6 @@ export type CrmActivity = {
     type: "contact" | "person" | "lead" | "opportunity" | "booking";
     id: string;
   }>;
-};
-
-/**
- * Error
- */
-export type Error = {
-  error: {
-    /**
-     * Machine-readable category of the error. Versioned by `Factuarea-Version`: from `2026-09-01` onwards the payment gate codes `payment_method_required`, `seat_charge_failed`, `gestoria_plan_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed` are served as `payment_required_error`; requests pinned to an earlier version keep receiving `invalid_request_error` for those five. `error.code` and `error.subcode` never change — branch on `code` if you want version-independent behaviour.
-     */
-    type:
-      | "api_error"
-      | "authentication_error"
-      | "authorization_error"
-      | "conflict_error"
-      | "idempotency_error"
-      | "invalid_request_error"
-      | "not_found_error"
-      | "payment_required_error"
-      | "permission_error"
-      | "rate_limit_error"
-      | "service_unavailable_error";
-    /**
-     * Stable error code, e.g. missing_api_key, insufficient_scope, parameter_invalid, invalid_status_transition. Full reference of every code, grouped by area: https://docs.factuarea.com/guides/errors/all.
-     */
-    code: string;
-    /**
-     * Sub-code detailing the subtype within `code`. Present only on some errors, and only where `code` alone is ambiguous: on 409 duplication conflicts it pins the duplicate key (`code=resource_already_exists`, `subcode=tax_id_already_exists`), and on 402 payment errors it pins which gate rejected the call (`code=seat_charge_failed`, `subcode=seat_charge_failed`; `code=addon_required`, `subcode=webhooks_addon_required`). Like `code`, it is stable and invariant across locales and API versions.
-     */
-    subcode?: string | null;
-    /**
-     * Human-readable description in Spanish.
-     */
-    message: string;
-    /**
-     * Field that caused the error (for parameter_invalid and similar invalid_request_error codes). On multi-field validation errors it points to the FIRST failed field; the full set lives in `errors[]`.
-     */
-    param?: string | null;
-    /**
-     * Zero-based position of the document line that raised the error, the same `N` as in a validation path `lines.N.field`. Present only when a domain rule rejects ONE specific line of the document (a product, variant, presentation, configuration or option that does not exist or is deactivated, a missing price or VAT rate, an exemption cause or regime key outside its catalog, a disbursement line carrying what it may not, a line total that does not match, …) and absent on every other error. It is additive: `param` keeps naming the field exactly as before, so a client can ignore `line_index`. Use it to highlight the offending line without parsing `message`.
-     */
-    line_index?: number;
-    /**
-     * Present on 422 validation errors: ALL failed fields, one item per field (not only the first). Each item carries `param`/`code`/`message` plus the optional hints `expected_format`/`allowed_values`. Additive and backward-compatible — `error.param`/`error.message` still mirror the first failed field.
-     */
-    errors?: Array<{
-      /**
-       * Name of the failed field.
-       */
-      param: string;
-      /**
-       * Stable machine-readable code for this field, derived from the failed validation rule (e.g. parameter_missing, parameter_invalid_format, parameter_invalid_enum).
-       */
-      code: string;
-      /**
-       * Human-readable description of the field error. Localized (es/en/ca) when its `code` belongs to the stable catalog.
-       */
-      message: string;
-      /**
-       * Expected format hint (e.g. `YYYY-MM-DD`, `uuid`, `email`, `url`). Only present when the failure is a format error.
-       */
-      expected_format?: string;
-      /**
-       * Legal values of the enum. Only present when the failure is an enum/`in` error.
-       */
-      allowed_values?: Array<string>;
-    }>;
-    /**
-     * Structured details about the error, present only on some errors and with a shape that depends on the case. On 409 duplication conflicts (subcodes `tax_id_already_exists`, `external_id_already_exists`, `sku_already_exists`) it carries `existing_resource_id`, the UUID of the resource that already exists. On 402 `payment_required_error` responses caused by a missing payment method it carries `payment_setup_url`, the Billing Portal link that unblocks the operation. On the 422 subcodes raised inside the domain it carries the hint of that case: `allowed_values` (rejected value outside a closed catalog), `offending_field` (field a disbursement line may not carry) or `expected` + `received` (line total checksum mismatch).
-     */
-    details?: {
-      /**
-       * Operation in the authenticated company that must be resolved before another employee-seat mutation.
-       */
-      operation_id?: string;
-      /**
-       * Employee-batch validation failures identified by the stable row_id; no employee was charged or created.
-       */
-      row_errors?: Array<{
-        row_id: string;
-        field: string;
-        message: string;
-      }>;
-      /**
-       * Review fields that must be corrected before a purchase scan can be converted. Keys use public identifiers, for example supplier_id or lines.0.tax_rate.
-       */
-      field_errors?: {
-        [key: string]: Array<string>;
-      };
-      /**
-       * UUID of the pre-existing resource that triggered the conflict. Resolvable with a `GET /v1/{resource}/{id}` without an extra `find_by_*` call. Only present on 409 duplication conflicts.
-       */
-      existing_resource_id?: string;
-      /**
-       * Billing Portal URL where the payment method can be set up. Only present on 402 errors caused by a missing payment method (`payment_method_required`, `employee_seat_payment_method_required`); once the payment method is on file, retrying the same call succeeds. Absent on the other 402 codes (declined charge, plan or add-on required).
-       */
-      payment_setup_url?: string;
-      /**
-       * Legal values of the closed catalog the rejected value does not belong to. Present on the 422 subcodes that validate against a catalog inside the domain (`line_type_invalid`, `correction_code_illegal_for_original`). Note that a 422 raised by request validation reports the same hint per field in `error.errors[].allowed_values` instead.
-       */
-      allowed_values?: Array<string>;
-      /**
-       * Name of the line field that made the operation illegal. Present on 422 `suplido_line_cannot_carry_taxes`: a disbursement line (`line_type: "SUPLIDO"`) may not carry VAT, withholding, surcharge, discount, regime key, exemption cause or product, and this names the one that was sent.
-       */
-      offending_field?: string;
-      /**
-       * Amount this API computed for the line. Present on 422 `line_total_checksum_mismatch`, together with `received`, so the rounding mismatch with your own ERP can be located without guessing.
-       */
-      expected?: number;
-      /**
-       * Amount sent in `lines[].line_total`, which differs from `expected` by more than one cent. Present on 422 `line_total_checksum_mismatch`.
-       */
-      received?: number;
-      /**
-       * Current active automation rule count on automation_active_rules_limit_exceeded.
-       */
-      active_rules?: number;
-      /**
-       * Plan limit reached, including the active automation rule cap on automation_active_rules_limit_exceeded.
-       */
-      limit?: number;
-      /**
-       * Resource whose quota was reached on plan_limit_exceeded, for example documents_year or users.
-       */
-      resource?: string;
-      /**
-       * Current usage of the resource on plan_limit_exceeded.
-       */
-      current?: number;
-      /**
-       * End of the quota period on plan_limit_exceeded; null for resources without a period, including platform users.
-       */
-      period_end?: string | null;
-    };
-    /**
-     * Link to error reference in docs.
-     */
-    doc_url?: string | null;
-    /**
-     * Request ID for support/debugging.
-     */
-    request_id?: string | null;
-  };
 };
 
 /**
@@ -1638,9 +1638,12 @@ export type CrmPrivateDocumentList = {
 };
 
 /**
- * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+ * CrmPrivateDocumentReceipt
  */
-export type IdempotencyKey = string;
+export type CrmPrivateDocumentReceipt = {
+  id: string;
+  version: number;
+};
 
 /**
  * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
@@ -1651,6 +1654,107 @@ export type FactuareaVersion = string;
  * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
  */
 export type XActiveProfile = string;
+
+/**
+ * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+ */
+export type IdempotencyKey = string;
+
+export type PublicApiV1CrmSpreadsheetImportsApplyData = {
+  body: unknown & {
+    expected_version: number;
+    preview_hash: string;
+    effect_uuid: string;
+    mode: "import" | "retry_failed" | "compensate";
+    confirmed: true;
+    corrected_source_blob_id?: string;
+  };
+  headers?: {
+    /**
+     * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+     */
+    "Factuarea-Version"?: string;
+    /**
+     * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+     */
+    "X-Active-Profile"?: string;
+    /**
+     * Optional under the current native admission policy. Required to retain and read the separate apply Original: preserve this exact key and the original POST bytes.
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    run: string;
+  };
+  query?: never;
+  url: "/crm/imports/{run}/apply";
+};
+
+export type PublicApiV1CrmSpreadsheetImportsApplyErrors = {
+  /**
+   * Autenticación ausente o inválida.
+   */
+  401: Error;
+  /**
+   * Scope, membresía, plan, C7 o campo actual denegado.
+   */
+  403: Error;
+  /**
+   * Ticket, calendario o referencia ausente, ajena o invisible.
+   */
+  404: Error;
+  /**
+   * Conflicto CAS, clave reutilizada o reserva original sin confirmar.
+   */
+  409: Error;
+  /**
+   * Tipo JSON, calendario, reloj, referencia o regla inválida.
+   */
+  422: Error;
+  /**
+   * La admisión nativa de esta familia rechaza la operación.
+   */
+  429: Error;
+  /**
+   * La infraestructura o el productor canónico no están disponibles.
+   */
+  500: Error;
+};
+
+export type PublicApiV1CrmSpreadsheetImportsApplyError =
+  PublicApiV1CrmSpreadsheetImportsApplyErrors[keyof PublicApiV1CrmSpreadsheetImportsApplyErrors];
+
+export type PublicApiV1CrmSpreadsheetImportsApplyResponses = {
+  /**
+   * Primera respuesta 202 del run autorizado; las filas pendientes permanecen en progress. Original se lee por separado.
+   */
+  202: {
+    data: {
+      id: string;
+      source_blob_id: string;
+      entity_type: string;
+      version: number;
+      /**
+       * Current native run state, separate from the immutable first apply response.
+       */
+      state: string;
+      preview_hash: string;
+      counts: {
+        [key: string]: number;
+      };
+      blocking_codes: Array<string>;
+      progress: {
+        total: number;
+        processed: number;
+        pending: number;
+      };
+      parent_run_id?: string;
+    };
+  };
+};
+
+export type PublicApiV1CrmSpreadsheetImportsApplyResponse =
+  PublicApiV1CrmSpreadsheetImportsApplyResponses[keyof PublicApiV1CrmSpreadsheetImportsApplyResponses];
 
 export type CrmCreateCrmActivityData = {
   /**
@@ -1872,6 +1976,122 @@ export type CrmDownloadCommercialDocumentResponses = {
 
 export type CrmDownloadCommercialDocumentResponse =
   CrmDownloadCommercialDocumentResponses[keyof CrmDownloadCommercialDocumentResponses];
+
+export type PublicApiV1CrmSpreadsheetImportsShowData = {
+  body?: never;
+  headers?: {
+    /**
+     * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+     */
+    "Factuarea-Version"?: string;
+    /**
+     * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+     */
+    "X-Active-Profile"?: string;
+  };
+  path: {
+    run: string;
+  };
+  query?: {
+    /**
+     * Current JSON read mode; cannot be combined with report_format or expected_version.
+     */
+    cursor?: string;
+    /**
+     * Current JSON read mode; cannot be combined with report_format or expected_version.
+     */
+    limit?: number;
+    /**
+     * CSV read mode: report_format=csv and expected_version are required together; cursor and limit are forbidden.
+     */
+    report_format?: "csv";
+    /**
+     * CSV read mode: report_format=csv and expected_version are required together; cursor and limit are forbidden.
+     */
+    expected_version?: number;
+  };
+  url: "/crm/imports/{run}";
+};
+
+export type PublicApiV1CrmSpreadsheetImportsShowErrors = {
+  /**
+   * Autenticación ausente o inválida.
+   */
+  401: Error;
+  /**
+   * Scope, membresía, plan, C7 o campo actual denegado.
+   */
+  403: Error;
+  /**
+   * Ticket, calendario o referencia ausente, ajena o invisible.
+   */
+  404: Error;
+  /**
+   * Versión, preview, cursor o identidad original cambiados; no reenviar una aplicación incierta.
+   */
+  409: Error;
+  /**
+   * Tipo JSON, calendario, reloj, referencia o regla inválida.
+   */
+  422: Error;
+  /**
+   * La admisión nativa de esta familia rechaza la operación.
+   */
+  429: Error;
+  /**
+   * La infraestructura o el productor canónico no están disponibles.
+   */
+  500: Error;
+};
+
+export type PublicApiV1CrmSpreadsheetImportsShowError =
+  PublicApiV1CrmSpreadsheetImportsShowErrors[keyof PublicApiV1CrmSpreadsheetImportsShowErrors];
+
+export type PublicApiV1CrmSpreadsheetImportsShowResponses = {
+  /**
+   * Current coherente con sus errores y versión; el modo CSV conserva bytes originales y no acredita apply Original.
+   */
+  200: {
+    data: {
+      id: string;
+      source_blob_id: string;
+      entity_type: string;
+      version: number;
+      /**
+       * Current native run state, separate from the immutable first apply response.
+       */
+      state: string;
+      preview_hash: string;
+      counts: {
+        [key: string]: number;
+      };
+      blocking_codes: Array<string>;
+      progress: {
+        total: number;
+        processed: number;
+        pending: number;
+      };
+      parent_run_id?: string;
+      errors: {
+        version: number;
+        items: Array<{
+          source_row: number;
+          field: string | null;
+          codes: Array<string>;
+        }>;
+        has_more: boolean;
+        next_row: number | null;
+        /**
+         * Opaque cursor bound to this run and Current version. A changed version conflicts; it does not reconstruct an Original response.
+         */
+        next_cursor: string | null;
+      };
+    };
+  };
+};
+
+export type PublicApiV1CrmSpreadsheetImportsShowResponse =
+  PublicApiV1CrmSpreadsheetImportsShowResponses[keyof PublicApiV1CrmSpreadsheetImportsShowResponses];
 
 export type CrmGetCrmActivityCreateOriginalData = {
   body?: never;
@@ -5398,3 +5618,78 @@ export type V1CrmSequencesPreviewResponses = {
 
 export type V1CrmSequencesPreviewResponse =
   V1CrmSequencesPreviewResponses[keyof V1CrmSequencesPreviewResponses];
+
+export type CrmRestoreCommercialDocumentData = {
+  body: {
+    expected_version: number;
+    /**
+     * Confirmación humana explícita de esta restauración y revisión; no concede acceso.
+     */
+    confirmed: true;
+  };
+  headers?: {
+    /**
+     * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+     */
+    "Factuarea-Version"?: string;
+    /**
+     * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+     */
+    "X-Active-Profile"?: string;
+    /**
+     * Intención original: mismos argumentos recuperan el receipt original con permisos actuales; otro contenido devuelve409.
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    document: string;
+  };
+  query?: never;
+  url: "/crm/documents/{document}/restore";
+};
+
+export type CrmRestoreCommercialDocumentErrors = {
+  /**
+   * Autenticación ausente o inválida.
+   */
+  401: Error;
+  /**
+   * Scope, membresía, plan, C7 o campo actual denegado.
+   */
+  403: Error;
+  /**
+   * Ticket, calendario o referencia ausente, ajena o invisible.
+   */
+  404: Error;
+  /**
+   * Conflicto CAS, clave reutilizada o reserva original sin confirmar.
+   */
+  409: Error;
+  /**
+   * Tipo JSON, calendario, reloj, referencia o regla inválida.
+   */
+  422: Error;
+  /**
+   * La admisión nativa de esta familia rechaza la operación.
+   */
+  429: Error;
+  /**
+   * La infraestructura o el productor canónico no están disponibles.
+   */
+  500: Error;
+};
+
+export type CrmRestoreCommercialDocumentError =
+  CrmRestoreCommercialDocumentErrors[keyof CrmRestoreCommercialDocumentErrors];
+
+export type CrmRestoreCommercialDocumentResponses = {
+  /**
+   * Resultado original autorizado; identidad pública id, sin receipt interno ni referencias físicas.
+   */
+  200: {
+    data: CrmPrivateDocumentReceipt;
+  };
+};
+
+export type CrmRestoreCommercialDocumentResponse =
+  CrmRestoreCommercialDocumentResponses[keyof CrmRestoreCommercialDocumentResponses];

@@ -1,4 +1,4 @@
-// AUTO-GENERATED from unchanged selected native Source139 operations.
+// AUTO-GENERATED from unchanged selected native Source143 operations.
 import {
   CrmSourceBaseResource,
   type CrmSourceRequestConfig,
@@ -8,6 +8,95 @@ import {
 import { CRM_SOURCE_OPERATIONS } from "./operations.gen.js";
 import type { HttpClient, BinaryResponse } from "../../core/http-client.js";
 import type * as T from "./generated/types.gen.js";
+
+export class CrmSourceImportsResource extends CrmSourceBaseResource {
+  /** Native public-api.v1.crm-spreadsheet-imports.apply; one explicitly confirmed dispatch, no automatic retry or redirect. */
+  async apply(
+    run: NonNullable<
+      T.PublicApiV1CrmSpreadsheetImportsApplyData["path"]
+    >["run"],
+    body: NonNullable<T.PublicApiV1CrmSpreadsheetImportsApplyData["body"]> &
+      (
+        | { mode: "retry_failed" }
+        | {
+            mode: Exclude<
+              NonNullable<
+                T.PublicApiV1CrmSpreadsheetImportsApplyData["body"]
+              >["mode"],
+              "retry_failed"
+            >;
+            corrected_source_blob_id?: never;
+          }
+      ),
+    config: CrmSourceWriteConfig
+  ): Promise<
+    T.PublicApiV1CrmSpreadsheetImportsApplyResponses[keyof T.PublicApiV1CrmSpreadsheetImportsApplyResponses]
+  > {
+    return this.writeSource<
+      T.PublicApiV1CrmSpreadsheetImportsApplyResponses[keyof T.PublicApiV1CrmSpreadsheetImportsApplyResponses]
+    >(CRM_SOURCE_OPERATIONS[0], { run }, body, config);
+  }
+
+  /** Native public-api.v1.crm-spreadsheet-imports.show; current authorized read. */
+  async getCurrent(
+    run: NonNullable<T.PublicApiV1CrmSpreadsheetImportsShowData["path"]>["run"],
+    params?: Omit<
+      NonNullable<T.PublicApiV1CrmSpreadsheetImportsShowData["query"]>,
+      "report_format" | "expected_version"
+    >,
+    config?: CrmSourceRequestConfig
+  ): Promise<
+    Exclude<T.PublicApiV1CrmSpreadsheetImportsShowResponses[200], string>
+  > {
+    return this.readSource<
+      Exclude<T.PublicApiV1CrmSpreadsheetImportsShowResponses[200], string>
+    >(CRM_SOURCE_OPERATIONS[4], { run }, params, config);
+  }
+
+  /** Same native public-api.v1.crm-spreadsheet-imports.show, CSV media mode; immutable bytes, never Apply Original. */
+  async downloadErrorsCsv(
+    run: NonNullable<T.PublicApiV1CrmSpreadsheetImportsShowData["path"]>["run"],
+    params: Required<
+      Pick<
+        NonNullable<T.PublicApiV1CrmSpreadsheetImportsShowData["query"]>,
+        "report_format" | "expected_version"
+      >
+    >,
+    config?: CrmSourceRequestConfig
+  ): Promise<BinaryResponse> {
+    if (
+      Object.keys(params).some(
+        (field) => !["report_format", "expected_version"].includes(field)
+      ) ||
+      params.report_format !== "csv" ||
+      params.expected_version === undefined
+    )
+      throw new TypeError(
+        "Factuarea: CSV requires only its native report selector and expected version."
+      );
+    return this.readSource(
+      { ...CRM_SOURCE_OPERATIONS[4], binary: true },
+      { run },
+      params,
+      config
+    );
+  }
+
+  /** Native public-api.v1.crm-spreadsheet-imports.apply-original; Original, never Current or a write retry. */
+  async getApplyOriginal(
+    run: NonNullable<
+      T.PublicApiV1CrmSpreadsheetImportsApplyOriginalData["path"]
+    >["run"],
+    params: NonNullable<
+      T.PublicApiV1CrmSpreadsheetImportsApplyOriginalData["query"]
+    >,
+    config: CrmSourceOriginalRequestConfig
+  ): Promise<T.PublicApiV1CrmSpreadsheetImportsApplyOriginalResponses[200]> {
+    return this.readSource<
+      T.PublicApiV1CrmSpreadsheetImportsApplyOriginalResponses[200]
+    >(CRM_SOURCE_OPERATIONS[6], { run }, params, config);
+  }
+}
 
 export class CrmSourceActivitiesResource extends CrmSourceBaseResource {
   /** Native crmCreateCrmActivity; one explicitly confirmed dispatch, no automatic retry or redirect. */
@@ -19,7 +108,7 @@ export class CrmSourceActivitiesResource extends CrmSourceBaseResource {
   > {
     return this.writeSource<
       T.CrmCreateCrmActivityResponses[keyof T.CrmCreateCrmActivityResponses]
-    >(CRM_SOURCE_OPERATIONS[0], {}, body, config);
+    >(CRM_SOURCE_OPERATIONS[1], {}, body, config);
   }
 
   /** Native crmGetCrmActivityCreateOriginal; Original, never Current or a write retry. */
@@ -28,7 +117,7 @@ export class CrmSourceActivitiesResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.CrmGetCrmActivityCreateOriginalResponses[200]> {
     return this.readSource<T.CrmGetCrmActivityCreateOriginalResponses[200]>(
-      CRM_SOURCE_OPERATIONS[3],
+      CRM_SOURCE_OPERATIONS[5],
       {},
       params,
       config
@@ -41,7 +130,7 @@ export class CrmSourceActivitiesResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.CrmGetCrmActivityResponses[200]> {
     return this.readSource<T.CrmGetCrmActivityResponses[200]>(
-      CRM_SOURCE_OPERATIONS[8],
+      CRM_SOURCE_OPERATIONS[10],
       { activity },
       undefined,
       config
@@ -58,7 +147,7 @@ export class CrmSourceActivitiesResource extends CrmSourceBaseResource {
   > {
     return this.writeSource<
       T.CrmUpdateCrmActivityResponses[keyof T.CrmUpdateCrmActivityResponses]
-    >(CRM_SOURCE_OPERATIONS[9], { activity }, body, config);
+    >(CRM_SOURCE_OPERATIONS[11], { activity }, body, config);
   }
 }
 
@@ -72,7 +161,7 @@ export class CrmSourceOpportunitiesResource extends CrmSourceBaseResource {
   > {
     return this.writeSource<
       T.CrmCreateOpportunityResponses[keyof T.CrmCreateOpportunityResponses]
-    >(CRM_SOURCE_OPERATIONS[1], {}, body, config);
+    >(CRM_SOURCE_OPERATIONS[2], {}, body, config);
   }
 
   /** Native crmGetOpportunityCreateOriginal; Original, never Current or a write retry. */
@@ -81,7 +170,7 @@ export class CrmSourceOpportunitiesResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.CrmGetOpportunityCreateOriginalResponses[200]> {
     return this.readSource<T.CrmGetOpportunityCreateOriginalResponses[200]>(
-      CRM_SOURCE_OPERATIONS[14],
+      CRM_SOURCE_OPERATIONS[16],
       {},
       params,
       config
@@ -97,7 +186,7 @@ export class CrmSourceOpportunitiesResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.CrmGetOpportunityStageOriginalResponses[200]> {
     return this.readSource<T.CrmGetOpportunityStageOriginalResponses[200]>(
-      CRM_SOURCE_OPERATIONS[15],
+      CRM_SOURCE_OPERATIONS[17],
       { opportunity },
       params,
       config
@@ -110,7 +199,7 @@ export class CrmSourceOpportunitiesResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.CrmGetOpportunityResponses[200]> {
     return this.readSource<T.CrmGetOpportunityResponses[200]>(
-      CRM_SOURCE_OPERATIONS[16],
+      CRM_SOURCE_OPERATIONS[18],
       { opportunity },
       undefined,
       config
@@ -127,7 +216,7 @@ export class CrmSourceOpportunitiesResource extends CrmSourceBaseResource {
   > {
     return this.writeSource<
       T.CrmUpdateOpportunityResponses[keyof T.CrmUpdateOpportunityResponses]
-    >(CRM_SOURCE_OPERATIONS[17], { opportunity }, body, config);
+    >(CRM_SOURCE_OPERATIONS[19], { opportunity }, body, config);
   }
 }
 
@@ -141,7 +230,7 @@ export class CrmSourceDocumentsResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<BinaryResponse> {
     return this.readSource(
-      CRM_SOURCE_OPERATIONS[2],
+      CRM_SOURCE_OPERATIONS[3],
       { document },
       params,
       config
@@ -154,7 +243,7 @@ export class CrmSourceDocumentsResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.CrmGetCommercialDocumentResponses[200]> {
     return this.readSource<T.CrmGetCommercialDocumentResponses[200]>(
-      CRM_SOURCE_OPERATIONS[7],
+      CRM_SOURCE_OPERATIONS[9],
       { document },
       undefined,
       config
@@ -167,7 +256,7 @@ export class CrmSourceDocumentsResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.CrmListCommercialDocumentsResponses[200]> {
     return this.readSource<T.CrmListCommercialDocumentsResponses[200]>(
-      CRM_SOURCE_OPERATIONS[25],
+      CRM_SOURCE_OPERATIONS[27],
       {},
       params,
       config
@@ -194,22 +283,20 @@ export class CrmSourceDocumentsResource extends CrmSourceBaseResource {
       number++;
     } while (true);
   }
-}
 
-export class CrmSourceImportsResource extends CrmSourceBaseResource {
-  /** Native public-api.v1.crm-spreadsheet-imports.apply-original; Original, never Current or a write retry. */
-  async getApplyOriginal(
-    run: NonNullable<
-      T.PublicApiV1CrmSpreadsheetImportsApplyOriginalData["path"]
-    >["run"],
-    params: NonNullable<
-      T.PublicApiV1CrmSpreadsheetImportsApplyOriginalData["query"]
-    >,
-    config: CrmSourceOriginalRequestConfig
-  ): Promise<T.PublicApiV1CrmSpreadsheetImportsApplyOriginalResponses[200]> {
-    return this.readSource<
-      T.PublicApiV1CrmSpreadsheetImportsApplyOriginalResponses[200]
-    >(CRM_SOURCE_OPERATIONS[4], { run }, params, config);
+  /** Native crmRestoreCommercialDocument; one explicitly confirmed dispatch, no automatic retry or redirect. */
+  async restore(
+    document: NonNullable<
+      T.CrmRestoreCommercialDocumentData["path"]
+    >["document"],
+    body: NonNullable<T.CrmRestoreCommercialDocumentData["body"]>,
+    config: CrmSourceWriteConfig
+  ): Promise<
+    T.CrmRestoreCommercialDocumentResponses[keyof T.CrmRestoreCommercialDocumentResponses]
+  > {
+    return this.writeSource<
+      T.CrmRestoreCommercialDocumentResponses[keyof T.CrmRestoreCommercialDocumentResponses]
+    >(CRM_SOURCE_OPERATIONS[30], { document }, body, config);
   }
 }
 
@@ -223,7 +310,7 @@ export class CrmSourceBookingResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.GetBookingSequenceStopDecisionResponses[200]> {
     return this.readSource<T.GetBookingSequenceStopDecisionResponses[200]>(
-      CRM_SOURCE_OPERATIONS[5],
+      CRM_SOURCE_OPERATIONS[7],
       { booking },
       params,
       config
@@ -236,7 +323,7 @@ export class CrmSourceBookingResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.GetBookingServiceResponses[200]> {
     return this.readSource<T.GetBookingServiceResponses[200]>(
-      CRM_SOURCE_OPERATIONS[6],
+      CRM_SOURCE_OPERATIONS[8],
       { service },
       undefined,
       config
@@ -249,7 +336,7 @@ export class CrmSourceBookingResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.ListBookingServicesResponses[200]> {
     return this.readSource<T.ListBookingServicesResponses[200]>(
-      CRM_SOURCE_OPERATIONS[23],
+      CRM_SOURCE_OPERATIONS[25],
       {},
       params,
       config
@@ -282,7 +369,7 @@ export class CrmSourceBookingResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.ListBookingsResponses[200]> {
     return this.readSource<T.ListBookingsResponses[200]>(
-      CRM_SOURCE_OPERATIONS[24],
+      CRM_SOURCE_OPERATIONS[26],
       {},
       params,
       config
@@ -314,7 +401,7 @@ export class CrmSourceSequencesResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.V1CrmSequencesOriginalEnrolResponses[200]> {
     return this.readSource<T.V1CrmSequencesOriginalEnrolResponses[200]>(
-      CRM_SOURCE_OPERATIONS[10],
+      CRM_SOURCE_OPERATIONS[12],
       {},
       undefined,
       config
@@ -326,7 +413,7 @@ export class CrmSourceSequencesResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.V1CrmSequencesOriginalSaveResponses[200]> {
     return this.readSource<T.V1CrmSequencesOriginalSaveResponses[200]>(
-      CRM_SOURCE_OPERATIONS[12],
+      CRM_SOURCE_OPERATIONS[14],
       {},
       undefined,
       config
@@ -339,7 +426,7 @@ export class CrmSourceSequencesResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.V1CrmSequencesGetResponses[200]> {
     return this.readSource<T.V1CrmSequencesGetResponses[200]>(
-      CRM_SOURCE_OPERATIONS[20],
+      CRM_SOURCE_OPERATIONS[22],
       { sequence },
       undefined,
       config
@@ -352,7 +439,7 @@ export class CrmSourceSequencesResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.V1CrmSequencesListResponses[200]> {
     return this.readSource<T.V1CrmSequencesListResponses[200]>(
-      CRM_SOURCE_OPERATIONS[26],
+      CRM_SOURCE_OPERATIONS[28],
       {},
       params,
       config
@@ -384,7 +471,7 @@ export class CrmSourceSequencesResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.V1CrmSequencesPreviewResponses[200]> {
     return this.readSource<T.V1CrmSequencesPreviewResponses[200]>(
-      CRM_SOURCE_OPERATIONS[27],
+      CRM_SOURCE_OPERATIONS[29],
       { sequence },
       params,
       config
@@ -402,7 +489,7 @@ export class CrmSourceReportsResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.GetCrmReportDefinitionOriginalResponses[200]> {
     return this.readSource<T.GetCrmReportDefinitionOriginalResponses[200]>(
-      CRM_SOURCE_OPERATIONS[11],
+      CRM_SOURCE_OPERATIONS[13],
       { definition },
       params,
       config
@@ -417,7 +504,7 @@ export class CrmSourceLeadsResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.CrmGetLeadCreateOriginalResponses[200]> {
     return this.readSource<T.CrmGetLeadCreateOriginalResponses[200]>(
-      CRM_SOURCE_OPERATIONS[13],
+      CRM_SOURCE_OPERATIONS[15],
       {},
       params,
       config
@@ -434,7 +521,7 @@ export class CrmSourceCaptureResource extends CrmSourceBaseResource {
     }
   ): Promise<T.CrmGetOriginalCaptureFormSaveResponses[200]> {
     return this.readSource<T.CrmGetOriginalCaptureFormSaveResponses[200]>(
-      CRM_SOURCE_OPERATIONS[18],
+      CRM_SOURCE_OPERATIONS[20],
       {},
       params,
       config
@@ -449,7 +536,7 @@ export class CrmSourceCaptureResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.CrmGetOriginalWebToTicketSubmissionResponses[200]> {
     return this.readSource<T.CrmGetOriginalWebToTicketSubmissionResponses[200]>(
-      CRM_SOURCE_OPERATIONS[19],
+      CRM_SOURCE_OPERATIONS[21],
       { form },
       undefined,
       config
@@ -465,7 +552,7 @@ export class CrmSourceServiceTicketsResource extends CrmSourceBaseResource {
     config: CrmSourceOriginalRequestConfig
   ): Promise<T.GetServiceReplyOriginalResponses[200]> {
     return this.readSource<T.GetServiceReplyOriginalResponses[200]>(
-      CRM_SOURCE_OPERATIONS[21],
+      CRM_SOURCE_OPERATIONS[23],
       { ticket },
       params,
       config
@@ -486,7 +573,7 @@ export class CrmSourceConversationsResource extends CrmSourceBaseResource {
     config?: CrmSourceRequestConfig
   ): Promise<T.GetCrmWhatsAppMessageOriginalResponses[200]> {
     return this.readSource<T.GetCrmWhatsAppMessageOriginalResponses[200]>(
-      CRM_SOURCE_OPERATIONS[22],
+      CRM_SOURCE_OPERATIONS[24],
       { conversation, message },
       params,
       config
@@ -495,10 +582,10 @@ export class CrmSourceConversationsResource extends CrmSourceBaseResource {
 }
 
 export class CrmSourceResource {
+  readonly imports: CrmSourceImportsResource;
   readonly activities: CrmSourceActivitiesResource;
   readonly opportunities: CrmSourceOpportunitiesResource;
   readonly documents: CrmSourceDocumentsResource;
-  readonly imports: CrmSourceImportsResource;
   readonly booking: CrmSourceBookingResource;
   readonly sequences: CrmSourceSequencesResource;
   readonly reports: CrmSourceReportsResource;
@@ -508,10 +595,10 @@ export class CrmSourceResource {
   readonly conversations: CrmSourceConversationsResource;
 
   constructor(client: HttpClient) {
+    this.imports = new CrmSourceImportsResource(client);
     this.activities = new CrmSourceActivitiesResource(client);
     this.opportunities = new CrmSourceOpportunitiesResource(client);
     this.documents = new CrmSourceDocumentsResource(client);
-    this.imports = new CrmSourceImportsResource(client);
     this.booking = new CrmSourceBookingResource(client);
     this.sequences = new CrmSourceSequencesResource(client);
     this.reports = new CrmSourceReportsResource(client);

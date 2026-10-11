@@ -9,7 +9,8 @@ if (!manifestPath || process.argv.length !== 3)
   );
 const input = JSON.parse(readFileSync(manifestPath, "utf8"));
 if (
-  input.state !== "private-native-unreleased-source-contract" ||
+  (input.state !== undefined &&
+    input.state !== "private-native-unreleased-source-contract") ||
   input.published !== false ||
   input.ratified !== false ||
   input.delivery_enabled !== false ||
@@ -21,7 +22,15 @@ if (
   );
 const bytes = readFileSync(input.artifact);
 const sha256 = createHash("sha256").update(bytes).digest("hex");
-if (sha256 !== input.artifact_sha256)
+const inputSha256 = input.artifact_sha256 ?? input.sha256;
+const carrierCount = input.contract_carrier_count ?? input.carrier_count;
+if (
+  !/^[0-9a-f]{64}$/.test(inputSha256 ?? "") ||
+  sha256 !== inputSha256 ||
+  !Number.isSafeInteger(carrierCount) ||
+  carrierCount < 1 ||
+  (input.bytes !== undefined && input.bytes !== bytes.length)
+)
   throw new Error("Native Source bytes differ from the supplied handoff.");
 const spec = JSON.parse(bytes.toString("utf8"));
 const profile = spec["x-factuarea-contract-profile"];
@@ -32,9 +41,11 @@ if (
   profile.published !== false ||
   profile.ratified !== false ||
   profile.delivery_enabled !== false ||
-  profile.catalog_sha256 !== input.catalog_sha256 ||
+  !/^[0-9a-f]{64}$/.test(profile.catalog_sha256 ?? "") ||
+  (input.catalog_sha256 !== undefined &&
+    profile.catalog_sha256 !== input.catalog_sha256) ||
   !Array.isArray(profile.carriers) ||
-  profile.carriers.length !== input.contract_carrier_count
+  profile.carriers.length !== carrierCount
 )
   throw new Error(
     "The native private profile and exact catalogue selector must be preserved."
@@ -42,6 +53,9 @@ if (
 
 // SDK names only. Every path, parameter, response and schema comes from the native input.
 const selection = {
+  "public-api.v1.crm-spreadsheet-imports.apply": ["imports", "apply"],
+  "public-api.v1.crm-spreadsheet-imports.show": ["imports", "getCurrent"],
+  crmRestoreCommercialDocument: ["documents", "restore"],
   crmCreateOpportunity: ["opportunities", "create"],
   crmUpdateOpportunity: ["opportunities", "update"],
   crmGetOpportunity: ["opportunities", "getCurrent"],
@@ -177,7 +191,9 @@ writeFileSync(
   JSON.stringify(
     {
       native_sha256: sha256,
-      native_catalog_sha256: input.catalog_sha256,
+      native_input_manifest: manifestPath,
+      native_input_group: input.group,
+      native_catalog_sha256: profile.catalog_sha256,
       native_operation_count: input.operation_count,
       native_carrier_count: profile.carriers.length,
       projection:
@@ -215,6 +231,13 @@ function integerPaths(schema, prefix = "", trail = new Set()) {
     );
   if (schema.items)
     found.push(...integerPaths(schema.items, `${prefix}[]`, next));
+  if (
+    schema.additionalProperties &&
+    typeof schema.additionalProperties === "object"
+  )
+    found.push(
+      ...integerPaths(schema.additionalProperties, `${prefix}.*`, next)
+    );
   for (const branch of [
     ...(schema.allOf ?? []),
     ...(schema.anyOf ?? []),
@@ -251,6 +274,19 @@ const metadata = operations.map(({ path, method, operation, owner }) => {
       ...new Set(json.flatMap((schema) => integerPaths(schema))),
     ],
     ...(request ? { requestIntegerPaths: integerPaths(request) } : {}),
+    ...(successes.some(([, response]) =>
+      Object.keys(resolve(response)?.content ?? {}).some(
+        (media) => media.split(";")[0] === "text/csv"
+      )
+    )
+      ? {
+          csvMediaType: successes
+            .flatMap(([, response]) =>
+              Object.keys(resolve(response)?.content ?? {})
+            )
+            .find((media) => media.split(";")[0] === "text/csv"),
+        }
+      : {}),
     original: /original|receipt/i.test(operation.operationId),
     binary:
       !json.length &&
@@ -270,7 +306,7 @@ writeFileSync(
 );
 const groups = new Map();
 const generated = [
-  `// AUTO-GENERATED from unchanged selected native Source139 operations.\nimport { CrmSourceBaseResource, type CrmSourceRequestConfig, type CrmSourceOriginalRequestConfig, type CrmSourceWriteConfig } from "./resource.js";\nimport { CRM_SOURCE_OPERATIONS } from "./operations.gen.js";\nimport type { HttpClient, BinaryResponse } from "../../core/http-client.js";\nimport type * as T from "./generated/types.gen.js";\n`,
+  `// AUTO-GENERATED from unchanged selected native Source${input.group} operations.\nimport { CrmSourceBaseResource, type CrmSourceRequestConfig, type CrmSourceOriginalRequestConfig, type CrmSourceWriteConfig } from "./resource.js";\nimport { CRM_SOURCE_OPERATIONS } from "./operations.gen.js";\nimport type { HttpClient, BinaryResponse } from "../../core/http-client.js";\nimport type * as T from "./generated/types.gen.js";\n`,
 ];
 for (let index = 0; index < operations.length; index++) {
   const {
@@ -308,14 +344,46 @@ for (let index = 0; index < operations.length; index++) {
   const args = pp.map(
     (p) => `${p.name}: NonNullable<T.${typed}Data["path"]>["${p.name}"]`
   );
-  if (mutation) args.push(`body: NonNullable<T.${typed}Data["body"]>`);
+  if (mutation) {
+    const nativeBody = resolve(
+      operation.requestBody.content["application/json"].schema
+    );
+    const baseBody = `NonNullable<T.${typed}Data["body"]>`;
+    const conditions = (nativeBody.allOf ?? []).flatMap((branch) => {
+      const entries = Object.entries(branch.if?.properties ?? {});
+      const forbidden = branch.else?.not?.required;
+      if (
+        entries.length !== 1 ||
+        !Array.isArray(forbidden) ||
+        !forbidden.length ||
+        !("const" in entries[0][1])
+      )
+        return [];
+      const [field, condition] = entries[0];
+      const literal = JSON.stringify(condition.const);
+      return [
+        `({ ${JSON.stringify(field)}: ${literal} } | { ${JSON.stringify(
+          field
+        )}: Exclude<${baseBody}[${JSON.stringify(
+          field
+        )}], ${literal}>; ${forbidden
+          .map((name) => `${JSON.stringify(name)}?: never`)
+          .join("; ")} })`,
+      ];
+    });
+    args.push(`body: ${[baseBody, ...conditions].join(" & ")}`);
+  }
   if (qp.length)
     args.push(
       `params${
         qp.some((p) => p.required) || originalKey || customHeaders.length
           ? ""
           : "?"
-      }: NonNullable<T.${typed}Data["query"]>`
+      }: ${
+        meta.csvMediaType
+          ? `Omit<NonNullable<T.${typed}Data["query"]>, "report_format" | "expected_version">`
+          : `NonNullable<T.${typed}Data["query"]>`
+      }`
     );
   args.push(
     `config${
@@ -326,6 +394,8 @@ for (let index = 0; index < operations.length; index++) {
     ? "BinaryResponse"
     : mutation
     ? `T.${typed}Responses[keyof T.${typed}Responses]`
+    : meta.csvMediaType
+    ? `Exclude<T.${typed}Responses[200], string>`
     : `T.${typed}Responses[200]`;
   const body = `  /** Native ${operation.operationId}; ${
     mutation
@@ -341,6 +411,30 @@ for (let index = 0; index < operations.length; index++) {
     pp.length ? `{ ${pp.map((p) => p.name).join(", ")} }` : "{}"
   }, ${mutation ? "body" : qp.length ? "params" : "undefined"}, config);\n  }`;
   (groups.get(group) ?? groups.set(group, []).get(group)).push(body);
+  if (meta.csvMediaType) {
+    if (
+      !qp.some(
+        (p) => p.name === "report_format" && p.schema?.const === "csv"
+      ) ||
+      !qp.some((p) => p.name === "expected_version")
+    )
+      throw new Error("Native CSV read mode lacks its published selector/CAS.");
+    groups
+      .get(group)
+      .push(
+        `  /** Same native ${
+          operation.operationId
+        }, CSV media mode; immutable bytes, never Apply Original. */\n  async downloadErrorsCsv(${pp
+          .map(
+            (p) => `${p.name}: NonNullable<T.${typed}Data["path"]>["${p.name}"]`
+          )
+          .join(
+            ", "
+          )}, params: Required<Pick<NonNullable<T.${typed}Data["query"]>, "report_format" | "expected_version">>, config?: CrmSourceRequestConfig): Promise<BinaryResponse> {\n    if (Object.keys(params).some((field) => !["report_format", "expected_version"].includes(field)) || params.report_format !== "csv" || params.expected_version === undefined) throw new TypeError("Factuarea: CSV requires only its native report selector and expected version.");\n    return this.readSource({ ...CRM_SOURCE_OPERATIONS[${index}], binary: true }, { ${pp
+          .map((p) => p.name)
+          .join(", ")} }, params, config);\n  }`
+      );
+  }
   if (["listBookings", "listServices"].includes(name) && group === "booking")
     groups
       .get(group)

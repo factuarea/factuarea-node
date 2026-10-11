@@ -1,5 +1,74 @@
-// AUTO-GENERATED from private native Source 438b12b53be7ae7535cd6c85ba7dea06c76d84a33024db0e0232ac8ba279be63; metadata grants no access.
+// AUTO-GENERATED from private native Source 59b6cd2664aa8524e96a7600565b70b5eae5f6beaa7527913d703adf653a2fca; metadata grants no access.
 export const CRM_SOURCE_OPERATIONS = [
+  {
+    operationId: "public-api.v1.crm-spreadsheet-imports.apply",
+    operation: "crm_imports.apply",
+    method: "POST",
+    path: "/crm/imports/{run}/apply",
+    sdk: "crm.source.imports.apply",
+    scope: "crm_imports:write",
+    oauthScope: "crm_imports.write",
+    parameters: [
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "run",
+        in: "path",
+        required: true,
+        schema: {
+          type: "string",
+          format: "uuid",
+          pattern:
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+        },
+      },
+      {
+        name: "Idempotency-Key",
+        in: "header",
+        schema: {
+          type: "string",
+          minLength: 1,
+          maxLength: 255,
+          pattern: "^[\\x20-\\x7e]+$",
+          description:
+            "Optional under the current native admission policy. Required to retain and read the separate apply Original: preserve this exact key and the original POST bytes.",
+        },
+      },
+    ],
+    successStatuses: [202],
+    exactIntegerPaths: [
+      "data.version",
+      "data.counts.*",
+      "data.progress.total",
+      "data.progress.processed",
+      "data.progress.pending",
+    ],
+    requestIntegerPaths: ["expected_version"],
+    original: false,
+    binary: false,
+  },
   {
     operationId: "crmCreateCrmActivity",
     operation: "crm_activities.create",
@@ -185,6 +254,109 @@ export const CRM_SOURCE_OPERATIONS = [
     exactIntegerPaths: [],
     original: false,
     binary: true,
+  },
+  {
+    operationId: "public-api.v1.crm-spreadsheet-imports.show",
+    operation: "crm_imports.show",
+    method: "GET",
+    path: "/crm/imports/{run}",
+    sdk: "crm.source.imports.getCurrent",
+    scope: "crm_imports:read",
+    oauthScope: "crm_imports.read",
+    parameters: [
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "run",
+        in: "path",
+        required: true,
+        schema: {
+          type: "string",
+          format: "uuid",
+          pattern:
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+        },
+      },
+      {
+        name: "cursor",
+        in: "query",
+        schema: {
+          type: "string",
+          maxLength: 512,
+          minLength: 1,
+          pattern: "^[A-Za-z0-9_-]+$",
+          description:
+            "Current JSON read mode; cannot be combined with report_format or expected_version.",
+        },
+      },
+      {
+        name: "limit",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 1,
+          maximum: 100,
+          description:
+            "Current JSON read mode; cannot be combined with report_format or expected_version.",
+        },
+      },
+      {
+        name: "report_format",
+        in: "query",
+        schema: {
+          type: "string",
+          const: "csv",
+          description:
+            "CSV read mode: report_format=csv and expected_version are required together; cursor and limit are forbidden.",
+        },
+      },
+      {
+        name: "expected_version",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 1,
+          description:
+            "CSV read mode: report_format=csv and expected_version are required together; cursor and limit are forbidden.",
+        },
+      },
+    ],
+    successStatuses: [200],
+    exactIntegerPaths: [
+      "data.version",
+      "data.counts.*",
+      "data.progress.total",
+      "data.progress.processed",
+      "data.progress.pending",
+      "data.errors.version",
+      "data.errors.items[].source_row",
+      "data.errors.next_row",
+    ],
+    csvMediaType: "text/csv; charset=UTF-8",
+    original: false,
+    binary: false,
   },
   {
     operationId: "crmGetCrmActivityCreateOriginal",
@@ -2021,6 +2193,69 @@ export const CRM_SOURCE_OPERATIONS = [
     ],
     successStatuses: [200],
     exactIntegerPaths: ["data.definition_version", "data.steps[].step_index"],
+    original: false,
+    binary: false,
+  },
+  {
+    operationId: "crmRestoreCommercialDocument",
+    operation: "crm_documents.restore",
+    method: "POST",
+    path: "/crm/documents/{document}/restore",
+    sdk: "crm.source.documents.restore",
+    scope: "crm_documents:write",
+    oauthScope: "crm_documents.write",
+    parameters: [
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "document",
+        in: "path",
+        required: true,
+        schema: {
+          type: "string",
+          format: "uuid",
+          pattern:
+            "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        },
+      },
+      {
+        name: "Idempotency-Key",
+        in: "header",
+        description:
+          "Intención original: mismos argumentos recuperan el receipt original con permisos actuales; otro contenido devuelve409.",
+        schema: {
+          type: "string",
+          minLength: 1,
+          maxLength: 255,
+          pattern: "^[ -~]+$",
+        },
+      },
+    ],
+    successStatuses: [200],
+    exactIntegerPaths: ["data.version"],
+    requestIntegerPaths: ["expected_version"],
     original: false,
     binary: false,
   },

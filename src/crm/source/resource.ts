@@ -30,6 +30,7 @@ interface NativeRead {
   readonly parameters: readonly NativeParameter[];
   readonly exactIntegerPaths: readonly string[];
   readonly binary: boolean;
+  readonly csvMediaType?: string;
 }
 
 interface NativeWrite extends Omit<NativeRead, "method" | "binary"> {
@@ -193,6 +194,16 @@ export abstract class CrmSourceBaseResource extends BaseResource {
     };
     if (operation.binary) {
       const response = await this.client.requestBinary(options);
+      if (
+        operation.csvMediaType &&
+        response.contentType?.toLowerCase().replace(/\s+/g, "") !==
+          operation.csvMediaType.toLowerCase().replace(/\s+/g, "")
+      )
+        throw new ConnectionError({
+          message: "Factuarea: the native CSV media type did not match.",
+          code: "crm_source_media_mismatch",
+          requestId: response.requestId,
+        });
       config?.onResponse?.({ ...response, data: response.body });
       return response;
     }
@@ -265,6 +276,8 @@ export abstract class CrmSourceBaseResource extends BaseResource {
       );
     if (Array.isArray(schema.enum) && !schema.enum.includes(value))
       throw new TypeError(`Factuarea: incompatible native ${parameter.name}.`);
+    if ("const" in schema && schema.const !== value)
+      throw new TypeError(`Factuarea: incompatible native ${parameter.name}.`);
   }
 
   private assertExactIntegerPath(
@@ -275,6 +288,16 @@ export abstract class CrmSourceBaseResource extends BaseResource {
   ): void {
     const [field, ...remaining] = path.split(".");
     if (field === undefined || value === null || value === undefined) return;
+    if (field === "*" && typeof value === "object" && !Array.isArray(value)) {
+      for (const item of Object.values(value))
+        this.assertExactIntegerPath(
+          item,
+          remaining.join("."),
+          requestId,
+          request
+        );
+      return;
+    }
     const array = field.endsWith("[]");
     const key = array ? field.slice(0, -2) : field;
     const selected =
