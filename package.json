@@ -71,7 +71,8 @@
     "version:check": "node scripts/sync-version.mjs --check",
     "release": "changeset publish",
     "prepublishOnly": "npm run build",
-    "generate:crm": "openapi-ts -f openapi-crm.config.ts && node scripts/generate-crm.mjs"
+    "generate:crm": "openapi-ts -f openapi-crm.config.ts && node scripts/generate-crm.mjs",
+    "generate:crm-source": "node scripts/generate-crm-source.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
