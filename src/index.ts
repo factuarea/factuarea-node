@@ -13,6 +13,7 @@ export {
 export type {
   CrmSourceRequestConfig,
   CrmSourceOriginalRequestConfig,
+  CrmSourceWriteConfig,
 } from "./crm/source/index.js";
 
 export type { FactuareaConfig } from "./core/http-client.js";

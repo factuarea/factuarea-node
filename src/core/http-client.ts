@@ -50,6 +50,8 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export interface RequestOptions {
+  /** Opt-in fetch redirect policy. Omit to preserve the established transport default. */
+  redirect?: RequestRedirect;
   /** Cancel waiting; cancellation does not undo server-side effects. */
   signal?: AbortSignal;
   method: HttpMethod;
@@ -250,6 +252,7 @@ export class HttpClient {
           headers,
           body: requestBody,
           signal: controller.signal,
+          redirect: options.redirect,
         });
 
         if (isRetryableStatus(response.status) && attempt < maxRetries) {

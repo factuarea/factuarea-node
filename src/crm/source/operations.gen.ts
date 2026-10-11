@@ -1,6 +1,115 @@
 // AUTO-GENERATED from private native Source 438b12b53be7ae7535cd6c85ba7dea06c76d84a33024db0e0232ac8ba279be63; metadata grants no access.
 export const CRM_SOURCE_OPERATIONS = [
   {
+    operationId: "crmCreateCrmActivity",
+    operation: "crm_activities.create",
+    method: "POST",
+    path: "/crm/crmactivity",
+    sdk: "crm.source.activities.create",
+    scope: "crm_activities:write",
+    oauthScope: "crm_activities.write",
+    parameters: [
+      {
+        name: "Idempotency-Key",
+        in: "header",
+        description:
+          "Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).",
+        required: false,
+        schema: {
+          type: "string",
+          minLength: 1,
+          maxLength: 255,
+          example: "01928f10-7c0e-7c4a-9b7d-2f8a6e3c1d4b",
+        },
+      },
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+    ],
+    successStatuses: [201],
+    exactIntegerPaths: ["data.activity.version"],
+    requestIntegerPaths: [],
+    original: false,
+    binary: false,
+  },
+  {
+    operationId: "crmCreateOpportunity",
+    operation: "crm_opportunities.create",
+    method: "POST",
+    path: "/crm/opportunity",
+    sdk: "crm.source.opportunities.create",
+    scope: "crm_opportunities:write",
+    oauthScope: "crm_opportunities.write",
+    parameters: [
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "Idempotency-Key",
+        in: "header",
+        description:
+          "Clave ASCII imprimible de la intención original. El replay no repite efectos ni sustituye el snapshot original por el estado último. Una petición distinta con la misma clave devuelve 409.",
+        schema: {
+          type: "string",
+          minLength: 1,
+          maxLength: 255,
+          pattern: "^[ -~]+$",
+        },
+      },
+    ],
+    successStatuses: [201],
+    exactIntegerPaths: [
+      "data.version",
+      "data.playbook_answers[].definition_version",
+      "data.history[].version",
+    ],
+    requestIntegerPaths: [],
+    original: false,
+    binary: false,
+  },
+  {
     operationId: "crmDownloadCommercialDocument",
     operation: "crm_documents.download",
     method: "GET",
@@ -72,6 +181,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [],
     original: false,
     binary: true,
@@ -136,6 +246,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.original_response.status"],
     original: true,
     binary: false,
@@ -178,6 +289,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.original_response.status"],
     original: true,
     binary: false,
@@ -224,6 +336,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.booking_version",
       "data.sequence_version",
@@ -283,6 +396,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.version",
       "data.publication_version",
@@ -348,12 +462,136 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.version",
       "data.versions[].number",
       "data.versions[].size_bytes",
       "data.links[].document_version",
     ],
+    original: false,
+    binary: false,
+  },
+  {
+    operationId: "crmGetCrmActivity",
+    operation: "crm_activities.show",
+    method: "GET",
+    path: "/crm/crmactivity/{activity}",
+    sdk: "crm.source.activities.getCurrent",
+    scope: "crm_activities:read",
+    oauthScope: "crm_activities.read",
+    parameters: [
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "activity",
+        in: "path",
+        required: true,
+        description:
+          "UUIDv7 público. La identidad no concede acceso al registro ni a sus referencias.",
+        schema: {
+          type: "string",
+          format: "uuid",
+          pattern:
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+        },
+      },
+    ],
+    successStatuses: [200],
+    exactIntegerPaths: [
+      "data.activity.version",
+      "data.comments[].version",
+      "data.attachments[].version",
+      "data.attachments[].size",
+    ],
+    original: false,
+    binary: false,
+  },
+  {
+    operationId: "crmUpdateCrmActivity",
+    operation: "crm_activities.update",
+    method: "PATCH",
+    path: "/crm/crmactivity/{activity}",
+    sdk: "crm.source.activities.update",
+    scope: "crm_activities:write",
+    oauthScope: "crm_activities.write",
+    parameters: [
+      {
+        name: "Idempotency-Key",
+        in: "header",
+        description:
+          "Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).",
+        required: false,
+        schema: {
+          type: "string",
+          minLength: 1,
+          maxLength: 255,
+          example: "01928f10-7c0e-7c4a-9b7d-2f8a6e3c1d4b",
+        },
+      },
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "activity",
+        in: "path",
+        required: true,
+        description:
+          "UUIDv7 público. La identidad no concede acceso al registro ni a sus referencias.",
+        schema: {
+          type: "string",
+          format: "uuid",
+          pattern:
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+        },
+      },
+    ],
+    successStatuses: [200],
+    exactIntegerPaths: ["data.activity.version"],
+    requestIntegerPaths: ["expected_version"],
     original: false,
     binary: false,
   },
@@ -407,6 +645,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.version",
       "data.generation",
@@ -525,6 +764,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.version"],
     original: true,
     binary: false,
@@ -579,6 +819,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.version"],
     original: true,
     binary: false,
@@ -643,6 +884,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.original_response.status"],
     original: true,
     binary: false,
@@ -707,6 +949,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.original_response.status"],
     original: true,
     binary: false,
@@ -784,8 +1027,137 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.original_response.status"],
     original: true,
+    binary: false,
+  },
+  {
+    operationId: "crmGetOpportunity",
+    operation: "crm_opportunities.show",
+    method: "GET",
+    path: "/crm/opportunity/{opportunity}",
+    sdk: "crm.source.opportunities.getCurrent",
+    scope: "crm_opportunities:read",
+    oauthScope: "crm_opportunities.read",
+    parameters: [
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "opportunity",
+        in: "path",
+        required: true,
+        description:
+          "UUIDv7 público de Opportunity, validado tras el guard común; no concede acceso.",
+        schema: {
+          type: "string",
+          format: "uuid",
+          pattern:
+            "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        },
+      },
+    ],
+    successStatuses: [200],
+    exactIntegerPaths: [
+      "data.version",
+      "data.playbook_answers[].definition_version",
+      "data.history[].version",
+    ],
+    original: false,
+    binary: false,
+  },
+  {
+    operationId: "crmUpdateOpportunity",
+    operation: "crm_opportunities.update",
+    method: "PATCH",
+    path: "/crm/opportunity/{opportunity}",
+    sdk: "crm.source.opportunities.update",
+    scope: "crm_opportunities:write",
+    oauthScope: "crm_opportunities.write",
+    parameters: [
+      {
+        name: "Factuarea-Version",
+        in: "header",
+        description:
+          "Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "date",
+          example: "2026-06-01",
+        },
+      },
+      {
+        name: "X-Active-Profile",
+        in: "header",
+        description:
+          "Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).",
+        required: false,
+        schema: {
+          type: "string",
+          format: "uuid",
+          example: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0c",
+        },
+      },
+      {
+        name: "opportunity",
+        in: "path",
+        required: true,
+        description:
+          "UUIDv7 público de Opportunity, validado tras el guard común; no concede acceso.",
+        schema: {
+          type: "string",
+          format: "uuid",
+          pattern:
+            "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        },
+      },
+      {
+        name: "Idempotency-Key",
+        in: "header",
+        description:
+          "Clave ASCII imprimible de la intención original. El replay no repite efectos ni sustituye el snapshot original por el estado último. Una petición distinta con la misma clave devuelve 409.",
+        schema: {
+          type: "string",
+          minLength: 1,
+          maxLength: 255,
+          pattern: "^[ -~]+$",
+        },
+      },
+    ],
+    successStatuses: [200],
+    exactIntegerPaths: [
+      "data.version",
+      "data.playbook_answers[].definition_version",
+      "data.history[].version",
+    ],
+    requestIntegerPaths: [
+      "expected_version",
+      "changes.playbook_answers[].definition_version",
+    ],
+    original: false,
     binary: false,
   },
   {
@@ -846,6 +1218,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.original.expected_version",
       "data.original.configuration_version",
@@ -912,6 +1285,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.version", "data.publication_version"],
     original: true,
     binary: false,
@@ -963,6 +1337,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.version"],
     original: false,
     binary: false,
@@ -1008,6 +1383,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.version"],
     original: true,
     binary: false,
@@ -1078,6 +1454,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [],
     original: true,
     binary: false,
@@ -1135,6 +1512,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.items[].version",
       "data.items[].publication_version",
@@ -1255,6 +1633,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.items[].version", "data.total"],
     original: false,
     binary: false,
@@ -1354,6 +1733,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.items[].version",
       "data.items[].versions[].number",
@@ -1546,6 +1926,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: [
       "data.items[].version",
       "data.enrolments[].version",
@@ -1638,6 +2019,7 @@ export const CRM_SOURCE_OPERATIONS = [
         },
       },
     ],
+    successStatuses: [200],
     exactIntegerPaths: ["data.definition_version", "data.steps[].step_index"],
     original: false,
     binary: false,

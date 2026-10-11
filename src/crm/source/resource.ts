@@ -1,5 +1,6 @@
 import { BaseResource, flattenQuery } from "../../core/resource.js";
-import { ConnectionError } from "../../core/errors.js";
+import { ConnectionError, ServerError } from "../../core/errors.js";
+import { CrmUnconfirmedWriteError } from "../errors.js";
 import type { BinaryResponse } from "../../core/http-client.js";
 import type { CrmRequestConfig } from "../resource.js";
 
@@ -8,6 +9,11 @@ export interface CrmSourceRequestConfig extends CrmRequestConfig {}
 /** Exact retained key. Each native operation supplies its own alphabet/length contract. */
 export interface CrmSourceOriginalRequestConfig extends CrmSourceRequestConfig {
   idempotencyKey: string;
+}
+
+/** Local human acknowledgement for a retained native intention; never a wire grant. */
+export interface CrmSourceWriteConfig extends CrmSourceOriginalRequestConfig {
+  humanConfirmed: true;
 }
 
 interface NativeParameter {
@@ -26,8 +32,106 @@ interface NativeRead {
   readonly binary: boolean;
 }
 
-/** Uses the canonical authenticated transport; no receipt/current cache, new key, POST or fallback. */
+interface NativeWrite extends Omit<NativeRead, "method" | "binary"> {
+  readonly method: "POST" | "PATCH";
+  readonly successStatuses: readonly number[];
+  readonly requestIntegerPaths: readonly string[];
+}
+
+/** Uses the canonical authenticated transport; no receipt/current cache or recovery redispatch. */
 export abstract class CrmSourceBaseResource extends BaseResource {
+  protected async writeSource<T>(
+    operation: NativeWrite,
+    pathValues: Record<string, unknown>,
+    body: unknown,
+    config: CrmSourceWriteConfig
+  ): Promise<T> {
+    if (
+      config?.humanConfirmed !== true ||
+      typeof config.idempotencyKey !== "string" ||
+      !config.idempotencyKey.length
+    )
+      throw new TypeError(
+        "Factuarea: explicitly confirm this retained intention and provide its exact original key."
+      );
+    if (config.signal?.aborted)
+      throw new ConnectionError({
+        message: "Factuarea: request was cancelled before dispatch.",
+        code: "request_aborted",
+        cause: config.signal.reason,
+      });
+    for (const parameter of operation.parameters) {
+      const value =
+        parameter.in === "path"
+          ? pathValues[parameter.name]
+          : parameter.name.toLowerCase() === "idempotency-key"
+          ? config.idempotencyKey
+          : Object.entries(config.headers ?? {}).find(
+              ([name]) => name.toLowerCase() === parameter.name.toLowerCase()
+            )?.[1];
+      this.assertParameter(parameter, value);
+    }
+    for (const exactPath of operation.requestIntegerPaths)
+      this.assertExactIntegerPath(body, exactPath, null, true);
+    const path = this.buildPath(
+      operation.path,
+      pathValues as Record<string, string>
+    );
+    try {
+      const response = await this.client.request<T>({
+        method: operation.method,
+        path,
+        body,
+        signal: config.signal,
+        timeout: config.timeout,
+        headers: config.headers,
+        idempotencyKey: config.idempotencyKey,
+        maxRetries: 0,
+        redirect: "error",
+      });
+      config.onResponse?.(response);
+      if (
+        !operation.successStatuses.includes(response.status) ||
+        !this.isEnvelope(response.data)
+      )
+        throw new ConnectionError({
+          message: "Factuarea: the native write receipt could not be read.",
+          code: "crm_source_response_unreadable",
+          requestId: response.requestId,
+        });
+      for (const exactPath of operation.exactIntegerPaths)
+        this.assertExactIntegerPath(
+          response.data,
+          exactPath,
+          response.requestId
+        );
+      return response.data;
+    } catch (cause) {
+      if (
+        cause instanceof ConnectionError ||
+        cause instanceof ServerError ||
+        (cause instanceof Error && cause.name === "AbortError")
+      )
+        throw new CrmUnconfirmedWriteError(
+          operation.operationId,
+          config.idempotencyKey,
+          cause
+        );
+      throw cause;
+    }
+  }
+
+  private isEnvelope(value: unknown): boolean {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value) &&
+      "data" in value &&
+      typeof value.data === "object" &&
+      value.data !== null &&
+      !Array.isArray(value.data)
+    );
+  }
   protected readSource<T>(
     operation: NativeRead & { readonly binary: false },
     pathValues: Record<string, unknown>,
@@ -94,15 +198,7 @@ export abstract class CrmSourceBaseResource extends BaseResource {
     }
     const response = await this.client.request<T>(options);
     config?.onResponse?.(response);
-    if (
-      typeof response.data !== "object" ||
-      response.data === null ||
-      Array.isArray(response.data) ||
-      !("data" in response.data) ||
-      typeof response.data.data !== "object" ||
-      response.data.data === null ||
-      Array.isArray(response.data.data)
-    )
+    if (!this.isEnvelope(response.data))
       throw new ConnectionError({
         message: "Factuarea: native Source JSON envelope could not be read.",
         code: "crm_source_response_unreadable",
@@ -174,7 +270,8 @@ export abstract class CrmSourceBaseResource extends BaseResource {
   private assertExactIntegerPath(
     value: unknown,
     path: string,
-    requestId: string | null
+    requestId: string | null,
+    request = false
   ): void {
     const [field, ...remaining] = path.split(".");
     if (field === undefined || value === null || value === undefined) return;
@@ -188,18 +285,31 @@ export abstract class CrmSourceBaseResource extends BaseResource {
         : undefined;
     if (array && Array.isArray(selected)) {
       for (const item of selected)
-        this.assertExactIntegerPath(item, remaining.join("."), requestId);
+        this.assertExactIntegerPath(
+          item,
+          remaining.join("."),
+          requestId,
+          request
+        );
     } else if (remaining.length)
-      this.assertExactIntegerPath(selected, remaining.join("."), requestId);
+      this.assertExactIntegerPath(
+        selected,
+        remaining.join("."),
+        requestId,
+        request
+      );
     else if (
       selected !== undefined &&
       selected !== null &&
       (typeof selected !== "number" || !Number.isSafeInteger(selected))
     )
       throw new ConnectionError({
-        message:
-          "Factuarea: native response contains an unsafe integer; retain the Original and refresh explicitly.",
-        code: "crm_response_unsafe_integer",
+        message: request
+          ? "Factuarea: native request requires exact safe integers."
+          : "Factuarea: native response contains an unsafe integer; retain the Original and refresh explicitly.",
+        code: request
+          ? "crm_request_unsafe_integer"
+          : "crm_response_unsafe_integer",
         requestId,
       });
   }

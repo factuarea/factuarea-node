@@ -42,6 +42,12 @@ if (
 
 // SDK names only. Every path, parameter, response and schema comes from the native input.
 const selection = {
+  crmCreateOpportunity: ["opportunities", "create"],
+  crmUpdateOpportunity: ["opportunities", "update"],
+  crmGetOpportunity: ["opportunities", "getCurrent"],
+  crmCreateCrmActivity: ["activities", "create"],
+  crmUpdateCrmActivity: ["activities", "update"],
+  crmGetCrmActivity: ["activities", "getCurrent"],
   crmGetCrmActivityCreateOriginal: ["activities", "getCreateOriginal"],
   "public-api.v1.crm-spreadsheet-imports.apply-original": [
     "imports",
@@ -89,25 +95,27 @@ for (const [path, methods] of Object.entries(spec.paths))
     const owner = selection[operation?.operationId];
     if (!owner) continue;
     if (
-      method !== "get" ||
+      !["get", "post", "patch"].includes(method) ||
       !operation["x-crm-operation"] ||
-      operation.requestBody ||
+      (method === "get"
+        ? operation.requestBody
+        : !operation.requestBody?.content?.["application/json"]?.schema) ||
       operations.some(
         (item) => item.operation.operationId === operation.operationId
       )
     )
       throw new Error(
-        `Source read carrier is missing or incompatible: ${operation.operationId}`
+        `Source carrier is missing or incompatible: ${operation.operationId}`
       );
     if (
       !profile.carriers.some(
         (carrier) =>
           carrier.operation_id === operation.operationId &&
-          carrier.methods.includes("GET")
+          carrier.methods.includes(method.toUpperCase())
       )
     )
       throw new Error(
-        `Source read is not selected by the exact native profile: ${operation.operationId}`
+        `Source operation is not selected by the exact native profile: ${operation.operationId}`
       );
     operations.push({ path, method, operation, owner });
     paths[path] = {
@@ -127,7 +135,7 @@ for (const [path, methods] of Object.entries(spec.paths))
             ].includes(key)
         )
       ),
-      get: operation,
+      [method]: operation,
     };
   }
 if (operations.length !== Object.keys(selection).length)
@@ -158,7 +166,7 @@ for (const [name, scheme] of Object.entries(
 ))
   (components.securitySchemes ??= {})[name] = scheme;
 const projected = { ...spec, paths, components };
-// This slice implements GET carriers only; unrelated webhook operations are outside its reference closure.
+// Unrelated webhook operations are outside this selected native carrier reference closure.
 delete projected.webhooks;
 writeFileSync(
   new URL("spec/crm-source139.json", root),
@@ -173,7 +181,7 @@ writeFileSync(
       native_operation_count: input.operation_count,
       native_carrier_count: profile.carriers.length,
       projection:
-        "Machine selection of unchanged native GET operations and recursive local component references; private native profile copied unchanged.",
+        "Machine selection of unchanged native operations and recursive local component references; private native profile copied unchanged.",
       selected_operation_ids: operations.map(
         (item) => item.operation.operationId
       ),
@@ -215,14 +223,21 @@ function integerPaths(schema, prefix = "", trail = new Set()) {
     found.push(...integerPaths(branch, prefix, next));
   return [...new Set(found)];
 }
-const metadata = operations.map(({ path, operation, owner }) => {
+const metadata = operations.map(({ path, method, operation, owner }) => {
   const parameters = (operation.parameters ?? []).map(resolve);
-  const json =
-    operation.responses?.["200"]?.content?.["application/json"]?.schema;
+  const successes = Object.entries(operation.responses).filter(([code]) =>
+    /^2\d\d$/.test(code)
+  );
+  const json = successes
+    .map(
+      ([, response]) => resolve(response)?.content?.["application/json"]?.schema
+    )
+    .filter(Boolean);
+  const request = operation.requestBody?.content?.["application/json"]?.schema;
   return {
     operationId: operation.operationId,
     operation: operation["x-crm-operation"],
-    method: "GET",
+    method: method.toUpperCase(),
     path,
     sdk: `crm.source.${owner.join(".")}`,
     scope: operation["x-required-scope"],
@@ -231,10 +246,14 @@ const metadata = operations.map(({ path, operation, owner }) => {
       ? { scopes: operation["x-required-scopes"] }
       : {}),
     parameters,
-    exactIntegerPaths: integerPaths(json),
+    successStatuses: successes.map(([code]) => Number(code)),
+    exactIntegerPaths: [
+      ...new Set(json.flatMap((schema) => integerPaths(schema))),
+    ],
+    ...(request ? { requestIntegerPaths: integerPaths(request) } : {}),
     original: /original|receipt/i.test(operation.operationId),
     binary:
-      !json &&
+      !json.length &&
       Object.values(operation.responses?.["200"]?.content ?? {}).some(
         (media) => media.schema?.format === "binary"
       ),
@@ -251,7 +270,7 @@ writeFileSync(
 );
 const groups = new Map();
 const generated = [
-  `// AUTO-GENERATED from unchanged selected native Source139 operations.\nimport { CrmSourceBaseResource, type CrmSourceRequestConfig, type CrmSourceOriginalRequestConfig } from "./resource.js";\nimport { CRM_SOURCE_OPERATIONS } from "./operations.gen.js";\nimport type { HttpClient, BinaryResponse } from "../../core/http-client.js";\nimport type * as T from "./generated/types.gen.js";\n`,
+  `// AUTO-GENERATED from unchanged selected native Source139 operations.\nimport { CrmSourceBaseResource, type CrmSourceRequestConfig, type CrmSourceOriginalRequestConfig, type CrmSourceWriteConfig } from "./resource.js";\nimport { CRM_SOURCE_OPERATIONS } from "./operations.gen.js";\nimport type { HttpClient, BinaryResponse } from "../../core/http-client.js";\nimport type * as T from "./generated/types.gen.js";\n`,
 ];
 for (let index = 0; index < operations.length; index++) {
   const {
@@ -259,6 +278,7 @@ for (let index = 0; index < operations.length; index++) {
     owner: [group, name],
   } = operations[index];
   const meta = metadata[index];
+  const mutation = meta.method !== "GET";
   const typed = typeName(operation.operationId);
   const pp = meta.parameters.filter((item) => item.in === "path");
   const qp = meta.parameters.filter((item) => item.in === "query");
@@ -275,7 +295,11 @@ for (let index = 0; index < operations.length; index++) {
       item.required
   );
   const config = `${
-    originalKey ? "CrmSourceOriginalRequestConfig" : "CrmSourceRequestConfig"
+    mutation
+      ? "CrmSourceWriteConfig"
+      : originalKey
+      ? "CrmSourceOriginalRequestConfig"
+      : "CrmSourceRequestConfig"
   }${
     customHeaders.length
       ? ` & { headers: NonNullable<T.${typed}Data["headers"]> }`
@@ -284,6 +308,7 @@ for (let index = 0; index < operations.length; index++) {
   const args = pp.map(
     (p) => `${p.name}: NonNullable<T.${typed}Data["path"]>["${p.name}"]`
   );
+  if (mutation) args.push(`body: NonNullable<T.${typed}Data["body"]>`);
   if (qp.length)
     args.push(
       `params${
@@ -293,20 +318,28 @@ for (let index = 0; index < operations.length; index++) {
       }: NonNullable<T.${typed}Data["query"]>`
     );
   args.push(
-    `config${originalKey || customHeaders.length ? "" : "?"}: ${config}`
+    `config${
+      mutation || originalKey || customHeaders.length ? "" : "?"
+    }: ${config}`
   );
-  const response = meta.binary ? "BinaryResponse" : `T.${typed}Responses[200]`;
+  const response = meta.binary
+    ? "BinaryResponse"
+    : mutation
+    ? `T.${typed}Responses[keyof T.${typed}Responses]`
+    : `T.${typed}Responses[200]`;
   const body = `  /** Native ${operation.operationId}; ${
-    meta.original
+    mutation
+      ? "one explicitly confirmed dispatch, no automatic retry or redirect"
+      : meta.original
       ? "Original, never Current or a write retry"
       : "current authorized read"
   }. */\n  async ${name}(${args.join(
     ", "
-  )}): Promise<${response}> {\n    return this.readSource${
-    meta.binary ? "" : `<${response}>`
-  }(CRM_SOURCE_OPERATIONS[${index}], ${
+  )}): Promise<${response}> {\n    return this.${
+    mutation ? "writeSource" : "readSource"
+  }${meta.binary ? "" : `<${response}>`}(CRM_SOURCE_OPERATIONS[${index}], ${
     pp.length ? `{ ${pp.map((p) => p.name).join(", ")} }` : "{}"
-  }, ${qp.length ? "params" : "undefined"}, config);\n  }`;
+  }, ${mutation ? "body" : qp.length ? "params" : "undefined"}, config);\n  }`;
   (groups.get(group) ?? groups.set(group, []).get(group)).push(body);
   if (["listBookings", "listServices"].includes(name) && group === "booking")
     groups
@@ -347,5 +380,5 @@ writeFileSync(
   generated.join("\n\n") + "\n"
 );
 console.log(
-  `Generated ${operations.length} exact native GET wrappers and a recursive native schema projection. Run the existing TypeScript generator with openapi-crm-source.config.ts.`
+  `Generated ${operations.length} exact native wrappers and a recursive native schema projection. Run the existing TypeScript generator with openapi-crm-source.config.ts.`
 );
