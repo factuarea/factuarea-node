@@ -1,5 +1,5 @@
 import { HttpClient, type FactuareaConfig } from "./core/http-client.js";
-import { CrmResource } from "./crm/resources.js";
+import { CrmNativeResource } from "./crm/native.js";
 import type { Environment } from "./core/auth.js";
 import { Webhooks } from "./core/webhooks.js";
 import { createResources } from "./resources/index.js";
@@ -42,7 +42,7 @@ export class Factuarea {
   readonly environment: Environment;
 
   /** Source CRM operations; the API checks current availability and authority. */
-  readonly crm: CrmResource;
+  readonly crm: CrmNativeResource;
 
   readonly account: AccountResource;
   /** Canonical identities with cumulative customer, supplier and lead roles. */
@@ -74,7 +74,7 @@ export class Factuarea {
     this.http = new HttpClient(config);
     this.environment = this.http.environment;
     this.webhooks = new Webhooks();
-    this.crm = new CrmResource(this.http);
+    this.crm = new CrmNativeResource(this.http);
 
     const resources = createResources(this.http);
     this.account = resources.account;

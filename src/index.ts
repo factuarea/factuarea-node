@@ -39,7 +39,12 @@ export {
 export type { FactuareaErrorType, ErrorEnvelope } from "./core/errors.js";
 
 // Webhooks
-export { verifyWebhook, Webhooks, SIGNATURE_HEADER, DEFAULT_TOLERANCE_SECONDS } from "./core/webhooks.js";
+export {
+  verifyWebhook,
+  Webhooks,
+  SIGNATURE_HEADER,
+  DEFAULT_TOLERANCE_SECONDS,
+} from "./core/webhooks.js";
 export type { VerifyOptions } from "./core/webhooks.js";
 
 // Resource classes (for typing references / advanced composition)
@@ -86,11 +91,44 @@ export type {
 } from "./generated/types.gen.js";
 
 // CRM Source surface. Availability and authority remain native API decisions.
-export { CrmResource, CrmContactPeopleResource, CrmLeadsResource, CrmPipelinesResource, CrmKnowledgeArticlesResource, CrmPublicHelpCentersResource } from "./crm/resources.js";
+export {
+  CrmResource,
+  CrmContactPeopleResource,
+  CrmLeadsResource,
+  CrmPipelinesResource,
+  CrmKnowledgeArticlesResource,
+  CrmPublicHelpCentersResource,
+} from "./crm/resources.js";
 export { CRM_OPERATIONS } from "./crm/operations.js";
-export { CrmCursorPage, CrmNumberPage, CrmKnowledgePage } from "./crm/pagination.js";
+export {
+  CrmCursorPage,
+  CrmNumberPage,
+  CrmKnowledgePage,
+} from "./crm/pagination.js";
 export type { CrmNumberMeta, CrmKnowledgePageData } from "./crm/pagination.js";
-export type { CrmRequestConfig, CrmConfirmedRequestConfig, CrmOriginalKeyRequestConfig, CrmConfirmedOriginalKeyRequestConfig } from "./crm/resource.js";
-export type { KnowledgeCategorySaveIntent, PublicHelpCenterPublishIntent } from "./crm/intents.js";
+export type {
+  CrmRequestConfig,
+  CrmConfirmedRequestConfig,
+  CrmOriginalKeyRequestConfig,
+  CrmConfirmedOriginalKeyRequestConfig,
+} from "./crm/resource.js";
+export type {
+  KnowledgeCategorySaveIntent,
+  PublicHelpCenterPublishIntent,
+} from "./crm/intents.js";
 export { CrmUnconfirmedWriteError } from "./crm/errors.js";
 export type * from "./crm/generated/types.gen.js";
+
+// Native CRM158 handwritten wrapper; generated OpenAPI/spec pins remain unchanged.
+export { CrmNativeResource } from "./crm/native.js";
+export { CrmEntityExportsResource } from "./crm/entity-exports/resource.js";
+export type {
+  CrmEntityExportReadConfig,
+  CrmEntityExportConfirmedConfig,
+} from "./crm/entity-exports/resource.js";
+export { CrmEntityExportIntent } from "./crm/entity-exports/intent.js";
+export {
+  CRM_ENTITY_EXPORT_TYPES,
+  CRM_ENTITY_EXPORT_COLUMNS,
+} from "./crm/entity-exports/types.js";
+export type * from "./crm/entity-exports/types.js";
