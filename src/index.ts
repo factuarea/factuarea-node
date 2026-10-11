@@ -141,3 +141,25 @@ export {
   CRM_ENTITY_EXPORT_COLUMNS,
 } from "./crm/entity-exports/types.js";
 export type * from "./crm/entity-exports/types.js";
+
+// Isolated Native149 consumers, generated only from the actual private Root export.
+export {
+  NativeCrm134Resource,
+  NativeCrm134Client,
+  CRM_NATIVE134_OPERATIONS,
+  RetainedNativeEffect,
+  RetainedBulkAction,
+  prepareStageUpdate,
+  prepareDocumentRestore,
+} from "./NativeCrm134/index.js";
+export type {
+  RetainedNativeEffectState,
+  NativeEffectDispatchConfig,
+  NativeEffectOriginalConfig,
+  StageUpdateBody,
+  BulkActionBody,
+  DocumentRestoreBody,
+  StageUpdateIntention,
+  DocumentRestoreIntention,
+} from "./NativeCrm134/index.js";
+export type * as NativeCrm134Types from "./NativeCrm134/generated/types.gen.js";

@@ -1,0 +1,25 @@
+{
+  "native_sha256": "3667e01b82dea255c23b2eecb80e6e600baa445b5b7a2beb5a65eb978a1fc073",
+  "native_input_manifest": "/home/nando/Proyectos/factuarea-app-worktrees/dev-2-crm/development/runtime-evidence/resume-20261010/native-contract149/consumer-manifest149.json",
+  "native_input_group": 149,
+  "consumer_manifest_sha256": "653247d4492095fb40e06c36e20a61ec4e0ba32165d0f393378eeffe9872d901",
+  "native_export_result_sha256": "924fb45d98195e54162e5a7db0b543d654d5436c38a5e3b915d4defc2f99d71d",
+  "validation_only_operation_id": "crmRestoreCommercialDocument",
+  "native_catalog_sha256": "f033c9debb1e41c21bba79bb57de9ff3a23370befdc1aa13a4e7e48b653dbcd3",
+  "native_operation_count": 967,
+  "native_carrier_count": 372,
+  "selected_operation_ids": [
+    "applyServiceTicketBulkAction",
+    "crmGetCommercialDocumentRestoreOriginal",
+    "getOriginalServiceTicketBulkItem",
+    "getServiceStageOriginal",
+    "getServiceTicketBulkOptions",
+    "listServiceStages",
+    "updateServiceStage"
+  ],
+  "projection": "Unchanged actual native operations and recursive local components; actual private profile copied unchanged.",
+  "published": false,
+  "ratified": false,
+  "delivery_enabled": false,
+  "capabilities": []
+}
