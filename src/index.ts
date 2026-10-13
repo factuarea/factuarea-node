@@ -6,6 +6,17 @@
  */
 
 export { Factuarea } from "./client.js";
+export { CustomerServiceResource } from "./crm/customer-service/customer-service.js";
+export { CustomerServiceWriteIntent } from "./crm/customer-service/intent.js";
+export { CustomerServiceWriteUnconfirmedError } from "./crm/customer-service/errors.js";
+export { serviceTicketId, serviceTicketVersion, serviceTicketActorId, serviceTicketTimestamp } from "./crm/customer-service/wire.js";
+export type * from "./crm/customer-service/types.js";
+export { CommercialDocumentsResource } from "./crm/documents/commercial-documents.js";
+export { OpportunityDocumentsResource } from "./crm/documents/opportunity-documents.js";
+export { CrmDocumentWriteIntent } from "./crm/documents/intent.js";
+export { CrmDocumentWriteUnconfirmedError } from "./crm/documents/errors.js";
+export { crmDocumentId, nativeDocumentId, crmDocumentVersion, crmDocumentDate, crmDocumentTimestamp, crmDocumentDecimal } from "./crm/documents/wire.js";
+export type * from "./crm/documents/types.js";
 export { ServiceLevelResource } from "./crm/service-level.js";
 export { ServiceLevelUnconfirmedError } from "./crm/service-level-errors.js";
 export type {
@@ -75,6 +86,8 @@ export type { VerifyOptions } from "./core/webhooks.js";
 
 // Resource classes (for typing references / advanced composition)
 export type { ResourceNamespaces } from "./resources/index.js";
+/** Exact generated wire models; private CRM models remain a development draft. */
+export type * as NativeApi from "./generated/types.gen.js";
 
 // Generated domain types. The full surface (1400+ types) lives in
 // `./generated/types.gen`; re-export the namespace so consumers can pull any
@@ -196,3 +209,20 @@ export type {
   User,
   UserList,
 } from "./generated/types.gen.js";
+
+export { CrmOAuthOriginalsResource } from "./crm/oauth-originals/resource.js";
+export { CrmOriginalIntent } from "./crm/oauth-originals/intent.js";
+export { CrmOriginalContractError } from "./crm/oauth-originals/types.js";
+export { CRM_OAUTH_SCOPES } from "./crm/oauth-originals/types.js";
+export type * from "./crm/oauth-originals/types.js";
+
+export { CrmWhatsAppResource, WhatsAppSendUnconfirmedError } from "./crm/whatsapp/resource.js";
+export { CrmWhatsAppSendIntent } from "./crm/whatsapp/intent.js";
+export type { WhatsAppPreparation, WhatsAppTemplate, WhatsAppDeliveryReceipt, WhatsAppOriginalReceipt, WhatsAppOriginalCheckpoint, WhatsAppPurpose } from "./crm/whatsapp/types.js";
+
+export * from "./resources/crmMetaNativeBatch80.js";
+export { CrmCommercialResource } from "./crm/commercial/resource.js";
+export { crmUuid, crmUserUuid, crmDecimal, crmEstimatedValueDecimal } from "./crm/commercial/codecs.js";
+export { decodeLeadResult } from "./crm/commercial/codecs.js";
+export * from "./crm/commercial/types.js";
+export * from "./crm/commercial/errors.js";

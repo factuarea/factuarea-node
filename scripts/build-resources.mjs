@@ -26,6 +26,7 @@ import {
   mkdirSync,
   rmSync,
   existsSync,
+  readdirSync,
 } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -123,6 +124,51 @@ function resolveParam(spec, param) {
   return param;
 }
 
+function resolveSchema(schema) {
+  const visited = new Set();
+  while (schema && typeof schema === "object" && typeof schema.$ref === "string") {
+    if (visited.has(schema.$ref)) return {};
+    visited.add(schema.$ref);
+    let value = spec;
+    for (const segment of schema.$ref.replace(/^#\//, "").split("/")) value = value?.[segment];
+    schema = value;
+  }
+  return schema ?? {};
+}
+
+function paginationDataPath(op) {
+  for (const [status, response] of Object.entries(op.responses ?? {})) {
+    if (!status.startsWith("2")) continue;
+    let schema = resolveSchema(response.content?.["application/json"]?.schema);
+    const dataPath = [];
+    for (let depth = 0; depth < 8; depth++) {
+      const properties = schema.properties ?? {};
+      const data = resolveSchema(properties.data);
+      if (data.type === "array" && properties.next_cursor && properties.has_more) return dataPath;
+      if (!properties.data || data.type !== "object") break;
+      dataPath.push("data");
+      schema = data;
+    }
+  }
+  return null;
+}
+
+const generatedTypesPath = join(root, "src", "generated", "types.gen.ts");
+const generatedTypeNames = existsSync(generatedTypesPath)
+  ? new Set([...readFileSync(generatedTypesPath, "utf8").matchAll(/^export type (\w+)/gm)].map((m) => m[1]))
+  : new Set();
+
+function nativeOperationTypes(op, native) {
+  if (!native) return null;
+  const base = op.operationId.replace(/(^|[^A-Za-z0-9]+)([A-Za-z0-9])/g, (_match, _separator, letter) => letter.toUpperCase());
+  for (const suffix of ["Data", "Response"]) {
+    if (!generatedTypeNames.has(base + suffix)) {
+      throw new Error(`build-resources: native ${op.operationId} has no actual generated ${base + suffix}; run the existing openapi-ts stage first.`);
+    }
+  }
+  return base;
+}
+
 /**
  * True when the spec requires the `Idempotency-Key` header on an operation
  * that is not `POST` (design D6). `POST` already gets an auto-generated key
@@ -181,18 +227,34 @@ for (const [path, methods] of Object.entries(spec.paths)) {
     const action = camel(
       op.operationId.replace("public-api.v1.", "").split(".").pop()
     );
+    // These are the actual qualified wire paths in the producer contract.
+    // Groups still come exclusively from x-speakeasy-group, including the
+    // native owners whose existing metadata has no x-crm-operation extension.
+    const native = path.startsWith("/crm/");
+    const dataPath = paginationDataPath(op);
     const entry = {
       action,
       method: method.toUpperCase(),
       path,
       pathParams: pathParams(op),
-      cursor: cursorParam(op),
+      // A cursor query alone does not make an arbitrary native response a
+      // Page. Preserve the exact typed envelope when its schema is different.
+      cursor: !native || dataPath !== null ? cursorParam(op) : null,
       hasQuery: hasQuery(op),
       hasBody: hasBody(op),
       isBinary: isBinary(op),
       isMultipart: isMultipart(op),
       idempotent: idempotencyRequiredOffPost(method, op, spec),
       summary: op.summary ?? "",
+      native,
+      nativeTypes: null,
+      dataPath: dataPath ?? [],
+      requiresKey: (op.parameters ?? []).some((p) => {
+        const value = resolveParam(spec, p);
+        return value.in === "header" && value.name === "Idempotency-Key" && value.required === true;
+      }),
+      bodyRequired: op.requestBody?.required === true,
+      queryRequired: (op.parameters ?? []).some((p) => p.in === "query" && p.required === true),
     };
     node.ops.push(entry);
   }
@@ -207,6 +269,17 @@ if (ungrouped.length > 0) {
   }
   process.exit(1);
 }
+
+// The normal generate pipeline emits these types before resource wrappers.
+// Verify the actual symbols rather than silently falling back to guessed types.
+function attachNativeTypes(node) {
+  for (const entry of node.ops) {
+    const operation = spec.paths[entry.path][entry.method.toLowerCase()];
+    entry.nativeTypes = nativeOperationTypes(operation, entry.native);
+  }
+  for (const child of node.children.values()) attachNativeTypes(child);
+}
+for (const node of tree.values()) attachNativeTypes(node);
 
 // ---- Emit per-method TS source ----------------------------------------------
 
@@ -231,12 +304,27 @@ function methodSource(entry) {
     isMultipart: mp,
     idempotent,
     summary,
+    native,
+    nativeTypes,
+    dataPath,
+    requiresKey,
+    bodyRequired,
+    queryRequired,
   } = entry;
   const lines = [];
   const doc = summary ? summary.replace(/\n/g, " ") : `${method} ${path}`;
   lines.push(`  /** ${doc} */`);
 
   const sig = [];
+  const resultType = nativeTypes ? `NativeApi.${nativeTypes}Response` : "unknown";
+  const bodyType = nativeTypes ? `NativeApi.${nativeTypes}Data[\"body\"]` : "unknown";
+  const queryType = nativeTypes ? `NativeApi.${nativeTypes}Data[\"query\"]` : "Record<string, unknown>";
+  const configSignature = requiresKey && native
+    ? "config: RequestConfig & { idempotencyKey: string }" : "config?: RequestConfig";
+  const optionalInput = (required) => native && (required || requiresKey) ? "" : "?";
+  const nativeGuard = () => {
+    if (native) lines.push(`    config = this._nativeConfig(config, ${requiresKey});`);
+  };
   const callPathParams = pp.length > 0;
   for (const p of pp) {
     sig.push(`${camel(p)}: string`);
@@ -248,18 +336,23 @@ function methodSource(entry) {
 
   // ---- Listing with cursor pagination -> Page<unknown>
   if (cursor) {
-    sig.push("params?: Record<string, unknown>", "config?: RequestConfig");
+    sig.push(`params${optionalInput(queryRequired)}: ${queryType}`, configSignature);
+    const itemType = nativeTypes
+      ? `${resultType}${dataPath.map((key) => `[\"${key}\"]`).join("")}[\"data\"][number]` : "unknown";
     lines.push(
-      `  async ${action}(${sig.join(", ")}): Promise<Page<unknown>> {`
+      `  async ${action}(${sig.join(", ")}): Promise<Page<${itemType}>> {`
     );
+    nativeGuard();
+    const paginateMethod = dataPath.length ? "_paginateEnvelope" : "_paginate";
+    const envelopeArgument = dataPath.length ? `, ${JSON.stringify(dataPath)}` : "";
     if (callPathParams) {
       lines.push(`    const path = ${pathExpr};`);
       lines.push(
-        `    return this._paginate<unknown>(path, params, "${cursor}", config);`
+        `    return this.${paginateMethod}<${itemType}>(path, params, "${cursor}"${envelopeArgument}, config);`
       );
     } else {
       lines.push(
-        `    return this._paginate<unknown>(${pathExpr}, params, "${cursor}", config);`
+        `    return this.${paginateMethod}<${itemType}>(${pathExpr}, params, "${cursor}"${envelopeArgument}, config);`
       );
     }
     lines.push(`  }`);
@@ -268,13 +361,14 @@ function methodSource(entry) {
 
   // ---- Binary download
   if (bin) {
-    if (hq) sig.push("params?: Record<string, unknown>");
-    if (hb) sig.push("body?: unknown");
-    sig.push("config?: RequestConfig");
+    if (hq) sig.push(`params${optionalInput(queryRequired)}: ${queryType}`);
+    if (hb) sig.push(`body${optionalInput(bodyRequired)}: ${bodyType}`);
+    sig.push(configSignature);
     lines.push(
       `  async ${action}(${sig.join(", ")}): Promise<BinaryResponse> {`
     );
     lines.push(`    const path = ${pathExpr};`);
+    nativeGuard();
     const q = hq ? "params" : "undefined";
     const b = hb ? "body" : "undefined";
     lines.push(
@@ -286,42 +380,45 @@ function methodSource(entry) {
 
   // ---- Multipart upload
   if (mp) {
-    sig.push("formData: FormData", "config?: RequestConfig");
-    lines.push(`  async ${action}(${sig.join(", ")}): Promise<unknown> {`);
+    sig.push("formData: FormData", configSignature);
+    lines.push(`  async ${action}(${sig.join(", ")}): Promise<${resultType}> {`);
     lines.push(`    const path = ${pathExpr};`);
-    lines.push(`    return this._sendForm<unknown>(path, formData, config);`);
+    nativeGuard();
+    lines.push(`    return this.${native ? "_sendNativeForm" : "_sendForm"}<${resultType}>(path, formData, config);`);
     lines.push(`  }`);
     return lines.join("\n");
   }
 
   // ---- GET (non-list)
   if (method === "GET") {
-    if (hq) sig.push("params?: Record<string, unknown>");
-    sig.push("config?: RequestConfig");
-    lines.push(`  async ${action}(${sig.join(", ")}): Promise<unknown> {`);
+    if (hq) sig.push(`params${optionalInput(queryRequired)}: ${queryType}`);
+    sig.push(configSignature);
+    lines.push(`  async ${action}(${sig.join(", ")}): Promise<${resultType}> {`);
     lines.push(`    const path = ${pathExpr};`);
+    nativeGuard();
     const q = hq ? "params" : "undefined";
-    lines.push(`    return this._get<unknown>(path, ${q}, config);`);
+    lines.push(`    return this._get<${resultType}>(path, ${q}, config);`);
     lines.push(`  }`);
     return lines.join("\n");
   }
 
   // ---- POST / PUT / PATCH / DELETE
-  if (hb) sig.push("body?: unknown");
-  if (hq && !hb) sig.push("params?: Record<string, unknown>");
-  sig.push("config?: RequestConfig");
-  lines.push(`  async ${action}(${sig.join(", ")}): Promise<unknown> {`);
+  if (hb) sig.push(`body${optionalInput(bodyRequired)}: ${bodyType}`);
+  if (hq && !hb) sig.push(`params${optionalInput(queryRequired)}: ${queryType}`);
+  sig.push(configSignature);
+  lines.push(`  async ${action}(${sig.join(", ")}): Promise<${resultType}> {`);
   lines.push(`    const path = ${pathExpr};`);
+  nativeGuard();
   // Spec-guided idempotency (D6): the spec requires `Idempotency-Key` on this
   // non-POST mutation, so the call opts in explicitly via the resource layer.
   const opts = idempotent ? ", { idempotent: true }" : "";
   if (method === "DELETE" && hq && !hb) {
     // DELETE with query (legacy bulk): pass query, no body.
-    lines.push(`    return this._delete<unknown>(path, params, config${opts});`);
+    lines.push(`    return this.${native ? "_deleteNative" : "_delete"}<${resultType}>(path, params, config${native ? "" : opts});`);
   } else {
     const b = hb ? "body" : "undefined";
     lines.push(
-      `    return this._send<unknown>("${method}", path, ${b}, config${opts});`
+      `    return this.${native ? "_sendNative" : "_send"}<${resultType}>("${method}", path, ${b}, config${native ? "" : opts});`
     );
   }
   lines.push(`  }`);
@@ -370,8 +467,34 @@ function classSource(prefix, node) {
 
 // ---- Write files -------------------------------------------------------------
 
+const sortedTops = [...tree.keys()].sort();
+const generatedNames = new Set([...sortedTops.map((top) => `${top}.ts`), "index.ts"]);
+const resourceHeader = "// AUTO-GENERATED resource wrapper. Do not edit by hand.";
+const indexHeader = "// AUTO-GENERATED. Do not edit by hand. Regenerate with `npm run generate:resources`.";
+
+function isGeneratedResource(file) {
+  const firstLine = readFileSync(file, "utf8").split(/\r?\n/, 1)[0];
+  return firstLine === resourceHeader || firstLine === indexHeader;
+}
+
 if (existsSync(outDir)) {
-  rmSync(outDir, { recursive: true, force: true });
+  const entries = readdirSync(outDir, { withFileTypes: true });
+  const conflicts = entries.filter((entry) =>
+    generatedNames.has(entry.name) &&
+    (!entry.isFile() || !isGeneratedResource(join(outDir, entry.name)))
+  );
+  if (conflicts.length > 0) {
+    console.error("build-resources: refusing to overwrite hand-written resource(s):");
+    for (const entry of conflicts) console.error(`  ${join(outDir, entry.name)}`);
+    process.exit(1);
+  }
+  // This directory also holds native hand-written resources. Remove only
+  // files emitted by this generator, including namespaces retired by the spec.
+  for (const entry of entries) {
+    if (entry.isFile() && isGeneratedResource(join(outDir, entry.name))) {
+      rmSync(join(outDir, entry.name));
+    }
+  }
 }
 mkdirSync(outDir, { recursive: true });
 
@@ -387,11 +510,14 @@ import type { Page } from "../core/pagination.js";
 `;
 
 const indexExports = [];
-const sortedTops = [...tree.keys()].sort();
 
 for (const top of sortedTops) {
   const node = tree.get(top);
   const parts = [header];
+  function hasNative(current) {
+    return current.ops.some((op) => op.native) || [...current.children.values()].some(hasNative);
+  }
+  if (hasNative(node)) parts.push('import type * as NativeApi from "../generated/types.gen.js";');
   // descendant classes first (referenced by their parents)
   const topClass = classSource(pascal(top), node);
   parts.push(...topClass.nested, topClass.source);

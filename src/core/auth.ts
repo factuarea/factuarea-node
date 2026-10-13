@@ -1,9 +1,8 @@
 /**
  * Auth strategies.
  *
- * The public surface only exposes `apiKey` (design D8). Internally the auth
- * layer is a pluggable strategy so OAuth / token providers can be added later
- * without a breaking change. Each strategy contributes the `Authorization`
+ * The public surface accepts an API key or an explicit native OAuth bearer.
+ * A token provider supplies the current token once per logical request. Each strategy contributes the `Authorization`
  * header (and possibly others) for a request.
  */
 export interface AuthStrategy {
@@ -24,12 +23,12 @@ export class ApiKeyAuth implements AuthStrategy {
   }
 }
 
-/** Static bearer token (reserved for future OAuth access tokens). */
+/** Native OAuth access token. API keys must use ApiKeyAuth. */
 export class BearerAuth implements AuthStrategy {
   readonly #token: string;
 
   constructor(token: string) {
-    this.#token = token;
+    this.#token = oauthAccessToken(token);
   }
 
   headers(): Record<string, string> {
@@ -38,7 +37,7 @@ export class BearerAuth implements AuthStrategy {
 }
 
 /**
- * Dynamic token provider (reserved for future OAuth refresh flows). The
+ * Dynamic OAuth access-token provider. The
  * provider is invoked per request, allowing token rotation without
  * reconstructing the client.
  */
@@ -50,7 +49,7 @@ export class TokenProviderAuth implements AuthStrategy {
   }
 
   async headers(): Promise<Record<string, string>> {
-    const token = await this.#provider();
+    const token = oauthAccessToken(await this.#provider());
     return { Authorization: `Bearer ${token}` };
   }
 }
@@ -70,4 +69,12 @@ export function environmentFromApiKey(apiKey: string): Environment {
     return "live";
   }
   return "unknown";
+}
+
+/** Validates the actual OAuth credential without treating an API key as OAuth. */
+export function oauthAccessToken(token: string): string {
+  if (typeof token !== "string" || !/^[\x21-\x7e]+$/.test(token) || token.startsWith("fact_test_") || token.startsWith("fact_live_")) {
+    throw new TypeError("Factuarea: a native OAuth access token is required.");
+  }
+  return token;
 }

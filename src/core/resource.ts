@@ -14,6 +14,8 @@ export interface RequestConfig {
   maxRetries?: number;
   /** Extra headers for this request. */
   headers?: Record<string, string>;
+  /** Cancel the request wait. A cancelled mutation may already have committed. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -134,6 +136,68 @@ export abstract class BaseResource {
     config?: RequestConfig,
   ): Promise<Page<T>> {
     return fetchPage<T>(this.client, path, flattenQuery(query), cursorParam, config);
+  }
+
+  protected async _paginateEnvelope<T>(
+    path: string,
+    query: Record<string, unknown> | undefined,
+    cursorParam: CursorParam,
+    responseDataPath: readonly string[],
+    config?: RequestConfig,
+  ): Promise<Page<T>> {
+    return fetchPage<T>(this.client, path, flattenQuery(query), cursorParam, config, responseDataPath);
+  }
+
+  /** Native operations retain a stable transport key and never retry implicitly. */
+  protected _nativeConfig(config: RequestConfig & { idempotencyKey: string }, requiresKey: true): RequestConfig & { idempotencyKey: string; noRedirects: true };
+  protected _nativeConfig(config?: RequestConfig, requiresKey?: boolean): RequestConfig & { noRedirects: true };
+  protected _nativeConfig(config?: RequestConfig, requiresKey = false): RequestConfig & { noRedirects: true } {
+    const retained = { ...config };
+    const headers = retained.headers ? { ...retained.headers } : undefined;
+    const key = retained.idempotencyKey;
+    if (requiresKey || key !== undefined) {
+      if (typeof key !== "string" || !/^[\x20-\x7e]{1,255}$/.test(key) || key.trim() !== key) {
+        throw new TypeError("Factuarea: retain a printable ASCII Idempotency-Key without boundary whitespace.");
+      }
+      for (const [name, value] of Object.entries(headers ?? {})) {
+        if (name.toLowerCase() === "idempotency-key" && value !== key) {
+          throw new TypeError("Factuarea: conflicting native Idempotency-Key.");
+        }
+      }
+    }
+    return { ...retained, headers, maxRetries: 0, noRedirects: true };
+  }
+
+  protected async _sendNative<T>(
+    method: HttpMethod,
+    path: string,
+    body?: unknown,
+    config?: RequestConfig,
+  ): Promise<T> {
+    // Capture before any awaited authentication so the dispatched JSON cannot
+    // change while the current credential provider is resolving.
+    const rawBody = body === undefined ? undefined : JSON.stringify(body);
+    const response = await this.client.request<T>({
+      method, path, rawBody, ...this._nativeConfig(config), maxRetries: 0, noRedirects: true,
+    });
+    return response.data;
+  }
+
+  protected async _sendNativeForm<T>(path: string, formData: FormData, config?: RequestConfig): Promise<T> {
+    const retained = new FormData();
+    formData.forEach((value, key) => retained.append(key, value));
+    const response = await this.client.request<T>({
+      method: "POST", path, formData: retained, ...this._nativeConfig(config), maxRetries: 0, noRedirects: true,
+    });
+    return response.data;
+  }
+
+  protected async _deleteNative<T>(path: string, query?: Record<string, unknown>, config?: RequestConfig): Promise<T> {
+    const response = await this.client.request<T>({
+      method: "DELETE", path, query: flattenQuery(query), ...this._nativeConfig(config),
+      maxRetries: 0, noRedirects: true,
+    });
+    return response.data;
   }
 
   protected async _binary(

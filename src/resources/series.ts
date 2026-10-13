@@ -58,9 +58,9 @@ export class SeriesResource extends BaseResource {
   }
 
   /** List active series by document type */
-  async active(config?: RequestConfig): Promise<unknown> {
+  async active(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = "/series/active";
-    return this._get<unknown>(path, undefined, config);
+    return this._get<unknown>(path, params, config);
   }
 
   /** Mark a series as default for its type */
@@ -73,6 +73,12 @@ export class SeriesResource extends BaseResource {
   async show(series: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/series/{series}", { "series": series });
     return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Update a series */
+  async update(series: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/series/{series}", { "series": series });
+    return this._send<unknown>("PUT", path, body, config);
   }
 
   /** Unarchive a series */

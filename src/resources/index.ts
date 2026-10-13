@@ -8,22 +8,56 @@ import { AbsenceRequestsResource } from "./absenceRequests.js";
 import { AbsenceTypesResource } from "./absenceTypes.js";
 import { AccountResource } from "./account.js";
 import { AgendaResource } from "./agenda.js";
+import { AutomationResource } from "./automation.js";
 import { AutomationsResource } from "./automations.js";
+import { BookingResource } from "./booking.js";
 import { CompaniesResource } from "./companies.js";
 import { ContactsResource } from "./contacts.js";
+import { ConversationsResource } from "./conversations.js";
+import { CrmAccessContextResource } from "./crmAccessContext.js";
+import { CrmAccessPoliciesResource } from "./crmAccessPolicies.js";
+import { CrmActivitiesResource } from "./crmActivities.js";
+import { CrmAssignmentPoliciesResource } from "./crmAssignmentPolicies.js";
+import { CrmBottleMigrationsResource } from "./crmBottleMigrations.js";
+import { CrmCaptureFormsResource } from "./crmCaptureForms.js";
+import { CrmCaptureSubmissionsResource } from "./crmCaptureSubmissions.js";
+import { CrmConfigurationResource } from "./crmConfiguration.js";
+import { CrmConnectionsResource } from "./crmConnections.js";
+import { CrmContactPeopleResource } from "./crmContactPeople.js";
+import { CrmCredentialContextResource } from "./crmCredentialContext.js";
+import { CrmDataGovernanceResource } from "./crmDataGovernance.js";
+import { CrmDocumentsResource } from "./crmDocuments.js";
+import { CrmFieldAccessPoliciesResource } from "./crmFieldAccessPolicies.js";
+import { CrmInsightsResource } from "./crmInsights.js";
+import { CrmLeadsResource } from "./crmLeads.js";
+import { CrmMakeWebhooksResource } from "./crmMakeWebhooks.js";
+import { CrmOpportunitiesResource } from "./crmOpportunities.js";
+import { CrmOpportunityLineItemsResource } from "./crmOpportunityLineItems.js";
+import { CrmOpportunitydocumentsResource } from "./crmOpportunitydocuments.js";
+import { CrmPipelinesResource } from "./crmPipelines.js";
+import { CrmPublicHelpCenterResource } from "./crmPublicHelpCenter.js";
+import { CrmSalesGoalsResource } from "./crmSalesGoals.js";
+import { CrmSalesTeamsResource } from "./crmSalesTeams.js";
+import { CrmSpreadsheetImportsResource } from "./crmSpreadsheetImports.js";
+import { CrmTaskLinksResource } from "./crmTaskLinks.js";
+import { CustomerServiceResource } from "./customerService.js";
 import { DeliveryNotesResource } from "./deliveryNotes.js";
 import { DevelopersResource } from "./developers.js";
 import { EmailsResource } from "./emails.js";
+import { EmployeeBatchesResource } from "./employeeBatches.js";
 import { EmployeeInvitationsResource } from "./employeeInvitations.js";
+import { EmployeeSeatOfferRedemptionsResource } from "./employeeSeatOfferRedemptions.js";
 import { EmployeeSeatsResource } from "./employeeSeats.js";
 import { EmployeesResource } from "./employees.js";
 import { EventCatalogResource } from "./eventCatalog.js";
 import { EventsResource } from "./events.js";
 import { FaceSubmissionsResource } from "./faceSubmissions.js";
 import { GestoriaResource } from "./gestoria.js";
+import { GestoriaSeatOfferRedemptionsResource } from "./gestoriaSeatOfferRedemptions.js";
 import { HolidaysResource } from "./holidays.js";
 import { IntegrationsResource } from "./integrations.js";
 import { InvoicesResource } from "./invoices.js";
+import { KnowledgeArticlesResource } from "./knowledgeArticles.js";
 import { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 import { NotificationsResource } from "./notifications.js";
 import { PaymentMethodsResource } from "./paymentMethods.js";
@@ -40,6 +74,8 @@ import { PurchaseScansResource } from "./purchaseScans.js";
 import { QuotesResource } from "./quotes.js";
 import { RecurringInvoicesResource } from "./recurringInvoices.js";
 import { SeriesResource } from "./series.js";
+import { ServiceInsightsResource } from "./serviceInsights.js";
+import { ServiceLevelResource } from "./serviceLevel.js";
 import { ShopifyResource } from "./shopify.js";
 import { StoresResource } from "./stores.js";
 import { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
@@ -66,22 +102,56 @@ export { AbsenceRequestsResource } from "./absenceRequests.js";
 export { AbsenceTypesResource } from "./absenceTypes.js";
 export { AccountResource } from "./account.js";
 export { AgendaResource } from "./agenda.js";
+export { AutomationResource } from "./automation.js";
 export { AutomationsResource } from "./automations.js";
+export { BookingResource } from "./booking.js";
 export { CompaniesResource } from "./companies.js";
 export { ContactsResource } from "./contacts.js";
+export { ConversationsResource } from "./conversations.js";
+export { CrmAccessContextResource } from "./crmAccessContext.js";
+export { CrmAccessPoliciesResource } from "./crmAccessPolicies.js";
+export { CrmActivitiesResource } from "./crmActivities.js";
+export { CrmAssignmentPoliciesResource } from "./crmAssignmentPolicies.js";
+export { CrmBottleMigrationsResource } from "./crmBottleMigrations.js";
+export { CrmCaptureFormsResource } from "./crmCaptureForms.js";
+export { CrmCaptureSubmissionsResource } from "./crmCaptureSubmissions.js";
+export { CrmConfigurationResource } from "./crmConfiguration.js";
+export { CrmConnectionsResource } from "./crmConnections.js";
+export { CrmContactPeopleResource } from "./crmContactPeople.js";
+export { CrmCredentialContextResource } from "./crmCredentialContext.js";
+export { CrmDataGovernanceResource } from "./crmDataGovernance.js";
+export { CrmDocumentsResource } from "./crmDocuments.js";
+export { CrmFieldAccessPoliciesResource } from "./crmFieldAccessPolicies.js";
+export { CrmInsightsResource } from "./crmInsights.js";
+export { CrmLeadsResource } from "./crmLeads.js";
+export { CrmMakeWebhooksResource } from "./crmMakeWebhooks.js";
+export { CrmOpportunitiesResource } from "./crmOpportunities.js";
+export { CrmOpportunityLineItemsResource } from "./crmOpportunityLineItems.js";
+export { CrmOpportunitydocumentsResource } from "./crmOpportunitydocuments.js";
+export { CrmPipelinesResource } from "./crmPipelines.js";
+export { CrmPublicHelpCenterResource } from "./crmPublicHelpCenter.js";
+export { CrmSalesGoalsResource } from "./crmSalesGoals.js";
+export { CrmSalesTeamsResource } from "./crmSalesTeams.js";
+export { CrmSpreadsheetImportsResource } from "./crmSpreadsheetImports.js";
+export { CrmTaskLinksResource } from "./crmTaskLinks.js";
+export { CustomerServiceResource } from "./customerService.js";
 export { DeliveryNotesResource } from "./deliveryNotes.js";
 export { DevelopersResource } from "./developers.js";
 export { EmailsResource } from "./emails.js";
+export { EmployeeBatchesResource } from "./employeeBatches.js";
 export { EmployeeInvitationsResource } from "./employeeInvitations.js";
+export { EmployeeSeatOfferRedemptionsResource } from "./employeeSeatOfferRedemptions.js";
 export { EmployeeSeatsResource } from "./employeeSeats.js";
 export { EmployeesResource } from "./employees.js";
 export { EventCatalogResource } from "./eventCatalog.js";
 export { EventsResource } from "./events.js";
 export { FaceSubmissionsResource } from "./faceSubmissions.js";
 export { GestoriaResource } from "./gestoria.js";
+export { GestoriaSeatOfferRedemptionsResource } from "./gestoriaSeatOfferRedemptions.js";
 export { HolidaysResource } from "./holidays.js";
 export { IntegrationsResource } from "./integrations.js";
 export { InvoicesResource } from "./invoices.js";
+export { KnowledgeArticlesResource } from "./knowledgeArticles.js";
 export { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 export { NotificationsResource } from "./notifications.js";
 export { PaymentMethodsResource } from "./paymentMethods.js";
@@ -98,6 +168,8 @@ export { PurchaseScansResource } from "./purchaseScans.js";
 export { QuotesResource } from "./quotes.js";
 export { RecurringInvoicesResource } from "./recurringInvoices.js";
 export { SeriesResource } from "./series.js";
+export { ServiceInsightsResource } from "./serviceInsights.js";
+export { ServiceLevelResource } from "./serviceLevel.js";
 export { ShopifyResource } from "./shopify.js";
 export { StoresResource } from "./stores.js";
 export { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
@@ -125,22 +197,56 @@ export interface ResourceNamespaces {
   absenceTypes: AbsenceTypesResource;
   account: AccountResource;
   agenda: AgendaResource;
+  automation: AutomationResource;
   automations: AutomationsResource;
+  booking: BookingResource;
   companies: CompaniesResource;
   contacts: ContactsResource;
+  conversations: ConversationsResource;
+  crmAccessContext: CrmAccessContextResource;
+  crmAccessPolicies: CrmAccessPoliciesResource;
+  crmActivities: CrmActivitiesResource;
+  crmAssignmentPolicies: CrmAssignmentPoliciesResource;
+  crmBottleMigrations: CrmBottleMigrationsResource;
+  crmCaptureForms: CrmCaptureFormsResource;
+  crmCaptureSubmissions: CrmCaptureSubmissionsResource;
+  crmConfiguration: CrmConfigurationResource;
+  crmConnections: CrmConnectionsResource;
+  crmContactPeople: CrmContactPeopleResource;
+  crmCredentialContext: CrmCredentialContextResource;
+  crmDataGovernance: CrmDataGovernanceResource;
+  crmDocuments: CrmDocumentsResource;
+  crmFieldAccessPolicies: CrmFieldAccessPoliciesResource;
+  crmInsights: CrmInsightsResource;
+  crmLeads: CrmLeadsResource;
+  crmMakeWebhooks: CrmMakeWebhooksResource;
+  crmOpportunities: CrmOpportunitiesResource;
+  crmOpportunityLineItems: CrmOpportunityLineItemsResource;
+  crmOpportunitydocuments: CrmOpportunitydocumentsResource;
+  crmPipelines: CrmPipelinesResource;
+  crmPublicHelpCenter: CrmPublicHelpCenterResource;
+  crmSalesGoals: CrmSalesGoalsResource;
+  crmSalesTeams: CrmSalesTeamsResource;
+  crmSpreadsheetImports: CrmSpreadsheetImportsResource;
+  crmTaskLinks: CrmTaskLinksResource;
+  customerService: CustomerServiceResource;
   deliveryNotes: DeliveryNotesResource;
   developers: DevelopersResource;
   emails: EmailsResource;
+  employeeBatches: EmployeeBatchesResource;
   employeeInvitations: EmployeeInvitationsResource;
+  employeeSeatOfferRedemptions: EmployeeSeatOfferRedemptionsResource;
   employeeSeats: EmployeeSeatsResource;
   employees: EmployeesResource;
   eventCatalog: EventCatalogResource;
   events: EventsResource;
   faceSubmissions: FaceSubmissionsResource;
   gestoria: GestoriaResource;
+  gestoriaSeatOfferRedemptions: GestoriaSeatOfferRedemptionsResource;
   holidays: HolidaysResource;
   integrations: IntegrationsResource;
   invoices: InvoicesResource;
+  knowledgeArticles: KnowledgeArticlesResource;
   monthlyTimeRecordCloses: MonthlyTimeRecordClosesResource;
   notifications: NotificationsResource;
   paymentMethods: PaymentMethodsResource;
@@ -157,6 +263,8 @@ export interface ResourceNamespaces {
   quotes: QuotesResource;
   recurringInvoices: RecurringInvoicesResource;
   series: SeriesResource;
+  serviceInsights: ServiceInsightsResource;
+  serviceLevel: ServiceLevelResource;
   shopify: ShopifyResource;
   stores: StoresResource;
   stripeAutoinvoicing: StripeAutoinvoicingResource;
@@ -186,22 +294,56 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     absenceTypes: new AbsenceTypesResource(client),
     account: new AccountResource(client),
     agenda: new AgendaResource(client),
+    automation: new AutomationResource(client),
     automations: new AutomationsResource(client),
+    booking: new BookingResource(client),
     companies: new CompaniesResource(client),
     contacts: new ContactsResource(client),
+    conversations: new ConversationsResource(client),
+    crmAccessContext: new CrmAccessContextResource(client),
+    crmAccessPolicies: new CrmAccessPoliciesResource(client),
+    crmActivities: new CrmActivitiesResource(client),
+    crmAssignmentPolicies: new CrmAssignmentPoliciesResource(client),
+    crmBottleMigrations: new CrmBottleMigrationsResource(client),
+    crmCaptureForms: new CrmCaptureFormsResource(client),
+    crmCaptureSubmissions: new CrmCaptureSubmissionsResource(client),
+    crmConfiguration: new CrmConfigurationResource(client),
+    crmConnections: new CrmConnectionsResource(client),
+    crmContactPeople: new CrmContactPeopleResource(client),
+    crmCredentialContext: new CrmCredentialContextResource(client),
+    crmDataGovernance: new CrmDataGovernanceResource(client),
+    crmDocuments: new CrmDocumentsResource(client),
+    crmFieldAccessPolicies: new CrmFieldAccessPoliciesResource(client),
+    crmInsights: new CrmInsightsResource(client),
+    crmLeads: new CrmLeadsResource(client),
+    crmMakeWebhooks: new CrmMakeWebhooksResource(client),
+    crmOpportunities: new CrmOpportunitiesResource(client),
+    crmOpportunityLineItems: new CrmOpportunityLineItemsResource(client),
+    crmOpportunitydocuments: new CrmOpportunitydocumentsResource(client),
+    crmPipelines: new CrmPipelinesResource(client),
+    crmPublicHelpCenter: new CrmPublicHelpCenterResource(client),
+    crmSalesGoals: new CrmSalesGoalsResource(client),
+    crmSalesTeams: new CrmSalesTeamsResource(client),
+    crmSpreadsheetImports: new CrmSpreadsheetImportsResource(client),
+    crmTaskLinks: new CrmTaskLinksResource(client),
+    customerService: new CustomerServiceResource(client),
     deliveryNotes: new DeliveryNotesResource(client),
     developers: new DevelopersResource(client),
     emails: new EmailsResource(client),
+    employeeBatches: new EmployeeBatchesResource(client),
     employeeInvitations: new EmployeeInvitationsResource(client),
+    employeeSeatOfferRedemptions: new EmployeeSeatOfferRedemptionsResource(client),
     employeeSeats: new EmployeeSeatsResource(client),
     employees: new EmployeesResource(client),
     eventCatalog: new EventCatalogResource(client),
     events: new EventsResource(client),
     faceSubmissions: new FaceSubmissionsResource(client),
     gestoria: new GestoriaResource(client),
+    gestoriaSeatOfferRedemptions: new GestoriaSeatOfferRedemptionsResource(client),
     holidays: new HolidaysResource(client),
     integrations: new IntegrationsResource(client),
     invoices: new InvoicesResource(client),
+    knowledgeArticles: new KnowledgeArticlesResource(client),
     monthlyTimeRecordCloses: new MonthlyTimeRecordClosesResource(client),
     notifications: new NotificationsResource(client),
     paymentMethods: new PaymentMethodsResource(client),
@@ -218,6 +360,8 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     quotes: new QuotesResource(client),
     recurringInvoices: new RecurringInvoicesResource(client),
     series: new SeriesResource(client),
+    serviceInsights: new ServiceInsightsResource(client),
+    serviceLevel: new ServiceLevelResource(client),
     shopify: new ShopifyResource(client),
     stores: new StoresResource(client),
     stripeAutoinvoicing: new StripeAutoinvoicingResource(client),

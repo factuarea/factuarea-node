@@ -71,6 +71,12 @@ export class VerifactuRecordsResource extends BaseResource {
     return this._paginate<unknown>("/verifactu/records", params, "starting_after", config);
   }
 
+  /** Retry every blocked VeriFactu record */
+  async retryBlocked(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/records/retry-blocked";
+    return this._send<unknown>("POST", path, undefined, config);
+  }
+
   /** Retry VeriFactu transmission */
   async retry(record: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/verifactu/records/{record}/retry", { "record": record });
@@ -83,10 +89,30 @@ export class VerifactuRecordsResource extends BaseResource {
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** Subsanar a rejected VeriFactu record */
+  /** Subsanar a VeriFactu record */
   async subsanar(record: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/verifactu/records/{record}/subsanar", { "record": record });
     return this._send<unknown>("POST", path, undefined, config);
+  }
+}
+
+export class VerifactuRepresentationResource extends BaseResource {
+  /** Retrieve the active representation */
+  async show(config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/representation";
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Register a representation */
+  async register(formData: FormData, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/representation";
+    return this._sendForm<unknown>(path, formData, config);
+  }
+
+  /** Revoke the active representation */
+  async revoke(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = "/verifactu/representation";
+    return this._delete<unknown>(path, params, config, { idempotent: true });
   }
 }
 
@@ -161,6 +187,7 @@ export class VerifactuChainResource extends BaseResource {
 export class VerifactuResource extends BaseResource {
   readonly certificates: VerifactuCertificatesResource;
   readonly records: VerifactuRecordsResource;
+  readonly representation: VerifactuRepresentationResource;
   readonly declaracion: VerifactuDeclaracionResource;
   readonly events: VerifactuEventsResource;
   readonly aeatAccess: VerifactuAeatAccessResource;
@@ -171,6 +198,7 @@ export class VerifactuResource extends BaseResource {
     super(client);
     this.certificates = new VerifactuCertificatesResource(client);
     this.records = new VerifactuRecordsResource(client);
+    this.representation = new VerifactuRepresentationResource(client);
     this.declaracion = new VerifactuDeclaracionResource(client);
     this.events = new VerifactuEventsResource(client);
     this.aeatAccess = new VerifactuAeatAccessResource(client);

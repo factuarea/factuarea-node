@@ -1,0 +1,21 @@
+{
+  "source_verification": "Static expectations from the pinned documentation; upstream runtime is not executed.",
+  "list": {
+    "source_response": {"open_leads":{"open_leads":[{"id":"source-first","first_name":null,"last_name":null,"email":null,"status":"assigned"}],"leads_count":1},"closed_leads":{"closed_leads":[],"leads_count":0}},
+    "source_expected": {"count_on_page":1,"identity":"source-first","name_fallback":"(no name)"},
+    "native_expected": {"query":"cursor","envelope":"data.data","identity_type":"UUIDv7","missing_email":null}
+  },
+  "create": {
+    "source_input":{"first_name":"Sample","last_name":"Lead","email":"sample.lead@example.invalid","status":"assigned","source":"other"},
+    "source_response":{"error":false,"message":"Lead Created Successfully"},
+    "source_expected":{"http_status":200,"response_identity":null,"returned_identity_guess":"sample.lead@example.invalid"},
+    "native_input":{"name":"Sample Lead","email":"sample.lead@example.invalid","source":"manual"},
+    "native_expected":{"http_status":201,"identity":"UUIDv7 or confirmed identity receipt","source_payload_admitted":false}
+  },
+  "lookup": {
+    "source_query":{"email":"sample.lead"},
+    "source_response":{"open_leads":{"open_leads":[{"id":"source-first"},{"id":"source-second"}]}},
+    "source_expected_identity":"source-first",
+    "native_expected":{"contains_lookup_used_for_identity":false,"lookup":"exact returned UUID or original key plus wire SHA"}
+  }
+}

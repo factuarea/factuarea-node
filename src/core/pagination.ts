@@ -36,6 +36,7 @@ export class Page<T> implements AsyncIterable<T> {
   readonly #client: HttpClient;
   readonly #baseOptions: RequestOptions;
   readonly #cursorParam: CursorParam;
+  readonly #responseDataPath: readonly string[];
 
   constructor(
     client: HttpClient,
@@ -43,10 +44,12 @@ export class Page<T> implements AsyncIterable<T> {
     cursorParam: CursorParam,
     payload: PaginatedList<T>,
     requestId: string | null,
+    responseDataPath: readonly string[] = [],
   ) {
     this.#client = client;
     this.#baseOptions = baseOptions;
     this.#cursorParam = cursorParam;
+    this.#responseDataPath = Object.freeze([...responseDataPath]);
     this.data = payload.data ?? [];
     this.hasMore = payload.has_more ?? false;
     this.nextCursor = payload.next_cursor ?? null;
@@ -66,7 +69,8 @@ export class Page<T> implements AsyncIterable<T> {
       },
     };
     const response = await this.#client.request<PaginatedList<T>>(options);
-    return new Page<T>(this.#client, options, this.#cursorParam, response.data, response.requestId);
+    return new Page<T>(this.#client, options, this.#cursorParam,
+      pagePayload<T>(response.data, this.#responseDataPath), response.requestId, this.#responseDataPath);
   }
 
   /** Async iterator over every element across all pages. */
@@ -100,8 +104,32 @@ export async function fetchPage<T>(
   query: Record<string, unknown> | undefined,
   cursorParam: CursorParam = "starting_after",
   config?: RequestConfig,
+  responseDataPath: readonly string[] = [],
 ): Promise<Page<T>> {
   const options: RequestOptions = { method: "GET", path, query, ...config };
   const response = await client.request<PaginatedList<T>>(options);
-  return new Page<T>(client, options, cursorParam, response.data, response.requestId);
+  return new Page<T>(client, options, cursorParam,
+    pagePayload<T>(response.data, responseDataPath), response.requestId, responseDataPath);
+}
+
+function pagePayload<T>(wire: unknown, dataPath: readonly string[]): PaginatedList<T> {
+  // Preserve the established legacy path. Native envelopes are selected from
+  // their actual response schema by the resource generator.
+  if (dataPath.length === 0) return wire as PaginatedList<T>;
+  let payload = wire;
+  for (const key of dataPath) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
+      !Object.hasOwn(payload, key)) throw new TypeError("Factuarea: invalid native cursor envelope.");
+    payload = (payload as Record<string, unknown>)[key];
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new TypeError("Factuarea: invalid native cursor page.");
+  }
+  const page = payload as Record<string, unknown>;
+  if (!Array.isArray(page.data) || typeof page.has_more !== "boolean" ||
+    !(page.next_cursor === null || typeof page.next_cursor === "string" && page.next_cursor.length > 0) ||
+    page.has_more !== (page.next_cursor !== null)) {
+    throw new TypeError("Factuarea: invalid native cursor page.");
+  }
+  return page as unknown as PaginatedList<T>;
 }

@@ -113,7 +113,7 @@ export class RateLimitError extends FactuareaError {
 /** 5xx server-side error. */
 export class ServerError extends FactuareaError {}
 
-/** Network failure / timeout — never reached the API. */
+/** Network failure / timeout. A mutation may already have committed. */
 export class ConnectionError extends FactuareaError {}
 
 /** Webhook signature verification failed. */

@@ -197,9 +197,9 @@ export class InvoicesResource extends BaseResource {
   }
 
   /** Generate temporary PDF link */
-  async pdfLink(invoice: string, config?: RequestConfig): Promise<unknown> {
+  async pdfLink(invoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/invoices/{invoice}/pdf-link", { "invoice": invoice });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<unknown>(path, params, config);
   }
 
   /** Retrieve invoice public link */

@@ -1,8 +1,14 @@
+import { CrmWhatsAppResource } from "./crm/whatsapp/resource.js";
+import { CrmCommercialResource } from "./crm/commercial/resource.js";
+import { CrmOAuthOriginalsResource } from "./crm/oauth-originals/resource.js";
 import { HttpClient, type FactuareaConfig } from "./core/http-client.js";
 import type { Environment } from "./core/auth.js";
 import { Webhooks } from "./core/webhooks.js";
 import { ServiceLevelResource } from "./crm/service-level.js";
-import { createResources } from "./resources/index.js";
+import { CommercialDocumentsResource } from "./crm/documents/commercial-documents.js";
+import { CustomerServiceResource } from "./crm/customer-service/customer-service.js";
+import { OpportunityDocumentsResource } from "./crm/documents/opportunity-documents.js";
+import { createResources, type ResourceNamespaces } from "./resources/index.js";
 import type {
   AccountResource,
   AgendaResource,
@@ -45,6 +51,14 @@ import type {
  * (`fact_test_` / `fact_live_`); no environment flag is needed.
  */
 export class Factuarea {
+  /** Generated operation namespaces, including the private CRM development contract. */
+  readonly resources: ResourceNamespaces;
+  readonly crm: CrmCommercialResource;
+  /** Current credential context and read-only recovery of the four native CRM originals. */
+  readonly crmOriginals: CrmOAuthOriginalsResource;
+  readonly whatsapp: CrmWhatsAppResource;
+  /** Native CRM ticket reads, stage/waiting mutations and document attachments. */
+  readonly customerService: CustomerServiceResource;
   /** The environment derived from the API key prefix. */
   readonly environment: Environment;
 
@@ -53,6 +67,10 @@ export class Factuarea {
   readonly agenda: AgendaResource;
   /** Canonical identities with cumulative customer, supplier and lead roles. */
   readonly contacts: ContactsResource;
+  /** Native private CRM library; v1 JSON producer references, not SPA uploads. */
+  readonly commercialDocuments: CommercialDocumentsResource;
+  /** Native document associations, candidates, prefiscal quotes and financial summary. */
+  readonly opportunityDocuments: OpportunityDocumentsResource;
   readonly deliveryNotes: DeliveryNotesResource;
   readonly eventCatalog: EventCatalogResource;
   readonly events: EventsResource;
@@ -92,11 +110,18 @@ export class Factuarea {
 
   constructor(config: FactuareaConfig) {
     this.http = new HttpClient(config);
+    this.crm = new CrmCommercialResource(this.http);
+    this.crmOriginals = new CrmOAuthOriginalsResource(this.http);
+    this.whatsapp = new CrmWhatsAppResource(this.http);
     this.environment = this.http.environment;
     this.webhooks = new Webhooks();
     this.serviceLevel = new ServiceLevelResource(this.http);
+    this.commercialDocuments = new CommercialDocumentsResource(this.http);
+    this.customerService = new CustomerServiceResource(this.http);
+    this.opportunityDocuments = new OpportunityDocumentsResource(this.http);
 
     const resources = createResources(this.http);
+    this.resources = resources;
     this.account = resources.account;
     this.agenda = resources.agenda;
     this.contacts = resources.contacts;
