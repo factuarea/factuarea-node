@@ -94,3 +94,43 @@ export type { CrmRequestConfig, CrmConfirmedRequestConfig, CrmOriginalKeyRequest
 export type { KnowledgeCategorySaveIntent, PublicHelpCenterPublishIntent } from "./crm/intents.js";
 export { CrmUnconfirmedWriteError } from "./crm/errors.js";
 export type * from "./crm/generated/types.gen.js";
+
+// Sequence v1 consumes explicit native routes and the configured SDK transport.
+export { CrmSequencesResource, CrmSequencePage, CrmSequenceUnconfirmedWriteError, CrmSequenceControlUnconfirmedError, createCrmSequencesResource, decodeCrmSequenceOriginalWire } from "./resources/crm-sequences.js";
+export type { CrmSequenceNativeTransport, CrmSequenceReadConfig, CrmSequenceOriginalReadConfig, CrmSequenceMutationConfig } from "./resources/crm-sequences.js";
+export type * from "./crm/sequences-types.js";
+
+// Booking administrative V1 uses its own original receipt protocol and required native routes.
+export { CrmBookingsResource, CrmBookingPage, CrmBookingUnconfirmedWriteError, createCrmBookingsResource, decodeCrmBookingServiceIntent, decodeCrmBookingService, decodeCrmBookingServiceReceipt, decodeCrmBookingPage } from "./resources/crm-bookings/index.js";
+export type { CrmBookingNativeTransport, CrmBookingReadConfig, CrmBookingOriginalConfig } from "./resources/crm-bookings/index.js";
+export type * from "./resources/crm-bookings/types.js";
+
+// Task time billing preserves native original receipts, Task ownership and monetary strings.
+export { CrmTaskTimeBillingResource, CrmTaskTimePage, CrmTaskTimeUnconfirmedWriteError, createCrmTaskTimeBillingResource, decodeCrmTaskTimeIntent, decodeCrmTaskTimeTasks, decodeCrmTaskTimePage, decodeCrmTaskTimePreview, decodeCrmTaskTimeReceipt } from "./resources/crm-task-time-billing/index.js";
+export type { CrmTaskTimeBillingNativeTransport, CrmTaskTimeReadConfig, CrmTaskTimeWriteConfig, CrmTaskTimeQueryPostConfig } from "./resources/crm-task-time-billing/index.js";
+export type * from "./resources/crm-task-time-billing/types.js";
+
+// Mailbox configuration writer recovery uses native crm:write, separate from public original reads.
+export { CrmMailboxWritersResource, CrmMailboxUnconfirmedWriteError, createCrmMailboxWritersResource, decodeCrmMailboxWriteIntent, decodeCrmMailboxWriteReceipt } from "./resources/crm-mailbox-writers/index.js";
+export type { CrmMailboxWriterNativeTransport, CrmMailboxWriterConfig } from "./resources/crm-mailbox-writers/index.js";
+export type * from "./resources/crm-mailbox-writers/types.js";
+
+// ServiceInsights readonly V1 preserves native predicate, decimal strings and current masks.
+export { CrmServiceInsightsResource, CrmServiceInsightsDrillPage, createCrmServiceInsightsResource, decodeCrmServiceCsatMetric, decodeCrmServiceInsightMetrics, decodeCrmServiceInsightDrill } from "./resources/crm-service-insights/index.js";
+export type { CrmServiceInsightsNativeTransport, CrmServiceInsightsConfig } from "./resources/crm-service-insights/index.js";
+export type * from "./resources/crm-service-insights/types.js";
+
+// VerticalPacks V1 keeps pure POST queries separate from exact original apply/undo confirmations.
+export { CrmVerticalPacksResource, CrmVerticalPackUnconfirmedWriteError, createCrmVerticalPacksResource, decodeCrmVerticalPackIntent, decodeCrmVerticalPackCatalog, decodeCrmVerticalPackPlan, decodeCrmVerticalPackConflicts, decodeCrmVerticalPackReceipt } from "./resources/crm-vertical-packs/index.js";
+export type { CrmVerticalPacksNativeTransport, CrmVerticalPacksConfig } from "./resources/crm-vertical-packs/index.js";
+export type * from "./resources/crm-vertical-packs/types.js";
+
+// ServiceMacro V1 keeps masked projections, original confirmation and readonly recovery distinct.
+export { CrmServiceMacrosResource, CrmServiceMacroPage, CrmServiceMacroUsagePage, CrmServiceMacroUnconfirmedWriteError, createCrmServiceMacrosResource, decodeCrmServiceMacroIntent, decodeCrmServiceMacroList, decodeCrmServiceMacroUsage, decodeCrmServiceMacroOriginal, decodeCrmServiceMacroRender } from "./resources/crm-service-macros/index.js";
+export type { CrmServiceMacrosNativeTransport, CrmServiceMacrosConfig } from "./resources/crm-service-macros/index.js";
+export type * from "./resources/crm-service-macros/types.js";
+
+// Conversation readonly V1 preserves original identity, cursor, delivery result and current masks.
+export { CrmConversationsResource, CrmConversationInboxPage, CrmConversationThreadPage, createCrmConversationsResource, decodeCrmConversationInbox, decodeCrmConversationThread, encodeCrmConversationFilters } from "./resources/crm-conversations/index.js";
+export type { CrmConversationsNativeTransport, CrmConversationsReadConfig } from "./resources/crm-conversations/index.js";
+export type * from "./resources/crm-conversations/types.js";

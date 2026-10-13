@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
-import { DEFAULT_FACTUAREA_VERSION } from "../src/index.js";
+import { DEFAULT_FACTUAREA_VERSION, ServerError } from "../src/index.js";
 
 useMockServer();
 
@@ -117,5 +117,60 @@ describe("Idempotency-Key", () => {
     await testClient({ maxRetries: 1 }).contacts.create({ name: "ACME" });
     expect(seenKeys).toHaveLength(2);
     expect(seenKeys[0]).toBe(seenKeys[1]);
+  });
+});
+
+describe("native original JSON transport", () => {
+  it("preserves exact UTF-8 wire bytes and explicit headers while a server failure stays one attempt", async () => {
+    const originalWire = '{\n  "name": "acción", "expected_version": 9007199254740993\n}\n';
+    let calls = 0;
+    let sentBody: BodyInit | null | undefined;
+    let sentHeaders: Headers | undefined;
+    const client = testClient({
+      maxRetries: 3,
+      defaultHeaders: { "content-type": "text/plain", "idempotency-key": "stale-default", "X-Active-Profile": "fixture-A" },
+      fetch: async (_input, init) => {
+        calls++;
+        sentBody = init?.body;
+        sentHeaders = new Headers(init?.headers);
+        return Response.json({ error: { type: "service_unavailable_error", code: "effect_unknown", message: "Unconfirmed" } }, {
+          status: 503,
+          headers: { "X-Request-Id": "request-original-wire" },
+        });
+      },
+    });
+
+    const error = await client.http.requestOriginalJson({
+      method: "PATCH",
+      path: "/crm/leads/0199152d-525d-7000-8000-000000000001",
+      rawJsonBody: originalWire,
+      idempotencyKey: "original-step-A",
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ServerError);
+    expect(error).toMatchObject({ code: "effect_unknown", requestId: "request-original-wire" });
+    expect(calls).toBe(1);
+    expect(sentBody).toBe(originalWire);
+    expect(sentHeaders?.get("Content-Type")).toBe("application/json");
+    expect(sentHeaders?.get("Idempotency-Key")).toBe("original-step-A");
+    expect(sentHeaders?.get("X-Active-Profile")).toBe("fixture-A");
+  });
+
+  it("can suppress every inherited idempotency key for a native operation without an original ledger", async () => {
+    let calls = 0;
+    let sentHeaders: Headers | undefined;
+    const client = testClient({
+      defaultHeaders: { "Idempotency-Key": "must-not-be-inherited" },
+      fetch: async (_input, init) => {
+        calls++;
+        sentHeaders = new Headers(init?.headers);
+        return Response.json({ data: { accepted: true } });
+      },
+    });
+
+    await client.http.requestOriginalJson({ method: "POST", path: "/crm/preview", rawJsonBody: "{}", autoIdempotency: false });
+
+    expect(calls).toBe(1);
+    expect(sentHeaders?.get("Idempotency-Key")).toBeNull();
   });
 });

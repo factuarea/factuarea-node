@@ -59,6 +59,10 @@ export interface RequestOptions {
   query?: Record<string, unknown> | undefined;
   /** JSON request body (serialized). Mutually exclusive with `formData`. */
   body?: unknown;
+  /** Exact original JSON bytes; mutually exclusive with body/formData. */
+  rawJsonBody?: string;
+  /** Explicit native operations without an original ledger do not generate a key. */
+  autoIdempotency?: false;
   /** Multipart form data (file uploads). Mutually exclusive with `body`. */
   formData?: FormData;
   /** Per-request header overrides. */
@@ -172,6 +176,17 @@ export class HttpClient {
     return { data: parsed as T, status: response.status, headers, requestId };
   }
 
+  /** Native original-wire transport; shares auth, cancellation, status decoding and errors. */
+  async requestOriginalJson<T>(options: RequestOptions & { rawJsonBody: string }): Promise<ApiResponse<T>> {
+    if (options.method === "GET" || options.body !== undefined || options.formData !== undefined
+      || typeof options.rawJsonBody !== "string" || options.rawJsonBody.length === 0
+      || Buffer.byteLength(options.rawJsonBody, "utf8") > 65536) {
+      throw new TypeError("Factuarea: original JSON requires an exclusive, nonempty mutation body.");
+    }
+    try { JSON.parse(options.rawJsonBody); } catch { throw new TypeError("Factuarea: original JSON must be valid JSON."); }
+    return this.request<T>({ ...options, maxRetries: 0 });
+  }
+
   /** Performs a request expecting a binary body (PDF, etc.). */
   async requestBinary(options: RequestOptions): Promise<BinaryResponse> {
     const { response, requestId } = await this.#send(options, "application/pdf, application/octet-stream, */*");
@@ -218,6 +233,11 @@ export class HttpClient {
       ...authHeaders,
       ...options.headers,
     };
+    if (options.autoIdempotency === false) {
+      for (const name of Object.keys(headers)) {
+        if (name.toLowerCase() === "idempotency-key") delete headers[name];
+      }
+    }
     if (idempotencyKey !== undefined) {
       // Header names are case-insensitive; keep exactly the resolved original key.
       for (const name of Object.keys(headers)) {
@@ -227,7 +247,16 @@ export class HttpClient {
     }
 
     let requestBody: BodyInit | undefined;
-    if (options.formData) {
+    if (options.rawJsonBody !== undefined) {
+      if (options.body !== undefined || options.formData !== undefined || options.method === "GET") {
+        throw new TypeError("Factuarea: raw JSON cannot be combined with body/formData or GET.");
+      }
+      for (const name of Object.keys(headers)) {
+        if (name.toLowerCase() === "content-type") delete headers[name];
+      }
+      headers["Content-Type"] = "application/json";
+      requestBody = options.rawJsonBody;
+    } else if (options.formData) {
       requestBody = options.formData; // fetch sets the multipart boundary.
     } else if (options.body !== undefined && options.method !== "GET") {
       headers["Content-Type"] = "application/json";
@@ -294,6 +323,7 @@ export class HttpClient {
   }
 
   #resolveIdempotencyKey(options: RequestOptions): string | undefined {
+    if (options.autoIdempotency === false) return undefined;
     if (options.idempotencyKey !== undefined) {
       return options.idempotencyKey;
     }

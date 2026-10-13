@@ -3,6 +3,15 @@ import { CrmResource } from "./crm/resources.js";
 import type { Environment } from "./core/auth.js";
 import { Webhooks } from "./core/webhooks.js";
 import { createResources } from "./resources/index.js";
+import { createCrmSequencesResource, type CrmSequencesResource } from "./resources/crm-sequences.js";
+import type { CrmSequenceV1Paths } from "./crm/sequences-types.js";
+import { createCrmBookingsResource, type CrmBookingsResource, type CrmBookingV1Paths } from "./resources/crm-bookings/index.js";
+import { createCrmTaskTimeBillingResource, type CrmTaskTimeBillingResource, type CrmTaskTimeBillingV1Paths } from "./resources/crm-task-time-billing/index.js";
+import { createCrmMailboxWritersResource, type CrmMailboxWritersResource, type CrmMailboxWriterV1Paths } from "./resources/crm-mailbox-writers/index.js";
+import { createCrmServiceInsightsResource, type CrmServiceInsightsResource, type CrmServiceInsightsV1Paths } from "./resources/crm-service-insights/index.js";
+import { createCrmVerticalPacksResource, type CrmVerticalPacksResource, type CrmVerticalPacksV1Paths } from "./resources/crm-vertical-packs/index.js";
+import { createCrmServiceMacrosResource, type CrmServiceMacrosResource, type CrmServiceMacrosV1Paths } from "./resources/crm-service-macros/index.js";
+import { createCrmConversationsResource, type CrmConversationsResource, type CrmConversationV1Paths } from "./resources/crm-conversations/index.js";
 import type {
   AccountResource,
   ContactsResource,
@@ -69,6 +78,46 @@ export class Factuarea {
 
   /** The underlying HTTP client (advanced / escape hatch). */
   readonly http: HttpClient;
+
+  /** Compose Sequence with explicit native v1 route bindings and this client's auth/transport. */
+  crmSequences(paths: CrmSequenceV1Paths): CrmSequencesResource {
+    return createCrmSequencesResource(this.http, paths);
+  }
+
+  /** Compose Booking administration with explicit native V1 routes and this client's auth/transport. */
+  crmBookings(paths: CrmBookingV1Paths): CrmBookingsResource {
+    return createCrmBookingsResource(this.http, paths);
+  }
+
+  /** Compose native Task time billing with explicit V1 routes and this client's configured transport. */
+  crmTaskTimeBilling(paths: CrmTaskTimeBillingV1Paths): CrmTaskTimeBillingResource {
+    return createCrmTaskTimeBillingResource(this.http, paths);
+  }
+
+  /** Compose Mailbox writers with required native V1 routes and this configured HTTP client. */
+  crmMailboxWriters(paths: CrmMailboxWriterV1Paths): CrmMailboxWritersResource {
+    return createCrmMailboxWritersResource(this.http, paths);
+  }
+
+  /** Compose readonly ServiceInsights with required native V1 paths and configured auth/transport. */
+  crmServiceInsights(paths: CrmServiceInsightsV1Paths): CrmServiceInsightsResource {
+    return createCrmServiceInsightsResource(this.http, paths);
+  }
+
+  /** Compose native Conversation list/get with explicit V1 routes and this configured transport. */
+  crmConversations(paths: CrmConversationV1Paths): CrmConversationsResource {
+    return createCrmConversationsResource(this.http, paths);
+  }
+
+  /** Compose native VerticalPacks with explicit V1 routes and this configured HTTP client. */
+  crmVerticalPacks(paths: CrmVerticalPacksV1Paths): CrmVerticalPacksResource {
+    return createCrmVerticalPacksResource(this.http, paths);
+  }
+
+  /** Compose ServiceMacro with explicit native V1 bindings and this client's auth/transport. */
+  crmServiceMacros(paths: CrmServiceMacrosV1Paths): CrmServiceMacrosResource {
+    return createCrmServiceMacrosResource(this.http, paths);
+  }
 
   constructor(config: FactuareaConfig) {
     this.http = new HttpClient(config);
