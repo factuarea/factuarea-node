@@ -9,7 +9,56 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
+export class StripeAutoinvoicingAccountsChargeRulesResource extends BaseResource {
+  /** Create a charge treatment rule */
+  async create(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/connected-accounts/{account}/charge-rules", { "account": account });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** List charge treatment rules of a connected Stripe account */
+  async list(account: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/connected-accounts/{account}/charge-rules", { "account": account });
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Delete a charge treatment rule */
+  async delete(account: string, rule: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/connected-accounts/{account}/charge-rules/{rule}", { "account": account, "rule": rule });
+    return this._send<unknown>("DELETE", path, undefined, config);
+  }
+
+  /** Update a charge treatment rule */
+  async update(account: string, rule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/connected-accounts/{account}/charge-rules/{rule}", { "account": account, "rule": rule });
+    return this._send<unknown>("PUT", path, body, config);
+  }
+
+  /** Reorder the charge treatment rules */
+  async reorder(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/connected-accounts/{account}/charge-rules/order", { "account": account });
+    return this._send<unknown>("PUT", path, body, config);
+  }
+}
+
+export class StripeAutoinvoicingAccountsNonInvoicedChargesResource extends BaseResource {
+  /** List non-invoiced charges of a connected Stripe account */
+  async list(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/connected-accounts/{account}/non-invoiced-charges", { "account": account });
+    return this._paginate<unknown>(path, params, "starting_after", config);
+  }
+}
+
 export class StripeAutoinvoicingAccountsResource extends BaseResource {
+  readonly chargeRules: StripeAutoinvoicingAccountsChargeRulesResource;
+  readonly nonInvoicedCharges: StripeAutoinvoicingAccountsNonInvoicedChargesResource;
+
+  constructor(client: HttpClient) {
+    super(client);
+    this.chargeRules = new StripeAutoinvoicingAccountsChargeRulesResource(client);
+    this.nonInvoicedCharges = new StripeAutoinvoicingAccountsNonInvoicedChargesResource(client);
+  }
+
   /** Disconnect a connected Stripe account */
   async disconnect(account: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/connected-accounts/{account}", { "account": account });

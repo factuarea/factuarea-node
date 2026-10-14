@@ -327,7 +327,7 @@ export type Account = {
     };
     plan: {
         /**
-         * Plan identifier (e.g. `emprendedor`, `empresario`, `enterprise`).
+         * Plan identifier (e.g. `emprendedor`, `empresario`, `integral`, `enterprise`).
          */
         slug: string;
         name: string;
@@ -417,7 +417,7 @@ export type AccountBilling = {
      */
     plan: {
         /**
-         * Plan identifier (e.g. `emprendedor`, `empresario`, `enterprise`, `gestionada`).
+         * Plan identifier (e.g. `emprendedor`, `empresario`, `integral`, `enterprise`, `gestionada`).
          */
         slug: string | null;
         name: string | null;
@@ -1753,7 +1753,7 @@ export type AutomationTriggerFields = {
 /**
  * AutomationUsage
  *
- * How many automation runs your company has consumed this period and what its plan allows. Read it to anticipate running out of budget: this API does not pre-check the quota when you activate a rule, so this is the endpoint that tells you where you stand. The figure comes from the same counter the engine applies when admitting a run, so it advances by exactly N after N admitted runs and does NOT change when run history is purged.
+ * Current active automation rules and automation runs consumed this period, with the limits of the plan. Activating a rule checks the active-rule cap; the execution budget is checked only when admitting a run. Read both counters to anticipate reaching either limit. The figure comes from the same counter the engine applies when admitting a run, so it advances by exactly N after N admitted runs and does NOT change when run history is purged.
  */
 export type AutomationUsage = {
     /**
@@ -1765,7 +1765,7 @@ export type AutomationUsage = {
      */
     consumed: number;
     /**
-     * Cap of the plan for the period, or `null` when the plan has NO cap. `null` means unlimited, never "unknown": treat it as "no progress bar", not as zero.
+     * Cap of the plan for the period, or `null` when there is no automatic ceiling. Enterprise capacity is agreed by contract. `null` is not an unknown value or zero: omit the progress bar.
      */
     limit: number | null;
     /**
@@ -1780,6 +1780,19 @@ export type AutomationUsage = {
      * Consumption percentage at which the platform starts warning the account owner. It travels so your own warning and ours cannot drift apart.
      */
     threshold_percent: number;
+    /**
+     * Current active rules and the cap enforced when activating a rule. Draft, paused and deleted rules do not consume this cap.
+     */
+    active_rules: {
+        /**
+         * Active, non-deleted rules belonging to this company.
+         */
+        count: number;
+        /**
+         * Active-rule cap of the plan. Zero permits no activations; null means no automatic ceiling. Enterprise capacity is agreed by contract.
+         */
+        limit: number | null;
+    };
 };
 
 /**
@@ -2420,6 +2433,8 @@ export type BusinessContactActivity = {
 
 /**
  * BusinessContactImport
+ *
+ * Tracking of a contact import. `outcomes` lists at most 500 rows (`outcomes_truncated`); `skip_reasons` counts the skipped rows by reason.
  */
 export type BusinessContactImport = {
     id: string;
@@ -2429,26 +2444,68 @@ export type BusinessContactImport = {
     source_filename: string;
     total_rows: number;
     added_count: number;
+    updated_count: number;
     skipped_count: number;
     failed_count: number;
+    warnings_count: number;
     unprocessed_count: number;
-    error_report_url: string | null;
-    failure_reason: string | null;
-    started_at: string | null;
-    finished_at: string | null;
-    created_at: string;
+    /**
+     * `nothing_changed` means the import finished without creating or updating anything; do not present it as a success.
+     */
+    outcome_kind: 'changes_applied' | 'nothing_changed' | 'partial' | 'failed' | null;
+    /**
+     * Skipped rows grouped by reason.
+     */
+    skip_reasons: {
+        [key: string]: number;
+    };
+    first_diagnostics: Array<{
+        code: string;
+        field: string | null;
+        severity: 'error' | 'warning';
+        message: string;
+        count: number;
+        first_row: number;
+        received_value?: string | null;
+        params?: {
+            [key: string]: unknown;
+        };
+    }>;
     outcomes: Array<{
-        row_number?: number;
-        result?: string;
-        action?: string;
-        group_key?: string | null;
-        target_uuid?: string | null;
-        errors?: Array<{
-            field?: string | null;
-            code?: string;
-            message?: string;
+        row_number: number;
+        result: 'applied' | 'skipped' | 'failed';
+        action: 'create' | 'update' | 'add_role' | 'merge_candidate' | 'skip' | 'conflict' | 'invalid';
+        reason: 'already_exists' | 'duplicate_in_file' | 'merged_into_group' | 'header_row_in_data' | 'example_row' | 'no_changes' | 'merge_review_required' | 'identity_conflict' | 'validation_failed' | 'document_rows_invalid' | 'group_header_conflict' | 'concurrent_identity_taken' | 'update_not_allowed' | 'not_found_for_update' | null;
+        group_key: string | null;
+        target_uuid: string | null;
+        /**
+         * Errors and warnings of the row.
+         */
+        errors: Array<{
+            row: number;
+            field: string | null;
+            code: string;
+            message: string;
+            /**
+             * Only present on warnings; errors omit it.
+             */
+            severity?: 'warning';
+            params?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Received cell value, truncated to 120 characters.
+             */
+            received_value?: string;
+            column?: string;
         }>;
     }>;
+    outcomes_truncated: boolean;
+    error_report_url: string | null;
+    failure_reason: string | null;
+    created_at: string;
+    started_at: string | null;
+    finished_at: string | null;
 };
 
 /**
@@ -2458,7 +2515,11 @@ export type BusinessContactImportPreview = {
     source_headers: Array<string>;
     rows: Array<{
         row: number;
-        action: 'create' | 'update' | 'add_role' | 'merge_candidate' | 'conflict' | 'invalid';
+        action: 'create' | 'update' | 'add_role' | 'merge_candidate' | 'skip' | 'conflict' | 'invalid';
+        /**
+         * Why the row is skipped, failed or leaves the contact unchanged; null when the row is applied.
+         */
+        reason?: 'already_exists' | 'duplicate_in_file' | 'merged_into_group' | 'header_row_in_data' | 'example_row' | 'no_changes' | 'merge_review_required' | 'identity_conflict' | 'validation_failed' | 'document_rows_invalid' | 'group_header_conflict' | 'concurrent_identity_taken' | 'update_not_allowed' | 'not_found_for_update' | null;
         /**
          * Present for confirmed execution rows; omitted from planned preview rows.
          */
@@ -2479,7 +2540,14 @@ export type BusinessContactImportPreview = {
     create: number;
     update: number;
     add_role: number;
+    /**
+     * Rows matching an existing contact under the `merge` strategy: nothing is applied and they are flagged for manual review (`reason=merge_review_required`).
+     */
     merge_candidate: number;
+    /**
+     * Rows that change nothing: identical to the existing contact (`no_changes`) or targeting an archived contact (`update_not_allowed`).
+     */
+    skip: number;
     conflict: number;
     invalid: number;
     dry_run: boolean;
@@ -2488,9 +2556,21 @@ export type BusinessContactImportPreview = {
      */
     import_uuid: string | null;
     added_count: number | null;
+    updated_count: number | null;
     skipped_count: number | null;
     failed_count: number | null;
+    warnings_count: number | null;
     unprocessed_count: number | null;
+    /**
+     * Skipped rows grouped by reason (`no_changes`, `update_not_allowed`, `merge_review_required`).
+     */
+    skip_reasons: {
+        [key: string]: number;
+    };
+    /**
+     * Business reading of a finished execution, same as the tracking resource; null for preview, dry-run and queued imports. `nothing_changed` means nothing was created or updated; do not present it as a success.
+     */
+    outcome_kind: 'changes_applied' | 'nothing_changed' | 'partial' | 'failed' | null;
     /**
      * Persisted execution status; null for preview and dry-run. Synchronous responses can be failed with unprocessed rows after a concurrent closure.
      */
@@ -2551,7 +2631,7 @@ export type BusinessContactStats = {
 export type CalculateTaxRequest = {
     base: number;
     /**
-     * Identifier (UUID v7) of the tax to apply, from the global `taxes` catalog. A well-formed but non-existent value returns 404 `tax_not_found`.
+     * Identifier (UUID v7) of the tax to apply, from the Factuarea catalog plus your company's own taxes. A well-formed but non-existent value returns 404 `tax_not_found`.
      */
     taxes_id: string;
 };
@@ -2605,11 +2685,27 @@ export type CanAnnulInvoice = {
 };
 
 /**
+ * CancelDurableOperationBody
+ */
+export type CancelDurableOperationBody = {
+    [key: string]: never;
+};
+
+/**
  * CancelFaceSubmissionV1Request
  *
  * Cancel a FACe submission. `reason` is required: it travels to the FACe web service alongside the cancellation request (code 4200).
  */
 export type CancelFaceSubmissionV1Request = {
+    reason: string;
+};
+
+/**
+ * CancelTransportDocumentRequest
+ *
+ * Cancel an issued transport document. Required: `reason` (3-500 characters).
+ */
+export type CancelTransportDocumentRequest = {
     reason: string;
 };
 
@@ -2726,6 +2822,82 @@ export type ChangeContactRoleStatusV1Request = {
 export type ChangeTaskStatusV1Request = {
     column_id?: string | null;
     status?: string | null;
+};
+
+/**
+ * ChargeRule
+ *
+ * A charge treatment rule of a connected Stripe account. Rules are evaluated in `position` order and the first one that matches decides whether the charge is invoiced or left out. The public `id` is the rule UUID (v7).
+ */
+export type ChargeRule = {
+    /**
+     * UUID (v7) of the rule. Public identity (KEY `id`).
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `charge_rule`.
+     */
+    object: 'charge_rule';
+    /**
+     * Evaluation order within the account, starting at 1. Change it with `PUT /v1/connected-accounts/{account}/charge-rules/order`.
+     */
+    position: number;
+    /**
+     * Condition a charge must meet for the rule to apply.
+     */
+    condition: {
+        /**
+         * Kind of condition: the charge metadata `key` equals `value`, the charge description contains `value`, or the charge comes from the payment link `value`.
+         */
+        type: 'metadata_equals' | 'description_contains' | 'payment_link';
+        /**
+         * Metadata key. Only used (and required) with `metadata_equals`; `null` otherwise.
+         */
+        key: string | null;
+        /**
+         * Value to compare against.
+         */
+        value: string;
+    };
+    /**
+     * `invoice` issues the invoice (optionally with `concept` and `vat_rate`); `do_not_invoice` leaves the charge out and records it with `non_invoice_reason`.
+     */
+    outcome: 'invoice' | 'do_not_invoice';
+    /**
+     * Reason recorded for charges left out. Only with `do_not_invoice`; `null` with `invoice`.
+     */
+    non_invoice_reason: 'indemnity_not_subject' | 'multipurpose_voucher' | 'invoiced_elsewhere' | null;
+    /**
+     * Concept of the invoice line. Only with `invoice`; `null` otherwise.
+     */
+    concept: string | null;
+    /**
+     * VAT rate in percent applied to the line. Only with `invoice`; `null` otherwise.
+     */
+    vat_rate: number | null;
+    /**
+     * When the rule was created (ISO 8601).
+     */
+    created_at: string;
+    /**
+     * When the rule was last updated (ISO 8601).
+     */
+    updated_at: string;
+};
+
+/**
+ * ChargeRuleRequest
+ */
+export type ChargeRuleRequest = {
+    condition: {
+        type: 'metadata_equals' | 'description_contains' | 'payment_link';
+        key?: string | null;
+        value: string;
+    };
+    outcome: 'invoice' | 'do_not_invoice';
+    concept?: string | null;
+    vat_rate?: number | null;
+    non_invoice_reason?: 'indemnity_not_subject' | 'multipurpose_voucher' | 'invoiced_elsewhere' | null;
 };
 
 /**
@@ -3149,6 +3321,10 @@ export type CompanySeatChargePreview = {
     recurring_quantity: number | null;
     recurring_base_cents: number | null;
     recurring_total_cents: number | null;
+    /**
+     * Explicit reason for no immediate charge. A null reason never implies an Enterprise contract; negotiated_free_price preserves the acquired private seat price.
+     */
+    zero_reason: 'negotiated_free_price' | 'enterprise_contract' | 'trial' | 'covered' | 'no_immediate_charge' | null;
 };
 
 /**
@@ -3294,6 +3470,22 @@ export type ConnectedAccount = {
      * Whether Stripe subscription cycles on this account are auto-invoiced. Defaults to `false`.
      */
     subscription_autoinvoicing_enabled: boolean;
+    /**
+     * Default concept of the single line created for charges whose lines cannot be recovered, or `null` if not configured. Editable with `PUT /v1/connected-accounts/{account}`.
+     */
+    default_line_concept: string | null;
+    /**
+     * Optional note written in the notes of the invoices auto-created from this account, or `null` when none is configured (the default: invoices carry no note). When a charge needed a currency conversion to EUR, the conversion trace is appended to the note. Editable with `PUT`; `null` or an empty string clears it.
+     */
+    invoice_note: string | null;
+    /**
+     * How the account was linked to Stripe: `account_links` (Stripe Connect onboarding) or `stripe_app` (Stripe App). Read-only.
+     */
+    connection_method: 'account_links' | 'stripe_app';
+    /**
+     * Authorization state of the link with Stripe: `authorized`, `reauthorization_required` (the account must be linked again) or `revoked`. Read-only.
+     */
+    authorization_status: 'authorized' | 'reauthorization_required' | 'revoked';
     /**
      * Account status. `active` while connected; `disconnected` (terminal) after disconnecting (invoices and history are kept).
      */
@@ -3488,7 +3680,7 @@ export type CreateApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
+    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'transport_documents:read' | 'transport_documents:write' | 'transport_documents:delete' | 'transport_documents:transition' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -3631,7 +3823,7 @@ export type CreateChildApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one; a subset of the parent key scopes).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'prestashop_store:read' | 'prestashop_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
+    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'transport_documents:read' | 'transport_documents:write' | 'transport_documents:delete' | 'transport_documents:transition' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'gocardless_autoinvoicing:read' | 'gocardless_autoinvoicing:write' | 'monei_autoinvoicing:read' | 'monei_autoinvoicing:write' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'prestashop_store:read' | 'prestashop_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -4031,6 +4223,15 @@ export type CreateProductPresentationRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight in kilograms PER COMMERCIAL UNIT,
+     * packaging included: up to four decimal places, greater than zero.
+     * Only for `fixed` presentations, where it replaces the weight
+     * derived from `conversion_factor`. Omit it to keep the current
+     * value; send `null` to clear it. Rejected with 422
+     * `gross_weight_not_allowed` for `variable_measure` presentations.
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -4055,6 +4256,7 @@ export type CreateProductRequest = {
     low_stock_threshold?: number | null;
     item_kind?: 'product' | 'service';
     base_unit?: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    gross_weight_kg?: number | null;
     /**
      * Whether this product takes part in document-driven stock movements: with `true`, issuing or receiving a document that includes it moves its stock automatically and the movement is recorded in the stock ledger. It only takes effect if your company also has stock management enabled; absent or `null` means `false`.
      */
@@ -4136,6 +4338,15 @@ export type CreateProductVariantRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight of the variant, in kilograms PER BASE
+     * UNIT: up to four decimal places, greater than zero. It overrides
+     * the product weight for this variant. Omit it to keep the current
+     * value; send `null` to clear it and inherit the product weight
+     * again. Rejected with 422 `gross_weight_not_allowed` for services
+     * and mass base units (`KGM`, `GRM`).
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -4507,7 +4718,7 @@ export type CreateRecurringInvoiceRequest = {
 export type CreateSeriesRequest = {
     code: string;
     name?: string | null;
-    document_type: 'invoice' | 'quote' | 'delivery_note' | 'proforma';
+    document_type: 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'transport_document';
     prefix?: string | null;
     counter_reset?: 'never' | 'annual' | 'monthly' | null;
     year_reset?: boolean | null;
@@ -4693,7 +4904,7 @@ export type CreateTaxRequest = {
     reverse_charge?: boolean;
     country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
     /**
-     * FK to the linked equivalence-surcharge tax. UUID v7 value referencing the global `taxes` catalog.
+     * FK to the linked equivalence-surcharge tax. UUID v7 value referencing the Factuarea catalog plus your company's own taxes.
      */
     linked_surcharge_taxes_id?: string | null;
     metadata?: Metadata;
@@ -4711,11 +4922,94 @@ export type CreateTaxRequest = {
 };
 
 /**
+ * CreateTransportDocumentRequest
+ *
+ * Create a transport control document (DeCA) in `draft`. Only `company_role` (`shipper` or `carrier`) is required: a draft admits incomplete data and the minimum data is enforced when issuing. Your own party is filled with your company data; the other one comes from `contact_id` or from the fields you send. `delivery_note_ids` (1 to 50 of your delivery notes, without repetition) pre-fills one shipment per delivery note. Every reference is a UUID of your company (`*_id`); `shipments[].loading_place_id` is not accepted in the public API. A shipment that omits `origin` gets your default loading place or, without one, your registered address (role `shipper`) or the address of the shipper contact (role `carrier`); an explicit `origin: null` leaves the shipment without origin. `shipments[].id` is optional: an identifier already in use, in this or any other company, returns 422 on `shipments.N.id`. Every UUID is normalised to lower case before validating.
+ */
+export type CreateTransportDocumentRequest = {
+    company_role: 'shipper' | 'carrier';
+    special_authorization?: string | null;
+    transport_date?: string | null;
+    observations?: string | null;
+    vehicle?: {
+        tractor_plate?: string | null;
+        tractor_plate_country?: string | null;
+        trailer_plate?: string | null;
+        trailer_plate_country?: string | null;
+    };
+    shipments?: Array<{
+        id?: string | null;
+        transport_date?: string | null;
+        observations?: string | null;
+        delivery_note_id?: string | null;
+        loading_place_id?: string;
+        goods?: Array<{
+            description: string;
+            additional_description?: string | null;
+            quantity?: number | null;
+            unit?: string | null;
+            gross_weight_kg?: number | null;
+        }> | null;
+        declared_measure?: {
+            type?: string;
+            weight_kg?: number | null;
+            value?: number | null;
+            unit?: string | null;
+        } | null;
+        origin?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+        destination?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    }> | null;
+    shipper?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    carrier?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    delivery_note_ids?: Array<string>;
+};
+
+/**
  * CreateWebhookEndpointRequest
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -4788,6 +5082,111 @@ export type CustomField = {
  */
 export type CustomHeaders = {
     [key: string]: string;
+};
+
+/**
+ * CustomerOfferBenefit
+ */
+export type CustomerOfferBenefit = (unknown & {
+    kind: 'discount';
+    percent_off?: number;
+    amount_off_cents?: number;
+    duration: 'once' | 'repeating' | 'forever';
+    duration_in_months?: number;
+    extra_trial_days?: number;
+}) | {
+    kind: 'negotiated_price';
+    unit_amount_cents: number;
+    currency: 'EUR';
+    billing_interval: 'monthly' | 'yearly';
+    duration: 'forever' | 'billing_periods';
+    billing_periods?: number;
+    extra_trial_days?: number;
+} | {
+    kind: 'trial_extension';
+    days: number;
+};
+
+/**
+ * CustomerOfferQuote
+ */
+export type CustomerOfferQuote = {
+    concept: 'plan' | 'employee-seats' | 'gestoria-seats';
+    purchase_kind: string;
+    offer_id: string;
+    display_name: string;
+    benefit: CustomerOfferBenefit;
+    /**
+     * Safe owner counts and identifiers only. No profiles, code or Stripe IDs.
+     */
+    summary: {
+        [key: string]: unknown;
+    };
+    quote_complete: boolean;
+    currency: 'EUR';
+    expires_at: string;
+    eligible_gross_cents: number | null;
+    discount_cents: number | null;
+    proration_credit_cents: number | null;
+    net_base_cents: number | null;
+    tax_cents: number | null;
+    fiscal_total_cents: number | null;
+    account_credit_cents: number | null;
+    cash_today_cents: number | null;
+    recurring_net_cents: number | null;
+    recurring_tax_cents: number | null;
+    recurring_total_cents: number | null;
+    subsequent_unit_amount_cents: number | null;
+    unit_amount_cents: number | null;
+    catalog_unit_amount_cents: number | null;
+    billing_periods: number | null;
+    reversion_unit_amount_cents: number | null;
+    extra_trial_days: number | null;
+    next_bill_at: string | null;
+    benefit_starts_at: string | null;
+    benefit_ends_at: string | null;
+    benefit_end_basis?: 'accepted_anchor' | 'first_invoice_pending' | 'discount_application_pending' | 'verified_discount' | 'verified_schedule' | null;
+    trial_end_before: string | null;
+    trial_end_after: string | null;
+    billing_anchor_before: string | null;
+    billing_anchor_after: string | null;
+    zero_reason: 'full_discount' | 'negotiated_free_price' | 'already_covered' | 'trial' | 'account_credit' | null;
+    requires_payment_method: boolean;
+    warnings: Array<string>;
+    benefit_kind: 'discount' | 'negotiated_price' | 'trial_extension' | null;
+    price_duration: 'forever' | 'billing_periods' | null;
+};
+
+/**
+ * CustomerOfferRedemption
+ */
+export type CustomerOfferRedemption = {
+    id: string;
+    offer_id: string;
+    concept: 'plan' | 'employee-seats' | 'gestoria-seats';
+    purchase_kind: 'subscription_start' | 'subscription_update' | 'subscription_renewal' | 'trial_extension' | 'employee_individual' | 'employee_batch' | 'gestoria_purchase';
+    status: 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+    revision: number;
+    quote_version: number;
+    accepted_version: number | null;
+    expires_at: string;
+    quote_expired: boolean;
+    consumed: boolean;
+    reservation_held: boolean;
+    quote: CustomerOfferQuote | null;
+    /**
+     * Safe owner UUID/result receipt; no profile or financial evidence.
+     */
+    result: {
+        [key: string]: unknown;
+    };
+    allowed_actions: Array<'get' | 'refresh_quote' | 'confirm' | 'cancel' | 'complete_action'>;
+    failure_code: string | null;
+    created_at: string;
+    updated_at: string;
+    owner_operation_id: string | null;
+    action_url: string | null;
+    payment_setup_url: string | null;
 };
 
 /**
@@ -5066,6 +5465,14 @@ export type DeliveryNote = {
      * Total of the document. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice and yields a false total (4,320.00 + 259.20 - 648.00 = 3,931.20 against a real 4,579.20).
      */
     total: number;
+    /**
+     * Total gross transport weight in kg (decimal string, scale 4): the sum of the lines that have a weight. `null` when no line has one. Partial when `lines_without_weight_count` is above 0.
+     */
+    total_gross_weight_kg?: string | null;
+    /**
+     * Number of product lines without a known weight. Services and free-text lines never count.
+     */
+    lines_without_weight_count?: number;
     currency: string;
     notes: string | null;
     /**
@@ -5185,6 +5592,10 @@ export type DeliveryNoteLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+    /**
+     * Gross transport weight of the whole line in kg (decimal string, scale 4): quantity × the weight per commercial unit frozen when the line was created or edited in draft. `null` for services, free-text lines and products without a known weight. It does not change after delivery even if the catalog weight changes.
+     */
+    gross_weight_kg?: string | null;
 };
 
 /**
@@ -5501,6 +5912,86 @@ export type Employee = {
      * Last-update timestamp (ISO 8601).
      */
     updated_at: string | null;
+};
+
+/**
+ * EmployeeBatch
+ */
+export type EmployeeBatch = {
+    id: string;
+    kind: 'create' | 'reactivate';
+    status: 'draft' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'paid' | 'completed' | 'failed' | 'cancelled' | 'compensating' | 'compensated' | 'needs_review';
+    revision: number;
+    quote_version: number;
+    accepted_version: number | null;
+    expires_at: string | null;
+    quote_expired: boolean;
+    requested: number;
+    financial_attempt_started: boolean;
+    failure_code: string | null;
+    quote: EmployeeBatchQuote | null;
+    items: Array<{
+        row_id: string;
+        employee_id?: string | null;
+        profile?: EmployeeBatchProfile | null;
+        paid_until?: string | null;
+        coverage?: 'covered' | 'uncovered';
+    }>;
+    result: Array<{
+        row_id: string;
+        employee_id: string;
+    }>;
+    allowed_actions: Array<'get' | 'confirm' | 'refresh_quote' | 'cancel' | 'complete_action'>;
+    created_at: string;
+    updated_at: string;
+    action_url: string | null;
+    payment_setup_url: string | null;
+};
+
+/**
+ * EmployeeBatchProfile
+ */
+export type EmployeeBatchProfile = {
+    first_name: string;
+    last_name: string;
+    email: string;
+    employment_type: 'full_time' | 'part_time';
+    contract_hours: number;
+    ccaa: 'AN' | 'AR' | 'AS' | 'IB' | 'CN' | 'CB' | 'CL' | 'CM' | 'CT' | 'VC' | 'EX' | 'GA' | 'MD' | 'MC' | 'NC' | 'PV' | 'RI' | 'CE' | 'ML';
+    hire_date: string;
+    tax_id?: string | null;
+    job_title?: string | null;
+    external_id?: string | null;
+    metadata?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * EmployeeBatchQuote
+ */
+export type EmployeeBatchQuote = {
+    base_cents: number;
+    discount_cents: number;
+    tax_cents: number;
+    total_cents: number;
+    recurring_base_cents: number;
+    recurring_discount_cents: number;
+    recurring_tax_cents: number;
+    recurring_total_cents: number;
+    proration_date: number;
+    requested: number;
+    active_before: number;
+    covered_count: number;
+    transferred_paid_slots: number;
+    chargeable_count: number;
+    final_active_count: number;
+    fingerprint: string;
+    currency: 'EUR';
+    seats_billable: boolean;
+    requires_payment_method: boolean;
+    requires_financial_attempt: boolean;
+    expires_at: string;
 };
 
 /**
@@ -5836,6 +6327,18 @@ export type Error = {
          */
         details?: {
             /**
+             * Operation in the authenticated company that must be resolved before another employee-seat mutation.
+             */
+            operation_id?: string;
+            /**
+             * Employee-batch validation failures identified by the stable row_id; no employee was charged or created.
+             */
+            row_errors?: Array<{
+                row_id: string;
+                field: string;
+                message: string;
+            }>;
+            /**
              * Review fields that must be corrected before a purchase scan can be converted. Keys use public identifiers, for example supplier_id or lines.0.tax_rate.
              */
             field_errors?: {
@@ -5865,6 +6368,26 @@ export type Error = {
              * Amount sent in `lines[].line_total`, which differs from `expected` by more than one cent. Present on 422 `line_total_checksum_mismatch`.
              */
             received?: number;
+            /**
+             * Current active automation rule count on automation_active_rules_limit_exceeded.
+             */
+            active_rules?: number;
+            /**
+             * Plan limit reached, including the active automation rule cap on automation_active_rules_limit_exceeded.
+             */
+            limit?: number;
+            /**
+             * Resource whose quota was reached on plan_limit_exceeded, for example documents_year or users.
+             */
+            resource?: string;
+            /**
+             * Current usage of the resource on plan_limit_exceeded.
+             */
+            current?: number;
+            /**
+             * End of the quota period on plan_limit_exceeded; null for resources without a period, including platform users.
+             */
+            period_end?: string | null;
         };
         /**
          * Link to error reference in docs.
@@ -6066,6 +6589,26 @@ export type EventData = ({
 } & EventDataDeliveryNoteEmailSent) | ({
     type: 'delivery_note.email_failed';
 } & EventDataDeliveryNoteEmailFailed) | ({
+    type: 'transport_document.created';
+} & EventDataTransportDocumentCreated) | ({
+    type: 'transport_document.updated';
+} & EventDataTransportDocumentUpdated) | ({
+    type: 'transport_document.issued';
+} & EventDataTransportDocumentIssued) | ({
+    type: 'transport_document.modified';
+} & EventDataTransportDocumentModified) | ({
+    type: 'transport_document.closed';
+} & EventDataTransportDocumentClosed) | ({
+    type: 'transport_document.reopened';
+} & EventDataTransportDocumentReopened) | ({
+    type: 'transport_document.cancelled';
+} & EventDataTransportDocumentCancelled) | ({
+    type: 'transport_document.superseded';
+} & EventDataTransportDocumentSuperseded) | ({
+    type: 'transport_document.email_sent';
+} & EventDataTransportDocumentEmailSent) | ({
+    type: 'transport_document.email_failed';
+} & EventDataTransportDocumentEmailFailed) | ({
     type: 'purchase_invoice.created';
 } & EventDataPurchaseInvoiceCreated) | ({
     type: 'purchase_invoice.updated';
@@ -8033,6 +8576,119 @@ export type EventDataTimeEntryRecorded = {
 };
 
 /**
+ * EventDataTransportDocumentCancelled
+ *
+ * Payload (`data`) emitted with the `transport_document.cancelled` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentCancelled = {
+    type: 'transport_document.cancelled';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentClosed
+ *
+ * Payload (`data`) emitted with the `transport_document.closed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentClosed = {
+    type: 'transport_document.closed';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentCreated
+ *
+ * Payload (`data`) emitted with the `transport_document.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentCreated = {
+    type: 'transport_document.created';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentEmailFailed
+ *
+ * Payload (`data`) emitted with the `transport_document.email_failed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentEmailFailed = {
+    type: 'transport_document.email_failed';
+    object: TransportDocument;
+    recipient_email: string;
+    to: Array<string>;
+    cc: Array<string>;
+    bcc: Array<string>;
+    version: number;
+    error_message: string;
+    error_class: string;
+};
+
+/**
+ * EventDataTransportDocumentEmailSent
+ *
+ * Payload (`data`) emitted with the `transport_document.email_sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentEmailSent = {
+    type: 'transport_document.email_sent';
+    object: TransportDocument;
+    recipient_email: string;
+    to: Array<string>;
+    cc: Array<string>;
+    bcc: Array<string>;
+    transport_document_number: string;
+    version: number;
+};
+
+/**
+ * EventDataTransportDocumentIssued
+ *
+ * Payload (`data`) emitted with the `transport_document.issued` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentIssued = {
+    type: 'transport_document.issued';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentModified
+ *
+ * Payload (`data`) emitted with the `transport_document.modified` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentModified = {
+    type: 'transport_document.modified';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentReopened
+ *
+ * Payload (`data`) emitted with the `transport_document.reopened` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentReopened = {
+    type: 'transport_document.reopened';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentSuperseded
+ *
+ * Payload (`data`) emitted with the `transport_document.superseded` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentSuperseded = {
+    type: 'transport_document.superseded';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentUpdated
+ *
+ * Payload (`data`) emitted with the `transport_document.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentUpdated = {
+    type: 'transport_document.updated';
+    object: TransportDocument;
+};
+
+/**
  * EventDeletedObject
  *
  * Degraded snapshot emitted with `*.deleted` events when the resource could no longer be recovered at emission time.
@@ -8323,7 +8979,7 @@ export type FindRecurringInvoiceByExternalIdRequest = {
  */
 export type FindSeriesByCodeRequest = {
     code: string;
-    document_type?: 'invoice' | 'quote' | 'delivery_note' | 'proforma';
+    document_type?: 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'transport_document';
 };
 
 /**
@@ -8517,7 +9173,7 @@ export type IntegrationEvent = {
     /**
      * Typed reason why the event was discarded, from a CLOSED catalogue, or `null` when it was not discarded. This is the axis to filter and group by. A value retired from the catalogue in a later version is still returned verbatim here, but its `discard_reason_label`, `is_actionable` and `is_replayable` degrade to neutral rather than breaking the page.
      */
-    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | null;
+    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable' | null;
     /**
      * Human-readable label of `discard_reason`, in Spanish (the platform's end-user language). `null` when there is no discard reason, or when the stored reason is no longer part of the current catalogue.
      */
@@ -8746,6 +9402,10 @@ export type Invoice = {
      * UUID (v7) of the connected store whose order produced this invoice, or `null` when it was not created from a store order. A store order is not a resource of its own on this API, so `channel` and `source_store_id` are the traceability from the order to the invoice.
      */
     source_store_id: string | null;
+    /**
+     * Where the invoice comes from: `native` (issued in Factuarea) or `historical_import` (a historical invoice registered by import: literal number from the file, no series counter and no VeriFactu record).
+     */
+    origin: 'native' | 'historical_import';
     created_at: string;
     updated_at: string;
 };
@@ -9537,6 +10197,90 @@ export type Metadata = {
 } | null;
 
 /**
+ * ModifyTransportDocumentRequest
+ *
+ * Modify an issued transport document. Required: `reason` (3-500 characters) and `data_origin` (`company` or `carrier_reported`). Send only the data that changes (vehicle, special authorization, dates, observations or the whole `shipments` list); the parties cannot change. Inside `shipments`, `id` only identifies a shipment of this document (any other returns 422 on `shipments.N.id`).
+ */
+export type ModifyTransportDocumentRequest = {
+    reason: string;
+    data_origin: 'company' | 'carrier_reported';
+    company_role?: 'shipper' | 'carrier';
+    special_authorization?: string | null;
+    transport_date?: string | null;
+    observations?: string | null;
+    vehicle?: {
+        tractor_plate?: string | null;
+        tractor_plate_country?: string | null;
+        trailer_plate?: string | null;
+        trailer_plate_country?: string | null;
+    };
+    shipments?: Array<{
+        id?: string | null;
+        transport_date?: string | null;
+        observations?: string | null;
+        delivery_note_id?: string | null;
+        loading_place_id?: string;
+        goods?: Array<{
+            description: string;
+            additional_description?: string | null;
+            quantity?: number | null;
+            unit?: string | null;
+            gross_weight_kg?: number | null;
+        }> | null;
+        declared_measure?: {
+            type?: string;
+            weight_kg?: number | null;
+            value?: number | null;
+            unit?: string | null;
+        } | null;
+        origin?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+        destination?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    }> | null;
+    shipper?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    carrier?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+};
+
+/**
  * Money
  *
  * Monetary amount as a string with two decimal places (Stripe-style), e.g. "1234.56".
@@ -9894,6 +10638,66 @@ export type MoveTaskToProjectV1Request = {
 };
 
 /**
+ * NonInvoicedCharge
+ *
+ * A Stripe charge that a charge rule left out of invoicing. No invoice or VERI*FACTU record is generated, but the charge is kept with its reason. The public `id` is the UUID (v7); `transaction_id` (`pi_xxx`) is the external Stripe id.
+ */
+export type NonInvoicedCharge = {
+    /**
+     * UUID (v7) of the record. Public identity (KEY `id`).
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `non_invoiced_charge`.
+     */
+    object: 'non_invoiced_charge';
+    /**
+     * UUID (v7) of the connected account.
+     */
+    connected_account_id: string;
+    /**
+     * External Stripe id of the charge (`pi_xxx`). NOT an internal UUID nor a foreign key.
+     */
+    transaction_id: string;
+    /**
+     * Amount in major units of `currency`, at Stripe's decimal scale for that currency (3,000 JPY → `3000`, 30.00 EUR → `30`, 5.124 KWD → `5.124`).
+     */
+    amount: number;
+    /**
+     * Cumulative amount refunded by Stripe for this charge (succeeded and pending refunds), in the same format as `amount`. `0` if nothing has been refunded. It never exceeds `amount`, and it goes down if a pending refund later fails or is canceled.
+     */
+    refunded_amount: number;
+    /**
+     * Net amount of the charge, what the merchant keeps: `amount` minus `refunded_amount`, in the same format as `amount`.
+     */
+    net_amount: number;
+    /**
+     * ISO 4217 currency code, uppercase.
+     */
+    currency: string;
+    /**
+     * Charge description reported by Stripe, or `null`.
+     */
+    description: string | null;
+    /**
+     * Why the charge was not invoiced.
+     */
+    reason: 'indemnity_not_subject' | 'multipurpose_voucher' | 'invoiced_elsewhere';
+    /**
+     * UUID (v7) of the rule that decided it, or `null` if the rule was deleted afterwards.
+     */
+    charge_rule_id: string | null;
+    /**
+     * When the charge happened (ISO 8601).
+     */
+    occurred_at: string;
+    /**
+     * When the most recent refund of the charge was recorded (ISO 8601), or `null` if nothing has been refunded.
+     */
+    refunded_at: string | null;
+};
+
+/**
  * Notification
  *
  * An in-app notification of the member who owns the API key.
@@ -10056,6 +10860,74 @@ export type PdfCapabilities = {
  * Permissive international phone number: optional `+`, digits, spaces, hyphens and parentheses (6..20 characters).
  */
 export type PhoneString = string;
+
+/**
+ * PrepareEmployeeBatchBody
+ */
+export type PrepareEmployeeBatchBody = {
+    kind: 'create';
+    items: Array<{
+        row_id: string;
+        profile: EmployeeBatchProfile;
+    }>;
+} | {
+    kind: 'reactivate';
+    items: Array<{
+        row_id: string;
+        employee_id: string;
+    }>;
+};
+
+/**
+ * PrepareEmployeeSeatOfferBody
+ */
+export type PrepareEmployeeSeatOfferBody = {
+    code: string;
+    purchase: {
+        kind: 'employee_individual';
+        action: 'create';
+        profile: EmployeeBatchProfile;
+    } | {
+        kind: 'employee_individual';
+        action: 'reactivate';
+        employee_id: string;
+    } | {
+        kind: 'employee_batch';
+        batch_id: string;
+        quote_version: number;
+    };
+};
+
+/**
+ * PrepareGestoriaSeatOfferBody
+ */
+export type PrepareGestoriaSeatOfferBody = {
+    code: string;
+    purchase: {
+        kind: 'gestoria_purchase';
+        action: 'create';
+        profile: {
+            name: string;
+            tax_id: string;
+            business_name?: string | null;
+            address?: string | null;
+            city?: string | null;
+            postal_code?: string | null;
+            province?: string | null;
+            country?: string | null;
+            email?: string | null;
+            phone?: string | null;
+        };
+    } | {
+        kind: 'gestoria_purchase';
+        action: 'activate';
+        company_id: string;
+    } | {
+        kind: 'gestoria_purchase';
+        action: 'activate_batch';
+        company_ids: Array<string>;
+    };
+};
 
 /**
  * PreviewBusinessContactImportV1Request
@@ -10228,6 +11100,10 @@ export type Product = {
      * UNECE base unit code.
      */
     base_unit: string;
+    /**
+     * Gross transport weight in kg per BASE unit (decimal string, up to 4 decimals, greater than 0), packaging included; `null` when unknown. Rejected with 422 `gross_weight_not_allowed` for services and for products whose base unit is a mass unit (`KGM`, `GRM`), where the weight is the quantity itself. A variant weight replaces it for that variant; a fixed presentation may declare its own weight per commercial unit.
+     */
+    gross_weight_kg?: string | null;
     /**
      * Whether the product participates in document-driven stock movements (invoices, delivery notes). Requires the company `stock_management` module to be enabled. Defaults to `false`.
      */
@@ -10475,6 +11351,10 @@ export type ProductPresentation = {
     nominal_base_quantity: string | null;
     barcode: string | null;
     /**
+     * Own gross transport weight in kg per COMMERCIAL unit (decimal string, up to 4 decimals, greater than 0), packaging included; it overrides any derivation from the product or variant weight. `null` when the presentation declares none. Rejected with 422 `gross_weight_not_allowed` on `variable_measure` presentations.
+     */
+    gross_weight_kg?: string | null;
+    /**
      * Own price PER COMMERCIAL UNIT, or `null` when the presentation declares none. Orthogonal to `conversion_factor`, which converts QUANTITY and is never reused as a price multiplier: a 3.5 kg tub priced at 50.00 is worth 50.00 per tub.
      */
     commercial_price_override: string | null;
@@ -10562,6 +11442,10 @@ export type ProductVariant = {
     barcode: string | null;
     base_price_override: number | null;
     unit_cost_override: number | null;
+    /**
+     * Own gross transport weight in kg per BASE unit (decimal string, up to 4 decimals, greater than 0) that replaces the product weight for this variant; `null` inherits the product weight. Rejected with 422 `gross_weight_not_allowed` when the product base unit is a mass unit.
+     */
+    gross_weight_kg?: string | null;
     manage_stock: boolean;
     stock: string;
     low_stock_threshold: string | null;
@@ -10607,6 +11491,10 @@ export type Proforma = {
      * Free reference of the document (e.g. the customer order number).
      */
     reference: string | null;
+    /**
+     * VAT operation regime of the proforma (`general`, `intracomunitaria`, `importacion_exportacion`, `isp`).
+     */
+    operation_regime: string;
     /**
      * UUID (v7) of the invoice this proforma was converted into, if applicable.
      */
@@ -11127,7 +12015,7 @@ export type ProjectTasksImport = {
      */
     failed: number;
     /**
-     * Non-blocking adjustments (an unknown member left unassigned, a label created…).
+     * Non-blocking adjustments (an unknown member left unassigned, a label created…). Only the first 200 are listed: see `warnings_truncated` and `warnings_total`.
      */
     warnings: Array<{
         /**
@@ -11139,6 +12027,14 @@ export type ProjectTasksImport = {
          */
         message: string;
     }>;
+    /**
+     * `true` when the document produced more than 200 warnings and only the first 200 are in `warnings`.
+     */
+    warnings_truncated: boolean;
+    /**
+     * Number of warnings the import produced, including those left out of `warnings`.
+     */
+    warnings_total: number;
     /**
      * Outcome per task of the document.
      */
@@ -12096,6 +12992,7 @@ export type QuarterlyDownloadV1Request = {
     year: number;
     quarter: number;
     include_index?: boolean | null;
+    include_non_invoiced_charges?: boolean | null;
     email?: string | null;
     message?: string | null;
 };
@@ -12162,6 +13059,14 @@ export type Quote = {
      * Free-text terms and conditions rendered on the quote PDF.
      */
     terms: string | null;
+    /**
+     * Origin number of the document (e.g. the number it had in a previous system when imported). `null` if not set.
+     */
+    reference: string | null;
+    /**
+     * VAT operation regime of the quote (`general`, `intracomunitaria`, `importacion_exportacion`, `isp`).
+     */
+    operation_regime: string;
     /**
      * External integration key (ERP/CRM/e-commerce) mapping this document to a record in a third-party system. Free-format, unique per company, filterable via `?external_id=`. `null` when not set. Persistent synchronization key, independent of the request-level `Idempotency-Key`.
      */
@@ -12835,7 +13740,7 @@ export type RegisterCompanyRepresentationV1Request = {
 /**
  * RegisterInvoicePaymentRequest
  *
- * Register a partial (or full) payment against an invoice. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `reference`, `notes`.
+ * Register a partial (or full) payment against an invoice. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `reference`, `notes`. `paid_on` cannot be later than today (422); an earlier date than the issue date is accepted as an advance payment.
  */
 export type RegisterInvoicePaymentRequest = {
     amount: number;
@@ -12848,7 +13753,7 @@ export type RegisterInvoicePaymentRequest = {
 /**
  * RegisterPurchaseInvoicePaymentRequest
  *
- * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, expense not cancelled) are enforced with a 422.
+ * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, payment date not later than today — an earlier date than the issue date is an advance payment —, expense not cancelled) are enforced with a 422.
  */
 export type RegisterPurchaseInvoicePaymentRequest = {
     amount: number;
@@ -12902,6 +13807,22 @@ export type RejectTimeCorrectionRequest = {
  * Who submits the VeriFactu records of your company to AEAT. It does not change whether the company operates in VERI*FACTU or NO VERI*FACTU mode: it only decides whose electronic certificate signs and submits the records. `own_certificate` (default): the records are submitted with the electronic certificate of the company itself. `social_collaborator`: Factuarea submits the records on your behalf as a social collaborator, with the certificate of Factuarea; it needs an active `social_collaboration_annex_i` representation. `power_of_attorney`: Factuarea submits the records on your behalf as an attorney-in-fact, with the certificate of Factuarea; it needs an active `aeat_power_of_attorney` representation.
  */
 export type RemissionMode = 'own_certificate' | 'social_collaborator' | 'power_of_attorney';
+
+/**
+ * ReopenTransportDocumentRequest
+ *
+ * Reopen a manually closed transport document. Required: `reason` (3-500 characters).
+ */
+export type ReopenTransportDocumentRequest = {
+    reason: string;
+};
+
+/**
+ * ReorderChargeRulesRequest
+ */
+export type ReorderChargeRulesRequest = {
+    rule_ids: Array<string>;
+};
 
 /**
  * ReorderProjectColumnsV1Request
@@ -13751,7 +14672,20 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
+};
+
+/**
+ * SendTransportDocumentRequest
+ *
+ * Email the current PDF of the transport document. Optional `to`, `cc` and `bcc` (lists of emails, up to 5 distinct addresses in total; an address repeated within or across the lists, ignoring letter case, counts and is sent once) plus `subject` and `message`. Without `to`, the email of the carrier contact is used.
+ */
+export type SendTransportDocumentRequest = {
+    subject?: string | null;
+    message?: string | null;
+    to?: Array<string>;
+    cc?: Array<string>;
+    bcc?: Array<string>;
 };
 
 /**
@@ -13765,7 +14699,7 @@ export type Series = {
     code: string;
     name: string;
     /**
-     * invoice, quote, proforma, delivery_note, etc.
+     * Document type the series numbers: `invoice`, `quote`, `delivery_note`, `proforma` or `transport_document` (transport control documents, default code `DC`, created on the first issuance).
      */
     document_type: string;
     /**
@@ -14045,7 +14979,7 @@ export type StockMovement = {
      */
     stock_after: string;
     /**
-     * Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`.
+     * Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`, `initial`.
      */
     reason: string;
     /**
@@ -14154,6 +15088,10 @@ export type Store = {
      * When the store was connected (ISO 8601), or `null` if unknown.
      */
     connected_at: string | null;
+    /**
+     * Optional note written in the notes of the invoices auto-created from this store's orders, or `null` when none is configured (the default: invoices carry no note). When an order needed a currency conversion to EUR, the conversion trace is appended to the note. Editable with `PUT /v1/stores/{store}`; `null` or an empty string clears it.
+     */
+    invoice_note: string | null;
 };
 
 /**
@@ -14392,6 +15330,16 @@ export type SubstituteSimplifiedV1Request = {
     client_id: string;
     simplified_invoice_ids: Array<string>;
     notes?: string | null;
+};
+
+/**
+ * SupersedeTransportDocumentRequest
+ *
+ * Mark an issued transport document as superseded by the carrier document. Required: `reference` (1-300 characters, e.g. its number or URL) and `reason` (3-500 characters).
+ */
+export type SupersedeTransportDocumentRequest = {
+    reference: string;
+    reason: string;
 };
 
 /**
@@ -15335,6 +16283,10 @@ export type Tax = {
      */
     is_system: boolean;
     /**
+     * Who owns the tax: `global` (Factuarea catalog, read-only for companies) or `company` (a tax created by your company, which only your company sees and can edit or delete).
+     */
+    ownership: 'global' | 'company';
+    /**
      * Free-text description of the tax.
      */
     description: string | null;
@@ -15924,7 +16876,7 @@ export type TaxStats = {
      */
     system_count: number;
     /**
-     * Company-specific taxes (`is_system=false`).
+     * Visible taxes with `is_system=false` (usually your company's own taxes).
      */
     custom_count: number;
     /**
@@ -16020,11 +16972,11 @@ export type TaxUsage = {
      */
     in_use: boolean;
     /**
-     * Sum of the six counters in `used_by`.
+     * Sum of the counters in `used_by`.
      */
     total_count: number;
     /**
-     * Number of references by kind of resource. Purchase invoice lines (they store a rate, not a tax reference) and recurring invoices (their lines are stored as a template) are not counted.
+     * Number of references by kind of resource. Purchase invoice lines (they store a rate, not a tax reference) are not counted.
      */
     used_by: {
         /**
@@ -16036,12 +16988,24 @@ export type TaxUsage = {
          */
         suppliers: number;
         /**
+         * Supplier contact profiles that use the tax as their default tax and are not already counted in `suppliers` (a supplier is never counted twice).
+         */
+        supplier_profiles: number;
+        /**
          * Invoice lines that reference the tax as VAT, withholding, surcharge or generic tax.
          */
         invoice_lines: number;
         quote_lines: number;
         proforma_lines: number;
         delivery_note_lines: number;
+        /**
+         * Recurring invoice templates with at least one line that references the tax (each template counts once).
+         */
+        recurring_invoices: number;
+        /**
+         * Document and category slots of your company tax configuration that use the tax as the default.
+         */
+        company_tax_defaults: number;
     };
 };
 
@@ -16421,6 +17385,332 @@ export type TimeTrackingSettings = {
 };
 
 /**
+ * TransportAddress
+ *
+ * Address of a party, origin or destination of a transport control document.
+ */
+export type TransportAddress = {
+    /**
+     * Street and number.
+     */
+    line: string;
+    /**
+     * Postal code (5 digits in Spain).
+     */
+    postal_code: string;
+    city: string;
+    province: string | null;
+    /**
+     * ISO 3166-1 alpha-2 country code. Origin and destination must be `ES` to issue.
+     */
+    country: string;
+    /**
+     * Who is at that address (loading place or consignee), printed on the PDF. `null` on the addresses of the parties.
+     */
+    name: string | null;
+};
+
+/**
+ * TransportDocument
+ *
+ * A transport control document (DeCA, Spanish electronic administrative control document for road freight transport, Orden FOM/2861/2012). Each issued version is an immutable PDF served from a permanent public URL whose QR code travels with the driver.
+ */
+export type TransportDocument = {
+    /**
+     * Transport document ID (UUID v7).
+     */
+    id: string;
+    object: 'transport_document';
+    /**
+     * Number of the `DC` series, assigned when issuing with the numbering format of the series (by default code, year and a 3-digit sequence); `null` in `draft`.
+     */
+    number: string | null;
+    status: 'draft' | 'issued' | 'closed' | 'cancelled' | 'superseded';
+    /**
+     * Role of your company: contractual shipper or effective carrier.
+     */
+    company_role: 'shipper' | 'carrier';
+    /**
+     * Permanent public URL encoded in the QR code; it serves the current version PDF directly to the inspection. `null` in `draft`.
+     */
+    public_url: string | null;
+    /**
+     * Number of the current version; `null` in `draft`.
+     */
+    current_version: number | null;
+    shipper: TransportDocumentParty | null;
+    carrier: TransportDocumentParty | null;
+    vehicle: {
+        /**
+         * Plate of the tractor or rigid vehicle (required to issue).
+         */
+        tractor_plate: string | null;
+        tractor_plate_country: string | null;
+        /**
+         * Plate of the trailer or semi-trailer.
+         */
+        trailer_plate: string | null;
+        trailer_plate_country: string | null;
+    };
+    /**
+     * Special traffic authorization, when there is one.
+     */
+    special_authorization: string | null;
+    /**
+     * Transport date of the document, inherited by the shipments without their own date. It must be today or later (Europe/Madrid) to issue.
+     */
+    transport_date: string | null;
+    observations: string | null;
+    shipments: Array<TransportDocumentShipment>;
+    /**
+     * Stored PDF versions, oldest first. At most 50: the last one is reserved for cancelling or superseding, so modifications stop at 49 (422 `transport_document_version_limit_reached`).
+     */
+    versions: Array<TransportDocumentVersion>;
+    issued_at: string | null;
+    last_modified_at: string | null;
+    closed_at: string | null;
+    close_mode: 'manual' | 'automatic' | null;
+    /**
+     * Instant of the automatic close (end of the last transport date + 7 days, Europe/Madrid): a manually closed document can be reopened until then.
+     */
+    reopen_deadline: string | null;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    superseded_at: string | null;
+    /**
+     * Reference of the carrier document that supersedes this one.
+     */
+    superseding_reference: string | null;
+    /**
+     * End of the legal retention period (one year after closing, cancelling or superseding).
+     */
+    retention_until: string | null;
+    /**
+     * When the PDF files were purged (only for closed accounts after the retention period); the public URL then returns 410.
+     */
+    files_purged_at: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * TransportDocumentChange
+ *
+ * One changed datum: the field, its previous value and its current value (`null` when it did not exist).
+ */
+export type TransportDocumentChange = {
+    /**
+     * Changed datum, e.g. `vehicle.tractor_plate`, `shipments.2.destination` or `shipments.1.goods.3.quantity`.
+     */
+    field: string;
+    /**
+     * Value before the change, or `null`.
+     */
+    previous: unknown;
+    /**
+     * Value after the change, or `null`.
+     */
+    current: unknown;
+};
+
+/**
+ * TransportDocumentEvidence
+ *
+ * An entry of the issuance evidence of a transport control document (proof of issuance, art. 7.1 Orden FOM/2861/2012).
+ */
+export type TransportDocumentEvidence = {
+    /**
+     * `closed` is a manual close and `auto_closed` the automatic close of the daily process.
+     */
+    kind: 'issued' | 'modified' | 'closed' | 'auto_closed' | 'reopened' | 'cancelled' | 'superseded' | 'emailed' | 'downloaded';
+    /**
+     * PDF version the entry refers to, or `null`.
+     */
+    version: number | null;
+    /**
+     * ISO 8601 instant with its UTC offset.
+     */
+    occurred_at: string;
+    /**
+     * Current name of the person who did it, or `null` (API key, MCP client, automatic process or public download).
+     */
+    user_name: string | null;
+    /**
+     * Who did it, with the name it had at that moment: the user, the API key or the OAuth client of the MCP. `null` only for `auto_closed` and public downloads.
+     */
+    actor_name: string | null;
+    /**
+     * Recipients of an email delivery; `null` for any other kind.
+     */
+    recipients: {
+        to: Array<string>;
+        cc: Array<string>;
+        bcc: Array<string>;
+    } | null;
+    /**
+     * Truncated IP of a public download (/24 IPv4, /48 IPv6).
+     */
+    ip_prefix: string | null;
+    /**
+     * User agent of a public download.
+     */
+    user_agent: string | null;
+    /**
+     * Reason of a reopening, cancellation or supersession.
+     */
+    reason: string | null;
+};
+
+/**
+ * TransportDocumentParty
+ *
+ * Contractual shipper or effective carrier of a transport control document.
+ */
+export type TransportDocumentParty = {
+    name: string;
+    /**
+     * Tax ID: a Spanish NIF, NIE or CIF (checked with its control character) or a foreign identifier of 2 to 20 alphanumeric characters (`tax_id_country` other than `ES`, e.g. cabotage).
+     */
+    tax_id: string | null;
+    /**
+     * ISO 3166-1 alpha-2 country of the tax ID.
+     */
+    tax_id_country: string | null;
+    address: TransportAddress | null;
+    /**
+     * Contact (UUID v7) the party was copied from, or `null` when it was typed by hand or is your own company.
+     */
+    contact_id: string | null;
+};
+
+/**
+ * TransportDocumentShipment
+ *
+ * A shipment of a transport control document: origin, destination, date, goods and declared measure.
+ */
+export type TransportDocumentShipment = {
+    /**
+     * Shipment ID (UUID v7).
+     */
+    id: string;
+    origin: TransportAddress | null;
+    destination: TransportAddress | null;
+    /**
+     * Own transport date; `null` inherits the document `transport_date`.
+     */
+    transport_date: string | null;
+    /**
+     * Goods lines, without prices.
+     */
+    goods: Array<{
+        /**
+         * Concept of the goods.
+         */
+        description: string;
+        /**
+         * Optional secondary description printed below the concept.
+         */
+        additional_description: string | null;
+        /**
+         * Visible quantity (decimal string).
+         */
+        quantity: string | null;
+        unit: string | null;
+        /**
+         * Gross weight in kg PER UNIT (decimal string, scale 4), or `null` when unknown.
+         */
+        gross_weight_kg: string | null;
+    }>;
+    /**
+     * Declared measure of the shipment: a weight in kg or another measure (a value and a free unit such as `palets` or `m³`). Required to issue.
+     */
+    declared_measure: {
+        type: 'weight' | 'other';
+        /**
+         * Weight in kg when `type` is `weight`.
+         */
+        weight_kg: string | null;
+        /**
+         * Value when `type` is `other`.
+         */
+        value: string | null;
+        /**
+         * Free unit when `type` is `other`.
+         */
+        unit: string | null;
+    } | null;
+    /**
+     * Delivery note (UUID v7) the shipment was built from, or `null`.
+     */
+    delivery_note_id: string | null;
+    /**
+     * `true` when the delivery note changed (lines, quantities, delivery address or date) after the current version. Delivering or invoicing the delivery note does not count.
+     */
+    source_changed: boolean;
+    /**
+     * What changed in the delivery note compared with the shipment; empty when `source_changed` is `false`.
+     */
+    source_changes: Array<TransportDocumentChange>;
+    /**
+     * `true` when the delivery note was cancelled or deleted.
+     */
+    source_missing: boolean;
+    observations: string | null;
+};
+
+/**
+ * TransportDocumentStatusItem
+ *
+ * Transport document status from the closed catalog with its label and color for UI.
+ */
+export type TransportDocumentStatusItem = {
+    value: 'draft' | 'issued' | 'closed' | 'cancelled' | 'superseded';
+    /**
+     * Human-readable status label (Spanish).
+     */
+    label: string;
+    /**
+     * Suggested color for rendering the status in the UI.
+     */
+    color: string;
+};
+
+/**
+ * TransportDocumentVersion
+ *
+ * A stored, immutable PDF version of a transport control document.
+ */
+export type TransportDocumentVersion = {
+    number: number;
+    kind: 'issue' | 'modification' | 'cancellation' | 'supersession';
+    /**
+     * Reason of the modification, cancellation or supersession; `null` on the issue.
+     */
+    reason: string | null;
+    /**
+     * Who reported the data: your company or the carrier.
+     */
+    data_origin: 'company' | 'carrier_reported';
+    created_at: string;
+    /**
+     * Name of the actor (user, API key or MCP client) that created the version, or `null` when it cannot be attributed.
+     */
+    created_by: string | null;
+    /**
+     * Data changed compared with the previous version; the previous values are printed as «no longer valid».
+     */
+    changes: Array<TransportDocumentChange>;
+    /**
+     * sha256 of the stored PDF: recompute it over the downloaded file to verify it.
+     */
+    sha256: string;
+    /**
+     * Size of the stored PDF in bytes; a version never exceeds 5 MB (5,000,000 bytes): a larger render is rejected with 422 `transport_document_pdf_too_large` and nothing is saved.
+     */
+    size_bytes: number;
+};
+
+/**
  * UnassignAbsencePolicyRequest
  */
 export type UnassignAbsencePolicyRequest = {
@@ -16659,7 +17949,7 @@ export type UpdateCompanyV1Request = {
 /**
  * UpdateConnectedAccountRequest
  *
- * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled` and `subscription_autoinvoicing_enabled`.
+ * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled` and `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it).
  */
 export type UpdateConnectedAccountRequest = {
     name?: string;
@@ -16669,6 +17959,8 @@ export type UpdateConnectedAccountRequest = {
     require_nif?: boolean;
     refunds_enabled?: boolean;
     subscription_autoinvoicing_enabled?: boolean;
+    default_line_concept?: string | null;
+    invoice_note?: string | null;
 };
 
 /**
@@ -16943,6 +18235,15 @@ export type UpdateProductPresentationRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight in kilograms PER COMMERCIAL UNIT,
+     * packaging included: up to four decimal places, greater than zero.
+     * Only for `fixed` presentations, where it replaces the weight
+     * derived from `conversion_factor`. Omit it to keep the current
+     * value; send `null` to clear it. Rejected with 422
+     * `gross_weight_not_allowed` for `variable_measure` presentations.
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -16959,6 +18260,7 @@ export type UpdateProductRequest = {
     low_stock_threshold?: number | null;
     item_kind?: 'product' | 'service';
     base_unit?: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    gross_weight_kg?: number | null;
     /**
      * Whether this product takes part in document-driven stock movements: with `true`, issuing or receiving a document that includes it moves its stock automatically and the movement is recorded in the stock ledger. It only takes effect if your company also has stock management enabled; absent or `null` means `false`.
      */
@@ -17061,6 +18363,15 @@ export type UpdateProductVariantRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight of the variant, in kilograms PER BASE
+     * UNIT: up to four decimal places, greater than zero. It overrides
+     * the product weight for this variant. Omit it to keep the current
+     * value; send `null` to clear it and inherit the product weight
+     * again. Rejected with 422 `gross_weight_not_allowed` for services
+     * and mass base units (`KGM`, `GRM`).
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -17477,9 +18788,10 @@ export type UpdateSeriesRequest = {
  * shop— cannot be changed here: pointing an existing store at a different shop
  * would keep the invoicing history of the old one.
  *
- * Two fields accept an explicit `null` and it means something: `series_id: null`
- * goes back to the default series of your company, and `remote_base_url: null`
- * removes the declared address. Omitting either one leaves it untouched.
+ * Three fields accept an explicit `null` and it means something: `series_id: null`
+ * goes back to the default series of your company, `remote_base_url: null`
+ * removes the declared address, and `invoice_note: null` removes the note of the
+ * automatic invoices. Omitting either one leaves it untouched.
  * `simplified_threshold` is expressed in EUROS and capped at the legal maximum
  * for a simplified invoice.
  */
@@ -17520,6 +18832,10 @@ export type UpdateStoreV1Request = {
      * Environment the store reports as: `live` invoices for real, `test` discards with a typed reason.
      */
     environment?: 'live' | 'test';
+    /**
+     * Note written in the notes of every invoice issued automatically from this store (up to 500 characters). Send `null` or an empty string to remove it: invoices then carry no note.
+     */
+    invoice_note?: string | null;
     /**
      * Authorize the host of `remote_base_url` as an outbound destination in the same call.
      */
@@ -17687,7 +19003,7 @@ export type UpdateTaxRequest = {
     reverse_charge?: boolean;
     country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
     /**
-     * FK to the linked equivalence-surcharge tax; `null` unlinks it. UUID v7 value referencing the global `taxes` catalog.
+     * FK to the linked equivalence-surcharge tax; `null` unlinks it. UUID v7 value referencing the Factuarea catalog plus your company's own taxes.
      */
     linked_surcharge_taxes_id?: string | null;
     metadata?: Metadata;
@@ -17735,6 +19051,88 @@ export type UpdateTimeTrackingSettingsRequest = {
 };
 
 /**
+ * UpdateTransportDocumentRequest
+ *
+ * Partial update of a draft transport document: an absent field is kept, an explicit `null` clears it and `shipments` replaces the whole list. Same fields and rules as the creation body, without `delivery_note_ids`. Inside `shipments`, `id` only identifies a shipment of THIS document (any other identifier returns 422 `parameter_invalid_value` on `shipments.N.id`) and a new shipment goes without `id`; an explicit `origin: null` clears the origin of that shipment.
+ */
+export type UpdateTransportDocumentRequest = {
+    company_role?: 'shipper' | 'carrier';
+    special_authorization?: string | null;
+    transport_date?: string | null;
+    observations?: string | null;
+    vehicle?: {
+        tractor_plate?: string | null;
+        tractor_plate_country?: string | null;
+        trailer_plate?: string | null;
+        trailer_plate_country?: string | null;
+    };
+    shipments?: Array<{
+        id?: string | null;
+        transport_date?: string | null;
+        observations?: string | null;
+        delivery_note_id?: string | null;
+        loading_place_id?: string;
+        goods?: Array<{
+            description: string;
+            additional_description?: string | null;
+            quantity?: number | null;
+            unit?: string | null;
+            gross_weight_kg?: number | null;
+        }> | null;
+        declared_measure?: {
+            type?: string;
+            weight_kg?: number | null;
+            value?: number | null;
+            unit?: string | null;
+        } | null;
+        origin?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+        destination?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    }> | null;
+    shipper?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    carrier?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+};
+
+/**
  * UpdateVeriFactuSettingsV1Request
  */
 export type UpdateVeriFactuSettingsV1Request = {
@@ -17754,7 +19152,7 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -18269,6 +19667,20 @@ export type VerifyBusinessContactCensusV1Request = {
 };
 
 /**
+ * VersionedDurableOperationBody
+ */
+export type VersionedDurableOperationBody = {
+    quote_version: number;
+};
+
+/**
+ * VersionedEmployeeBatchBody
+ */
+export type VersionedEmployeeBatchBody = {
+    quote_version: number;
+};
+
+/**
  * VersionedPurchaseScanRequest
  */
 export type VersionedPurchaseScanRequest = {
@@ -18341,7 +19753,7 @@ export type WebhookEndpoint = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -18388,7 +19800,7 @@ export type WebhookEndpointWithSecret = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -18543,6 +19955,26 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadDeliveryNoteEmailSent) | ({
     type: 'delivery_note.email_failed';
 } & WebhookEventPayloadDeliveryNoteEmailFailed) | ({
+    type: 'transport_document.created';
+} & WebhookEventPayloadTransportDocumentCreated) | ({
+    type: 'transport_document.updated';
+} & WebhookEventPayloadTransportDocumentUpdated) | ({
+    type: 'transport_document.issued';
+} & WebhookEventPayloadTransportDocumentIssued) | ({
+    type: 'transport_document.modified';
+} & WebhookEventPayloadTransportDocumentModified) | ({
+    type: 'transport_document.closed';
+} & WebhookEventPayloadTransportDocumentClosed) | ({
+    type: 'transport_document.reopened';
+} & WebhookEventPayloadTransportDocumentReopened) | ({
+    type: 'transport_document.cancelled';
+} & WebhookEventPayloadTransportDocumentCancelled) | ({
+    type: 'transport_document.superseded';
+} & WebhookEventPayloadTransportDocumentSuperseded) | ({
+    type: 'transport_document.email_sent';
+} & WebhookEventPayloadTransportDocumentEmailSent) | ({
+    type: 'transport_document.email_failed';
+} & WebhookEventPayloadTransportDocumentEmailFailed) | ({
     type: 'purchase_invoice.created';
 } & WebhookEventPayloadPurchaseInvoiceCreated) | ({
     type: 'purchase_invoice.updated';
@@ -24244,6 +25676,376 @@ export type WebhookEventPayloadTimeEntryRecorded = {
 };
 
 /**
+ * WebhookEventPayloadTransportDocumentCancelled
+ *
+ * Webhook delivery body for the `transport_document.cancelled` event.
+ */
+export type WebhookEventPayloadTransportDocumentCancelled = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.cancelled`.
+     */
+    type: 'transport_document.cancelled';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentCancelled;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentClosed
+ *
+ * Webhook delivery body for the `transport_document.closed` event.
+ */
+export type WebhookEventPayloadTransportDocumentClosed = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.closed`.
+     */
+    type: 'transport_document.closed';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentClosed;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentCreated
+ *
+ * Webhook delivery body for the `transport_document.created` event.
+ */
+export type WebhookEventPayloadTransportDocumentCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.created`.
+     */
+    type: 'transport_document.created';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentCreated;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentEmailFailed
+ *
+ * Webhook delivery body for the `transport_document.email_failed` event.
+ */
+export type WebhookEventPayloadTransportDocumentEmailFailed = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.email_failed`.
+     */
+    type: 'transport_document.email_failed';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentEmailFailed;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentEmailSent
+ *
+ * Webhook delivery body for the `transport_document.email_sent` event.
+ */
+export type WebhookEventPayloadTransportDocumentEmailSent = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.email_sent`.
+     */
+    type: 'transport_document.email_sent';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentEmailSent;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentIssued
+ *
+ * Webhook delivery body for the `transport_document.issued` event.
+ */
+export type WebhookEventPayloadTransportDocumentIssued = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.issued`.
+     */
+    type: 'transport_document.issued';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentIssued;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentModified
+ *
+ * Webhook delivery body for the `transport_document.modified` event.
+ */
+export type WebhookEventPayloadTransportDocumentModified = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.modified`.
+     */
+    type: 'transport_document.modified';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentModified;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentReopened
+ *
+ * Webhook delivery body for the `transport_document.reopened` event.
+ */
+export type WebhookEventPayloadTransportDocumentReopened = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.reopened`.
+     */
+    type: 'transport_document.reopened';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentReopened;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentSuperseded
+ *
+ * Webhook delivery body for the `transport_document.superseded` event.
+ */
+export type WebhookEventPayloadTransportDocumentSuperseded = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.superseded`.
+     */
+    type: 'transport_document.superseded';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentSuperseded;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentUpdated
+ *
+ * Webhook delivery body for the `transport_document.updated` event.
+ */
+export type WebhookEventPayloadTransportDocumentUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.updated`.
+     */
+    type: 'transport_document.updated';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentUpdated;
+};
+
+/**
  * WeeklySchedule
  *
  * A fixed weekly work schedule for the Control Horario (time tracking) module. Defines, per weekday, the expected time ranges (from which the expected hours and the planned start time are derived). Its `mode` decides how balances are computed downstream: `validated` (the period is assumed fulfilled unless an exception) or `real_clocking` (only real clock-ins count).
@@ -24541,6 +26343,10 @@ export type PublicApiV1AutomationsRulesActivateErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -24603,7 +26409,7 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -24611,7 +26417,7 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     * Acquired managed-company seat conditions cannot be preserved. No company is created or activated and no financial intent is created.
      */
     409: Error;
     /**
@@ -24626,6 +26432,10 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The managed-company seat charge could not be verified. No company is created or activated and no charge is attempted; do not treat an unavailable amount as zero.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesActivateBatchError = PublicApiV1CompaniesActivateBatchErrors[keyof PublicApiV1CompaniesActivateBatchErrors];
@@ -24731,7 +26541,7 @@ export type PublicApiV1CompaniesActivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -24743,7 +26553,7 @@ export type PublicApiV1CompaniesActivateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     * Acquired managed-company seat conditions cannot be preserved. No company is created or activated and no financial intent is created.
      */
     409: Error;
     /**
@@ -24758,6 +26568,10 @@ export type PublicApiV1CompaniesActivateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The managed-company seat charge could not be verified. No company is created or activated and no charge is attempted; do not treat an unavailable amount as zero.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesActivateError = PublicApiV1CompaniesActivateErrors[keyof PublicApiV1CompaniesActivateErrors];
@@ -26252,7 +28066,7 @@ export type PublicApiV1PurchaseInvoicesAttachFileErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -28471,6 +30285,79 @@ export type PublicApiV1DeliveryNotesCancelResponses = {
 
 export type PublicApiV1DeliveryNotesCancelResponse = PublicApiV1DeliveryNotesCancelResponses[keyof PublicApiV1DeliveryNotesCancelResponses];
 
+export type PublicApiV1EmployeeBatchesCancelData = {
+    body: CancelDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-batches/{id}/cancel';
+};
+
+export type PublicApiV1EmployeeBatchesCancelErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeBatchesCancelError = PublicApiV1EmployeeBatchesCancelErrors[keyof PublicApiV1EmployeeBatchesCancelErrors];
+
+export type PublicApiV1EmployeeBatchesCancelResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesCancelResponse = PublicApiV1EmployeeBatchesCancelResponses[keyof PublicApiV1EmployeeBatchesCancelResponses];
+
 export type PublicApiV1EmployeeInvitationsCancelData = {
     body?: never;
     headers?: {
@@ -28717,6 +30604,216 @@ export type PublicApiV1RecurringInvoicesCancelResponses = {
 };
 
 export type PublicApiV1RecurringInvoicesCancelResponse = PublicApiV1RecurringInvoicesCancelResponses[keyof PublicApiV1RecurringInvoicesCancelResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelData = {
+    body: CancelDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-seat-offer-redemptions/{id}/cancel';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelError = PublicApiV1EmployeeSeatOfferRedemptionsCancelErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsCancelErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelResponse = PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelData = {
+    body: CancelDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/gestoria-seat-offer-redemptions/{id}/cancel';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelError = PublicApiV1GestoriaSeatOfferRedemptionsCancelErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsCancelErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelResponse = PublicApiV1GestoriaSeatOfferRedemptionsCancelResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsCancelResponses];
+
+export type PublicApiV1TransportDocumentsCancelData = {
+    body: CancelTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/cancel';
+};
+
+export type PublicApiV1TransportDocumentsCancelErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsCancelError = PublicApiV1TransportDocumentsCancelErrors[keyof PublicApiV1TransportDocumentsCancelErrors];
+
+export type PublicApiV1TransportDocumentsCancelResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsCancelResponse = PublicApiV1TransportDocumentsCancelResponses[keyof PublicApiV1TransportDocumentsCancelResponses];
 
 export type PublicApiV1ContactsChangeContactRoleStatusData = {
     body: ChangeContactRoleStatusV1Request;
@@ -29255,6 +31352,70 @@ export type PublicApiV1MonthlyTimeRecordClosesCreateResponses = {
 
 export type PublicApiV1MonthlyTimeRecordClosesCreateResponse = PublicApiV1MonthlyTimeRecordClosesCreateResponses[keyof PublicApiV1MonthlyTimeRecordClosesCreateResponses];
 
+export type PublicApiV1TransportDocumentsCloseData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/close';
+};
+
+export type PublicApiV1TransportDocumentsCloseErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsCloseError = PublicApiV1TransportDocumentsCloseErrors[keyof PublicApiV1TransportDocumentsCloseErrors];
+
+export type PublicApiV1TransportDocumentsCloseResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsCloseResponse = PublicApiV1TransportDocumentsCloseResponses[keyof PublicApiV1TransportDocumentsCloseResponses];
+
 export type PublicApiV1AbsencePoliciesCarryoverData = {
     body: ConfigureAbsencePolicyCarryoverRequest;
     headers?: {
@@ -29318,6 +31479,249 @@ export type PublicApiV1AbsencePoliciesCarryoverResponses = {
 };
 
 export type PublicApiV1AbsencePoliciesCarryoverResponse = PublicApiV1AbsencePoliciesCarryoverResponses[keyof PublicApiV1AbsencePoliciesCarryoverResponses];
+
+export type PublicApiV1EmployeeBatchesConfirmData = {
+    body: VersionedEmployeeBatchBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-batches/{id}/confirm';
+};
+
+export type PublicApiV1EmployeeBatchesConfirmErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeBatchesConfirmError = PublicApiV1EmployeeBatchesConfirmErrors[keyof PublicApiV1EmployeeBatchesConfirmErrors];
+
+export type PublicApiV1EmployeeBatchesConfirmResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesConfirmResponse = PublicApiV1EmployeeBatchesConfirmResponses[keyof PublicApiV1EmployeeBatchesConfirmResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-seat-offer-redemptions/{id}/confirm';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmError = PublicApiV1EmployeeSeatOfferRedemptionsConfirmErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsConfirmErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponse = PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/gestoria-seat-offer-redemptions/{id}/confirm';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmError = PublicApiV1GestoriaSeatOfferRedemptionsConfirmErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsConfirmErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponse = PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponses];
 
 export type PublicApiV1StoresIndexData = {
     body?: never;
@@ -29467,6 +31871,10 @@ export type PublicApiV1DeliveryNotesConvertErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -29538,6 +31946,10 @@ export type PublicApiV1ProformasConvertErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -29681,6 +32093,10 @@ export type PublicApiV1QuotesConvertErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -30553,6 +32969,128 @@ export type PublicApiV1ContactsCreateResponses = {
 
 export type PublicApiV1ContactsCreateResponse = PublicApiV1ContactsCreateResponses[keyof PublicApiV1ContactsCreateResponses];
 
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        account: string;
+    };
+    query?: never;
+    url: '/connected-accounts/{account}/charge-rules';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesListErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesListErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponses = {
+    /**
+     * The charge rules of the account, ordered by `position`. The list is not paginated.
+     */
+    200: {
+        data: Array<ChargeRule>;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateData = {
+    body: ChargeRuleRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        account: string;
+    };
+    query?: never;
+    url: '/connected-accounts/{account}/charge-rules';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses = {
+    /**
+     * The newly created rule, placed at the end of the list.
+     */
+    201: {
+        data: ChargeRule;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses];
+
 export type PublicApiV1CompaniesApiKeysListData = {
     body?: never;
     headers?: {
@@ -30755,7 +33293,7 @@ export type PublicApiV1CompaniesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -30763,7 +33301,7 @@ export type PublicApiV1CompaniesCreateErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     * Acquired managed-company seat conditions cannot be preserved. No company is created or activated and no financial intent is created.
      */
     409: Error;
     /**
@@ -30778,6 +33316,10 @@ export type PublicApiV1CompaniesCreateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The managed-company seat charge could not be verified. No company is created or activated and no charge is attempted; do not treat an unavailable amount as zero.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesCreateError = PublicApiV1CompaniesCreateErrors[keyof PublicApiV1CompaniesCreateErrors];
@@ -30818,6 +33360,10 @@ export type PublicApiV1InvoicesCorrectiveErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -31094,6 +33640,10 @@ export type PublicApiV1DeliveryNotesCreateErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -31246,7 +33796,7 @@ export type PublicApiV1EmployeesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -31269,6 +33819,10 @@ export type PublicApiV1EmployeesCreateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * Reliable seat quote unavailable while employee batches are enabled; nobody was created or charged. Retry the same request.
+     */
+    503: Error;
 };
 
 export type PublicApiV1EmployeesCreateError = PublicApiV1EmployeesCreateErrors[keyof PublicApiV1EmployeesCreateErrors];
@@ -31482,6 +34036,10 @@ export type PublicApiV1InvoicesCreateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -32392,6 +34950,10 @@ export type PublicApiV1ProformasCreateErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -33077,6 +35639,10 @@ export type PublicApiV1QuotesCreateErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -33399,7 +35965,7 @@ export type PublicApiV1SeriesListData = {
          */
         ending_before?: string;
         /**
-         * Document type (invoice, quote, etc.). Exact match on `document_type`.
+         * Document type: `invoice`, `quote`, `delivery_note`, `proforma` or `transport_document`. Exact match on `document_type`.
          */
         document_type?: string;
         /**
@@ -34252,7 +36818,7 @@ export type PublicApiV1TaxesListData = {
          */
         is_active?: boolean;
         /**
-         * Filter taxes marked as global default (legacy flag). Exact match on `is_default`.
+         * Filter taxes that are your company's effective default (the tax your company proposes by default for the document). Exact match on `is_default`.
          */
         is_default?: boolean;
         /**
@@ -34284,9 +36850,13 @@ export type PublicApiV1TaxesListData = {
          */
         'external_reference[in]'?: string;
         /**
-         * Filter system taxes (global catalog) vs custom. Exact match on `is_system`.
+         * Filter the protected canonical taxes of the Factuarea catalog (`true`) vs the rest (`false`). To tell the global catalog from your own taxes use `ownership`. Exact match on `is_system`.
          */
         is_system?: boolean;
+        /**
+         * Whose taxes to list: `global` (the read-only Factuarea catalog) or `company` (the taxes your company created). Omit it to list both. Any other value responds 422 with `error.param=ownership`. Exact match on `ownership`.
+         */
+        ownership?: string;
         /**
          * AEAT fiscal zone: `peninsula`, `canarias`, `ceuta`, `melilla`. Exact match on `country_aeat_zone`.
          */
@@ -34393,6 +36963,174 @@ export type PublicApiV1TaxesCreateResponses = {
 
 export type PublicApiV1TaxesCreateResponse = PublicApiV1TaxesCreateResponses[keyof PublicApiV1TaxesCreateResponses];
 
+export type PublicApiV1TransportDocumentsIndexData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         */
+        ending_before?: string;
+        /**
+         * Transport document status: `draft`, `issued`, `closed`, `cancelled` or `superseded`. Exact match on `status`.
+         */
+        status?: 'draft' | 'issued' | 'closed' | 'cancelled' | 'superseded';
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'status[in]'?: string;
+        /**
+         * Transport date period (`YYYY-MM-DD`). A document matches when the date range of its shipments overlaps the period. Greater than or equal to the given value.
+         */
+        'transport_date[gte]'?: string;
+        /**
+         * Transport date period (`YYYY-MM-DD`). A document matches when the date range of its shipments overlaps the period. Less than or equal to the given value.
+         */
+        'transport_date[lte]'?: string;
+        /**
+         * Role of your company in the document: `shipper` (contractual shipper) or `carrier` (effective carrier). Exact match on `company_role`.
+         */
+        company_role?: 'shipper' | 'carrier';
+        /**
+         * Tax ID of the effective carrier. Exact match on `carrier_tax_id`.
+         */
+        carrier_tax_id?: string;
+        /**
+         * Delivery note ID (UUID v7): documents with at least one shipment from that delivery note. Exact match on `delivery_note_id`.
+         */
+        delivery_note_id?: string;
+        /**
+         * Free-text search over the number, the parties (name and tax ID) and the vehicle plates (1-255 characters). Exact match on `q`.
+         */
+        q?: string;
+        /**
+         * Sort order. Use a field for ascending or a `-` prefix for descending (e.g. `-created`). Allowed fields: `transport_date`, `number`, `created`, `updated`. Combined with the cursor, ordering stays deterministic (a stable secondary sort by the cursor id, Stripe-style). When omitted, documents are ordered by transport date, newest first.
+         */
+        sort?: 'transport_date' | '-transport_date' | 'number' | '-number' | 'created' | '-created' | 'updated' | '-updated';
+    };
+    url: '/transport_documents';
+};
+
+export type PublicApiV1TransportDocumentsIndexErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsIndexError = PublicApiV1TransportDocumentsIndexErrors[keyof PublicApiV1TransportDocumentsIndexErrors];
+
+export type PublicApiV1TransportDocumentsIndexResponses = {
+    200: PaginatedList & {
+        data?: Array<TransportDocument>;
+    };
+};
+
+export type PublicApiV1TransportDocumentsIndexResponse = PublicApiV1TransportDocumentsIndexResponses[keyof PublicApiV1TransportDocumentsIndexResponses];
+
+export type PublicApiV1TransportDocumentsCreateData = {
+    body: CreateTransportDocumentRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/transport_documents';
+};
+
+export type PublicApiV1TransportDocumentsCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsCreateError = PublicApiV1TransportDocumentsCreateErrors[keyof PublicApiV1TransportDocumentsCreateErrors];
+
+export type PublicApiV1TransportDocumentsCreateResponses = {
+    /**
+     * Transport document created in `draft`. The `Location` header contains the canonical URL of the newly created resource.
+     */
+    201: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsCreateResponse = PublicApiV1TransportDocumentsCreateResponses[keyof PublicApiV1TransportDocumentsCreateResponses];
+
 export type PublicApiV1WebhookEndpointsListData = {
     body?: never;
     headers?: {
@@ -34483,7 +37221,7 @@ export type PublicApiV1WebhookEndpointsCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -35168,6 +37906,136 @@ export type PublicApiV1ContactsUpdateResponses = {
 };
 
 export type PublicApiV1ContactsUpdateResponse = PublicApiV1ContactsUpdateResponses[keyof PublicApiV1ContactsUpdateResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        account: string;
+        rule: string;
+    };
+    query?: never;
+    url: '/connected-accounts/{account}/charge-rules/{rule}';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateData = {
+    body: ChargeRuleRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        account: string;
+        rule: string;
+    };
+    query?: never;
+    url: '/connected-accounts/{account}/charge-rules/{rule}';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponses = {
+    /**
+     * The replaced rule. Its position does not change.
+     */
+    200: {
+        data: ChargeRule;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponses];
 
 export type PublicApiV1CompaniesDeleteData = {
     body?: never;
@@ -39080,6 +41948,187 @@ export type PublicApiV1TaxesUpdateResponses = {
 
 export type PublicApiV1TaxesUpdateResponse = PublicApiV1TaxesUpdateResponses[keyof PublicApiV1TaxesUpdateResponses];
 
+export type PublicApiV1TransportDocumentsDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}';
+};
+
+export type PublicApiV1TransportDocumentsDeleteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsDeleteError = PublicApiV1TransportDocumentsDeleteErrors[keyof PublicApiV1TransportDocumentsDeleteErrors];
+
+export type PublicApiV1TransportDocumentsDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1TransportDocumentsDeleteResponse = PublicApiV1TransportDocumentsDeleteResponses[keyof PublicApiV1TransportDocumentsDeleteResponses];
+
+export type PublicApiV1TransportDocumentsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}';
+};
+
+export type PublicApiV1TransportDocumentsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsShowError = PublicApiV1TransportDocumentsShowErrors[keyof PublicApiV1TransportDocumentsShowErrors];
+
+export type PublicApiV1TransportDocumentsShowResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsShowResponse = PublicApiV1TransportDocumentsShowResponses[keyof PublicApiV1TransportDocumentsShowResponses];
+
+export type PublicApiV1TransportDocumentsUpdateData = {
+    body?: UpdateTransportDocumentRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}';
+};
+
+export type PublicApiV1TransportDocumentsUpdateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsUpdateError = PublicApiV1TransportDocumentsUpdateErrors[keyof PublicApiV1TransportDocumentsUpdateErrors];
+
+export type PublicApiV1TransportDocumentsUpdateResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsUpdateResponse = PublicApiV1TransportDocumentsUpdateResponses[keyof PublicApiV1TransportDocumentsUpdateResponses];
+
 export type PublicApiV1WebhookEndpointsDeleteData = {
     body?: never;
     headers: {
@@ -39693,7 +42742,12 @@ export type PublicApiV1ContactsImportTemplateData = {
         'X-Active-Profile'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Template format. `csv` (default) returns only the headers; `xlsx` returns a workbook with the Data, Instructions, Examples and Allowed values sheets.
+         */
+        format?: 'csv' | 'xlsx';
+    };
     url: '/contacts/import/template';
 };
 
@@ -39724,7 +42778,7 @@ export type PublicApiV1ContactsImportTemplateError = PublicApiV1ContactsImportTe
 
 export type PublicApiV1ContactsImportTemplateResponses = {
     /**
-     * CSV import template with canonical identity, cumulative role and directional-profile headings.
+     * Import template generated from the importer column descriptors: a headers-only CSV by default, or the XLSX workbook with `?format=xlsx`.
      */
     200: string;
 };
@@ -40442,6 +43496,132 @@ export type PublicApiV1TaxReportsDownloadResponses = {
 
 export type PublicApiV1TaxReportsDownloadResponse = PublicApiV1TaxReportsDownloadResponses[keyof PublicApiV1TaxReportsDownloadResponses];
 
+export type PublicApiV1TransportDocumentsIssuanceProofData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: {
+        /**
+         * Pass `1` (or `true`) to receive the PDF with `Content-Disposition: attachment`; otherwise it is served `inline`.
+         */
+        download?: string;
+    };
+    url: '/transport_documents/{transport_document}/issuance_proof';
+};
+
+export type PublicApiV1TransportDocumentsIssuanceProofErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsIssuanceProofError = PublicApiV1TransportDocumentsIssuanceProofErrors[keyof PublicApiV1TransportDocumentsIssuanceProofErrors];
+
+export type PublicApiV1TransportDocumentsIssuanceProofResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1TransportDocumentsIssuanceProofResponse = PublicApiV1TransportDocumentsIssuanceProofResponses[keyof PublicApiV1TransportDocumentsIssuanceProofResponses];
+
+export type PublicApiV1TransportDocumentsPdfData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: {
+        /**
+         * Version number of the PDF to download (1, 2, …). Omit it to get the current version.
+         */
+        version?: number;
+        /**
+         * Pass `1` (or `true`) to receive the PDF with `Content-Disposition: attachment`; otherwise it is served `inline`.
+         */
+        download?: '0' | '1' | 'true' | 'false';
+    };
+    url: '/transport_documents/{transport_document}/pdf';
+};
+
+export type PublicApiV1TransportDocumentsPdfErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The files of this transport document were purged when its retention period ended (one year after it was closed, cancelled or superseded, and only once the account was closed). The document and its data are kept, but its PDF can no longer be served or sent. Code `transport_document_file_unavailable`, `error.type: not_found_error`. Retrying returns the same error.
+     */
+    410: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsPdfError = PublicApiV1TransportDocumentsPdfErrors[keyof PublicApiV1TransportDocumentsPdfErrors];
+
+export type PublicApiV1TransportDocumentsPdfResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1TransportDocumentsPdfResponse = PublicApiV1TransportDocumentsPdfResponses[keyof PublicApiV1TransportDocumentsPdfResponses];
+
 export type PublicApiV1AutomationsRulesDryRunData = {
     body: DryRunAutomationRuleV1Request;
     headers?: {
@@ -40531,6 +43711,10 @@ export type PublicApiV1DeliveryNotesDuplicateErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -40590,6 +43774,10 @@ export type PublicApiV1InvoicesDuplicateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -40658,6 +43846,10 @@ export type PublicApiV1ProformasDuplicateErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -40717,6 +43909,10 @@ export type PublicApiV1QuotesDuplicateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The API key lacks the required scope for this operation.
      */
@@ -40778,7 +43974,7 @@ export type PublicApiV1TasksDuplicateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -42245,6 +45441,10 @@ export type PublicApiV1RecurringInvoicesGenerateErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -43110,7 +46310,7 @@ export type PublicApiV1VerifactuRepresentationRegisterErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -45382,6 +48582,10 @@ export type PublicApiV1CompaniesSeatChargePreviewErrors = {
      */
     403: Error;
     /**
+     * Existing acquired seat conditions cannot be preserved by this purchase. Review them before adding companies; no financial intent or charge is created.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -45393,6 +48597,10 @@ export type PublicApiV1CompaniesSeatChargePreviewErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The paid-seat preview could not be verified. No company is created and no charge is attempted. Correct billing configuration or retry the preview; never treat this failure as a zero amount.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesSeatChargePreviewError = PublicApiV1CompaniesSeatChargePreviewErrors[keyof PublicApiV1CompaniesSeatChargePreviewErrors];
@@ -45523,6 +48731,7 @@ export type PublicApiV1SeriesStatsResponses = {
             quote: number;
             delivery_note: number;
             proforma: number;
+            transport_document: number;
         };
     };
 };
@@ -46313,6 +49522,181 @@ export type PublicApiV1TimeTrackingSettingsUpdateResponses = {
 
 export type PublicApiV1TimeTrackingSettingsUpdateResponse = PublicApiV1TimeTrackingSettingsUpdateResponses[keyof PublicApiV1TimeTrackingSettingsUpdateResponses];
 
+export type PublicApiV1TransportDocumentsEvidenceData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/evidence';
+};
+
+export type PublicApiV1TransportDocumentsEvidenceErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsEvidenceError = PublicApiV1TransportDocumentsEvidenceErrors[keyof PublicApiV1TransportDocumentsEvidenceErrors];
+
+export type PublicApiV1TransportDocumentsEvidenceResponses = {
+    200: {
+        data: Array<TransportDocumentEvidence>;
+        meta: {
+            /**
+             * Number of public downloads recorded for the document.
+             */
+            downloads_total: number;
+            /**
+             * Number of public downloads included in `data`: the first ones, at most 100.
+             */
+            downloads_listed: number;
+        };
+    };
+};
+
+export type PublicApiV1TransportDocumentsEvidenceResponse = PublicApiV1TransportDocumentsEvidenceResponses[keyof PublicApiV1TransportDocumentsEvidenceResponses];
+
+export type PublicApiV1TransportDocumentsQrData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: {
+        /**
+         * Image format of the QR code: `svg` (default) or `png`.
+         */
+        format?: 'svg' | 'png';
+        /**
+         * Pass `1` (or `true`) to receive the image with `Content-Disposition: attachment`; otherwise it is served `inline`.
+         */
+        download?: '0' | '1' | 'true' | 'false';
+    };
+    url: '/transport_documents/{transport_document}/qr';
+};
+
+export type PublicApiV1TransportDocumentsQrErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsQrError = PublicApiV1TransportDocumentsQrErrors[keyof PublicApiV1TransportDocumentsQrErrors];
+
+export type PublicApiV1TransportDocumentsQrResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1TransportDocumentsQrResponse = PublicApiV1TransportDocumentsQrResponses[keyof PublicApiV1TransportDocumentsQrResponses];
+
+export type PublicApiV1TransportDocumentsStatusesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/transport_documents/statuses';
+};
+
+export type PublicApiV1TransportDocumentsStatusesErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsStatusesError = PublicApiV1TransportDocumentsStatusesErrors[keyof PublicApiV1TransportDocumentsStatusesErrors];
+
+export type PublicApiV1TransportDocumentsStatusesResponses = {
+    200: {
+        data: Array<TransportDocumentStatusItem>;
+    };
+};
+
+export type PublicApiV1TransportDocumentsStatusesResponse = PublicApiV1TransportDocumentsStatusesResponses[keyof PublicApiV1TransportDocumentsStatusesResponses];
+
 export type PublicApiV1VerifactuRecordsActivitiesData = {
     body?: never;
     headers?: {
@@ -46762,7 +50146,7 @@ export type PublicApiV1ProjectsTimeInvoicesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -46864,6 +50248,70 @@ export type PublicApiV1InvoicesIssueResponses = {
 };
 
 export type PublicApiV1InvoicesIssueResponse = PublicApiV1InvoicesIssueResponses[keyof PublicApiV1InvoicesIssueResponses];
+
+export type PublicApiV1TransportDocumentsIssueData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/issue';
+};
+
+export type PublicApiV1TransportDocumentsIssueErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsIssueError = PublicApiV1TransportDocumentsIssueErrors[keyof PublicApiV1TransportDocumentsIssueErrors];
+
+export type PublicApiV1TransportDocumentsIssueResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsIssueResponse = PublicApiV1TransportDocumentsIssueResponses[keyof PublicApiV1TransportDocumentsIssueResponses];
 
 export type PublicApiV1TasksEntityLinksListData = {
     body?: never;
@@ -47683,7 +51131,7 @@ export type PublicApiV1VerifactuCertificatesUploadErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -47983,6 +51431,138 @@ export type PublicApiV1EmailsListResponses = {
 };
 
 export type PublicApiV1EmailsListResponse = PublicApiV1EmailsListResponses[keyof PublicApiV1EmailsListResponses];
+
+export type PublicApiV1EmployeeBatchesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query: {
+        cursor?: string | null;
+        limit?: number;
+        'statuses[]': 'draft' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'paid' | 'completed' | 'failed' | 'cancelled' | 'compensating' | 'compensated' | 'needs_review';
+    };
+    url: '/employee-batches';
+};
+
+export type PublicApiV1EmployeeBatchesListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeBatchesListError = PublicApiV1EmployeeBatchesListErrors[keyof PublicApiV1EmployeeBatchesListErrors];
+
+export type PublicApiV1EmployeeBatchesListResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: Array<EmployeeBatch>;
+        next_cursor: string | null;
+        has_more: boolean;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesListResponse = PublicApiV1EmployeeBatchesListResponses[keyof PublicApiV1EmployeeBatchesListResponses];
+
+export type PublicApiV1EmployeeBatchesPrepareData = {
+    body: PrepareEmployeeBatchBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/employee-batches';
+};
+
+export type PublicApiV1EmployeeBatchesPrepareErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeBatchesPrepareError = PublicApiV1EmployeeBatchesPrepareErrors[keyof PublicApiV1EmployeeBatchesPrepareErrors];
+
+export type PublicApiV1EmployeeBatchesPrepareResponses = {
+    /**
+     * Prepared without purchase.
+     */
+    201: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesPrepareResponse = PublicApiV1EmployeeBatchesPrepareResponses[keyof PublicApiV1EmployeeBatchesPrepareResponses];
 
 export type PublicApiV1EmployeeInvitationsListData = {
     body?: never;
@@ -48383,7 +51963,7 @@ export type PublicApiV1IntegrationsEventsListData = {
         /**
          * Typed reason why the event was discarded, from the closed catalogue.
          */
-        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable';
+        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable';
         /**
          * Whether the event was parked with its content so it can be replayed.
          */
@@ -48827,6 +52407,94 @@ export type PublicApiV1InvoicesStatusesResponses = {
 };
 
 export type PublicApiV1InvoicesStatusesResponse = PublicApiV1InvoicesStatusesResponses[keyof PublicApiV1InvoicesStatusesResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        account: string;
+    };
+    query?: {
+        /**
+         * First day included (`YYYY-MM-DD`), by the date the charge happened. Optional. A malformed or non-existent date returns 422.
+         */
+        occurred_from?: string;
+        /**
+         * Last day included (`YYYY-MM-DD`), by the date the charge happened. Optional; it cannot be earlier than `occurred_from` (422).
+         */
+        occurred_to?: string;
+        /**
+         * Number of objects to return. Integer between 1 and 100. Defaults to 25.
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination. Use the `uuid` of the last object on the previous page.
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination. Use the `uuid` of the first object on the current page.
+         */
+        ending_before?: string;
+    };
+    url: '/connected-accounts/{account}/non-invoiced-charges';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListError = PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListErrors[keyof PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponses = {
+    /**
+     * Charges left out of invoicing by a rule, most recent first, with cursor pagination.
+     */
+    200: {
+        data: Array<NonInvoicedCharge>;
+        /**
+         * Whether there are more results after this page.
+         */
+        has_more: boolean;
+        /**
+         * Cursor to pass as `starting_after` to get the next page, or `null` on the last page.
+         */
+        next_cursor: string | null;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponse = PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponses[keyof PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponses];
 
 export type PublicApiV1NotificationsListData = {
     body?: never;
@@ -50070,6 +53738,272 @@ export type PublicApiV1WorkSchedulesAssignmentsResponses = {
 
 export type PublicApiV1WorkSchedulesAssignmentsResponse = PublicApiV1WorkSchedulesAssignmentsResponses[keyof PublicApiV1WorkSchedulesAssignmentsResponses];
 
+export type PublicApiV1EmployeeSeatOfferRedemptionsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string | null;
+        limit?: number;
+        concept?: 'plan' | 'employee-seats' | 'gestoria-seats' | null;
+        'statuses[]'?: 'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+    };
+    url: '/employee-seat-offer-redemptions';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListError = PublicApiV1EmployeeSeatOfferRedemptionsListErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsListErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: Array<CustomerOfferRedemption>;
+        next_cursor: string | null;
+        has_more: boolean;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListResponse = PublicApiV1EmployeeSeatOfferRedemptionsListResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsListResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareData = {
+    body: PrepareEmployeeSeatOfferBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/employee-seat-offer-redemptions';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareError = PublicApiV1EmployeeSeatOfferRedemptionsPrepareErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsPrepareErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses = {
+    /**
+     * Prepared without purchase.
+     */
+    201: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponse = PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string | null;
+        limit?: number;
+        concept?: 'plan' | 'employee-seats' | 'gestoria-seats' | null;
+        'statuses[]'?: 'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+    };
+    url: '/gestoria-seat-offer-redemptions';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListError = PublicApiV1GestoriaSeatOfferRedemptionsListErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsListErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: Array<CustomerOfferRedemption>;
+        next_cursor: string | null;
+        has_more: boolean;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListResponse = PublicApiV1GestoriaSeatOfferRedemptionsListResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsListResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareData = {
+    body: PrepareGestoriaSeatOfferBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/gestoria-seat-offer-redemptions';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareError = PublicApiV1GestoriaSeatOfferRedemptionsPrepareErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsPrepareErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponses = {
+    /**
+     * Prepared without purchase.
+     */
+    201: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponse = PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponses];
+
 export type PublicApiV1StripeAutoinvoicingCorrectivesListData = {
     body?: never;
     headers?: {
@@ -50264,7 +54198,7 @@ export type PublicApiV1TasksAttachmentsCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -51612,6 +55546,70 @@ export type PublicApiV1SeriesUpdateResponses = {
 
 export type PublicApiV1SeriesUpdateResponse = PublicApiV1SeriesUpdateResponses[keyof PublicApiV1SeriesUpdateResponses];
 
+export type PublicApiV1TransportDocumentsModifyData = {
+    body: ModifyTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/modify';
+};
+
+export type PublicApiV1TransportDocumentsModifyErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsModifyError = PublicApiV1TransportDocumentsModifyErrors[keyof PublicApiV1TransportDocumentsModifyErrors];
+
+export type PublicApiV1TransportDocumentsModifyResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsModifyResponse = PublicApiV1TransportDocumentsModifyResponses[keyof PublicApiV1TransportDocumentsModifyResponses];
+
 export type PublicApiV1TasksRepositionData = {
     body?: MoveTaskOnBoardV1Request;
     headers?: {
@@ -52660,7 +56658,7 @@ export type PublicApiV1EmployeesReactivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -52687,6 +56685,10 @@ export type PublicApiV1EmployeesReactivateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * Reliable seat quote unavailable while employee batches are enabled; nobody was created or charged. Retry the same request.
+     */
+    503: Error;
 };
 
 export type PublicApiV1EmployeesReactivateError = PublicApiV1EmployeesReactivateErrors[keyof PublicApiV1EmployeesReactivateErrors];
@@ -52821,6 +56823,219 @@ export type PublicApiV1TimeEntriesManualResponses = {
 };
 
 export type PublicApiV1TimeEntriesManualResponse = PublicApiV1TimeEntriesManualResponses[keyof PublicApiV1TimeEntriesManualResponses];
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteData = {
+    body: VersionedEmployeeBatchBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-batches/{id}/quote';
+};
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteError = PublicApiV1EmployeeBatchesRefreshQuoteErrors[keyof PublicApiV1EmployeeBatchesRefreshQuoteErrors];
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteResponse = PublicApiV1EmployeeBatchesRefreshQuoteResponses[keyof PublicApiV1EmployeeBatchesRefreshQuoteResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-seat-offer-redemptions/{id}/quote';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteError = PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponse = PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/gestoria-seat-offer-redemptions/{id}/quote';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteError = PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponse = PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponses];
 
 export type PublicApiV1AbsenceRequestsRejectData = {
     body: RejectAbsenceRequestRequest;
@@ -53202,6 +57417,137 @@ export type PublicApiV1MonthlyTimeRecordClosesReopenResponses = {
 };
 
 export type PublicApiV1MonthlyTimeRecordClosesReopenResponse = PublicApiV1MonthlyTimeRecordClosesReopenResponses[keyof PublicApiV1MonthlyTimeRecordClosesReopenResponses];
+
+export type PublicApiV1TransportDocumentsReopenData = {
+    body: ReopenTransportDocumentRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/reopen';
+};
+
+export type PublicApiV1TransportDocumentsReopenErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsReopenError = PublicApiV1TransportDocumentsReopenErrors[keyof PublicApiV1TransportDocumentsReopenErrors];
+
+export type PublicApiV1TransportDocumentsReopenResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsReopenResponse = PublicApiV1TransportDocumentsReopenResponses[keyof PublicApiV1TransportDocumentsReopenResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderData = {
+    body: ReorderChargeRulesRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        account: string;
+    };
+    query?: never;
+    url: '/connected-accounts/{account}/charge-rules/order';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponses = {
+    /**
+     * All the rules of the account in their new order.
+     */
+    200: {
+        data: Array<ChargeRule>;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponses];
 
 export type PublicApiV1ProjectsColumnsReorderData = {
     body: ReorderProjectColumnsV1Request;
@@ -55994,6 +60340,74 @@ export type PublicApiV1WebhookEndpointsTestEventResponses = {
 
 export type PublicApiV1WebhookEndpointsTestEventResponse = PublicApiV1WebhookEndpointsTestEventResponses[keyof PublicApiV1WebhookEndpointsTestEventResponses];
 
+export type PublicApiV1TransportDocumentsSendData = {
+    body?: SendTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/send';
+};
+
+export type PublicApiV1TransportDocumentsSendErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * The files of this transport document were purged when its retention period ended (one year after it was closed, cancelled or superseded, and only once the account was closed). The document and its data are kept, but its PDF can no longer be served or sent. Code `transport_document_file_unavailable`, `error.type: not_found_error`. Retrying returns the same error.
+     */
+    410: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsSendError = PublicApiV1TransportDocumentsSendErrors[keyof PublicApiV1TransportDocumentsSendErrors];
+
+export type PublicApiV1TransportDocumentsSendResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsSendResponse = PublicApiV1TransportDocumentsSendResponses[keyof PublicApiV1TransportDocumentsSendResponses];
+
 export type PublicApiV1ProductsSupplierOffersPreferredData = {
     body?: never;
     headers?: {
@@ -56165,6 +60579,10 @@ export type PublicApiV1TaxesSetDefaultErrors = {
      */
     409: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -56225,6 +60643,10 @@ export type PublicApiV1TaxesSetDefaultForDocumentErrors = {
      * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
      */
     409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -57010,6 +61432,65 @@ export type PublicApiV1EmployeesUpdateResponses = {
 
 export type PublicApiV1EmployeesUpdateResponse = PublicApiV1EmployeesUpdateResponses[keyof PublicApiV1EmployeesUpdateResponses];
 
+export type PublicApiV1EmployeeBatchesShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-batches/{id}';
+};
+
+export type PublicApiV1EmployeeBatchesShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeBatchesShowError = PublicApiV1EmployeeBatchesShowErrors[keyof PublicApiV1EmployeeBatchesShowErrors];
+
+export type PublicApiV1EmployeeBatchesShowResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesShowResponse = PublicApiV1EmployeeBatchesShowResponses[keyof PublicApiV1EmployeeBatchesShowResponses];
+
 export type PublicApiV1EventsShowData = {
     body?: never;
     headers?: {
@@ -57217,6 +61698,124 @@ export type PublicApiV1MonthlyTimeRecordClosesShowResponses = {
 };
 
 export type PublicApiV1MonthlyTimeRecordClosesShowResponse = PublicApiV1MonthlyTimeRecordClosesShowResponses[keyof PublicApiV1MonthlyTimeRecordClosesShowResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/employee-seat-offer-redemptions/{id}';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowError = PublicApiV1EmployeeSeatOfferRedemptionsShowErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsShowErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowResponse = PublicApiV1EmployeeSeatOfferRedemptionsShowResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsShowResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/gestoria-seat-offer-redemptions/{id}';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowError = PublicApiV1GestoriaSeatOfferRedemptionsShowErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsShowErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowResponse = PublicApiV1GestoriaSeatOfferRedemptionsShowResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsShowResponses];
 
 export type PublicApiV1TimeCorrectionsShowData = {
     body?: never;
@@ -57624,7 +62223,7 @@ export type PublicApiV1DeliveryNotesSignErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -57938,7 +62537,7 @@ export type PublicApiV1EmployeeSeatsSubscribeErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -58000,6 +62599,10 @@ export type PublicApiV1InvoicesSubstituteSimplifiedErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the five codes that predate that cut (`addon_required` and `plan_limit_exceeded` are newer and always carry `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The API key lacks the required scope for this operation.
      */
     403: Error;
@@ -58037,6 +62640,70 @@ export type PublicApiV1InvoicesSubstituteSimplifiedResponses = {
 };
 
 export type PublicApiV1InvoicesSubstituteSimplifiedResponse = PublicApiV1InvoicesSubstituteSimplifiedResponses[keyof PublicApiV1InvoicesSubstituteSimplifiedResponses];
+
+export type PublicApiV1TransportDocumentsSupersedeData = {
+    body: SupersedeTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        transport_document: string;
+    };
+    query?: never;
+    url: '/transport_documents/{transport_document}/supersede';
+};
+
+export type PublicApiV1TransportDocumentsSupersedeErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The transport document request conflicts with a previous request — e.g. an `Idempotency-Key` reused with a different body. Business-rule rejections of a transport document (editing an issued one, reopening after the deadline, …) are 422, not 409.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsSupersedeError = PublicApiV1TransportDocumentsSupersedeErrors[keyof PublicApiV1TransportDocumentsSupersedeErrors];
+
+export type PublicApiV1TransportDocumentsSupersedeResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsSupersedeResponse = PublicApiV1TransportDocumentsSupersedeResponses[keyof PublicApiV1TransportDocumentsSupersedeResponses];
 
 export type PublicApiV1ShopifyStoresConnectionTestData = {
     body?: never;

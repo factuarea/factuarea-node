@@ -109,9 +109,9 @@ export class ContactsResource extends BaseResource {
   }
 
   /** Download the contact import template */
-  async importTemplate(config?: RequestConfig): Promise<unknown> {
+  async importTemplate(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
     const path = "/contacts/import/template";
-    return this._get<unknown>(path, undefined, config);
+    return this._get<unknown>(path, params, config);
   }
 
   /** Find a contact by external ID */

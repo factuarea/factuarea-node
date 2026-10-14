@@ -186,3 +186,23 @@ export type {
   VeriFactuRecord,
   VeriFactuStats,
 } from "./generated/types.gen.js";
+
+// Transport control documents (DeCA): the resource, its parts, its evidence and
+// the requests of each lifecycle step.
+export type {
+  CancelTransportDocumentRequest,
+  CreateTransportDocumentRequest,
+  ModifyTransportDocumentRequest,
+  ReopenTransportDocumentRequest,
+  SendTransportDocumentRequest,
+  SupersedeTransportDocumentRequest,
+  TransportAddress,
+  TransportDocument,
+  TransportDocumentChange,
+  TransportDocumentEvidence,
+  TransportDocumentParty,
+  TransportDocumentShipment,
+  TransportDocumentStatusItem,
+  TransportDocumentVersion,
+  UpdateTransportDocumentRequest,
+} from "./generated/types.gen.js";
