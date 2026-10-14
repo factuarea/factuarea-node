@@ -14,13 +14,16 @@ import { ContactsResource } from "./contacts.js";
 import { DeliveryNotesResource } from "./deliveryNotes.js";
 import { DevelopersResource } from "./developers.js";
 import { EmailsResource } from "./emails.js";
+import { EmployeeBatchesResource } from "./employeeBatches.js";
 import { EmployeeInvitationsResource } from "./employeeInvitations.js";
+import { EmployeeSeatOfferRedemptionsResource } from "./employeeSeatOfferRedemptions.js";
 import { EmployeeSeatsResource } from "./employeeSeats.js";
 import { EmployeesResource } from "./employees.js";
 import { EventCatalogResource } from "./eventCatalog.js";
 import { EventsResource } from "./events.js";
 import { FaceSubmissionsResource } from "./faceSubmissions.js";
 import { GestoriaResource } from "./gestoria.js";
+import { GestoriaSeatOfferRedemptionsResource } from "./gestoriaSeatOfferRedemptions.js";
 import { HolidaysResource } from "./holidays.js";
 import { IntegrationsResource } from "./integrations.js";
 import { InvoicesResource } from "./invoices.js";
@@ -53,6 +56,7 @@ import { TimeBalancesResource } from "./timeBalances.js";
 import { TimeCorrectionsResource } from "./timeCorrections.js";
 import { TimeEntriesResource } from "./timeEntries.js";
 import { TimeTrackingSettingsResource } from "./timeTrackingSettings.js";
+import { TransportDocumentsResource } from "./transportDocuments.js";
 import { UsersResource } from "./users.js";
 import { VerifactuResource } from "./verifactu.js";
 import { WebhookEndpointsResource } from "./webhookEndpoints.js";
@@ -72,13 +76,16 @@ export { ContactsResource } from "./contacts.js";
 export { DeliveryNotesResource } from "./deliveryNotes.js";
 export { DevelopersResource } from "./developers.js";
 export { EmailsResource } from "./emails.js";
+export { EmployeeBatchesResource } from "./employeeBatches.js";
 export { EmployeeInvitationsResource } from "./employeeInvitations.js";
+export { EmployeeSeatOfferRedemptionsResource } from "./employeeSeatOfferRedemptions.js";
 export { EmployeeSeatsResource } from "./employeeSeats.js";
 export { EmployeesResource } from "./employees.js";
 export { EventCatalogResource } from "./eventCatalog.js";
 export { EventsResource } from "./events.js";
 export { FaceSubmissionsResource } from "./faceSubmissions.js";
 export { GestoriaResource } from "./gestoria.js";
+export { GestoriaSeatOfferRedemptionsResource } from "./gestoriaSeatOfferRedemptions.js";
 export { HolidaysResource } from "./holidays.js";
 export { IntegrationsResource } from "./integrations.js";
 export { InvoicesResource } from "./invoices.js";
@@ -111,6 +118,7 @@ export { TimeBalancesResource } from "./timeBalances.js";
 export { TimeCorrectionsResource } from "./timeCorrections.js";
 export { TimeEntriesResource } from "./timeEntries.js";
 export { TimeTrackingSettingsResource } from "./timeTrackingSettings.js";
+export { TransportDocumentsResource } from "./transportDocuments.js";
 export { UsersResource } from "./users.js";
 export { VerifactuResource } from "./verifactu.js";
 export { WebhookEndpointsResource } from "./webhookEndpoints.js";
@@ -131,13 +139,16 @@ export interface ResourceNamespaces {
   deliveryNotes: DeliveryNotesResource;
   developers: DevelopersResource;
   emails: EmailsResource;
+  employeeBatches: EmployeeBatchesResource;
   employeeInvitations: EmployeeInvitationsResource;
+  employeeSeatOfferRedemptions: EmployeeSeatOfferRedemptionsResource;
   employeeSeats: EmployeeSeatsResource;
   employees: EmployeesResource;
   eventCatalog: EventCatalogResource;
   events: EventsResource;
   faceSubmissions: FaceSubmissionsResource;
   gestoria: GestoriaResource;
+  gestoriaSeatOfferRedemptions: GestoriaSeatOfferRedemptionsResource;
   holidays: HolidaysResource;
   integrations: IntegrationsResource;
   invoices: InvoicesResource;
@@ -170,6 +181,7 @@ export interface ResourceNamespaces {
   timeCorrections: TimeCorrectionsResource;
   timeEntries: TimeEntriesResource;
   timeTrackingSettings: TimeTrackingSettingsResource;
+  transportDocuments: TransportDocumentsResource;
   users: UsersResource;
   verifactu: VerifactuResource;
   webhookEndpoints: WebhookEndpointsResource;
@@ -192,13 +204,16 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     deliveryNotes: new DeliveryNotesResource(client),
     developers: new DevelopersResource(client),
     emails: new EmailsResource(client),
+    employeeBatches: new EmployeeBatchesResource(client),
     employeeInvitations: new EmployeeInvitationsResource(client),
+    employeeSeatOfferRedemptions: new EmployeeSeatOfferRedemptionsResource(client),
     employeeSeats: new EmployeeSeatsResource(client),
     employees: new EmployeesResource(client),
     eventCatalog: new EventCatalogResource(client),
     events: new EventsResource(client),
     faceSubmissions: new FaceSubmissionsResource(client),
     gestoria: new GestoriaResource(client),
+    gestoriaSeatOfferRedemptions: new GestoriaSeatOfferRedemptionsResource(client),
     holidays: new HolidaysResource(client),
     integrations: new IntegrationsResource(client),
     invoices: new InvoicesResource(client),
@@ -231,6 +246,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     timeCorrections: new TimeCorrectionsResource(client),
     timeEntries: new TimeEntriesResource(client),
     timeTrackingSettings: new TimeTrackingSettingsResource(client),
+    transportDocuments: new TransportDocumentsResource(client),
     users: new UsersResource(client),
     verifactu: new VerifactuResource(client),
     webhookEndpoints: new WebhookEndpointsResource(client),

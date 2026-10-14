@@ -236,6 +236,34 @@ describe("build-resources.mjs --spec/--out", () => {
     expect(source).toContain('return this._binary(path, "GET", undefined, undefined, config);');
   });
 
+  it("emits _binary for an operation that only answers with images", () => {
+    const dir = scratchDir();
+    const outDir = join(dir, "resources");
+    const specPath = writeSpec(dir, {
+      openapi: "3.1.0",
+      paths: {
+        "/widgets/{widget}/qr": {
+          get: {
+            operationId: "public-api.v1.widgets.qr",
+            "x-speakeasy-group": "widgets",
+            parameters: [{ name: "widget", in: "path", required: true, schema: { type: "string" } }],
+            responses: {
+              "200": { content: { "image/svg+xml": {}, "image/png": {} } },
+              "422": { content: { "application/json": {} } },
+            },
+          },
+        },
+      },
+    });
+
+    const result = run(specPath, outDir);
+
+    expect(result.status).toBe(0);
+    const source = readFileSync(join(outDir, "widgets.ts"), "utf8");
+    expect(source).toContain("Promise<BinaryResponse> {");
+    expect(source).toContain('return this._binary(path, "GET", undefined, undefined, config);');
+  });
+
   it("does not opt POST into { idempotent: true } (already unconditional in http-client.ts)", () => {
     const dir = scratchDir();
     const outDir = join(dir, "resources");

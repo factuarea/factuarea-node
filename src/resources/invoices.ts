@@ -24,7 +24,7 @@ export class InvoicesFaceSubmissionsResource extends BaseResource {
 }
 
 export class InvoicesQuarterlyResource extends BaseResource {
-  /** List quarters with invoices */
+  /** List quarters to export */
   async available(config?: RequestConfig): Promise<unknown> {
     const path = "/invoices/quarterly/available-quarters";
     return this._get<unknown>(path, undefined, config);
