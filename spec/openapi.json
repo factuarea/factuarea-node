@@ -219,6 +219,9 @@
   ],
   "security": [
     {
+      "http": []
+    },
+    {
       "BearerAuth": []
     },
     {
@@ -349,6 +352,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -859,6 +864,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -2942,14 +2949,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -5009,6 +5018,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -10994,6 +11005,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -16161,7 +16174,7 @@
     "/products/bulk-delete": {
       "post": {
         "operationId": "public-api.v1.products.bulk_delete",
-        "description": "Delete up to 200 products in one request. Returns a `BulkPartialSuccessResult` with `total`, `successful` and `failed` counts plus a `failures` list (`id` + `error_code` + Spanish `error_message`); products included in packs are reported in `failures`. Decrements the plan usage counter accordingly.",
+        "description": "Delete up to 200 products in one request. Returns a `BulkPartialSuccessResult` with `total`, `successful` and `failed` counts plus a `failures` list (`id` + `error_code` + Spanish `error_message`); products included in packs or taking part in a base unit replacement (`product_in_base_unit_replacement`) are reported in `failures`. Decrements the plan usage counter accordingly.",
         "summary": "Delete multiple products in bulk",
         "tags": [
           "Products"
@@ -27002,9 +27015,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -29262,14 +29277,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -38961,6 +38978,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -39534,6 +39553,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -40953,6 +40974,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -47924,6 +47947,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "5.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -48550,9 +48575,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -49373,9 +49400,11 @@
                               "presentation": null,
                               "item_kind": "good",
                               "commercial_unit_code": "H87",
-                              "base_unit_code": "H87",
+                              "base_unit_code": "C62",
                               "conversion_factor": "1.000000",
                               "base_quantity": "2.0000",
+                              "counted_quantity": null,
+                              "counted_unit": null,
                               "gross_weight_kg": "25.0000",
                               "price_list_id": null,
                               "price_list_name": null,
@@ -50733,6 +50762,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -50963,6 +50994,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -51099,6 +51132,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -52077,6 +52112,8 @@
                               "base_unit_code": "HUR",
                               "conversion_factor": "1.000000",
                               "base_quantity": "10.0000",
+                              "counted_quantity": null,
+                              "counted_unit": null,
                               "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                               "price_list_name": "Tarifa profesional 2026",
                               "price_source": "price_list",
@@ -57081,6 +57118,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -57789,6 +57828,8 @@
                               "base_unit_code": null,
                               "conversion_factor": null,
                               "base_quantity": null,
+                              "counted_quantity": null,
+                              "counted_unit": null,
                               "price_list_id": null,
                               "price_list_name": null,
                               "price_source": null,
@@ -60986,6 +61027,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -61725,6 +61768,8 @@
                               "base_unit_code": null,
                               "conversion_factor": null,
                               "base_quantity": null,
+                              "counted_quantity": null,
+                              "counted_unit": null,
                               "price_list_id": null,
                               "price_list_name": null,
                               "price_source": null,
@@ -62166,14 +62211,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -62682,14 +62729,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -63347,14 +63396,16 @@
                               "presentation_id": null,
                               "presentation_name": null,
                               "presentation_mode": null,
-                              "commercial_unit_code": "MON",
-                              "base_unit_code": "MON",
+                              "commercial_unit_code": "C62",
+                              "base_unit_code": "C62",
                               "conversion_factor": "1.000000",
                               "base_quantity": "1.0000",
+                              "counted_quantity": null,
+                              "counted_unit": null,
                               "price_list_id": null,
                               "price_list_name": null,
                               "price_source": "manual",
-                              "price_unit_code": "MON",
+                              "price_unit_code": "C62",
                               "configuration": null,
                               "options": [],
                               "price_semantics": "per_commercial_unit",
@@ -76897,9 +76948,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -77332,9 +77385,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -78197,6 +78252,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -78691,6 +78748,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -80678,7 +80737,7 @@
     "/products/{product}": {
       "delete": {
         "operationId": "public-api.v1.products.delete",
-        "description": "Delete a product. Returns 422 if the product is referenced by any document line.",
+        "description": "Delete a product. Returns 422 if the product is referenced by any document line, or with subcode `product_in_base_unit_replacement` if it takes part in a base unit replacement (as the replaced or the new product).",
         "summary": "Delete a product",
         "tags": [
           "Products"
@@ -85572,6 +85631,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -86013,6 +86074,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -90978,6 +91041,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -91416,6 +91481,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -92305,14 +92372,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -92750,14 +92819,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -109775,8 +109846,8 @@
     "/purchase_invoices/{purchase_invoice}/payment-receipt": {
       "get": {
         "operationId": "public-api.v1.purchase_invoices.payment_receipt",
-        "description": "Stream the PDF payment receipt for a paid expense. Returns 409 if the expense has not been paid yet.",
-        "summary": "Download an expense payment receipt",
+        "description": "Streams the PDF receipt of ONE payment of an expense, partial payments included: every active payment has its own receipt, which shows the expense as it stood right after that payment (payments up to it, amount paid and amount pending). Without `payment_id` it returns the receipt of the most recent active payment (by payment date, then by registration). Returns 422 when the expense has no active payments or when the requested payment has been reversed, and 404 when the expense or `payment_id` does not exist.",
+        "summary": "Download the receipt PDF of an expense payment",
         "tags": [
           "Purchase Invoices"
         ],
@@ -109787,6 +109858,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "description": "ID (UUID v7) of the expense payment whose receipt you want. Without it, the most recent active payment.",
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -109949,6 +110032,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntityPurchaseInvoice"
           },
           "429": {
             "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
@@ -112609,9 +112695,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -113059,6 +113147,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -113572,6 +113662,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -114038,6 +114130,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -116353,9 +116447,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -117198,6 +117294,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -117724,6 +117822,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -119309,6 +119409,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -120643,6 +120745,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -122241,14 +122345,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -154931,6 +155037,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -163968,6 +164076,8 @@
                                   "base_unit_code": "HUR",
                                   "conversion_factor": "1.000000",
                                   "base_quantity": "10.0000",
+                                  "counted_quantity": null,
+                                  "counted_unit": null,
                                   "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                                   "price_list_name": "Tarifa profesional 2026",
                                   "price_source": "price_list",
@@ -166005,6 +166115,8 @@
                               "base_unit_code": "HUR",
                               "conversion_factor": "1.000000",
                               "base_quantity": "5.0000",
+                              "counted_quantity": null,
+                              "counted_unit": null,
                               "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                               "price_list_name": "Tarifa profesional 2026",
                               "price_source": "price_list",
@@ -183846,6 +183958,8 @@
                                     "base_unit_code": "HUR",
                                     "conversion_factor": "1.000000",
                                     "base_quantity": "10.0000",
+                                    "counted_quantity": null,
+                                    "counted_unit": null,
                                     "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                                     "price_list_name": "Tarifa profesional 2026",
                                     "price_source": "price_list",
@@ -184709,9 +184823,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -185204,6 +185320,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -185764,6 +185882,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -189861,14 +189981,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -192336,8 +192458,8 @@
     "/invoices/{invoice}/payment-receipt": {
       "get": {
         "operationId": "public-api.v1.invoices.payment_receipt",
-        "description": "Streams the PDF receipt of a paid invoice. Returns 422 if the invoice is not in `paid` status.",
-        "summary": "Download payment receipt PDF",
+        "description": "Streams the PDF receipt of ONE payment of an invoice, partial payments included: every active payment has its own receipt, which shows the invoice as it stood right after that payment (payments up to it, amount collected and amount pending). Without `payment_id` it returns the receipt of the most recent active payment (by payment date, then by registration). Returns 422 when the invoice has no active payments or when the requested payment has been reversed, and 404 when `payment_id` is not a payment of this invoice. The receipt is not an invoice and carries no VERI*FACTU data.",
+        "summary": "Download the receipt PDF of a payment",
         "tags": [
           "Invoices"
         ],
@@ -192348,6 +192470,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "description": "ID (UUID v7) of the payment whose receipt you want. Without it, the most recent active payment.",
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
             }
           },
           {
@@ -192522,6 +192656,9 @@
               }
             }
           },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntityInvoice"
+          },
           "429": {
             "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
             "content": {
@@ -192649,6 +192786,496 @@
         "x-required-scope": "pdfs:read"
       }
     },
+    "/products/{product}/base_unit_replacement/preview": {
+      "post": {
+        "operationId": "public-api.v1.products.base_unit_replacement.preview",
+        "description": "Compute, without writing anything, what happens when a product is replaced by a new one with a different base unit, and mint the `impact_token` that confirms THAT exact change. The base unit of a product with history (stock, movements, presentations, supplier offers or variants with stock) cannot be edited in place: its `base_unit_change.mode` is `replacement` and the way to change it is to replace the product. It is a READ — asking twice over the same catalog returns the same token — but it requires `products:write`, because the only thing its answer does is authorise an irreversible write. Send `target_base_unit` (one of the nine measure units; a packaging unit such as `XPK` or `XBX` can only be a presentation), `equivalence` (how many units of the CURRENT base equal ONE unit of the NEW base, e.g. `0.001` when moving from kg to g because 1 g = 0.001 kg; required between a count unit and a measure unit, in either direction; calculated by itself inside the same measure family; there is none between two different measure families), an optional `base_price` to confirm, and `presentations` with a `keep` or `retire` decision per presentation of the old product (the ones you omit get the proposed decision). The answer lists every element of the plan in `items`, each with its `before`, its `after`, its `group` (`review`, `converted` or `carried`) and its `flags` (`precision_loss`, `no_equivalence`, `fraction`); `items[].ref` is the public id of the affected element, and `null` for the product itself and for price-list entries and pack components, which have no public id. `pending_documents` lists the unissued sales documents that will keep pointing at the old product. The token is a fingerprint of the plan, not a credential: if the catalog, the price lists or the packs change before you confirm, the confirmation is rejected with 422 `base_unit_replacement_preview_stale` and you ask for a fresh preview. A product of another company returns 404 `product_not_found`.",
+        "summary": "Preview a base unit replacement",
+        "tags": [
+          "Products"
+        ],
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/FactuareaVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XActiveProfile"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewProductBaseUnitReplacementRequest"
+              },
+              "example": {
+                "target_base_unit": "C62",
+                "equivalence": 0.25,
+                "base_price": 3,
+                "presentations": [
+                  {
+                    "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b21",
+                    "decision": "keep"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BaseUnitReplacementPreview"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 200",
+                    "value": {
+                      "data": {
+                        "object": "base_unit_replacement_preview",
+                        "product_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a10",
+                        "from_base_unit": "KGM",
+                        "to_base_unit": "GRM",
+                        "equivalence": "0.001000",
+                        "equivalence_calculated": true,
+                        "price_confirmation_required": true,
+                        "items": [
+                          {
+                            "kind": "stock",
+                            "group": "converted",
+                            "ref": null,
+                            "name": null,
+                            "before": {
+                              "quantity": "5.0000",
+                              "unit_code": "KGM"
+                            },
+                            "after": {
+                              "quantity": "5000.0000",
+                              "unit_code": "GRM"
+                            },
+                            "flags": [],
+                            "decision": null,
+                            "proposed_decision": null
+                          },
+                          {
+                            "kind": "base_price",
+                            "group": "review",
+                            "ref": null,
+                            "name": null,
+                            "before": {
+                              "price": "38.00",
+                              "unit_code": "KGM"
+                            },
+                            "after": {
+                              "price": "0.04",
+                              "unit_code": "GRM"
+                            },
+                            "flags": [
+                              "precision_loss"
+                            ],
+                            "decision": null,
+                            "proposed_decision": null
+                          },
+                          {
+                            "kind": "presentation",
+                            "group": "review",
+                            "ref": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b21",
+                            "name": "Pieza entera",
+                            "before": {
+                              "unit_code": "XPK",
+                              "mode": "fixed",
+                              "conversion_factor": "7.500000",
+                              "nominal_base_quantity": "7.5000",
+                              "price": "285.0000"
+                            },
+                            "after": {
+                              "unit_code": "XPK",
+                              "mode": "fixed",
+                              "conversion_factor": "7500.000000",
+                              "nominal_base_quantity": "7500.0000",
+                              "price": "285.0000"
+                            },
+                            "flags": [],
+                            "decision": "keep",
+                            "proposed_decision": "keep"
+                          }
+                        ],
+                        "pending_documents": [
+                          {
+                            "type": "quote",
+                            "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8d01",
+                            "number": "PRE-2026-0007",
+                            "status": "draft"
+                          }
+                        ],
+                        "impact_token": "9f2c1e7a4b8d03f56a1c92e8d7b4035f6a8e1c27d9b04f3a5c6e8d1b2a7f9034"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Maximum number of requests allowed in the current rate limit window (60 seconds).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Number of requests remaining in the current rate limit window before receiving a 429.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp (seconds) at which the rate limit window resets and the counter returns to its maximum.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Factuarea-Version": {
+                "description": "Effective API version (`YYYY-MM-DD`, Stripe-style date versioning) resolved for this request: the `Factuarea-Version` request header if sent, otherwise the version pinned on the API key, otherwise the latest version. Present on every response.",
+                "schema": {
+                  "type": "string",
+                  "format": "date",
+                  "examples": [
+                    "2026-06-01"
+                  ]
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "Present with value `\"true\"` only when this response was replayed from the idempotency cache for a repeated `Idempotency-Key` (same key, same request fingerprint). Absent on the first, freshly executed request.",
+                "schema": {
+                  "type": "string",
+                  "examples": [
+                    "true"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "missing_api_key": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 401 missing_api_key",
+                    "value": {
+                      "error": {
+                        "type": "authentication_error",
+                        "code": "missing_api_key",
+                        "message": "Falta header Authorization o X-API-Key.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#missing_api_key",
+                        "request_id": "req_308b24d41b5789477addf0a67f"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API key lacks the required scope for this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_scope": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 403 insufficient_scope",
+                    "value": {
+                      "error": {
+                        "type": "authorization_error",
+                        "code": "insufficient_scope",
+                        "message": "Esta operación requiere el scope 'products:write'. Tu API key solo tiene los scopes: ninguno.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#insufficient_scope",
+                        "request_id": "req_54d11474e8a516d8cef78d336d"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or belongs to another company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "product_not_found": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 404 product_not_found",
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "product_not_found",
+                        "message": "Producto no encontrado.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#product_not_found",
+                        "request_id": "req_6cb2f9a0bca3bbd0994f378441"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "idempotency_key_reused": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 409 idempotency_key_reused",
+                    "value": {
+                      "error": {
+                        "type": "idempotency_error",
+                        "code": "idempotency_key_reused",
+                        "message": "Esa `Idempotency-Key` ya se usó con un payload distinto. La clave identifica una operación concreta, así que reutilizarla para otra vaciaría de sentido el replay.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#idempotency_key_reused",
+                        "request_id": "req_f663c95ab6217df04ccecfd1ac"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed. The `error.param` field identifies which input is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "base_unit_replacement_equivalence_invalid": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 422 base_unit_replacement_equivalence_invalid",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "parameter_invalid_value",
+                        "message": "La equivalencia debe ser un número positivo con hasta 6 decimales.",
+                        "param": "equivalence",
+                        "subcode": "base_unit_replacement_equivalence_invalid",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#parameter_invalid_value",
+                        "request_id": "req_d47d2a112832d0000000000000"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "rate_limit_exceeded": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 429 rate_limit_exceeded",
+                    "value": {
+                      "error": {
+                        "type": "rate_limit_error",
+                        "code": "rate_limit_exceeded",
+                        "message": "Has excedido el límite de requests permitido. Reintenta más tarde.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#rate_limit_exceeded",
+                        "request_id": "req_d291e3e4dbb43cb492bc7c0e1c"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Number of seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Limit": {
+                "description": "Request quota for the current window (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Remaining": {
+                "description": "Remaining requests in the current window (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Reset": {
+                "description": "Seconds until the quota window resets (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Request quota for the current window (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the quota window resets (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "internal_error": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement/preview · 500 internal_error",
+                    "value": {
+                      "error": {
+                        "type": "api_error",
+                        "code": "internal_error",
+                        "message": "Algo se rompió en nuestro lado al procesar la petición. La condición no la provoca tu payload.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#internal_error",
+                        "request_id": "req_32a09e16361bd829d9db82948b"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "x-speakeasy-group": "products.baseUnitReplacement",
+        "x-speakeasy-retries": {
+          "strategy": "backoff",
+          "backoff": {
+            "initialInterval": 500,
+            "maxInterval": 60000,
+            "maxElapsedTime": 3600000,
+            "exponent": 1.5
+          },
+          "statusCodes": [
+            "429",
+            "5XX"
+          ],
+          "retryConnectionErrors": true
+        },
+        "x-required-scope": "products:write"
+      }
+    },
     "/recurring_invoices/{recurring_invoice}/preview": {
       "get": {
         "operationId": "public-api.v1.recurring_invoices.preview",
@@ -192739,14 +193366,14 @@
                             "retention_rate": 0,
                             "surcharge_rate": 0,
                             "commercial_quantity": 1,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
                             "price_list_uuid": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration_uuid": null,
                             "configuration_name": null,
                             "configuration_signature": null,
@@ -198775,6 +199402,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -199284,6 +199913,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -202128,6 +202759,502 @@
         "x-required-scope": "projects:write"
       }
     },
+    "/products/{product}/base_unit_replacement": {
+      "post": {
+        "operationId": "public-api.v1.products.base_unit_replacement.create",
+        "description": "Replace a product by a NEW one with a different base unit and answer 201 with the new product, whose `replaces` points at the old one. The stock, the presentations you keep, the variants, the supplier offers, the price-list entries and the pack components are converted and moved to the new product; the old one is deactivated, keeps its whole history and its `replaced_by` points at the new one, and it can never be reactivated. It is IRREVERSIBLE: there is no inverse operation, so `Idempotency-Key` is mandatory and retrying with the same key returns the same response without creating a second product. The body is the one of the preview plus the mandatory `impact_token` of a current preview with the same request. It does not consume plan quota: the old product stops counting and the net usage is zero. When the conversion loses precision or there is no equivalence, `base_price` must be confirmed (422 `base_unit_replacement_price_confirmation_required`). Rejections: 422 `business_rule_violation` with subcode `product_already_replaced`, `base_unit_replacement_conversion_unavailable` or `base_unit_replacement_blocked_by_packs`; 422 `parameter_invalid_value` with subcode `base_unit_replacement_same_unit` (the target is already the base unit of the product), `base_unit_replacement_equivalence_invalid`, `base_unit_replacement_price_confirmation_required`, `base_unit_replacement_preview_stale` or `base_unit_replacement_decision_invalid`. The `product.replaced` event is published with the new product as its object. A product of another company returns 404 `product_not_found`.",
+        "summary": "Replace a product by changing its base unit",
+        "tags": [
+          "Products"
+        ],
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "example": "01928f10-7c0e-7c4a-9b7d-2f8a6e3c1d4b"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/FactuareaVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XActiveProfile"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceProductBaseUnitRequest"
+              },
+              "example": {
+                "target_base_unit": "C62",
+                "equivalence": 0.25,
+                "base_price": 3,
+                "presentations": [
+                  {
+                    "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b21",
+                    "decision": "keep"
+                  }
+                ],
+                "impact_token": "9f2c1e7a4b8d03f56a1c92e8d7b4035f6a8e1c27d9b04f3a5c6e8d1b2a7f9034"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "created": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 201",
+                    "value": {
+                      "data": {
+                        "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8c01",
+                        "object": "product",
+                        "name": "Jamón ibérico al corte",
+                        "sku": "JAMON-IBERICO-G",
+                        "price": "0.04",
+                        "currency": "EUR",
+                        "tax_rate": {
+                          "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a0f",
+                          "rate": 21
+                        },
+                        "stock": "5000.0000",
+                        "item_kind": "product",
+                        "base_unit": "GRM",
+                        "gross_weight_kg": null,
+                        "manage_stock": true,
+                        "gallery": [],
+                        "video": null,
+                        "is_active": true,
+                        "description": "Jamón ibérico cortado a mano, vendido por gramos.",
+                        "tags": [],
+                        "low_stock_threshold": null,
+                        "presentation_count": 1,
+                        "variant_count": 0,
+                        "supplier_offer_count": 0,
+                        "option_group_count": 0,
+                        "configuration_count": 0,
+                        "catalog_availability_mode": "open",
+                        "preferred_supplier_offer_id": null,
+                        "presentations": [
+                          {
+                            "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b31",
+                            "object": "product_presentation",
+                            "product_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8c01",
+                            "name": "Pieza entera",
+                            "mode": "fixed",
+                            "unit": "XPK",
+                            "conversion_factor": "7500.000000",
+                            "nominal_base_quantity": "7500.0000",
+                            "barcode": null,
+                            "commercial_price_override": "285.0000",
+                            "gross_weight_kg": null,
+                            "specifications": {},
+                            "active": true
+                          }
+                        ],
+                        "variants": [],
+                        "supplier_offers": [],
+                        "option_groups": [],
+                        "configurations": [],
+                        "is_low_stock": false,
+                        "is_in_stock": true,
+                        "specifications": {},
+                        "metadata": {},
+                        "external_id": null,
+                        "created_at": "2026-10-15T09:30:00Z",
+                        "updated_at": "2026-10-15T09:30:00Z",
+                        "base_unit_change": {
+                          "mode": "direct",
+                          "blockers": []
+                        },
+                        "replaces": {
+                          "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a10",
+                          "name": "Jamón ibérico al corte",
+                          "base_unit": "KGM",
+                          "replaced_at": "2026-10-15T09:30:00Z",
+                          "equivalence": "0.001000",
+                          "stock_transferred": "5000.0000"
+                        },
+                        "replaced_by": null
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Maximum number of requests allowed in the current rate limit window (60 seconds).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Number of requests remaining in the current rate limit window before receiving a 429.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix timestamp (seconds) at which the rate limit window resets and the counter returns to its maximum.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Factuarea-Version": {
+                "description": "Effective API version (`YYYY-MM-DD`, Stripe-style date versioning) resolved for this request: the `Factuarea-Version` request header if sent, otherwise the version pinned on the API key, otherwise the latest version. Present on every response.",
+                "schema": {
+                  "type": "string",
+                  "format": "date",
+                  "examples": [
+                    "2026-06-01"
+                  ]
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "Present with value `\"true\"` only when this response was replayed from the idempotency cache for a repeated `Idempotency-Key` (same key, same request fingerprint). Absent on the first, freshly executed request.",
+                "schema": {
+                  "type": "string",
+                  "examples": [
+                    "true"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "missing_api_key": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 401 missing_api_key",
+                    "value": {
+                      "error": {
+                        "type": "authentication_error",
+                        "code": "missing_api_key",
+                        "message": "Falta header Authorization o X-API-Key.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#missing_api_key",
+                        "request_id": "req_308b24d41b5789477addf0a67f"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API key lacks the required scope for this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_scope": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 403 insufficient_scope",
+                    "value": {
+                      "error": {
+                        "type": "authorization_error",
+                        "code": "insufficient_scope",
+                        "message": "Esta operación requiere el scope 'products:write'. Tu API key solo tiene los scopes: ninguno.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#insufficient_scope",
+                        "request_id": "req_54d11474e8a516d8cef78d336d"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or belongs to another company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "product_not_found": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 404 product_not_found",
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "product_not_found",
+                        "message": "Producto no encontrado.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#product_not_found",
+                        "request_id": "req_6cb2f9a0bca3bbd0994f378441"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "idempotency_key_reused": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 409 idempotency_key_reused",
+                    "value": {
+                      "error": {
+                        "type": "idempotency_error",
+                        "code": "idempotency_key_reused",
+                        "message": "Esa `Idempotency-Key` ya se usó con un payload distinto. La clave identifica una operación concreta, así que reutilizarla para otra vaciaría de sentido el replay.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#idempotency_key_reused",
+                        "request_id": "req_f663c95ab6217df04ccecfd1ac"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed. The `error.param` field identifies which input is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "base_unit_replacement_preview_stale": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 422 base_unit_replacement_preview_stale",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "parameter_invalid_value",
+                        "message": "La vista previa ya no corresponde al estado actual del producto o a esta petición, así que no se ha cambiado nada. Vuelve a solicitar la vista previa y confirma de nuevo.",
+                        "param": "impact_token",
+                        "subcode": "base_unit_replacement_preview_stale",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#parameter_invalid_value",
+                        "request_id": "req_909185bad8ac80000000000000"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Retry after the duration in `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "rate_limit_exceeded": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 429 rate_limit_exceeded",
+                    "value": {
+                      "error": {
+                        "type": "rate_limit_error",
+                        "code": "rate_limit_exceeded",
+                        "message": "Has excedido el límite de requests permitido. Reintenta más tarde.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#rate_limit_exceeded",
+                        "request_id": "req_d291e3e4dbb43cb492bc7c0e1c"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Number of seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Limit": {
+                "description": "Request quota for the current window (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Remaining": {
+                "description": "Remaining requests in the current window (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "RateLimit-Reset": {
+                "description": "Seconds until the quota window resets (RFC 9331).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Request quota for the current window (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in the current window (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the quota window resets (legacy header).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "internal_error": {
+                    "summary": "POST /v1/products/{product}/base_unit_replacement · 500 internal_error",
+                    "value": {
+                      "error": {
+                        "type": "api_error",
+                        "code": "internal_error",
+                        "message": "Algo se rompió en nuestro lado al procesar la petición. La condición no la provoca tu payload.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#internal_error",
+                        "request_id": "req_32a09e16361bd829d9db82948b"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Unique request identifier, propagated for log correlation and support.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "x-speakeasy-group": "products.baseUnitReplacement",
+        "x-speakeasy-retries": {
+          "strategy": "backoff",
+          "backoff": {
+            "initialInterval": 500,
+            "maxInterval": 60000,
+            "maxElapsedTime": 3600000,
+            "exponent": 1.5
+          },
+          "statusCodes": [
+            "429",
+            "5XX"
+          ],
+          "retryConnectionErrors": true
+        },
+        "x-required-scope": "products:write",
+        "x-irreversible": true
+      }
+    },
     "/automations/runs/{run}/replay": {
       "post": {
         "operationId": "public-api.v1.automations.runs.replay",
@@ -203463,6 +204590,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -207843,14 +208972,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -214959,6 +216090,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -219338,6 +220471,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -220362,6 +221497,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -220882,6 +222019,8 @@
                             "base_unit_code": null,
                             "conversion_factor": null,
                             "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": null,
@@ -229167,6 +230306,8 @@
                                 "base_unit_code": "HUR",
                                 "conversion_factor": "1.000000",
                                 "base_quantity": "10.0000",
+                                "counted_quantity": null,
+                                "counted_unit": null,
                                 "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                                 "price_list_name": "Tarifa profesional 2026",
                                 "price_source": "price_list",
@@ -232855,6 +233996,8 @@
                                   "base_unit_code": "HUR",
                                   "conversion_factor": "1.000000",
                                   "base_quantity": "10.0000",
+                                  "counted_quantity": null,
+                                  "counted_unit": null,
                                   "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                                   "price_list_name": "Tarifa profesional 2026",
                                   "price_source": "price_list",
@@ -234169,9 +235312,11 @@
                             "presentation": null,
                             "item_kind": "good",
                             "commercial_unit_code": "H87",
-                            "base_unit_code": "H87",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "2.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "gross_weight_kg": "25.0000",
                             "price_list_id": null,
                             "price_list_name": null,
@@ -234699,14 +235844,16 @@
                             "presentation_id": null,
                             "presentation_name": null,
                             "presentation_mode": null,
-                            "commercial_unit_code": "MON",
-                            "base_unit_code": "MON",
+                            "commercial_unit_code": "C62",
+                            "base_unit_code": "C62",
                             "conversion_factor": "1.000000",
                             "base_quantity": "1.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": null,
                             "price_list_name": null,
                             "price_source": "manual",
-                            "price_unit_code": "MON",
+                            "price_unit_code": "C62",
                             "configuration": null,
                             "options": [],
                             "price_semantics": "per_commercial_unit",
@@ -236785,6 +237932,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -243757,6 +244906,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -244251,6 +245402,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -249062,6 +250215,8 @@
                             "base_unit_code": "HUR",
                             "conversion_factor": "1.000000",
                             "base_quantity": "10.0000",
+                            "counted_quantity": null,
+                            "counted_unit": null,
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
                             "price_source": "price_list",
@@ -249532,6 +250687,10 @@
   },
   "components": {
     "securitySchemes": {
+      "http": {
+        "type": "http",
+        "scheme": "bearer"
+      },
       "BearerAuth": {
         "type": "http",
         "scheme": "bearer",
@@ -249547,9 +250706,9 @@
         "description": "OAuth 2.1 authorization-code flow with PKCE (`code_challenge_method=S256`).\nDiscovery metadata (RFC 8414) is published at `/.well-known/oauth-authorization-server`.\n\n## API key rotation policy\n\nAPI keys and OAuth client secrets are long-lived credentials and MUST be rotated periodically and immediately after any suspected leak.\n\n- **Prefixes**: every key carries an unambiguous environment prefix — `fact_live_` (production) and `fact_test_` (sandbox). The prefix is the source of truth for the environment; never mix them across environments.\n- **How to rotate**: rotate an API key from the Factuarea portal (or via the self-service `account:write` endpoints). Rotation issues a brand-new secret and returns it **once** — store it immediately, it is never shown again.\n- **Grace window (dual-secret)**: after a rotation the previous secret keeps working for a **24-hour grace window**, so you can roll out the new secret with zero downtime. During that window both the new and the previous secret are accepted; once the window expires the previous secret is rejected and purged.\n- **When to rotate**: on a regular schedule (e.g. every 90 days), whenever a teammate with access leaves, and **immediately** if a secret is ever exposed in logs, source control or a public client.\n- Secrets are bound to a single company (tenant) and MUST NEVER be embedded in browsers, mobile apps or any public client — keep them server-side only.",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "https://app.factuarea.com/api/oauth/authorize",
-            "tokenUrl": "https://app.factuarea.com/api/oauth/token",
-            "refreshUrl": "https://app.factuarea.com/api/oauth/token",
+            "authorizationUrl": "http://localhost:8000/api/oauth/authorize",
+            "tokenUrl": "http://localhost:8000/api/oauth/token",
+            "refreshUrl": "http://localhost:8000/api/oauth/token",
             "scopes": {
               "contacts:read": "Read contacts.",
               "contacts:write": "Create and update contacts.",
@@ -254292,6 +255451,446 @@
           "is_default"
         ],
         "title": "BankAccount"
+      },
+      "BaseUnitChange": {
+        "type": "object",
+        "description": "Whether the base unit of the product can be edited in place. `mode` is `direct` exactly when there are no blockers; with blockers it is `replacement` and the base unit is changed by replacing the product (`POST /v1/products/{id}/base_unit_replacement`); an already replaced product is `unavailable` with no blockers. Attempting to edit `base_unit` with blockers is rejected with 422 `business_rule_violation`, subcode `product_base_unit_locked`, and the same `blockers` in `details`. Only calculated on single-product reads (show, create, update, replacement): list responses omit the key.",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "replacement",
+              "unavailable"
+            ],
+            "example": "replacement",
+            "examples": [
+              "replacement"
+            ]
+          },
+          "blockers": {
+            "type": "array",
+            "description": "What fixes the base unit, in a stable order.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "stock",
+                    "movements",
+                    "presentations",
+                    "supplier_offers",
+                    "variant_stock"
+                  ],
+                  "description": "Closed catalog of blockers."
+                },
+                "quantity": {
+                  "type": "string",
+                  "description": "Decimal string without trailing zeros: the stock in `unit` for `stock`, a count of elements for the rest."
+                },
+                "unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "UN/ECE code of the unit of `quantity`. Only informed for `stock`; `null` for the rest."
+                }
+              },
+              "required": [
+                "code",
+                "quantity",
+                "unit"
+              ]
+            },
+            "example": [
+              {
+                "code": "stock",
+                "quantity": "5",
+                "unit": "KGM"
+              },
+              {
+                "code": "movements",
+                "quantity": "22",
+                "unit": null
+              }
+            ],
+            "examples": [
+              [
+                {
+                  "code": "stock",
+                  "quantity": "5",
+                  "unit": "KGM"
+                },
+                {
+                  "code": "movements",
+                  "quantity": "22",
+                  "unit": null
+                }
+              ]
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "blockers"
+        ],
+        "title": "BaseUnitChange"
+      },
+      "BaseUnitReplacementPreview": {
+        "type": "object",
+        "description": "What replacing a product by another with a different base unit would do, with the `impact_token` that confirms THAT exact plan. Nothing is written. `impact_token` is a fingerprint of the plan, not a credential: it is rejected with 422 `base_unit_replacement_preview_stale` if the catalog, the price lists or the packs change before the replacement runs.",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "base_unit_replacement_preview"
+            ],
+            "example": "base_unit_replacement_preview",
+            "examples": [
+              "base_unit_replacement_preview"
+            ]
+          },
+          "product_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id of the product that would be replaced.",
+            "example": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a10",
+            "examples": [
+              "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a10"
+            ]
+          },
+          "from_base_unit": {
+            "type": "string",
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY"
+            ],
+            "example": "KGM",
+            "examples": [
+              "KGM"
+            ]
+          },
+          "to_base_unit": {
+            "type": "string",
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY"
+            ],
+            "example": "GRM",
+            "examples": [
+              "GRM"
+            ]
+          },
+          "equivalence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Units of the CURRENT base per ONE unit of the NEW base, decimal string with scale 6 (`\"0.001000\"` when moving from kg to g). `null` between measure families with no declared equivalence.",
+            "example": "0.001000",
+            "examples": [
+              "0.001000"
+            ]
+          },
+          "equivalence_calculated": {
+            "type": "boolean",
+            "description": "True when the equivalence was derived from the units (same measure family) instead of sent.",
+            "example": true,
+            "examples": [
+              true
+            ]
+          },
+          "price_confirmation_required": {
+            "type": "boolean",
+            "description": "True when the conversion loses precision or there is no equivalence: the execution then needs `base_price` confirmed.",
+            "example": false,
+            "examples": [
+              false
+            ]
+          },
+          "items": {
+            "type": "array",
+            "description": "Every element of the plan.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "stock",
+                    "variant_stock",
+                    "base_price",
+                    "variant_cost",
+                    "low_stock_threshold",
+                    "transport_weight",
+                    "presentation",
+                    "variant",
+                    "option_group",
+                    "configuration",
+                    "price_list_item",
+                    "supplier_offer",
+                    "pack_component",
+                    "identity"
+                  ]
+                },
+                "group": {
+                  "type": "string",
+                  "enum": [
+                    "review",
+                    "converted",
+                    "carried"
+                  ],
+                  "description": "`review` needs the user to look at it before confirming, `converted` is converted automatically and `carried` moves to the new product unchanged."
+                },
+                "ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Public id (UUID v7) of the affected element. `null` for the product itself and for `price_list_item` and `pack_component`, which have no public id and are told apart by `kind` and `name`."
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "before": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "description": "Relevant values as strings (`quantity`, `unit_code`, `price`, `conversion_factor`, …). `null` when the element did not exist before or is not transferred."
+                },
+                "after": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "description": "Relevant values as strings (`quantity`, `unit_code`, `price`, `conversion_factor`, …). `null` when the element did not exist before or is not transferred."
+                },
+                "flags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "rounded",
+                      "precision_loss",
+                      "no_equivalence",
+                      "fraction"
+                    ]
+                  }
+                },
+                "decision": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "keep",
+                    "retire",
+                    null
+                  ],
+                  "description": "Decision applied to a presentation."
+                },
+                "proposed_decision": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "keep",
+                    "retire",
+                    null
+                  ],
+                  "description": "Decision the planner proposes for a presentation."
+                }
+              },
+              "required": [
+                "kind",
+                "group",
+                "ref",
+                "name",
+                "before",
+                "after",
+                "flags",
+                "decision",
+                "proposed_decision"
+              ]
+            },
+            "example": [
+              {
+                "kind": "stock",
+                "group": "converted",
+                "ref": null,
+                "name": null,
+                "before": {
+                  "quantity": "5.0000",
+                  "unit_code": "KGM"
+                },
+                "after": {
+                  "quantity": "5000.0000",
+                  "unit_code": "GRM"
+                },
+                "flags": [],
+                "decision": null,
+                "proposed_decision": null
+              },
+              {
+                "kind": "presentation",
+                "group": "converted",
+                "ref": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b21",
+                "name": "Pieza de 7,5 kg",
+                "before": {
+                  "unit_code": "KGM",
+                  "conversion_factor": "7.500000"
+                },
+                "after": {
+                  "unit_code": "KGM",
+                  "conversion_factor": "7500.000000"
+                },
+                "flags": [],
+                "decision": "keep",
+                "proposed_decision": "keep"
+              }
+            ],
+            "examples": [
+              [
+                {
+                  "kind": "stock",
+                  "group": "converted",
+                  "ref": null,
+                  "name": null,
+                  "before": {
+                    "quantity": "5.0000",
+                    "unit_code": "KGM"
+                  },
+                  "after": {
+                    "quantity": "5000.0000",
+                    "unit_code": "GRM"
+                  },
+                  "flags": [],
+                  "decision": null,
+                  "proposed_decision": null
+                },
+                {
+                  "kind": "presentation",
+                  "group": "converted",
+                  "ref": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b21",
+                  "name": "Pieza de 7,5 kg",
+                  "before": {
+                    "unit_code": "KGM",
+                    "conversion_factor": "7.500000"
+                  },
+                  "after": {
+                    "unit_code": "KGM",
+                    "conversion_factor": "7500.000000"
+                  },
+                  "flags": [],
+                  "decision": "keep",
+                  "proposed_decision": "keep"
+                }
+              ]
+            ]
+          },
+          "pending_documents": {
+            "type": "array",
+            "description": "Unissued sales documents that will keep pointing at the old product.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "number": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "number",
+                "status"
+              ]
+            },
+            "example": [
+              {
+                "type": "quote",
+                "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8d01",
+                "number": "PRE-2026-0007",
+                "status": "draft"
+              }
+            ],
+            "examples": [
+              [
+                {
+                  "type": "quote",
+                  "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8d01",
+                  "number": "PRE-2026-0007",
+                  "status": "draft"
+                }
+              ]
+            ]
+          },
+          "impact_token": {
+            "type": "string",
+            "description": "Send it back as `impact_token` to execute THIS plan.",
+            "example": "9f2c1e7a4b8d03f56a1c92e8d7b4035f6a8e1c27d9b04f3a5c6e8d1b2a7f9034",
+            "examples": [
+              "9f2c1e7a4b8d03f56a1c92e8d7b4035f6a8e1c27d9b04f3a5c6e8d1b2a7f9034"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "product_id",
+          "from_base_unit",
+          "to_base_unit",
+          "equivalence",
+          "equivalence_calculated",
+          "price_confirmation_required",
+          "items",
+          "pending_documents",
+          "impact_token"
+        ],
+        "title": "BaseUnitReplacementPreview"
       },
       "BicString": {
         "type": "string",
@@ -261372,6 +262971,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -261768,6 +263374,13 @@
                     "null"
                   ],
                   "format": "uuid"
+                },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
                 },
                 "options": {
                   "type": [
@@ -262358,6 +263971,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -262535,7 +264155,20 @@
               "MTR",
               "MTK",
               "HUR",
-              "DAY"
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
             ]
           },
           "conversion_factor": {
@@ -263297,6 +264930,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -263934,6 +265574,13 @@
                     "cost_basis"
                   ]
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -264258,6 +265905,13 @@
                     "null"
                   ],
                   "format": "uuid"
+                },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
                 },
                 "options": {
                   "type": [
@@ -264864,6 +266518,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -265078,7 +266739,20 @@
               "MTR",
               "MTK",
               "HUR",
-              "DAY"
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
             ]
           },
           "conversion_factor": {
@@ -266127,6 +267801,7 @@
                 "contact.supplier_profile.updated",
                 "product.created",
                 "product.updated",
+                "product.replaced",
                 "payment.received",
                 "payment.reversed",
                 "tax.metadata_changed",
@@ -268041,12 +269716,49 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
           },
           "base_unit_code": {
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              null
             ]
           },
           "conversion_factor": {
@@ -268083,7 +269795,64 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
+          },
+          "counted_quantity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d+\\.\\d{4}$",
+            "description": "Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `\"4.0000\"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.",
+            "example": "4.0000"
+          },
+          "counted_unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
+            ],
+            "description": "UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`."
           },
           "configuration": {
             "type": [
@@ -268294,6 +270063,8 @@
           "price_list_name",
           "price_source",
           "price_unit_code",
+          "counted_quantity",
+          "counted_unit",
           "configuration",
           "options",
           "price_semantics",
@@ -270804,6 +272575,9 @@
             "$ref": "#/components/schemas/EventDataProductUpdated"
           },
           {
+            "$ref": "#/components/schemas/EventDataProductReplaced"
+          },
+          {
             "$ref": "#/components/schemas/EventDataPaymentReceived"
           },
           {
@@ -271084,6 +272858,7 @@
             "contact.supplier_profile.updated": "#/components/schemas/EventDataContactSupplierProfileUpdated",
             "product.created": "#/components/schemas/EventDataProductCreated",
             "product.updated": "#/components/schemas/EventDataProductUpdated",
+            "product.replaced": "#/components/schemas/EventDataProductReplaced",
             "payment.received": "#/components/schemas/EventDataPaymentReceived",
             "payment.reversed": "#/components/schemas/EventDataPaymentReversed",
             "tax.metadata_changed": "#/components/schemas/EventDataTaxMetadataChanged",
@@ -273157,6 +274932,24 @@
           "object"
         ],
         "title": "EventDataProductCreated"
+      },
+      "EventDataProductReplaced": {
+        "type": "object",
+        "description": "Payload (`data`) emitted with the `product.replaced` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "product.replaced"
+          },
+          "object": {
+            "$ref": "#/components/schemas/Product"
+          }
+        },
+        "required": [
+          "type",
+          "object"
+        ],
+        "title": "EventDataProductReplaced"
       },
       "EventDataProductUpdated": {
         "type": "object",
@@ -277117,6 +278910,8 @@
               "base_unit_code": "HUR",
               "conversion_factor": "1.000000",
               "base_quantity": "10.0000",
+              "counted_quantity": null,
+              "counted_unit": null,
               "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
               "price_list_name": "Tarifa profesional 2026",
               "price_source": "price_list",
@@ -277694,12 +279489,49 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
           },
           "base_unit_code": {
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              null
             ]
           },
           "conversion_factor": {
@@ -277736,7 +279568,64 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
+          },
+          "counted_quantity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d+\\.\\d{4}$",
+            "description": "Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `\"4.0000\"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.",
+            "example": "4.0000"
+          },
+          "counted_unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
+            ],
+            "description": "UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`."
           },
           "configuration": {
             "type": [
@@ -278002,6 +279891,8 @@
           "price_list_name",
           "price_source",
           "price_unit_code",
+          "counted_quantity",
+          "counted_unit",
           "configuration",
           "options",
           "price_semantics",
@@ -281363,6 +283254,78 @@
         ],
         "title": "PreviewCatalogConfigurationImpactRequest"
       },
+      "PreviewProductBaseUnitReplacementRequest": {
+        "type": "object",
+        "description": "Body of the base unit replacement preview: the new base unit, the equivalence between both units, an optional\nprice to confirm and one `keep` or `retire` decision per presentation of the product being replaced.",
+        "properties": {
+          "target_base_unit": {
+            "type": "string",
+            "description": "Base unit of the new product. Only the nine measure units are accepted: a packaging unit (`XPK`, `XBX`…) can only be a presentation unit.",
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY"
+            ]
+          },
+          "equivalence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "decimal-6",
+            "description": "Units of the CURRENT base that equal ONE unit of the NEW base (moving from kg to g,\n1 g = 0.001 kg, so `0.001`; from kg to count units, 1 unit = 0.5 kg gives `0.5`). Required\nbetween a count unit and a measure unit; inside the same measure family it is calculated\nand between two different measure families there is none.",
+            "maximum": 1000000000000
+          },
+          "base_price": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "decimal-2",
+            "description": "Base price of the new product per its base unit. Confirm it when the conversion loses\nprecision or there is no equivalence.",
+            "minimum": 0,
+            "maximum": 99999999.99
+          },
+          "presentations": {
+            "type": "array",
+            "description": "Decision per presentation of the product being replaced. Presentations you omit get the proposed decision.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Id (UUID v7) of a presentation of the product being replaced."
+                },
+                "decision": {
+                  "type": "string",
+                  "description": "`keep` moves the presentation to the new product; `retire` withdraws it.",
+                  "enum": [
+                    "keep",
+                    "retire"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "decision"
+              ]
+            },
+            "maxItems": 500,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "target_base_unit"
+        ],
+        "title": "PreviewProductBaseUnitReplacementRequest"
+      },
       "PreviewTaskTimeInvoiceV1Request": {
         "type": "object",
         "properties": {
@@ -281626,9 +283589,10 @@
               "option_group_deleted",
               "option_value_deleted",
               "legacy_orphan",
+              "product_replaced",
               null
             ],
-            "description": "Why the entry was withdrawn. `null` while the entry is active."
+            "description": "Why the entry was withdrawn. `product_replaced` means the product was replaced by another one with a different base unit (`POST /v1/products/{id}/base_unit_replacement`): the entry keeps its price as history and, when it was transferred, a new entry for the new product carries the converted price. `null` while the entry is active."
           },
           "retirement_reason_label": {
             "type": [
@@ -281804,7 +283768,18 @@
           },
           "base_unit": {
             "type": "string",
-            "description": "UNECE base unit code."
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY"
+            ],
+            "description": "UNECE base unit code. Only the nine measure units can be a base unit (`C62`, `KGM`, `GRM`, `LTR`, `MLT`, `MTR`, `MTK`, `HUR`, `DAY`); a packaging or count unit (`H87`, `XPK`, `XBX`…) can only be the unit of a presentation or a supplier offer. It cannot be edited once the product has history: see `base_unit_change` and `POST /v1/products/{id}/base_unit_replacement`."
           },
           "gross_weight_kg": {
             "type": [
@@ -282105,6 +284080,29 @@
             "example": "2026-01-02T08:30:00Z",
             "examples": [
               "2026-01-02T08:30:00Z"
+            ]
+          },
+          "base_unit_change": {
+            "$ref": "#/components/schemas/BaseUnitChange"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductReplacementLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replaced_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductReplacementLink"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
@@ -282661,6 +284659,31 @@
           },
           "unit": {
             "type": "string",
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
+            ],
+            "description": "UN/ECE code of the commercial unit of the presentation. The nine measure units can also be a base unit; the thirteen count and packaging units (`H87` piece, `XPK` pack, `XBX` box, …) are valid only here and in supplier offers. It must be expressible over the base unit of the product: a packaging unit needs a declared equivalence (`conversion_factor` or `nominal_base_quantity`), a measure unit must belong to the same family as the base; otherwise 422 `unit_not_expressible`.",
             "example": "LTR",
             "examples": [
               "LTR"
@@ -282785,6 +284808,83 @@
           "name"
         ],
         "title": "ProductRef"
+      },
+      "ProductReplacementLink": {
+        "type": "object",
+        "description": "The OTHER end of a base unit replacement: on `replaces`, the old product the current one replaced; on `replaced_by`, the new product that replaced the current one.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id of the other product.",
+            "example": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a10",
+            "examples": [
+              "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a10"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "Jamón ibérico al corte",
+            "examples": [
+              "Jamón ibérico al corte"
+            ]
+          },
+          "base_unit": {
+            "type": "string",
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY"
+            ],
+            "description": "Base unit of the other product.",
+            "example": "GRM",
+            "examples": [
+              "GRM"
+            ]
+          },
+          "replaced_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-15T09:30:00Z",
+            "examples": [
+              "2026-10-15T09:30:00Z"
+            ]
+          },
+          "equivalence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Old base units per ONE new base unit, decimal string with scale 6. `null` between measure families with no declared equivalence.",
+            "example": "0.001000",
+            "examples": [
+              "0.001000"
+            ]
+          },
+          "stock_transferred": {
+            "type": "string",
+            "description": "Stock moved to the new product, decimal string with scale 4, ALWAYS in the unit of the NEW product.",
+            "example": "5000.0000",
+            "examples": [
+              "5000.0000"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "base_unit",
+          "replaced_at",
+          "equivalence",
+          "stock_transferred"
+        ],
+        "title": "ProductReplacementLink"
       },
       "ProductSalesAnalytics": {
         "type": "object",
@@ -283666,12 +285766,49 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
           },
           "base_unit_code": {
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              null
             ]
           },
           "conversion_factor": {
@@ -283708,7 +285845,64 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
+          },
+          "counted_quantity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d+\\.\\d{4}$",
+            "description": "Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `\"4.0000\"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.",
+            "example": "4.0000"
+          },
+          "counted_unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
+            ],
+            "description": "UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`."
           },
           "configuration": {
             "type": [
@@ -283907,6 +286101,8 @@
           "price_list_name",
           "price_source",
           "price_unit_code",
+          "counted_quantity",
+          "counted_unit",
           "configuration",
           "options",
           "price_semantics",
@@ -289220,12 +291416,49 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
           },
           "base_unit_code": {
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              null
             ]
           },
           "conversion_factor": {
@@ -289262,7 +291495,64 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
+          },
+          "counted_quantity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d+\\.\\d{4}$",
+            "description": "Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `\"4.0000\"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.",
+            "example": "4.0000"
+          },
+          "counted_unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
+            ],
+            "description": "UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`."
           },
           "configuration": {
             "type": [
@@ -289461,6 +291751,8 @@
           "price_list_name",
           "price_source",
           "price_unit_code",
+          "counted_quantity",
+          "counted_unit",
           "configuration",
           "options",
           "price_semantics",
@@ -289597,7 +291889,20 @@
               "MTR",
               "MTK",
               "HUR",
-              "DAY"
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
             ]
           }
         },
@@ -290471,7 +292776,64 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
             ]
+          },
+          "counted_quantity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d+\\.\\d{4}$",
+            "description": "Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `\"4.0000\"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.",
+            "example": "4.0000"
+          },
+          "counted_unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS",
+              null
+            ],
+            "description": "UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`."
           },
           "configuration": {
             "type": [
@@ -290677,6 +293039,8 @@
           "price_list_name",
           "price_source",
           "price_unit_code",
+          "counted_quantity",
+          "counted_unit",
           "configuration",
           "options",
           "price_semantics",
@@ -291409,6 +293773,77 @@
           "column_ids"
         ],
         "title": "ReorderProjectColumnsV1Request"
+      },
+      "ReplaceProductBaseUnitRequest": {
+        "type": "object",
+        "description": "Body of the base unit replacement: the same fields as the preview plus the `impact_token` of a current preview.",
+        "properties": {
+          "target_base_unit": {
+            "type": "string",
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY"
+            ]
+          },
+          "equivalence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "maximum": 1000000000000
+          },
+          "base_price": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 99999999.99
+          },
+          "presentations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "decision": {
+                  "type": "string",
+                  "enum": [
+                    "keep",
+                    "retire"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "decision"
+              ]
+            },
+            "maxItems": 500,
+            "uniqueItems": true
+          },
+          "impact_token": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]+$",
+            "minLength": 64,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "target_base_unit",
+          "impact_token"
+        ],
+        "title": "ReplaceProductBaseUnitRequest"
       },
       "RepresentationKind": {
         "type": "string",
@@ -296622,6 +299057,7 @@
               "contact.supplier_profile.updated",
               "product.created",
               "product.updated",
+              "product.replaced",
               "payment.received",
               "payment.reversed",
               "tax.metadata_changed",
@@ -297412,7 +299848,7 @@
           },
           "reason": {
             "type": "string",
-            "description": "Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`, `initial`."
+            "description": "Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`, `initial`, `base_unit_replacement_out`, `base_unit_replacement_in`. The last two are the pair a base unit replacement writes: `_out` empties the old product (in its unit) and `_in` fills the new one (in its unit)."
           },
           "source_type": {
             "type": "string",
@@ -297420,9 +299856,10 @@
               "invoice",
               "delivery_note",
               "purchase_invoice",
-              "manual"
+              "manual",
+              "base_unit_replacement"
             ],
-            "description": "Kind of document that caused the movement. `manual` for an adjustment with no source document."
+            "description": "Kind of document that caused the movement. `manual` for an adjustment with no source document; `base_unit_replacement` for the transfer of a base unit replacement."
           },
           "source_id": {
             "type": [
@@ -297430,14 +299867,14 @@
               "null"
             ],
             "format": "uuid",
-            "description": "Id of the source document, `null` for a manual adjustment or when the document is no longer reachable."
+            "description": "Id of the source document, `null` for a manual adjustment or when the document is no longer reachable. For `base_unit_replacement` it is the id of the OTHER product of the replacement: the new one on the `_out` row and the old one on the `_in` row."
           },
           "source_label": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Human-readable number of the source document."
+            "description": "Human-readable number of the source document. For `base_unit_replacement`, the name of the other product."
           },
           "performed_by": {
             "type": [
@@ -298194,6 +300631,31 @@
           },
           "purchase_unit": {
             "type": "string",
+            "enum": [
+              "C62",
+              "KGM",
+              "GRM",
+              "LTR",
+              "MLT",
+              "MTR",
+              "MTK",
+              "HUR",
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
+            ],
+            "description": "UN/ECE code of the unit the supplier sells in. Any of the 22 units; it must be expressible over the base unit of the product (422 `unit_not_expressible` otherwise).",
             "example": "LTR",
             "examples": [
               "LTR"
@@ -305863,6 +308325,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -306402,6 +308871,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -306538,7 +309014,20 @@
               "MTR",
               "MTK",
               "HUR",
-              "DAY"
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
             ]
           },
           "conversion_factor": {
@@ -307349,6 +309838,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -307970,6 +310466,13 @@
                     "cost_basis"
                   ]
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -308296,6 +310799,13 @@
                     "null"
                   ],
                   "format": "uuid"
+                },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
                 },
                 "options": {
                   "type": [
@@ -308754,6 +311264,13 @@
                   ],
                   "format": "uuid"
                 },
+                "counted_quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "maximum": 9999999999.9999
+                },
                 "options": {
                   "type": [
                     "array",
@@ -309035,7 +311552,20 @@
               "MTR",
               "MTK",
               "HUR",
-              "DAY"
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
             ]
           },
           "conversion_factor": {
@@ -310109,6 +312639,7 @@
                 "contact.supplier_profile.updated",
                 "product.created",
                 "product.updated",
+                "product.replaced",
                 "payment.received",
                 "payment.reversed",
                 "tax.metadata_changed",
@@ -310447,7 +312978,20 @@
               "MTR",
               "MTK",
               "HUR",
-              "DAY"
+              "DAY",
+              "H87",
+              "XPK",
+              "XBX",
+              "XDS",
+              "XBG",
+              "XBO",
+              "XDJ",
+              "XCA",
+              "XTB",
+              "XCI",
+              "XJY",
+              "XEN",
+              "XCS"
             ]
           }
         },
@@ -311848,6 +314392,7 @@
                 "contact.supplier_profile.updated",
                 "product.created",
                 "product.updated",
+                "product.replaced",
                 "payment.received",
                 "payment.reversed",
                 "tax.metadata_changed",
@@ -312218,6 +314763,7 @@
                 "contact.supplier_profile.updated",
                 "product.created",
                 "product.updated",
+                "product.replaced",
                 "payment.received",
                 "payment.reversed",
                 "tax.metadata_changed",
@@ -312756,6 +315302,9 @@
             "$ref": "#/components/schemas/WebhookEventPayloadProductUpdated"
           },
           {
+            "$ref": "#/components/schemas/WebhookEventPayloadProductReplaced"
+          },
+          {
             "$ref": "#/components/schemas/WebhookEventPayloadPaymentReceived"
           },
           {
@@ -313036,6 +315585,7 @@
             "contact.supplier_profile.updated": "#/components/schemas/WebhookEventPayloadContactSupplierProfileUpdated",
             "product.created": "#/components/schemas/WebhookEventPayloadProductCreated",
             "product.updated": "#/components/schemas/WebhookEventPayloadProductUpdated",
+            "product.replaced": "#/components/schemas/WebhookEventPayloadProductReplaced",
             "payment.received": "#/components/schemas/WebhookEventPayloadPaymentReceived",
             "payment.reversed": "#/components/schemas/WebhookEventPayloadPaymentReversed",
             "tax.metadata_changed": "#/components/schemas/WebhookEventPayloadTaxMetadataChanged",
@@ -317146,6 +319696,63 @@
           "data"
         ],
         "title": "WebhookEventPayloadProductCreated"
+      },
+      "WebhookEventPayloadProductReplaced": {
+        "type": "object",
+        "description": "Webhook delivery body for the `product.replaced` event.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Opaque identifier of the event (UUID v7)."
+          },
+          "type": {
+            "type": "string",
+            "const": "product.replaced",
+            "description": "Event type. Always `product.replaced`."
+          },
+          "api_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed."
+          },
+          "created": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds) of when the event was created."
+          },
+          "livemode": {
+            "type": "boolean",
+            "description": "`true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`)."
+          },
+          "test": {
+            "type": "boolean",
+            "description": "`true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`)."
+          },
+          "correlation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present."
+          },
+          "data": {
+            "$ref": "#/components/schemas/EventDataProductReplaced"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "api_version",
+          "created",
+          "livemode",
+          "test",
+          "correlation_id",
+          "data"
+        ],
+        "title": "WebhookEventPayloadProductReplaced"
       },
       "WebhookEventPayloadProductUpdated": {
         "type": "object",

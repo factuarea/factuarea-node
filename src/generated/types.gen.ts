@@ -1827,6 +1827,108 @@ export type BankAccount = {
 };
 
 /**
+ * BaseUnitChange
+ *
+ * Whether the base unit of the product can be edited in place. `mode` is `direct` exactly when there are no blockers; with blockers it is `replacement` and the base unit is changed by replacing the product (`POST /v1/products/{id}/base_unit_replacement`); an already replaced product is `unavailable` with no blockers. Attempting to edit `base_unit` with blockers is rejected with 422 `business_rule_violation`, subcode `product_base_unit_locked`, and the same `blockers` in `details`. Only calculated on single-product reads (show, create, update, replacement): list responses omit the key.
+ */
+export type BaseUnitChange = {
+    mode: 'direct' | 'replacement' | 'unavailable';
+    /**
+     * What fixes the base unit, in a stable order.
+     */
+    blockers: Array<{
+        /**
+         * Closed catalog of blockers.
+         */
+        code: 'stock' | 'movements' | 'presentations' | 'supplier_offers' | 'variant_stock';
+        /**
+         * Decimal string without trailing zeros: the stock in `unit` for `stock`, a count of elements for the rest.
+         */
+        quantity: string;
+        /**
+         * UN/ECE code of the unit of `quantity`. Only informed for `stock`; `null` for the rest.
+         */
+        unit: string | null;
+    }>;
+};
+
+/**
+ * BaseUnitReplacementPreview
+ *
+ * What replacing a product by another with a different base unit would do, with the `impact_token` that confirms THAT exact plan. Nothing is written. `impact_token` is a fingerprint of the plan, not a credential: it is rejected with 422 `base_unit_replacement_preview_stale` if the catalog, the price lists or the packs change before the replacement runs.
+ */
+export type BaseUnitReplacementPreview = {
+    object: 'base_unit_replacement_preview';
+    /**
+     * Id of the product that would be replaced.
+     */
+    product_id: string;
+    from_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    to_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    /**
+     * Units of the CURRENT base per ONE unit of the NEW base, decimal string with scale 6 (`"0.001000"` when moving from kg to g). `null` between measure families with no declared equivalence.
+     */
+    equivalence: string | null;
+    /**
+     * True when the equivalence was derived from the units (same measure family) instead of sent.
+     */
+    equivalence_calculated: boolean;
+    /**
+     * True when the conversion loses precision or there is no equivalence: the execution then needs `base_price` confirmed.
+     */
+    price_confirmation_required: boolean;
+    /**
+     * Every element of the plan.
+     */
+    items: Array<{
+        kind: 'stock' | 'variant_stock' | 'base_price' | 'variant_cost' | 'low_stock_threshold' | 'transport_weight' | 'presentation' | 'variant' | 'option_group' | 'configuration' | 'price_list_item' | 'supplier_offer' | 'pack_component' | 'identity';
+        /**
+         * `review` needs the user to look at it before confirming, `converted` is converted automatically and `carried` moves to the new product unchanged.
+         */
+        group: 'review' | 'converted' | 'carried';
+        /**
+         * Public id (UUID v7) of the affected element. `null` for the product itself and for `price_list_item` and `pack_component`, which have no public id and are told apart by `kind` and `name`.
+         */
+        ref: string | null;
+        name: string | null;
+        /**
+         * Relevant values as strings (`quantity`, `unit_code`, `price`, `conversion_factor`, …). `null` when the element did not exist before or is not transferred.
+         */
+        before: {
+            [key: string]: string | null;
+        } | null;
+        /**
+         * Relevant values as strings (`quantity`, `unit_code`, `price`, `conversion_factor`, …). `null` when the element did not exist before or is not transferred.
+         */
+        after: {
+            [key: string]: string | null;
+        } | null;
+        flags: Array<'rounded' | 'precision_loss' | 'no_equivalence' | 'fraction'>;
+        /**
+         * Decision applied to a presentation.
+         */
+        decision: 'keep' | 'retire' | null;
+        /**
+         * Decision the planner proposes for a presentation.
+         */
+        proposed_decision: 'keep' | 'retire' | null;
+    }>;
+    /**
+     * Unissued sales documents that will keep pointing at the old product.
+     */
+    pending_documents: Array<{
+        type: string;
+        id: string;
+        number: string | null;
+        status: string;
+    }>;
+    /**
+     * Send it back as `impact_token` to execute THIS plan.
+     */
+    impact_token: string;
+};
+
+/**
  * BicString
  *
  * Bank Identifier Code / SWIFT (ISO 9362), 8 or 11 uppercase characters.
@@ -3939,6 +4041,7 @@ export type CreateCorrectiveInvoiceRequest = {
          */
         exemption_reason_text?: string | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4005,6 +4108,7 @@ export type CreateDeliveryNoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4164,6 +4268,7 @@ export type CreateInvoiceRequest = {
          */
         line_total?: number | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4214,7 +4319,7 @@ export type CreatePriceListRequest = {
 export type CreateProductPresentationRequest = {
     name: string;
     mode: 'fixed' | 'variable_measure';
-    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor?: number | null;
     nominal_base_quantity?: number | null;
     barcode?: string | null;
@@ -4397,6 +4502,7 @@ export type CreateProformaRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4535,6 +4641,7 @@ export type CreatePurchaseInvoiceRequest = {
             package_quantity: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4588,6 +4695,7 @@ export type CreateQuoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4699,6 +4807,7 @@ export type CreateRecurringInvoiceRequest = {
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4736,7 +4845,7 @@ export type CreateSupplierProductOfferRequest = {
     supplier_id: string;
     variant_id?: string | null;
     supplier_sku?: string | null;
-    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: number;
     unit_cost?: number | null;
     availability: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
@@ -5009,7 +5118,7 @@ export type CreateTransportDocumentRequest = {
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -5543,14 +5652,22 @@ export type DeliveryNoteLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -6675,6 +6792,8 @@ export type EventData = ({
 } & EventDataProductCreated) | ({
     type: 'product.updated';
 } & EventDataProductUpdated) | ({
+    type: 'product.replaced';
+} & EventDataProductReplaced) | ({
     type: 'payment.received';
 } & EventDataPaymentReceived) | ({
     type: 'payment.reversed';
@@ -7664,6 +7783,16 @@ export type EventDataPayoutReconciled = {
  */
 export type EventDataProductCreated = {
     type: 'product.created';
+    object: Product;
+};
+
+/**
+ * EventDataProductReplaced
+ *
+ * Payload (`data`) emitted with the `product.replaced` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataProductReplaced = {
+    type: 'product.replaced';
     object: Product;
 };
 
@@ -9604,14 +9733,22 @@ export type InvoiceLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -10960,6 +11097,44 @@ export type PreviewCatalogConfigurationImpactRequest = {
 };
 
 /**
+ * PreviewProductBaseUnitReplacementRequest
+ *
+ * Body of the base unit replacement preview: the new base unit, the equivalence between both units, an optional
+ * price to confirm and one `keep` or `retire` decision per presentation of the product being replaced.
+ */
+export type PreviewProductBaseUnitReplacementRequest = {
+    /**
+     * Base unit of the new product. Only the nine measure units are accepted: a packaging unit (`XPK`, `XBX`…) can only be a presentation unit.
+     */
+    target_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    /**
+     * Units of the CURRENT base that equal ONE unit of the NEW base (moving from kg to g,
+     * 1 g = 0.001 kg, so `0.001`; from kg to count units, 1 unit = 0.5 kg gives `0.5`). Required
+     * between a count unit and a measure unit; inside the same measure family it is calculated
+     * and between two different measure families there is none.
+     */
+    equivalence?: number | null;
+    /**
+     * Base price of the new product per its base unit. Confirm it when the conversion loses
+     * precision or there is no equivalence.
+     */
+    base_price?: number | null;
+    /**
+     * Decision per presentation of the product being replaced. Presentations you omit get the proposed decision.
+     */
+    presentations?: Array<{
+        /**
+         * Id (UUID v7) of a presentation of the product being replaced.
+         */
+        id: string;
+        /**
+         * `keep` moves the presentation to the new product; `retire` withdraws it.
+         */
+        decision: 'keep' | 'retire';
+    }>;
+};
+
+/**
  * PreviewTaskTimeInvoiceV1Request
  */
 export type PreviewTaskTimeInvoiceV1Request = {
@@ -11048,9 +11223,9 @@ export type PriceListItem = {
      */
     status: 'active' | 'retired';
     /**
-     * Why the entry was withdrawn. `null` while the entry is active.
+     * Why the entry was withdrawn. `product_replaced` means the product was replaced by another one with a different base unit (`POST /v1/products/{id}/base_unit_replacement`): the entry keeps its price as history and, when it was transferred, a new entry for the new product carries the converted price. `null` while the entry is active.
      */
-    retirement_reason: 'product_deleted' | 'variant_deleted' | 'presentation_deleted' | 'configuration_deleted' | 'option_group_deleted' | 'option_value_deleted' | 'legacy_orphan' | null;
+    retirement_reason: 'product_deleted' | 'variant_deleted' | 'presentation_deleted' | 'configuration_deleted' | 'option_group_deleted' | 'option_value_deleted' | 'legacy_orphan' | 'product_replaced' | null;
     /**
      * Human-readable label of `retirement_reason`, in Spanish. `null` while the entry is active.
      */
@@ -11097,9 +11272,9 @@ export type Product = {
      */
     item_kind: 'product' | 'service';
     /**
-     * UNECE base unit code.
+     * UNECE base unit code. Only the nine measure units can be a base unit (`C62`, `KGM`, `GRM`, `LTR`, `MLT`, `MTR`, `MTK`, `HUR`, `DAY`); a packaging or count unit (`H87`, `XPK`, `XBX`…) can only be the unit of a presentation or a supplier offer. It cannot be edited once the product has history: see `base_unit_change` and `POST /v1/products/{id}/base_unit_replacement`.
      */
-    base_unit: string;
+    base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
     /**
      * Gross transport weight in kg per BASE unit (decimal string, up to 4 decimals, greater than 0), packaging included; `null` when unknown. Rejected with 422 `gross_weight_not_allowed` for services and for products whose base unit is a mass unit (`KGM`, `GRM`), where the weight is the quantity itself. A variant weight replaces it for that variant; a fixed presentation may declare its own weight per commercial unit.
      */
@@ -11199,6 +11374,9 @@ export type Product = {
     external_id?: string | null;
     created_at: string | null;
     updated_at: string | null;
+    base_unit_change?: BaseUnitChange;
+    replaces?: ProductReplacementLink | null;
+    replaced_by?: ProductReplacementLink | null;
 };
 
 /**
@@ -11346,7 +11524,10 @@ export type ProductPresentation = {
     product_id: string;
     name: string;
     mode: 'fixed' | 'variable_measure';
-    unit: string;
+    /**
+     * UN/ECE code of the commercial unit of the presentation. The nine measure units can also be a base unit; the thirteen count and packaging units (`H87` piece, `XPK` pack, `XBX` box, …) are valid only here and in supplier offers. It must be expressible over the base unit of the product: a packaging unit needs a declared equivalence (`conversion_factor` or `nominal_base_quantity`), a measure unit must belong to the same family as the base; otherwise 422 `unit_not_expressible`.
+     */
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: string | null;
     nominal_base_quantity: string | null;
     barcode: string | null;
@@ -11373,6 +11554,32 @@ export type ProductPresentation = {
 export type ProductRef = {
     id: string;
     name: string | null;
+};
+
+/**
+ * ProductReplacementLink
+ *
+ * The OTHER end of a base unit replacement: on `replaces`, the old product the current one replaced; on `replaced_by`, the new product that replaced the current one.
+ */
+export type ProductReplacementLink = {
+    /**
+     * Id of the other product.
+     */
+    id: string;
+    name: string;
+    /**
+     * Base unit of the other product.
+     */
+    base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    replaced_at: string;
+    /**
+     * Old base units per ONE new base unit, decimal string with scale 6. `null` between measure families with no declared equivalence.
+     */
+    equivalence: string | null;
+    /**
+     * Stock moved to the new product, decimal string with scale 4, ALWAYS in the unit of the NEW product.
+     */
+    stock_transferred: string;
 };
 
 /**
@@ -11622,14 +11829,22 @@ export type ProformaLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -13135,14 +13350,22 @@ export type QuoteLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -13227,7 +13450,7 @@ export type ReassignRetiredPriceListItemRequest = {
     configuration_id?: string | null;
     selection_signature?: string | null;
     unit_price: number;
-    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
 };
 
 /**
@@ -13523,7 +13746,15 @@ export type RecurringInvoiceLine = {
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -13832,6 +14063,22 @@ export type ReorderProjectColumnsV1Request = {
      * `id` of ALL the columns of the project, in the desired order.
      */
     column_ids: Array<string>;
+};
+
+/**
+ * ReplaceProductBaseUnitRequest
+ *
+ * Body of the base unit replacement: the same fields as the preview plus the `impact_token` of a current preview.
+ */
+export type ReplaceProductBaseUnitRequest = {
+    target_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    equivalence?: number | null;
+    base_price?: number | null;
+    presentations?: Array<{
+        id: string;
+        decision: 'keep' | 'retire';
+    }>;
+    impact_token: string;
 };
 
 /**
@@ -14672,7 +14919,7 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
 };
 
 /**
@@ -14979,19 +15226,19 @@ export type StockMovement = {
      */
     stock_after: string;
     /**
-     * Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`, `initial`.
+     * Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`, `initial`, `base_unit_replacement_out`, `base_unit_replacement_in`. The last two are the pair a base unit replacement writes: `_out` empties the old product (in its unit) and `_in` fills the new one (in its unit).
      */
     reason: string;
     /**
-     * Kind of document that caused the movement. `manual` for an adjustment with no source document.
+     * Kind of document that caused the movement. `manual` for an adjustment with no source document; `base_unit_replacement` for the transfer of a base unit replacement.
      */
-    source_type: 'invoice' | 'delivery_note' | 'purchase_invoice' | 'manual';
+    source_type: 'invoice' | 'delivery_note' | 'purchase_invoice' | 'manual' | 'base_unit_replacement';
     /**
-     * Id of the source document, `null` for a manual adjustment or when the document is no longer reachable.
+     * Id of the source document, `null` for a manual adjustment or when the document is no longer reachable. For `base_unit_replacement` it is the id of the OTHER product of the replacement: the new one on the `_out` row and the old one on the `_in` row.
      */
     source_id: string | null;
     /**
-     * Human-readable number of the source document.
+     * Human-readable number of the source document. For `base_unit_replacement`, the name of the other product.
      */
     source_label: string | null;
     /**
@@ -15352,7 +15599,10 @@ export type SupplierProductOffer = {
     supplier_id: string;
     variant_id: string | null;
     supplier_sku: string | null;
-    purchase_unit: string;
+    /**
+     * UN/ECE code of the unit the supplier sells in. Any of the 22 units; it must be expressible over the base unit of the product (422 `unit_not_expressible` otherwise).
+     */
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: string;
     unit_cost: number | null;
     currency: string;
@@ -18053,6 +18303,7 @@ export type UpdateDeliveryNoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -18197,6 +18448,7 @@ export type UpdateInvoiceRequest = {
          */
         line_total?: number | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -18226,7 +18478,7 @@ export type UpdatePriceListRequest = {
 export type UpdateProductPresentationRequest = {
     name: string;
     mode: 'fixed' | 'variable_measure';
-    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor?: number | null;
     nominal_base_quantity?: number | null;
     barcode?: string | null;
@@ -18438,6 +18690,7 @@ export type UpdateProformaRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -18579,6 +18832,7 @@ export type UpdatePurchaseInvoiceRequest = {
             package_quantity: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -18647,6 +18901,7 @@ export type UpdateQuoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -18726,6 +18981,7 @@ export type UpdateRecurringInvoiceRequest = {
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -18863,7 +19119,7 @@ export type UpdateSupplierProductOfferRequest = {
     supplier_id: string;
     variant_id?: string | null;
     supplier_sku?: string | null;
-    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: number;
     unit_cost?: number | null;
     availability: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
@@ -19152,7 +19408,7 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -19276,7 +19532,7 @@ export type UpsertPriceListItemRequest = {
     configuration_id?: string | null;
     selection_signature?: string | null;
     unit_price: number;
-    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
 };
 
 /**
@@ -19753,7 +20009,7 @@ export type WebhookEndpoint = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -19800,7 +20056,7 @@ export type WebhookEndpointWithSecret = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * enabled, disabled, or paused.
      */
@@ -20041,6 +20297,8 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadProductCreated) | ({
     type: 'product.updated';
 } & WebhookEventPayloadProductUpdated) | ({
+    type: 'product.replaced';
+} & WebhookEventPayloadProductReplaced) | ({
     type: 'payment.received';
 } & WebhookEventPayloadPaymentReceived) | ({
     type: 'payment.reversed';
@@ -22787,6 +23045,43 @@ export type WebhookEventPayloadProductCreated = {
      */
     correlation_id: string | null;
     data: EventDataProductCreated;
+};
+
+/**
+ * WebhookEventPayloadProductReplaced
+ *
+ * Webhook delivery body for the `product.replaced` event.
+ */
+export type WebhookEventPayloadProductReplaced = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `product.replaced`.
+     */
+    type: 'product.replaced';
+    /**
+     * API version (date-based) the payload was serialized under, sealed at emission (e.g. `2026-05-22`). `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataProductReplaced;
 };
 
 /**
@@ -43250,7 +43545,12 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptData = {
     path: {
         purchase_invoice: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * ID (UUID v7) of the expense payment whose receipt you want. Without it, the most recent active payment.
+         */
+        payment_id?: string | null;
+    };
     url: '/purchase_invoices/{purchase_invoice}/payment-receipt';
 };
 
@@ -43267,6 +43567,10 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -56228,7 +56532,12 @@ export type PublicApiV1InvoicesPaymentReceiptData = {
     path: {
         invoice: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * ID (UUID v7) of the payment whose receipt you want. Without it, the most recent active payment.
+         */
+        payment_id?: string | null;
+    };
     url: '/invoices/{invoice}/payment-receipt';
 };
 
@@ -56246,6 +56555,10 @@ export type PublicApiV1InvoicesPaymentReceiptErrors = {
      */
     404: Error;
     /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -56262,6 +56575,66 @@ export type PublicApiV1InvoicesPaymentReceiptResponses = {
 };
 
 export type PublicApiV1InvoicesPaymentReceiptResponse = PublicApiV1InvoicesPaymentReceiptResponses[keyof PublicApiV1InvoicesPaymentReceiptResponses];
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewData = {
+    body: PreviewProductBaseUnitReplacementRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: never;
+    url: '/products/{product}/base_unit_replacement/preview';
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewError = PublicApiV1ProductsBaseUnitReplacementPreviewErrors[keyof PublicApiV1ProductsBaseUnitReplacementPreviewErrors];
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewResponses = {
+    200: {
+        data: BaseUnitReplacementPreview;
+    };
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewResponse = PublicApiV1ProductsBaseUnitReplacementPreviewResponses[keyof PublicApiV1ProductsBaseUnitReplacementPreviewResponses];
 
 export type PublicApiV1RecurringInvoicesPreviewData = {
     body?: never;
@@ -57610,6 +57983,70 @@ export type PublicApiV1ProjectsColumnsReorderResponses = {
 };
 
 export type PublicApiV1ProjectsColumnsReorderResponse = PublicApiV1ProjectsColumnsReorderResponses[keyof PublicApiV1ProjectsColumnsReorderResponses];
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateData = {
+    body: ReplaceProductBaseUnitRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `409 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+        /**
+         * Operate on behalf of a child company (gestoría master key): pass its public `id` (UUID v7) and the request runs against that child's data without changing the key's scope, tier or environment (omit to use the key's own company). Invalid UUID → `400 parameter_invalid_uuid`; unknown or non-owned id → `404 profile_not_found`. See the [Acting on behalf guide](/guides/acting-on-behalf).
+         */
+        'X-Active-Profile'?: string;
+    };
+    path: {
+        product: string;
+    };
+    query?: never;
+    url: '/products/{product}/base_unit_replacement';
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The API key lacks the required scope for this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the current resource state — e.g. an idempotency key was reused with a different body, or the resource is in a state that does not allow this operation.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateError = PublicApiV1ProductsBaseUnitReplacementCreateErrors[keyof PublicApiV1ProductsBaseUnitReplacementCreateErrors];
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateResponses = {
+    201: {
+        data: Product;
+    };
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateResponse = PublicApiV1ProductsBaseUnitReplacementCreateResponses[keyof PublicApiV1ProductsBaseUnitReplacementCreateResponses];
 
 export type PublicApiV1AutomationsRunsReplayData = {
     body?: never;
