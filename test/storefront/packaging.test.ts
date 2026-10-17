@@ -91,7 +91,7 @@ describe("el empaquetado tiene dos entradas y dos objetivos", () => {
     const [node] = tsupEntries();
     expect(node!.entry).toEqual(["src/index.ts"]);
     expect(node!.target).toBe("node20");
-    expect(node!.clean).toBe(true);
+    expect(node!.clean).toBe(false);
   });
 
   it("añade la segunda entrada con objetivo de NAVEGADOR", () => {

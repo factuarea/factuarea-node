@@ -232,9 +232,10 @@ describe("superficie pública del SDK contra el contrato fijado", () => {
   it("declara la misma cifra de operaciones que el contrato congelado de la ola", () => {
     // Guard on the fixture itself: if the pinned copy is not the frozen
     // contract, every other assertion in this file is measuring the wrong
-    // document. 654 operations over 532 paths, measured 2026-09-18.
-    expect(OPERATIONS).toHaveLength(654);
-    expect(Object.keys(SPEC.paths)).toHaveLength(532);
+    // document. 830 operations over 666 paths (the account/company axis contract
+    // with the ERP surfaces, digest 97f5a78c…88a9).
+    expect(OPERATIONS).toHaveLength(830);
+    expect(Object.keys(SPEC.paths)).toHaveLength(666);
   });
 
   it("no publica ningún método sin operación detrás (superficie inventada)", () => {
@@ -265,7 +266,7 @@ describe("superficie pública del SDK contra el contrato fijado", () => {
     const published = [...publicMethodPaths()].sort();
     const declared = [...new Set(OPERATIONS.map((op) => op.methodPath))].sort();
     expect(published).toEqual(declared);
-    expect(published).toHaveLength(654);
+    expect(published).toHaveLength(830);
   });
 
   it("cada familia del contrato tiene su fichero de recurso instanciado", () => {
@@ -273,7 +274,7 @@ describe("superficie pública del SDK contra el contrato fijado", () => {
     const registry = resourceTree();
     const missing = [...tops].filter((top) => !(registry[top] instanceof BaseResource)).sort();
     expect(missing, `Familias del contrato sin recurso: ${missing.join(", ")}`).toEqual([]);
-    expect(tops.size).toBe(62); // 49 antes de la ola + 13 de la ola (medido 2026-09-18)
+    expect(tops.size).toBe(74); // 62 de la ola ERP + 12 del eje de cuenta y las demás superficies (medido 2026-10-17)
   });
 });
 
@@ -431,16 +432,11 @@ describe("clave de idempotencia automática en las operaciones del ERP", () => {
     expect(readOnly.length).toBe(69);
   });
 
-  it("DECLARA el hueco medido: los borrados irreversibles del ERP no reciben clave automática", async () => {
-    // HUECO DECLARADO (E-DEV5-2, 2026-09-18) — NO es una excusa, es la cifra.
-    // `src/core/http-client.ts` sólo genera la clave automática para POST
-    // (`METHODS_WITH_IDEMPOTENCY`), y `src/core/` es la capa a mano que esta
-    // fase NO toca. El contrato congelado declara `Idempotency-Key` en 30
-    // DELETE y 3 PUT además de los 132 POST; siete de esos DELETE son del ERP
-    // y los SIETE son irreversibles. El consumidor puede pasarla a mano
-    // (`config.idempotencyKey`, comprobado abajo), pero la automática no llega.
-    // Cuando se cierre el hueco, esta lista queda VACÍA y el test se pone rojo:
-    // actualízala entonces, no la silencies.
+  it("los borrados irreversibles del ERP reciben clave automática y respetan la manual", async () => {
+    // El cliente HTTP genera la clave automática para POST, PUT, PATCH y DELETE
+    // (`METHODS_WITH_IDEMPOTENCY`), así que las siete bajas del ERP que declaran
+    // `Idempotency-Key` la reciben sin que el consumidor la pase, y una clave
+    // manual (`idempotencyKey`) la sustituye.
     const gap = ERP_OPERATIONS.filter(
       (op) => op.declaresIdempotencyKey && op.method !== "POST",
     );
@@ -457,7 +453,8 @@ describe("clave de idempotencia automática en las operaciones del ERP", () => {
       );
       await invoke(op);
       await invoke(op, [{ idempotencyKey: "idem_manual" }]);
-      expect(auto, `${op.methodPath} ya recibe clave automática`).toBeNull();
+      expect(auto, `${op.methodPath} recibe clave automática`).toEqual(expect.any(String));
+      expect(auto).not.toBe("unset");
       expect(manual, `${op.methodPath} ignora la clave manual`).toBe("idem_manual");
       server.resetHandlers();
     }
@@ -607,7 +604,7 @@ describe("paginación por cursor de los listados del ERP", () => {
 // ---------------------------------------------------------------------------
 
 describe("cableado de los espacios de nombres en el cliente público", () => {
-  it("`Factuarea` cablea los 62 espacios de nombres que `createResources()` construye", () => {
+  it("`Factuarea` cablea los 74 espacios de nombres que `createResources()` construye", () => {
     // HUECO CERRADO por §6 (task 6.27, 2026-09-18). `src/client.ts` enumeraba
     // sus campos a mano y se había quedado en 17 de 62 —45 inalcanzables,
     // entre ellos los TRECE del ERP: el comerciante no podía escribir
@@ -620,8 +617,8 @@ describe("cableado de los espacios de nombres en el cliente público", () => {
     const all = Object.keys(resourceTree());
     const unreachable = all.filter((name) => !wired.some(([field]) => field === name)).sort();
 
-    expect(all).toHaveLength(62);
-    expect(wired).toHaveLength(62);
+    expect(all).toHaveLength(74);
+    expect(wired).toHaveLength(74);
     expect(unreachable, `Espacios de nombres inalcanzables: ${unreachable.join(", ")}`).toEqual([]);
 
     const client = testClient() as unknown as Record<string, unknown>;
