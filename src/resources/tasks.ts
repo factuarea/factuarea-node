@@ -11,196 +11,196 @@ import type { Page } from "../core/pagination.js";
 
 export class TasksCommentsResource extends BaseResource {
   /** Create a task comment */
-  async create(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/comments", { "task": task });
+  async create(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/comments", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List task comments */
-  async list(task: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/tasks/{task}/comments", { "task": task });
+  async list(company: string, task: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/comments", { "company": company, "task": task });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a task comment */
-  async delete(task: string, comment: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/comments/{comment}", { "task": task, "comment": comment });
+  async delete(company: string, task: string, comment: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/comments/{comment}", { "company": company, "task": task, "comment": comment });
     return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Update a task comment */
-  async update(task: string, comment: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/comments/{comment}", { "task": task, "comment": comment });
+  async update(company: string, task: string, comment: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/comments/{comment}", { "company": company, "task": task, "comment": comment });
     return this._send<unknown>("PUT", path, body, config);
   }
 }
 
 export class TasksExternalLinksResource extends BaseResource {
   /** Create a task external link */
-  async create(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/external-links", { "task": task });
+  async create(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/external-links", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List task external links */
-  async list(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/external-links", { "task": task });
+  async list(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/external-links", { "company": company, "task": task });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Delete a task external link */
-  async delete(task: string, link: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/external-links/{link}", { "task": task, "link": link });
+  async delete(company: string, task: string, link: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/external-links/{link}", { "company": company, "task": task, "link": link });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 }
 
 export class TasksLabelsResource extends BaseResource {
   /** Assign a label to a task */
-  async assign(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/labels", { "task": task });
+  async assign(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/labels", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Remove a label from a task */
-  async unassign(task: string, label: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/labels/{label}", { "task": task, "label": label });
+  async unassign(company: string, task: string, label: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/labels/{label}", { "company": company, "task": task, "label": label });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 }
 
 export class TasksRelationsResource extends BaseResource {
   /** Create a task relation */
-  async create(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/relations", { "task": task });
+  async create(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/relations", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List task relations */
-  async list(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/relations", { "task": task });
+  async list(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/relations", { "company": company, "task": task });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Delete a task relation */
-  async delete(task: string, relation: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/relations/{relation}", { "task": task, "relation": relation });
+  async delete(company: string, task: string, relation: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/relations/{relation}", { "company": company, "task": task, "relation": relation });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 }
 
 export class TasksUploadLinksResource extends BaseResource {
   /** Create a task upload link */
-  async create(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/upload-links", { "task": task });
+  async create(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/upload-links", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 }
 
 export class TasksAttachmentsResource extends BaseResource {
   /** Delete a task attachment */
-  async delete(task: string, attachment: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/attachments/{attachment}", { "task": task, "attachment": attachment });
+  async delete(company: string, task: string, attachment: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/attachments/{attachment}", { "company": company, "task": task, "attachment": attachment });
     return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a task attachment */
-  async show(task: string, attachment: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/attachments/{attachment}", { "task": task, "attachment": attachment });
+  async show(company: string, task: string, attachment: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/attachments/{attachment}", { "company": company, "task": task, "attachment": attachment });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Download a task attachment */
-  async download(task: string, attachment: string, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/tasks/{task}/attachments/{attachment}/download", { "task": task, "attachment": attachment });
+  async download(company: string, task: string, attachment: string, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/attachments/{attachment}/download", { "company": company, "task": task, "attachment": attachment });
     return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** List task attachments */
-  async list(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/attachments", { "task": task });
+  async list(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/attachments", { "company": company, "task": task });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Upload a task attachment */
-  async create(task: string, formData: FormData, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/attachments", { "task": task });
+  async create(company: string, task: string, formData: FormData, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/attachments", { "company": company, "task": task });
     return this._sendForm<unknown>(path, formData, config);
   }
 }
 
 export class TasksTimeEntriesResource extends BaseResource {
   /** Delete a task time entry */
-  async delete(task: string, timeEntry: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/time-entries/{time_entry}", { "task": task, "time_entry": timeEntry });
+  async delete(company: string, task: string, timeEntry: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/time-entries/{time_entry}", { "company": company, "task": task, "time_entry": timeEntry });
     return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a task time entry */
-  async show(task: string, timeEntry: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/time-entries/{time_entry}", { "task": task, "time_entry": timeEntry });
+  async show(company: string, task: string, timeEntry: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/time-entries/{time_entry}", { "company": company, "task": task, "time_entry": timeEntry });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a task time entry */
-  async update(task: string, timeEntry: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/time-entries/{time_entry}", { "task": task, "time_entry": timeEntry });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, task: string, timeEntry: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/time-entries/{time_entry}", { "company": company, "task": task, "time_entry": timeEntry });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** List task time entries */
-  async list(task: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/tasks/{task}/time-entries", { "task": task });
+  async list(company: string, task: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/time-entries", { "company": company, "task": task });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Create a task time entry */
-  async create(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/time-entries", { "task": task });
+  async create(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/time-entries", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 }
 
 export class TasksActivitiesResource extends BaseResource {
   /** List task activity */
-  async list(task: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/tasks/{task}/activities", { "task": task });
+  async list(company: string, task: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/activities", { "company": company, "task": task });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }
 
 export class TasksEntityLinksResource extends BaseResource {
   /** Link a task to an entity */
-  async create(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/entity-links", { "task": task });
+  async create(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/entity-links", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List task entity links */
-  async list(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/entity-links", { "task": task });
+  async list(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/entity-links", { "company": company, "task": task });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Unlink a task from an entity */
-  async delete(task: string, link: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/entity-links/{link}", { "task": task, "link": link });
+  async delete(company: string, task: string, link: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/entity-links/{link}", { "company": company, "task": task, "link": link });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 }
 
 export class TasksCustomFieldsResource extends BaseResource {
   /** Set a task custom field value */
-  async set(task: string, field: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/custom-fields/{field}", { "task": task, "field": field });
+  async set(company: string, task: string, field: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/custom-fields/{field}", { "company": company, "task": task, "field": field });
     return this._send<unknown>("PUT", path, body, config);
   }
 }
 
 export class TasksTimerResource extends BaseResource {
   /** Start a task timer */
-  async start(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/timer/start", { "task": task });
+  async start(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/timer/start", { "company": company, "task": task });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }
@@ -234,96 +234,98 @@ export class TasksResource extends BaseResource {
   }
 
   /** Assign a task */
-  async assign(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/assign", { "task": task });
+  async assign(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/assign", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk change task status */
-  async bulkStatus(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tasks/bulk-status";
+  async bulkStatus(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/bulk-status", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk delete tasks */
-  async bulkDelete(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tasks/bulk-delete";
+  async bulkDelete(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/bulk-delete", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Bulk update tasks */
-  async bulkUpdate(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tasks/bulk-update";
+  async bulkUpdate(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/bulk-update", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Change task status */
-  async status(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/status", { "task": task });
+  async status(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/status", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Create a task */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tasks";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Search tasks */
-  async search(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/tasks", params, "starting_after", config);
+  async search(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/tasks", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a task */
-  async delete(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}", { "task": task });
+  async delete(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}", { "company": company, "task": task });
     return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a task */
-  async show(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}", { "task": task });
+  async show(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}", { "company": company, "task": task });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a task */
-  async update(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}", { "task": task });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}", { "company": company, "task": task });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Duplicate a task */
-  async duplicate(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/duplicate", { "task": task });
+  async duplicate(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/duplicate", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Find a task by key */
-  async findByKey(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tasks/find-by-key";
+  async findByKey(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/find-by-key", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List tasks linked to an entity */
-  async linked(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/tasks/linked", params, "starting_after", config);
+  async linked(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/tasks/linked", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Reposition a task */
-  async reposition(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/reposition", { "task": task });
+  async reposition(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/reposition", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Move a task to another project */
-  async move(task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/move", { "task": task });
+  async move(company: string, task: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/move", { "company": company, "task": task });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Unassign a task */
-  async unassign(task: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/tasks/{task}/unassign", { "task": task });
+  async unassign(company: string, task: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tasks/{task}/unassign", { "company": company, "task": task });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

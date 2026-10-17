@@ -11,37 +11,38 @@ import type { Page } from "../core/pagination.js";
 
 export class GestoriaSeatOfferRedemptionsResource extends BaseResource {
   /** Cancel a managed-company-seat offer redemption */
-  async cancel(id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/gestoria-seat-offer-redemptions/{id}/cancel", { "id": id });
+  async cancel(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/gestoria-seat-offer-redemptions/{id}/cancel", { "company": company, "id": id });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Confirm a managed-company-seat offer redemption */
-  async confirm(id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/gestoria-seat-offer-redemptions/{id}/confirm", { "id": id });
+  async confirm(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/gestoria-seat-offer-redemptions/{id}/confirm", { "company": company, "id": id });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List a managed-company-seat offer redemption */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/gestoria-seat-offer-redemptions", params, "cursor", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/gestoria-seat-offer-redemptions", { "company": company });
+    return this._paginate<unknown>(path, params, "cursor", config);
   }
 
   /** Prepare a managed-company-seat offer redemption */
-  async prepare(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/gestoria-seat-offer-redemptions";
+  async prepare(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/gestoria-seat-offer-redemptions", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Refresh the quote for a managed-company-seat offer redemption */
-  async refreshQuote(id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/gestoria-seat-offer-redemptions/{id}/quote", { "id": id });
+  async refreshQuote(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/gestoria-seat-offer-redemptions/{id}/quote", { "company": company, "id": id });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve a managed-company-seat offer redemption */
-  async show(id: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/gestoria-seat-offer-redemptions/{id}", { "id": id });
+  async show(company: string, id: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/gestoria-seat-offer-redemptions/{id}", { "company": company, "id": id });
     return this._get<unknown>(path, undefined, config);
   }
 }

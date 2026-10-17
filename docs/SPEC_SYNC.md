@@ -15,7 +15,9 @@ triggers:
   below).
 - **`workflow_dispatch`** — run it manually from the Actions tab.
 - **`schedule`** — a daily cron (`17 6 * * *` UTC) as a fallback in case a
-  dispatch is missed.
+  dispatch is missed. **Currently PAUSED**, together with the emitter in the
+  `factuarea` repo; the reactivation condition is written in the workflow
+  itself.
 
 What it does:
 

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
+import { BASE_URL, COMPANY, COMPANY_URL, server, testClient, useMockServer } from "./helpers.js";
 import { computeDelayMs, DEFAULT_RETRY_OPTIONS, isRetryableStatus } from "../src/core/retry.js";
 import { RateLimitError, ValidationError } from "../src/index.js";
 
@@ -34,7 +34,7 @@ describe("retry behaviour (integration via MSW)", () => {
   it("retries a 429 respecting Retry-After, then succeeds", async () => {
     let calls = 0;
     server.use(
-      http.get(`${BASE_URL}/account`, () => {
+      http.get(`${BASE_URL}/me`, () => {
         calls += 1;
         if (calls === 1) {
           return HttpResponse.json(
@@ -54,7 +54,7 @@ describe("retry behaviour (integration via MSW)", () => {
   it("retries 5xx up to maxRetries then throws", async () => {
     let calls = 0;
     server.use(
-      http.get(`${BASE_URL}/account`, () => {
+      http.get(`${BASE_URL}/me`, () => {
         calls += 1;
         return HttpResponse.json({ error: { type: "api_error", code: "boom" } }, { status: 500 });
       }),
@@ -67,7 +67,7 @@ describe("retry behaviour (integration via MSW)", () => {
   it("does NOT retry a 422 and throws ValidationError immediately", async () => {
     let calls = 0;
     server.use(
-      http.post(`${BASE_URL}/contacts`, () => {
+      http.post(`${COMPANY_URL}/contacts`, () => {
         calls += 1;
         return HttpResponse.json(
           { error: { type: "invalid_request_error", code: "parameter_invalid", param: "name", message: "Required" } },
@@ -76,13 +76,13 @@ describe("retry behaviour (integration via MSW)", () => {
       }),
     );
 
-    await expect(testClient({ maxRetries: 3 }).contacts.create({})).rejects.toBeInstanceOf(ValidationError);
+    await expect(testClient({ maxRetries: 3 }).contacts.create(COMPANY, {})).rejects.toBeInstanceOf(ValidationError);
     expect(calls).toBe(1);
   });
 
   it("surfaces RateLimitError with retryAfter when retries are exhausted", async () => {
     server.use(
-      http.get(`${BASE_URL}/account`, () =>
+      http.get(`${BASE_URL}/me`, () =>
         HttpResponse.json(
           { error: { type: "rate_limit_error", code: "rate_limited" } },
           { status: 429, headers: { "Retry-After": "7" } },

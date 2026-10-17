@@ -11,8 +11,8 @@ import type { Page } from "../core/pagination.js";
 
 export class WoocommerceStoresResource extends BaseResource {
   /** Test a WooCommerce store connection */
-  async connectionTest(store: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/woocommerce/stores/{store}/connection-test", { "store": store });
+  async connectionTest(company: string, store: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/woocommerce/stores/{store}/connection-test", { "company": company, "store": store });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

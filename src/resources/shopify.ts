@@ -11,8 +11,8 @@ import type { Page } from "../core/pagination.js";
 
 export class ShopifyStoresResource extends BaseResource {
   /** Test a Shopify store connection */
-  async connectionTest(store: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/shopify/stores/{store}/connection-test", { "store": store });
+  async connectionTest(company: string, store: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/shopify/stores/{store}/connection-test", { "company": company, "store": store });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

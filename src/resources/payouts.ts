@@ -11,13 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class PayoutsResource extends BaseResource {
   /** Retrieve a Stripe payout */
-  async show(payout: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/payouts/{payout}", { "payout": payout });
+  async show(company: string, payout: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/payouts/{payout}", { "company": company, "payout": payout });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List Stripe payouts */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/payouts", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/payouts", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }

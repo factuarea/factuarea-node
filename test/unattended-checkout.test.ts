@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { ConflictError, ValidationError } from "../src/index.js";
 import { splitQueryAndConfig } from "../src/core/resource.js";
 import type { CreateInvoiceRequest, InvoiceWithCheckoutBlocks } from "../src/index.js";
-import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
+import { COMPANY, COMPANY_URL, server, testClient, useMockServer } from "./helpers.js";
 
 useMockServer();
 
@@ -21,9 +21,14 @@ type Json = Record<string, any>;
 const spec = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "spec", "openapi.json"), "utf8"),
 ) as Json;
-const createOperation = spec.paths["/invoices"].post as Json;
-const responseExample = (status: string, name: string): Json =>
-  createOperation.responses[status].content["application/json"].examples[name].value as Json;
+const createOperation = spec.paths["/companies/{company}/invoices"].post as Json;
+const responseExample = (status: string, name: string): Json => {
+  const example = createOperation.responses[status].content["application/json"].examples[name] as Json;
+  const resolved = typeof example.$ref === "string"
+    ? (example.$ref as string).split("/").slice(1).reduce((node: Json, key) => node[key], spec)
+    : example;
+  return resolved.value as Json;
+};
 
 /** A 5.00 € ticket paid by card, prices WITH VAT included, no client and no series (the default one is used). */
 const kioskTicket: CreateInvoiceRequest = {
@@ -51,14 +56,14 @@ describe("invoices.create for an unattended checkout", () => {
     let body: unknown;
     let headers: Headers | undefined;
     server.use(
-      http.post(`${BASE_URL}/invoices`, async ({ request }) => {
+      http.post(`${COMPANY_URL}/invoices`, async ({ request }) => {
         body = await request.json();
         headers = request.headers;
         return HttpResponse.json(issued, { status: 201 });
       }),
     );
 
-    await testClient().invoices.create(kioskTicket);
+    await testClient().invoices.create(COMPANY, kioskTicket);
 
     expect(body).toEqual(kioskTicket);
     expect(body).toMatchObject({
@@ -76,33 +81,33 @@ describe("invoices.create for an unattended checkout", () => {
   it("lets the terminal reuse its own Idempotency-Key across retries", async () => {
     const keys: Array<string | null> = [];
     server.use(
-      http.post(`${BASE_URL}/invoices`, ({ request }) => {
+      http.post(`${COMPANY_URL}/invoices`, ({ request }) => {
         keys.push(request.headers.get("Idempotency-Key"));
         return HttpResponse.json(issued, { status: 201 });
       }),
     );
     const client = testClient();
 
-    await client.invoices.create(kioskTicket, { idempotencyKey: kioskTicket.external_id! });
-    await client.invoices.create(kioskTicket, { idempotencyKey: kioskTicket.external_id! });
+    await client.invoices.create(COMPANY, kioskTicket, { idempotencyKey: kioskTicket.external_id! });
+    await client.invoices.create(COMPANY, kioskTicket, { idempotencyKey: kioskTicket.external_id! });
 
     expect(keys).toEqual(["KIOSK-0042-20260601-000187", "KIOSK-0042-20260601-000187"]);
   });
 
   it("parses the invoice with the verifactu, pdf and public_url blocks the terminal prints", async () => {
-    server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(issued, { status: 201 })));
+    server.use(http.post(`${COMPANY_URL}/invoices`, () => HttpResponse.json(issued, { status: 201 })));
 
-    const { data: invoice } = (await testClient().invoices.create(kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
+    const { data: invoice } = (await testClient().invoices.create(COMPANY, kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
 
     expect(invoice.type).toBe("F2");
     expect(invoice.status).toBe("paid");
     expect(invoice.client).toEqual({ id: null, name: null });
     // 5.00 € with 21 % VAT included: 4.13 € of base plus 0.87 € of VAT, total exactly what was charged.
-    expect(invoice.subtotal).toBe(4.13);
-    expect(invoice.taxes_total).toBe(0.87);
-    expect(invoice.total).toBe(5);
-    expect(invoice.lines[0]?.unit_price).toBe(4.13);
-    expect(invoice.payments.detail[0]).toMatchObject({ amount: 5, reference: "TPV-8841-000187", is_reversed: false });
+    expect(invoice.subtotal).toBe("4.13");
+    expect(invoice.taxes_total).toBe("0.87");
+    expect(invoice.total).toBe("5.00");
+    expect(invoice.lines[0]?.unit_price).toBe("4.1300");
+    expect(invoice.payments.detail[0]).toMatchObject({ amount: "5.00", reference: "TPV-8841-000187", is_reversed: false });
 
     expect(invoice.verifactu).toMatchObject({ status: "registered", error_code: null, aeat_status: "pending", legend: "VERI*FACTU" });
     expect(invoice.verifactu?.huella).toMatch(/^[0-9A-F]{64}$/);
@@ -116,7 +121,7 @@ describe("invoices.create for an unattended checkout", () => {
   it("returns the invoice already issued on a late retry: 200 with Idempotent-Replayed", async () => {
     let calls = 0;
     server.use(
-      http.post(`${BASE_URL}/invoices`, () => {
+      http.post(`${COMPANY_URL}/invoices`, () => {
         calls += 1;
         return calls === 1
           ? HttpResponse.json(issued, { status: 201, headers: { "Idempotent-Replayed": "false" } })
@@ -125,8 +130,8 @@ describe("invoices.create for an unattended checkout", () => {
     );
     const client = testClient();
 
-    const first = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: "/invoices", body: kioskTicket });
-    const retry = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: "/invoices", body: kioskTicket });
+    const first = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: `/companies/${COMPANY}/invoices`, body: kioskTicket });
+    const retry = await client.http.request<{ data: InvoiceWithCheckoutBlocks }>({ method: "POST", path: `/companies/${COMPANY}/invoices`, body: kioskTicket });
 
     expect(first.status).toBe(201);
     expect(first.headers.get("Idempotent-Replayed")).toBe("false");
@@ -140,7 +145,7 @@ describe("invoices.create for an unattended checkout", () => {
     expect(retry.data.data.payments.detail).toHaveLength(1);
 
     // The typed resource decodes the replay exactly like the first answer.
-    const viaResource = (await client.invoices.create(kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
+    const viaResource = (await client.invoices.create(COMPANY, kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
     expect(viaResource.data.id).toBe(first.data.data.id);
     expect(calls).toBe(3);
   });
@@ -157,12 +162,12 @@ describe("invoices.create for an unattended checkout", () => {
       csv: null,
     };
     server.use(
-      http.post(`${BASE_URL}/invoices`, () =>
+      http.post(`${COMPANY_URL}/invoices`, () =>
         HttpResponse.json({ data: { ...issued.data, verifactu: failedBlock, pdf: { ...issued.data.pdf, status: "pending" } } }, { status: 201 }),
       ),
     );
 
-    const { data: invoice } = (await testClient().invoices.create(kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
+    const { data: invoice } = (await testClient().invoices.create(COMPANY, kioskTicket)) as { data: InvoiceWithCheckoutBlocks };
 
     expect(invoice.status).toBe("paid");
     expect(invoice.number).toBe("TK-2026-01307");
@@ -173,12 +178,12 @@ describe("invoices.create for an unattended checkout", () => {
 
 describe("unattended checkout errors", () => {
   it.each([
-    ["unattended_replay_mismatch", "idempotency_key_reused", "unattended_replay_mismatch"],
-    ["resource_locked", "resource_locked", null],
+    ["unattended_replay_mismatch", "unattended_replay_mismatch", "unattended_replay_mismatch"],
+    ["invoice_checkout_in_progress", "resource_locked", null],
   ] as const)("maps the 409 %s to a ConflictError carrying code, subcode and param", async (example, code, subcode) => {
-    server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("409", example), { status: 409 })));
+    server.use(http.post(`${COMPANY_URL}/invoices`, () => HttpResponse.json(responseExample("409", example), { status: 409 })));
 
-    const error = await testClient().invoices.create(kioskTicket).catch((e: unknown) => e);
+    const error = await testClient().invoices.create(COMPANY, kioskTicket).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ConflictError);
     expect(error).toMatchObject({ status: 409, code, subcode, param: "external_id" });
@@ -186,20 +191,20 @@ describe("unattended checkout errors", () => {
 
   it("maps the 422 verifactu_not_eligible with the signing_certificate_unavailable subcode", async () => {
     server.use(
-      http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("422", "signing_certificate_unavailable"), { status: 422 })),
+      http.post(`${COMPANY_URL}/invoices`, () => HttpResponse.json(responseExample("422", "signing_certificate_unavailable"), { status: 422 })),
     );
 
-    const error = await testClient().invoices.create(kioskTicket).catch((e: unknown) => e);
+    const error = await testClient().invoices.create(COMPANY, kioskTicket).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ValidationError);
     expect(error).toMatchObject({ status: 422, code: "verifactu_not_eligible", subcode: "signing_certificate_unavailable", param: "certificate" });
   });
 
   it("rejects an email without recipient before anything is created", async () => {
-    server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("422", "missing_send_to"), { status: 422 })));
+    server.use(http.post(`${COMPANY_URL}/invoices`, () => HttpResponse.json(responseExample("422", "missing_send_to"), { status: 422 })));
 
     const error = await testClient()
-      .invoices.create({ ...kioskTicket, options: { send_automatically: true } })
+      .invoices.create(COMPANY, { ...kioskTicket, options: { send_automatically: true } })
       .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ValidationError);
@@ -208,7 +213,7 @@ describe("unattended checkout errors", () => {
 
   it("exposes the line_index of the line a domain rule rejected", async () => {
     server.use(
-      http.post(`${BASE_URL}/invoices`, () =>
+      http.post(`${COMPANY_URL}/invoices`, () =>
         HttpResponse.json(
           {
             error: {
@@ -226,7 +231,7 @@ describe("unattended checkout errors", () => {
     );
 
     const error = await testClient()
-      .invoices.create({ ...kioskTicket, lines: [{ description: "A", quantity: 1, unit_price: 1, tax_rate: 21 }, { description: "B", quantity: 1, unit_price: 1 }] })
+      .invoices.create(COMPANY, { ...kioskTicket, lines: [{ description: "A", quantity: 1, unit_price: 1, tax_rate: 21 }, { description: "B", quantity: 1, unit_price: 1 }] })
       .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ValidationError);
@@ -234,9 +239,9 @@ describe("unattended checkout errors", () => {
   });
 
   it("leaves lineIndex null when the error does not point at a line", async () => {
-    server.use(http.post(`${BASE_URL}/invoices`, () => HttpResponse.json(responseExample("422", "missing_send_to"), { status: 422 })));
+    server.use(http.post(`${COMPANY_URL}/invoices`, () => HttpResponse.json(responseExample("422", "missing_send_to"), { status: 422 })));
 
-    const error = await testClient().invoices.create(kioskTicket).catch((e: unknown) => e);
+    const error = await testClient().invoices.create(COMPANY, kioskTicket).catch((e: unknown) => e);
 
     expect(error).toMatchObject({ lineIndex: null });
   });
@@ -249,7 +254,7 @@ describe("invoices.pdfLink after it gained the format query", () => {
   function captureLink(): { requests: Request[] } {
     const captured: Request[] = [];
     server.use(
-      http.get(`${BASE_URL}/invoices/${invoiceId}/pdf-link`, ({ request }) => {
+      http.get(`${COMPANY_URL}/invoices/${invoiceId}/pdf-link`, ({ request }) => {
         captured.push(request);
         return HttpResponse.json(link);
       }),
@@ -260,7 +265,7 @@ describe("invoices.pdfLink after it gained the format query", () => {
   it("still honours the previous (invoice, config) call: the options are not sent as a query", async () => {
     const { requests } = captureLink();
 
-    const result = await testClient().invoices.pdfLink(invoiceId, { headers: { "X-Active-Profile": "managed-company" }, timeout: 5000, maxRetries: 0 });
+    const result = await testClient().invoices.pdfLink(COMPANY, invoiceId, { headers: { "X-Active-Profile": "managed-company" }, timeout: 5000, maxRetries: 0 });
 
     expect(result).toEqual(link);
     expect(requests).toHaveLength(1);
@@ -271,7 +276,7 @@ describe("invoices.pdfLink after it gained the format query", () => {
   it("still accepts a call with no options", async () => {
     const { requests } = captureLink();
 
-    await testClient().invoices.pdfLink(invoiceId);
+    await testClient().invoices.pdfLink(COMPANY, invoiceId);
 
     expect(new URL(requests[0]!.url).search).toBe("");
   });
@@ -279,7 +284,7 @@ describe("invoices.pdfLink after it gained the format query", () => {
   it("sends format as a query parameter", async () => {
     const { requests } = captureLink();
 
-    await testClient().invoices.pdfLink(invoiceId, { format: "ticket_80" });
+    await testClient().invoices.pdfLink(COMPANY, invoiceId, { format: "ticket_80" });
 
     expect(new URL(requests[0]!.url).searchParams.get("format")).toBe("ticket_80");
   });
@@ -287,7 +292,7 @@ describe("invoices.pdfLink after it gained the format query", () => {
   it("takes the query second and the options third", async () => {
     const { requests } = captureLink();
 
-    await testClient().invoices.pdfLink(invoiceId, { format: "ticket_58" }, { headers: { "X-Active-Profile": "managed-company" } });
+    await testClient().invoices.pdfLink(COMPANY, invoiceId, { format: "ticket_58" }, { headers: { "X-Active-Profile": "managed-company" } });
 
     expect(new URL(requests[0]!.url).searchParams.get("format")).toBe("ticket_58");
     expect(requests[0]?.headers.get("X-Active-Profile")).toBe("managed-company");
@@ -296,7 +301,7 @@ describe("invoices.pdfLink after it gained the format query", () => {
   it("takes the options third when the query is skipped", async () => {
     const { requests } = captureLink();
 
-    await testClient().invoices.pdfLink(invoiceId, undefined, { headers: { "X-Active-Profile": "managed-company" } });
+    await testClient().invoices.pdfLink(COMPANY, invoiceId, undefined, { headers: { "X-Active-Profile": "managed-company" } });
 
     expect(new URL(requests[0]!.url).search).toBe("");
     expect(requests[0]?.headers.get("X-Active-Profile")).toBe("managed-company");

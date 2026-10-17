@@ -11,37 +11,38 @@ import type { Page } from "../core/pagination.js";
 
 export class EmployeeBatchesResource extends BaseResource {
   /** Cancel an employee batch */
-  async cancel(id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employee-batches/{id}/cancel", { "id": id });
+  async cancel(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employee-batches/{id}/cancel", { "company": company, "id": id });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Confirm an employee batch */
-  async confirm(id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employee-batches/{id}/confirm", { "id": id });
+  async confirm(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employee-batches/{id}/confirm", { "company": company, "id": id });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List an employee batch */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/employee-batches", params, "cursor", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/employee-batches", { "company": company });
+    return this._paginate<unknown>(path, params, "cursor", config);
   }
 
   /** Prepare an employee batch */
-  async prepare(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/employee-batches";
+  async prepare(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employee-batches", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Refresh the quote for an employee batch */
-  async refreshQuote(id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employee-batches/{id}/quote", { "id": id });
+  async refreshQuote(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employee-batches/{id}/quote", { "company": company, "id": id });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve an employee batch */
-  async show(id: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/employee-batches/{id}", { "id": id });
+  async show(company: string, id: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/employee-batches/{id}", { "company": company, "id": id });
     return this._get<unknown>(path, undefined, config);
   }
 }

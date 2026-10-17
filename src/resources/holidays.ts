@@ -11,19 +11,20 @@ import type { Page } from "../core/pagination.js";
 
 export class HolidaysResource extends BaseResource {
   /** List all holidays */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/holidays", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/holidays", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Resolve applicable holidays */
-  async resolve(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/holidays/resolve";
+  async resolve(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/holidays/resolve", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** Retrieve a holiday */
-  async show(holiday: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/holidays/{holiday}", { "holiday": holiday });
+  async show(company: string, holiday: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/holidays/{holiday}", { "company": company, "holiday": holiday });
     return this._get<unknown>(path, undefined, config);
   }
 }
