@@ -252,6 +252,12 @@ export class AccountApiKeysResource extends BaseResource {
     return this._get<unknown>(path, undefined, config);
   }
 
+  /** Retrieve the daily usage of an API key */
+  async usage(account: string, apiKey: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/api-keys/{api_key}/usage", { "account": account, "api_key": apiKey });
+    return this._get<unknown>(path, params, config);
+  }
+
   /** Revoke an API key */
   async revoke(account: string, apiKey: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}/api-keys/{api_key}/revoke", { "account": account, "api_key": apiKey });

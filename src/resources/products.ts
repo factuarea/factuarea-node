@@ -163,6 +163,20 @@ export class ProductsStockMovementsResource extends BaseResource {
   }
 }
 
+export class ProductsBaseUnitReplacementResource extends BaseResource {
+  /** Preview a base unit replacement */
+  async preview(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/products/{product}/base-unit-replacement/preview", { "company": company, "product": product });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Replace a product by changing its base unit */
+  async create(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/products/{product}/base-unit-replacement", { "company": company, "product": product });
+    return this._send<unknown>("POST", path, body, config);
+  }
+}
+
 export class ProductsResource extends BaseResource {
   readonly presentations: ProductsPresentationsResource;
   readonly variants: ProductsVariantsResource;
@@ -172,6 +186,7 @@ export class ProductsResource extends BaseResource {
   readonly configurations: ProductsConfigurationsResource;
   readonly options: ProductsOptionsResource;
   readonly stockMovements: ProductsStockMovementsResource;
+  readonly baseUnitReplacement: ProductsBaseUnitReplacementResource;
 
   constructor(client: HttpClient) {
     super(client);
@@ -183,6 +198,7 @@ export class ProductsResource extends BaseResource {
     this.configurations = new ProductsConfigurationsResource(client);
     this.options = new ProductsOptionsResource(client);
     this.stockMovements = new ProductsStockMovementsResource(client);
+    this.baseUnitReplacement = new ProductsBaseUnitReplacementResource(client);
   }
 
   /** Delete multiple products in bulk */

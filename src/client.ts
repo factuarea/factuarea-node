@@ -27,6 +27,7 @@ import type {
   TasksResource,
   TaxReportsResource,
   TaxesResource,
+  TransportDocumentsResource,
   UsersResource,
   VerifactuResource,
   WebhookEndpointsResource,
@@ -82,6 +83,8 @@ export class Factuarea {
   readonly tasks: TasksResource;
   readonly taxReports: TaxReportsResource;
   readonly taxes: TaxesResource;
+  /** Transport control documents (DeCA) of Spanish road freight. */
+  readonly transportDocuments: TransportDocumentsResource;
   /** Members of the company that can be assigned to tasks. */
   readonly users: UsersResource;
   readonly verifactu: VerifactuResource;
@@ -123,6 +126,7 @@ export class Factuarea {
     this.tasks = resources.tasks;
     this.taxReports = resources.taxReports;
     this.taxes = resources.taxes;
+    this.transportDocuments = resources.transportDocuments;
     this.users = resources.users;
     this.verifactu = resources.verifactu;
     this.webhookEndpoints = resources.webhookEndpoints;

@@ -38,15 +38,15 @@ export class ContactsResource extends BaseResource {
   }
 
   /** Assign a contact role */
-  async assignContactRole(company: string, contact: string, role: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async assignContactRole(company: string, contact: string, role: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/contacts/{contact}/roles/{role}", { "company": company, "contact": contact, "role": role });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Remove a contact role */
-  async removeContactRole(company: string, contact: string, role: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async removeContactRole(company: string, contact: string, role: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/contacts/{contact}/roles/{role}", { "company": company, "contact": contact, "role": role });
-    return this._delete<unknown>(path, params, config, { idempotent: true });
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Archive contacts in bulk */

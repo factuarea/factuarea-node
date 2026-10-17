@@ -89,6 +89,7 @@ function isBinary(op) {
     for (const ct of Object.keys(resp.content ?? {})) {
       if (
         ct.includes("pdf") ||
+        ct.startsWith("image/") ||
         ct.includes("octet-stream") ||
         ct.includes("zip") ||
         (ct.includes("csv") && BINARY_CSV_OPERATIONS.has(op.operationId))

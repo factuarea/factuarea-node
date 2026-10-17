@@ -58,7 +58,6 @@ export type {
   BulkChangeContactRoleStatusV1Request,
   ChangeContactRoleStatusV1Request,
   Client,
-  ContactRoleV1Request,
   CreateBusinessContactV1Request,
   Event,
   EventData,
@@ -185,4 +184,24 @@ export type {
   VeriFactuConfig,
   VeriFactuRecord,
   VeriFactuStats,
+} from "./generated/types.gen.js";
+
+// Transport control documents (DeCA): the resource, its parts, its evidence and
+// the requests of each lifecycle step.
+export type {
+  CancelTransportDocumentRequest,
+  CreateTransportDocumentRequest,
+  ModifyTransportDocumentRequest,
+  ReopenTransportDocumentRequest,
+  SendTransportDocumentRequest,
+  SupersedeTransportDocumentRequest,
+  TransportAddress,
+  TransportDocument,
+  TransportDocumentChange,
+  TransportDocumentEvidence,
+  TransportDocumentParty,
+  TransportDocumentShipment,
+  TransportDocumentStatusItem,
+  TransportDocumentVersion,
+  UpdateTransportDocumentRequest,
 } from "./generated/types.gen.js";

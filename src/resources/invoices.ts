@@ -24,7 +24,7 @@ export class InvoicesFaceSubmissionsResource extends BaseResource {
 }
 
 export class InvoicesQuarterlyResource extends BaseResource {
-  /** List quarters with invoices */
+  /** List quarters to export */
   async available(company: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/invoices/quarterly/available-quarters", { "company": company });
     return this._get<unknown>(path, undefined, config);
@@ -284,10 +284,10 @@ export class InvoicesResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Download payment receipt PDF */
-  async paymentReceipt(company: string, invoice: string, config?: RequestConfig): Promise<BinaryResponse> {
+  /** Download the receipt PDF of a payment */
+  async paymentReceipt(company: string, invoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/companies/{company}/invoices/{invoice}/payment-receipt", { "company": company, "invoice": invoice });
-    return this._binary(path, "GET", undefined, undefined, config);
+    return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Reschedule an invoice */

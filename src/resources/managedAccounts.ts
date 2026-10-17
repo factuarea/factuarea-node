@@ -94,6 +94,12 @@ export class ManagedAccountsResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Preview the provisioning of a managed account */
+  async provisioningPreview(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = "/accounts/provisioning-preview";
+    return this._get<unknown>(path, params, config);
+  }
+
   /** Retrieve a managed account */
   async show(account: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/accounts/{account}", { "account": account });

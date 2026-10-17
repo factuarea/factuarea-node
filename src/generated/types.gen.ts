@@ -339,7 +339,7 @@ export type Account = {
     };
     plan: {
         /**
-         * Plan identifier (e.g. `emprendedor`, `empresario`, `enterprise`).
+         * Plan identifier (e.g. `emprendedor`, `empresario`, `integral`, `enterprise`).
          */
         slug: string;
         name: string;
@@ -429,7 +429,7 @@ export type AccountBilling = {
      */
     plan: {
         /**
-         * Plan identifier (e.g. `emprendedor`, `empresario`, `enterprise`, `gestionada`).
+         * Plan identifier (e.g. `emprendedor`, `empresario`, `integral`, `enterprise`, `gestionada`).
          */
         slug: string | null;
         name: string | null;
@@ -664,6 +664,27 @@ export type AccountInvitation = {
      * Expiry instant (ISO 8601).
      */
     expires_at: string;
+    /**
+     * Instant (ISO 8601) the invitation was created, or `null` when it is not known.
+     */
+    created_at: string | null;
+    /**
+     * Instant (ISO 8601) of the last send: the creation or the last resend. `null` when it is not known.
+     */
+    sent_at: string | null;
+    /**
+     * The person who created the invitation. `null` when that person no longer belongs to the account.
+     */
+    invited_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
 };
 
 /**
@@ -742,6 +763,27 @@ export type AccountInvitationWithSecret = {
      */
     expires_at: string;
     /**
+     * Instant (ISO 8601) the invitation was created, or `null` when it is not known.
+     */
+    created_at: string | null;
+    /**
+     * Instant (ISO 8601) of the last send: the creation or the last resend. `null` when it is not known.
+     */
+    sent_at: string | null;
+    /**
+     * The person who created the invitation. `null` when that person no longer belongs to the account.
+     */
+    invited_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
+    /**
      * The plaintext acceptance secret, returned ONCE for a copy-link invitation (`send_email: false`). Treat it as a credential: anyone holding it can accept the invitation. `null` when the invitation is delivered by email and in an idempotent replay.
      */
     secret: string | null;
@@ -799,6 +841,14 @@ export type AccountMember = {
         level: 'view' | 'operate';
     }>;
     permissions: AccountMemberPermissions;
+    /**
+     * Instant (ISO 8601) the person joined the account, or `null` when it is not known.
+     */
+    joined_at: string | null;
+    /**
+     * Lower bound (ISO 8601) of the last time the person accessed the account, or `null` if they never did. It reflects the last session, not every request.
+     */
+    last_access_at: string | null;
 };
 
 /**
@@ -1607,6 +1657,73 @@ export type ApiKey = {
      * `true` once the key has been revoked.
      */
     is_revoked: boolean;
+    /**
+     * IP addresses or CIDR ranges the key is restricted to, or `null` when it has no IP restriction.
+     */
+    ip_allowlist: Array<string> | null;
+    /**
+     * Browser origins allowed to use a browser-published key, or `null` (or empty) when the key is server-side only.
+     */
+    allowed_origins: Array<string> | null;
+    /**
+     * IP address of the last authenticated request with this key, or `null` if never used.
+     */
+    last_used_ip: string | null;
+    /**
+     * Tax IDs the key reaches, each with its opaque identifier, its fiscal identifier and the access level stored for the key on it.
+     */
+    nif_scope: Array<ApiKeyNifScopeItem>;
+    /**
+     * The person who created the key. `null` when that person no longer belongs to the account, or for keys created before this field existed.
+     */
+    created_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
+    /**
+     * The person who revoked the key. `null` when the key is not revoked, when that person no longer belongs to the account, or for keys revoked before this field existed.
+     */
+    revoked_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
+    /**
+     * Reason stored when the key was revoked, or `null`.
+     */
+    revoke_reason: string | null;
+    /**
+     * Instant of the last secret rotation, or `null` if the secret was never rotated.
+     */
+    secret_rotated_at: string | null;
+    /**
+     * The person who last rotated the secret. Always `null` when the rotation was made with an API credential or the MCP server instead of a person.
+     */
+    secret_rotated_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
+    /**
+     * End of the 24-hour grace window in which the previous secret still authenticates after a rotation, or `null` outside that window.
+     */
+    previous_secret_valid_until: string | null;
 };
 
 /**
@@ -1646,17 +1763,98 @@ export type ApiKeyNifScope = {
     /**
      * Tax IDs the API key reaches, each with its opaque identifier and its fiscal identifier.
      */
-    scope: Array<{
+    scope: Array<ApiKeyNifScopeItem>;
+};
+
+/**
+ * ApiKeyNifScopeItem
+ *
+ * One tax ID reached by an API key.
+ */
+export type ApiKeyNifScopeItem = {
+    /**
+     * Opaque identifier of the company (UUID v7) — the one the company axis expects in the path.
+     */
+    id: string;
+    /**
+     * Spanish fiscal identifier (NIF, CIF, NIE). Structural format: NIF `^\d{8}[A-Z]$`, NIE `^[XYZ]\d{7}[A-Z]$`, CIF `^[A-Z]\d{7}[A-Z0-9]$`. AEAT control-digit (checksum) validation is enforced when the request opts in via the `Factuarea-Version` header on or after the activation version; without that opt-in the legacy permissive behaviour is preserved.
+     */
+    tax_id: string;
+    name: string;
+    /**
+     * Access level the key has on that tax ID: `view` is read-only, `operate` can also write. Present on the scope of an API key.
+     */
+    access_level?: 'view' | 'operate';
+};
+
+/**
+ * ApiKeyUsage
+ *
+ * Daily usage of one API key of your account over the last 7, 30 (default) or 90 days. It is an AGGREGATE, not an entity: it carries no `id`. Only counters — it never exposes quota, tier limits or prices.
+ */
+export type ApiKeyUsage = {
+    /**
+     * One item per day of the period, oldest first. Days without requests appear with every counter at 0.
+     */
+    daily: Array<{
         /**
-         * Opaque identifier of the company (UUID v7) — the one the company axis expects in the path.
+         * Day (ISO 8601 date).
          */
-        id: string;
+        date: string;
         /**
-         * Spanish fiscal identifier (NIF, CIF, NIE). Structural format: NIF `^\d{8}[A-Z]$`, NIE `^[XYZ]\d{7}[A-Z]$`, CIF `^[A-Z]\d{7}[A-Z0-9]$`. AEAT control-digit (checksum) validation is enforced when the request opts in via the `Factuarea-Version` header on or after the activation version; without that opt-in the legacy permissive behaviour is preserved.
+         * Requests made with the key.
          */
-        tax_id: string;
-        name: string;
+        requests_count: number;
+        /**
+         * Requests answered with a 2xx or 3xx status.
+         */
+        successful_count: number;
+        /**
+         * Requests answered with a 4xx status other than 429.
+         */
+        client_error_count: number;
+        /**
+         * Requests answered with 429.
+         */
+        rate_limited_count: number;
+        /**
+         * Requests answered with a 5xx status.
+         */
+        error_count: number;
     }>;
+    /**
+     * Sum of the counters of the period.
+     */
+    total: {
+        /**
+         * Requests made with the key.
+         */
+        requests_count: number;
+        /**
+         * Requests answered with a 2xx or 3xx status.
+         */
+        successful_count: number;
+        /**
+         * Requests answered with a 4xx status other than 429.
+         */
+        client_error_count: number;
+        /**
+         * Requests answered with 429.
+         */
+        rate_limited_count: number;
+        /**
+         * Requests answered with a 5xx status.
+         */
+        error_count: number;
+    };
+    /**
+     * Instant of the last authenticated request with the key, or `null` if it was never used.
+     */
+    last_used_at: string | null;
+    /**
+     * IP address of that last request, or `null` if the key was never used.
+     */
+    last_used_ip: string | null;
 };
 
 /**
@@ -1714,6 +1912,73 @@ export type ApiKeyWithSecret = {
      * `true` once the key has been revoked.
      */
     is_revoked: boolean;
+    /**
+     * IP addresses or CIDR ranges the key is restricted to, or `null` when it has no IP restriction.
+     */
+    ip_allowlist: Array<string> | null;
+    /**
+     * Browser origins allowed to use a browser-published key, or `null` (or empty) when the key is server-side only.
+     */
+    allowed_origins: Array<string> | null;
+    /**
+     * IP address of the last authenticated request with this key, or `null` if never used.
+     */
+    last_used_ip: string | null;
+    /**
+     * Tax IDs the key reaches, each with its opaque identifier, its fiscal identifier and the access level stored for the key on it.
+     */
+    nif_scope: Array<ApiKeyNifScopeItem>;
+    /**
+     * The person who created the key. `null` when that person no longer belongs to the account, or for keys created before this field existed.
+     */
+    created_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
+    /**
+     * The person who revoked the key. `null` when the key is not revoked, when that person no longer belongs to the account, or for keys revoked before this field existed.
+     */
+    revoked_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
+    /**
+     * Reason stored when the key was revoked, or `null`.
+     */
+    revoke_reason: string | null;
+    /**
+     * Instant of the last secret rotation, or `null` if the secret was never rotated.
+     */
+    secret_rotated_at: string | null;
+    /**
+     * The person who last rotated the secret. Always `null` when the rotation was made with an API credential or the MCP server instead of a person.
+     */
+    secret_rotated_by: {
+        /**
+         * Opaque identifier (UUID v7) of the person.
+         */
+        id: string;
+        /**
+         * Full name of the person.
+         */
+        name: string;
+    } | null;
+    /**
+     * End of the 24-hour grace window in which the previous secret still authenticates after a rotation, or `null` outside that window.
+     */
+    previous_secret_valid_until: string | null;
     /**
      * Plaintext secret, returned only at creation or after rotation — never again. `null` only in an idempotent replay of that creation or rotation, because the secret is never stored.
      */
@@ -1782,6 +2047,24 @@ export type ApiRequestLog = {
      * When the request was received (ISO 8601).
      */
     created_at: string;
+    /**
+     * The company (tax ID) the request acted on, or `null` when the request did not act on one (for example an account-level call) or the company no longer exists.
+     */
+    company: {
+        /**
+         * Opaque identifier (UUID v7) of the company.
+         */
+        id: string;
+        /**
+         * Spanish fiscal identifier (NIF, CIF, NIE). Structural format: NIF `^\d{8}[A-Z]$`, NIE `^[XYZ]\d{7}[A-Z]$`, CIF `^[A-Z]\d{7}[A-Z0-9]$`. AEAT control-digit (checksum) validation is enforced when the request opts in via the `Factuarea-Version` header on or after the activation version; without that opt-in the legacy permissive behaviour is preserved.
+         */
+        tax_id: string;
+        name: string;
+    } | null;
+    /**
+     * Axis the request was made on, derived from the path prefix: `company` for `/v1/companies/{company}/…` and `account` for `/v1/accounts/{account}/…`. `null` when the path belongs to neither.
+     */
+    axis: 'company' | 'account' | null;
 };
 
 /**
@@ -2535,7 +2818,7 @@ export type AutomationTriggerFields = {
 /**
  * AutomationUsage
  *
- * How many automation runs your company has consumed this period and what its plan allows. Read it to anticipate running out of budget: this API does not pre-check the quota when you activate a rule, so this is the endpoint that tells you where you stand. The figure comes from the same counter the engine applies when admitting a run, so it advances by exactly N after N admitted runs and does NOT change when run history is purged.
+ * Current active automation rules and automation runs consumed this period, with the limits of the plan. Activating a rule checks the active-rule cap; the execution budget is checked only when admitting a run. Read both counters to anticipate reaching either limit. The figure comes from the same counter the engine applies when admitting a run, so it advances by exactly N after N admitted runs and does NOT change when run history is purged.
  */
 export type AutomationUsage = {
     /**
@@ -2547,7 +2830,7 @@ export type AutomationUsage = {
      */
     consumed: number;
     /**
-     * Cap of the plan for the period, or `null` when the plan has NO cap. `null` means unlimited, never "unknown": treat it as "no progress bar", not as zero.
+     * Cap of the plan for the period, or `null` when there is no automatic ceiling. Enterprise capacity is agreed by contract. `null` is not an unknown value or zero: omit the progress bar.
      */
     limit: number | null;
     /**
@@ -2562,6 +2845,19 @@ export type AutomationUsage = {
      * Consumption percentage at which the platform starts warning the account owner. It travels so your own warning and ours cannot drift apart.
      */
     threshold_percent: number;
+    /**
+     * Current active rules and the cap enforced when activating a rule. Draft, paused and deleted rules do not consume this cap.
+     */
+    active_rules: {
+        /**
+         * Active, non-deleted rules belonging to this company.
+         */
+        count: number;
+        /**
+         * Active-rule cap of the plan. Zero permits no activations; null means no automatic ceiling. Enterprise capacity is agreed by contract.
+         */
+        limit: number | null;
+    };
 };
 
 /**
@@ -2593,6 +2889,108 @@ export type BankAccount = {
      * Marks the account as the default for direct debits.
      */
     is_default: boolean;
+};
+
+/**
+ * BaseUnitChange
+ *
+ * Whether the base unit of the product can be edited in place. `mode` is `direct` exactly when there are no blockers; with blockers it is `replacement` and the base unit is changed by replacing the product (`POST /v1/companies/{company}/products/{product}/base-unit-replacement`); an already replaced product is `unavailable` with no blockers. Attempting to edit `base_unit` with blockers is rejected with 422 `business_rule_violation`, subcode `product_base_unit_locked`, and the same `blockers` in `details`. Only calculated on single-product reads (show, create, update, replacement): list responses omit the key.
+ */
+export type BaseUnitChange = {
+    mode: 'direct' | 'replacement' | 'unavailable';
+    /**
+     * What fixes the base unit, in a stable order.
+     */
+    blockers: Array<{
+        /**
+         * Closed catalog of blockers.
+         */
+        code: 'stock' | 'movements' | 'presentations' | 'supplier_offers' | 'variant_stock';
+        /**
+         * Decimal string without trailing zeros: the stock in `unit` for `stock`, a count of elements for the rest.
+         */
+        quantity: string;
+        /**
+         * UN/ECE code of the unit of `quantity`. Only informed for `stock`; `null` for the rest.
+         */
+        unit: string | null;
+    }>;
+};
+
+/**
+ * BaseUnitReplacementPreview
+ *
+ * What replacing a product by another with a different base unit would do, with the `impact_token` that confirms THAT exact plan. Nothing is written. `impact_token` is a fingerprint of the plan, not a credential: it is rejected with 422 `base_unit_replacement_preview_stale` if the catalog, the price lists or the packs change before the replacement runs.
+ */
+export type BaseUnitReplacementPreview = {
+    object: 'base_unit_replacement_preview';
+    /**
+     * Id of the product that would be replaced.
+     */
+    product_id: string;
+    from_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    to_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    /**
+     * Units of the CURRENT base per ONE unit of the NEW base, decimal string with scale 6 (`"0.001000"` when moving from kg to g). `null` between measure families with no declared equivalence.
+     */
+    equivalence: string | null;
+    /**
+     * True when the equivalence was derived from the units (same measure family) instead of sent.
+     */
+    equivalence_calculated: boolean;
+    /**
+     * True when the conversion loses precision or there is no equivalence: the execution then needs `base_price` confirmed.
+     */
+    price_confirmation_required: boolean;
+    /**
+     * Every element of the plan.
+     */
+    items: Array<{
+        kind: 'stock' | 'variant_stock' | 'base_price' | 'variant_cost' | 'low_stock_threshold' | 'transport_weight' | 'presentation' | 'variant' | 'option_group' | 'configuration' | 'price_list_item' | 'supplier_offer' | 'pack_component' | 'identity';
+        /**
+         * `review` needs the user to look at it before confirming, `converted` is converted automatically and `carried` moves to the new product unchanged.
+         */
+        group: 'review' | 'converted' | 'carried';
+        /**
+         * Public id (UUID v7) of the affected element. `null` for the product itself and for `price_list_item` and `pack_component`, which have no public id and are told apart by `kind` and `name`.
+         */
+        ref: string | null;
+        name: string | null;
+        /**
+         * Relevant values as strings (`quantity`, `unit_code`, `price`, `conversion_factor`, …). `null` when the element did not exist before or is not transferred.
+         */
+        before: {
+            [key: string]: string | null;
+        } | null;
+        /**
+         * Relevant values as strings (`quantity`, `unit_code`, `price`, `conversion_factor`, …). `null` when the element did not exist before or is not transferred.
+         */
+        after: {
+            [key: string]: string | null;
+        } | null;
+        flags: Array<'rounded' | 'precision_loss' | 'no_equivalence' | 'fraction'>;
+        /**
+         * Decision applied to a presentation.
+         */
+        decision: 'keep' | 'retire' | null;
+        /**
+         * Decision the planner proposes for a presentation.
+         */
+        proposed_decision: 'keep' | 'retire' | null;
+    }>;
+    /**
+     * Unissued sales documents that will keep pointing at the old product.
+     */
+    pending_documents: Array<{
+        type: string;
+        id: string;
+        number: string | null;
+        status: string;
+    }>;
+    /**
+     * Send it back as `impact_token` to execute THIS plan.
+     */
+    impact_token: string;
 };
 
 /**
@@ -3403,7 +3801,7 @@ export type BusinessContactStats = {
 export type CalculateTaxRequest = {
     base: number;
     /**
-     * Identifier (UUID v7) of the tax to apply, from the global `taxes` catalog. A well-formed but non-existent value returns 404 `tax_not_found`.
+     * Identifier (UUID v7) of the tax to apply, from the Factuarea catalog plus your company's own taxes. A well-formed but non-existent value returns 404 `tax_not_found`.
      */
     taxes_id: string;
 };
@@ -3457,11 +3855,27 @@ export type CanAnnulInvoice = {
 };
 
 /**
+ * CancelDurableOperationBody
+ */
+export type CancelDurableOperationBody = {
+    [key: string]: never;
+};
+
+/**
  * CancelFaceSubmissionV1Request
  *
  * Cancel a FACe submission. `reason` is required: it travels to the FACe web service alongside the cancellation request (code 4200).
  */
 export type CancelFaceSubmissionV1Request = {
+    reason: string;
+};
+
+/**
+ * CancelTransportDocumentRequest
+ *
+ * Cancel an issued transport document. Required: `reason` (3-500 characters).
+ */
+export type CancelTransportDocumentRequest = {
     reason: string;
 };
 
@@ -3582,7 +3996,6 @@ export type ChangeAccountMemberRoleV1Request = {
  * ChangeContactRoleStatusV1Request
  */
 export type ChangeContactRoleStatusV1Request = {
-    role: 'customer' | 'supplier' | 'lead';
     status: 'active' | 'inactive';
 };
 
@@ -3601,13 +4014,13 @@ export type ChangeManagedAccountAccessLevelV1Request = {
 /**
  * ChangeManagedAccountPlanV1Request
  *
- * Change the plan of the managed account of the path, which your account pays: `plan` is `emprendedor` or `empresario` (`enterprise` is only assigned by Factuarea by contract). An upgrade is charged at once; a downgrade takes effect at the end of the period.
+ * Change the plan of the managed account of the path, which your account pays: `plan` is `emprendedor`, `empresario` or `integral` (`enterprise` is only assigned by Factuarea by contract). An upgrade is charged at once; a downgrade takes effect at the end of the period.
  */
 export type ChangeManagedAccountPlanV1Request = {
     /**
-     * Requested plan: `emprendedor` or `empresario`. `enterprise` returns 422 `managed_account_plan_not_self_serve`.
+     * Requested plan: `emprendedor`, `empresario` or `integral`. `enterprise` returns 422 `managed_account_plan_not_self_serve`.
      */
-    plan: 'emprendedor' | 'empresario' | 'enterprise';
+    plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
 };
 
 /**
@@ -3616,6 +4029,82 @@ export type ChangeManagedAccountPlanV1Request = {
 export type ChangeTaskStatusV1Request = {
     column_id?: string | null;
     status?: string | null;
+};
+
+/**
+ * ChargeRule
+ *
+ * A charge treatment rule of a connected Stripe account. Rules are evaluated in `position` order and the first one that matches decides whether the charge is invoiced or left out. The public `id` is the rule UUID v7.
+ */
+export type ChargeRule = {
+    /**
+     * UUID v7 of the rule. Public identity (KEY `id`).
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `charge_rule`.
+     */
+    object: 'charge_rule';
+    /**
+     * Evaluation order within the account, starting at 1. Change it with `PUT /v1/companies/{company}/connected-accounts/{account}/charge-rules/order`.
+     */
+    position: number;
+    /**
+     * Condition a charge must meet for the rule to apply.
+     */
+    condition: {
+        /**
+         * Kind of condition: the charge metadata `key` equals `value`, the charge description contains `value`, or the charge comes from the payment link `value`.
+         */
+        type: 'metadata_equals' | 'description_contains' | 'payment_link';
+        /**
+         * Metadata key. Only used (and required) with `metadata_equals`; `null` otherwise.
+         */
+        key: string | null;
+        /**
+         * Value to compare against.
+         */
+        value: string;
+    };
+    /**
+     * `invoice` issues the invoice (optionally with `concept` and `vat_rate`); `do_not_invoice` leaves the charge out and records it with `non_invoice_reason`.
+     */
+    outcome: 'invoice' | 'do_not_invoice';
+    /**
+     * Reason recorded for charges left out. Only with `do_not_invoice`; `null` with `invoice`.
+     */
+    non_invoice_reason: 'indemnity_not_subject' | 'multipurpose_voucher' | 'invoiced_elsewhere' | null;
+    /**
+     * Concept of the invoice line. Only with `invoice`; `null` otherwise.
+     */
+    concept: string | null;
+    /**
+     * VAT rate in percent applied to the line. Only with `invoice`; `null` otherwise.
+     */
+    vat_rate: number | null;
+    /**
+     * When the rule was created (ISO 8601).
+     */
+    created_at: string;
+    /**
+     * When the rule was last updated (ISO 8601).
+     */
+    updated_at: string;
+};
+
+/**
+ * ChargeRuleRequest
+ */
+export type ChargeRuleRequest = {
+    condition: {
+        type: 'metadata_equals' | 'description_contains' | 'payment_link';
+        key?: string | null;
+        value: string;
+    };
+    outcome: 'invoice' | 'do_not_invoice';
+    concept?: string | null;
+    vat_rate?: number | null;
+    non_invoice_reason?: 'indemnity_not_subject' | 'multipurpose_voucher' | 'invoiced_elsewhere' | null;
 };
 
 /**
@@ -3807,6 +4296,10 @@ export type Company = {
      */
     status: 'active' | 'inactive' | 'archived';
     /**
+     * When the tax ID entered its current `inactive` or `archived` status (ISO 8601). `null` for an `active` tax ID and for one whose change predates the lifecycle events: the date is never invented.
+     */
+    status_since: string | null;
+    /**
      * Street address of the fiscal domicile, or `null`.
      */
     address: string | null;
@@ -3826,6 +4319,10 @@ export type Company = {
      * AEAT territorial zone of the company (`peninsula`, `canarias`, `ceuta`, `melilla`), or `null`.
      */
     country_aeat_zone: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
+    /**
+     * Country of the fiscal domicile as recorded in the company profile (free text, up to 100 characters), or `null` when it was not set.
+     */
+    country: string | null;
     /**
      * Contact email, or `null`.
      */
@@ -3921,7 +4418,7 @@ export type CompanyCreationStatus = {
      */
     provisioning_status: 'pending' | 'awaiting_payment' | 'provisioning' | 'active' | 'failed';
     /**
-     * URL to set up the payment method of the account titular. Only present while `awaiting_payment` and for a production credential that reaches the titular company; `null` otherwise.
+     * URL to set up the payment method of the account titular; when it is saved the person returns to the Companies page of the app (`/companies`). Only present while `awaiting_payment` and for a production credential that reaches the titular company; `null` otherwise.
      */
     payment_setup_url: string | null;
     /**
@@ -4044,6 +4541,10 @@ export type CompanySeatChargePreview = {
     recurring_quantity: number | null;
     recurring_base_cents: number | null;
     recurring_total_cents: number | null;
+    /**
+     * Explicit reason for no immediate charge. A null reason never implies an Enterprise contract; negotiated_free_price preserves the acquired private seat price.
+     */
+    zero_reason: 'negotiated_free_price' | 'enterprise_contract' | 'trial' | 'covered' | 'no_immediate_charge' | null;
 };
 
 /**
@@ -4159,6 +4660,15 @@ export type ConnectReturnDomainList = {
      * Opaque cursor for the next page (pass it as `starting_after`), or `null` when `has_more` is `false`.
      */
     next_cursor: string | null;
+    /**
+     * Additional information about the collection.
+     */
+    meta: {
+        /**
+         * Maximum number of return domains an account can register. The list is complete once `has_more` is `false`, so `data` length against `max` tells how many slots are left.
+         */
+        max: number;
+    };
 };
 
 /**
@@ -4283,6 +4793,22 @@ export type ConnectedAccount = {
      */
     subscription_autoinvoicing_enabled: boolean;
     /**
+     * Default concept of the single line created for charges whose lines cannot be recovered, or `null` if not configured. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    default_line_concept: string | null;
+    /**
+     * Optional note written in the notes of the invoices auto-created from this account, or `null` when none is configured (the default: invoices carry no note). When a charge needed a currency conversion to EUR, the conversion trace is appended to the note. Editable with `PUT`; `null` or an empty string clears it.
+     */
+    invoice_note: string | null;
+    /**
+     * How the account was linked to Stripe: `account_links` (Stripe Connect onboarding) or `stripe_app` (Stripe App). Read-only.
+     */
+    connection_method: 'account_links' | 'stripe_app';
+    /**
+     * Authorization state of the link with Stripe: `authorized`, `reauthorization_required` (the account must be linked again) or `revoked`. Read-only.
+     */
+    authorization_status: 'authorized' | 'reauthorization_required' | 'revoked';
+    /**
      * Account status. `active` while connected; `disconnected` (terminal) after disconnecting (invoices and history are kept).
      */
     status: 'active' | 'disconnected';
@@ -4374,13 +4900,27 @@ export type ConsolidatedWorkforce = {
      * Number of employees in the snapshot of the latest close.
      */
     employee_count: number;
-};
-
-/**
- * ContactRoleV1Request
- */
-export type ContactRoleV1Request = {
-    role: 'customer' | 'supplier' | 'lead';
+    /**
+     * Account the tax ID belongs to: `{id, name}` (your own account for a tax ID of your account), or `null` when the tax ID has no account.
+     */
+    account: {
+        /**
+         * Opaque identifier (UUID v7) of the account.
+         */
+        id: string;
+        /**
+         * Visible name of the account.
+         */
+        name: string;
+    } | null;
+    /**
+     * How the tax ID reaches you: `granted` (access granted to you), `provisioned` (a managed account your account provisioned) or `null` (a tax ID of your own account).
+     */
+    relation_origin: 'granted' | 'provisioned' | null;
+    /**
+     * Level you hold on the tax ID: `view` (read-only) or `operate`. For a credential, the level of its portfolio.
+     */
+    access_level: 'view' | 'operate';
 };
 
 /**
@@ -4512,7 +5052,7 @@ export type CreateAccountWebhookV1Request = {
     /**
      * Event types to subscribe to, at least one: the company events of the public catalog and the `account.*` events (`AccountEventType`). Duplicates are collapsed.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed'>;
     /**
      * Whose tax IDs the endpoint hears about: `own` (the tax IDs of your account), `managed` (the accounts your account manages) or `all`. Defaults to `all`.
      */
@@ -4540,7 +5080,7 @@ export type CreateApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'account:owner' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'members:read' | 'members:write' | 'invitations:read' | 'invitations:write' | 'nif_transfers:read' | 'nif_transfers:write' | 'accounts:read' | 'accounts:write' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
+    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'transport_documents:read' | 'transport_documents:write' | 'transport_documents:delete' | 'transport_documents:transition' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'account:owner' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'members:read' | 'members:write' | 'invitations:read' | 'invitations:write' | 'nif_transfers:read' | 'nif_transfers:write' | 'accounts:read' | 'accounts:write' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -4779,6 +5319,7 @@ export type CreateCorrectiveInvoiceRequest = {
          */
         exemption_reason_text?: string | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -4848,6 +5389,7 @@ export type CreateDeliveryNoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -5010,6 +5552,7 @@ export type CreateInvoiceRequest = {
          */
         line_total?: number | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -5080,7 +5623,7 @@ export type CreatePriceListRequest = {
 export type CreateProductPresentationRequest = {
     name: string;
     mode: 'fixed' | 'variable_measure';
-    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor?: number | null;
     nominal_base_quantity?: number | null;
     barcode?: string | null;
@@ -5089,6 +5632,15 @@ export type CreateProductPresentationRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight in kilograms PER COMMERCIAL UNIT,
+     * packaging included: up to four decimal places, greater than zero.
+     * Only for `fixed` presentations, where it replaces the weight
+     * derived from `conversion_factor`. Omit it to keep the current
+     * value; send `null` to clear it. Rejected with 422
+     * `gross_weight_not_allowed` for `variable_measure` presentations.
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -5113,6 +5665,7 @@ export type CreateProductRequest = {
     low_stock_threshold?: number | null;
     item_kind?: 'product' | 'service';
     base_unit?: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    gross_weight_kg?: number | null;
     /**
      * Whether this product takes part in document-driven stock movements: with `true`, issuing or receiving a document that includes it moves its stock automatically and the movement is recorded in the stock ledger. It only takes effect if your company also has stock management enabled; absent or `null` means `false`.
      */
@@ -5202,6 +5755,15 @@ export type CreateProductVariantRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight of the variant, in kilograms PER BASE
+     * UNIT: up to four decimal places, greater than zero. It overrides
+     * the product weight for this variant. Omit it to keep the current
+     * value; send `null` to clear it and inherit the product weight
+     * again. Rejected with 422 `gross_weight_not_allowed` for services
+     * and mass base units (`KGM`, `GRM`).
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -5255,6 +5817,7 @@ export type CreateProformaRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -5396,6 +5959,7 @@ export type CreatePurchaseInvoiceRequest = {
             package_quantity: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -5452,6 +6016,7 @@ export type CreateQuoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -5566,6 +6131,7 @@ export type CreateRecurringInvoiceRequest = {
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -5585,7 +6151,7 @@ export type CreateRecurringInvoiceRequest = {
 export type CreateSeriesRequest = {
     code: string;
     name?: string | null;
-    document_type: 'invoice' | 'quote' | 'delivery_note' | 'proforma';
+    document_type: 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'transport_document';
     prefix?: string | null;
     counter_reset?: 'never' | 'annual' | 'monthly' | null;
     year_reset?: boolean | null;
@@ -5603,7 +6169,7 @@ export type CreateSupplierProductOfferRequest = {
     supplier_id: string;
     variant_id?: string | null;
     supplier_sku?: string | null;
-    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: number;
     unit_cost?: number | null;
     availability: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
@@ -5747,11 +6313,136 @@ export type CreateTaskV1Request = {
 };
 
 /**
+ * CreateTaxRequest
+ */
+export type CreateTaxRequest = {
+    name: string;
+    code: string;
+    type: 'vat' | 'retention' | 'surcharge' | 'other';
+    rate: number;
+    applies_to: 'sale' | 'purchase' | 'both';
+    is_active?: boolean;
+    country: string;
+    description?: string | null;
+    /**
+     * Custom label for this tax shown to the customer on documents (e.g. "IVA 21% incluido"). Up to 200 characters.
+     */
+    customer_visible_label?: string | null;
+    external_reference?: string | null;
+    valid_from?: string | null;
+    /**
+     * End date of the tax validity window (`YYYY-MM-DD`). Must be on or after `valid_from`.
+     */
+    valid_until?: string | null;
+    reverse_charge?: boolean;
+    country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
+    /**
+     * FK to the linked equivalence-surcharge tax. UUID v7 value referencing the Factuarea catalog plus your company's own taxes.
+     */
+    linked_surcharge_taxes_id?: string | null;
+    metadata?: Metadata;
+    /**
+     * Sets this tax as the default per document type. Object with optional booleans: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice`, `recurring_invoice`.
+     */
+    default_for_documents?: {
+        invoice?: boolean;
+        quote?: boolean;
+        delivery_note?: boolean;
+        proforma?: boolean;
+        purchase_invoice?: boolean;
+        recurring_invoice?: boolean;
+    };
+};
+
+/**
+ * CreateTransportDocumentRequest
+ *
+ * Create a transport control document (DeCA) in `draft`. Only `company_role` (`shipper` or `carrier`) is required: a draft admits incomplete data and the minimum data is enforced when issuing. Your own party is filled with your company data; the other one comes from `contact_id` or from the fields you send. `delivery_note_ids` (1 to 50 of your delivery notes, without repetition) pre-fills one shipment per delivery note. Every reference is a UUID of your company (`*_id`); `shipments[].loading_place_id` is not accepted in the public API. A shipment that omits `origin` gets your default loading place or, without one, your registered address (role `shipper`) or the address of the shipper contact (role `carrier`); an explicit `origin: null` leaves the shipment without origin. `shipments[].id` is optional: an identifier already in use, in this or any other company, returns 422 on `shipments.N.id`. Every UUID is normalised to lower case before validating.
+ */
+export type CreateTransportDocumentRequest = {
+    company_role: 'shipper' | 'carrier';
+    special_authorization?: string | null;
+    transport_date?: string | null;
+    observations?: string | null;
+    vehicle?: {
+        tractor_plate?: string | null;
+        tractor_plate_country?: string | null;
+        trailer_plate?: string | null;
+        trailer_plate_country?: string | null;
+    };
+    shipments?: Array<{
+        id?: string | null;
+        transport_date?: string | null;
+        observations?: string | null;
+        delivery_note_id?: string | null;
+        loading_place_id?: string;
+        goods?: Array<{
+            description: string;
+            additional_description?: string | null;
+            quantity?: number | null;
+            unit?: string | null;
+            gross_weight_kg?: number | null;
+        }> | null;
+        declared_measure?: {
+            type?: string;
+            weight_kg?: number | null;
+            value?: number | null;
+            unit?: string | null;
+        } | null;
+        origin?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+        destination?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    }> | null;
+    shipper?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    carrier?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    delivery_note_ids?: Array<string>;
+};
+
+/**
  * CreateWebhookEndpointRequest
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -5824,6 +6515,111 @@ export type CustomField = {
  */
 export type CustomHeaders = {
     [key: string]: string;
+};
+
+/**
+ * CustomerOfferBenefit
+ */
+export type CustomerOfferBenefit = (unknown & {
+    kind: 'discount';
+    percent_off?: number;
+    amount_off_cents?: number;
+    duration: 'once' | 'repeating' | 'forever';
+    duration_in_months?: number;
+    extra_trial_days?: number;
+}) | {
+    kind: 'negotiated_price';
+    unit_amount_cents: number;
+    currency: 'EUR';
+    billing_interval: 'monthly' | 'yearly';
+    duration: 'forever' | 'billing_periods';
+    billing_periods?: number;
+    extra_trial_days?: number;
+} | {
+    kind: 'trial_extension';
+    days: number;
+};
+
+/**
+ * CustomerOfferQuote
+ */
+export type CustomerOfferQuote = {
+    concept: 'plan' | 'employee-seats' | 'gestoria-seats';
+    purchase_kind: string;
+    offer_id: string;
+    display_name: string;
+    benefit: CustomerOfferBenefit;
+    /**
+     * Safe owner counts and identifiers only. No profiles, code or Stripe IDs.
+     */
+    summary: {
+        [key: string]: unknown;
+    };
+    quote_complete: boolean;
+    currency: 'EUR';
+    expires_at: string;
+    eligible_gross_cents: number | null;
+    discount_cents: number | null;
+    proration_credit_cents: number | null;
+    net_base_cents: number | null;
+    tax_cents: number | null;
+    fiscal_total_cents: number | null;
+    account_credit_cents: number | null;
+    cash_today_cents: number | null;
+    recurring_net_cents: number | null;
+    recurring_tax_cents: number | null;
+    recurring_total_cents: number | null;
+    subsequent_unit_amount_cents: number | null;
+    unit_amount_cents: number | null;
+    catalog_unit_amount_cents: number | null;
+    billing_periods: number | null;
+    reversion_unit_amount_cents: number | null;
+    extra_trial_days: number | null;
+    next_bill_at: string | null;
+    benefit_starts_at: string | null;
+    benefit_ends_at: string | null;
+    benefit_end_basis?: 'accepted_anchor' | 'first_invoice_pending' | 'discount_application_pending' | 'verified_discount' | 'verified_schedule' | null;
+    trial_end_before: string | null;
+    trial_end_after: string | null;
+    billing_anchor_before: string | null;
+    billing_anchor_after: string | null;
+    zero_reason: 'full_discount' | 'negotiated_free_price' | 'already_covered' | 'trial' | 'account_credit' | null;
+    requires_payment_method: boolean;
+    warnings: Array<string>;
+    benefit_kind: 'discount' | 'negotiated_price' | 'trial_extension' | null;
+    price_duration: 'forever' | 'billing_periods' | null;
+};
+
+/**
+ * CustomerOfferRedemption
+ */
+export type CustomerOfferRedemption = {
+    id: string;
+    offer_id: string;
+    concept: 'plan' | 'employee-seats' | 'gestoria-seats';
+    purchase_kind: 'subscription_start' | 'subscription_update' | 'subscription_renewal' | 'trial_extension' | 'employee_individual' | 'employee_batch' | 'gestoria_purchase';
+    status: 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+    revision: number;
+    quote_version: number;
+    accepted_version: number | null;
+    expires_at: string;
+    quote_expired: boolean;
+    consumed: boolean;
+    reservation_held: boolean;
+    quote: CustomerOfferQuote | null;
+    /**
+     * Safe owner UUID/result receipt; no profile or financial evidence.
+     */
+    result: {
+        [key: string]: unknown;
+    };
+    allowed_actions: Array<'get' | 'refresh_quote' | 'confirm' | 'cancel' | 'complete_action'>;
+    failure_code: string | null;
+    created_at: string;
+    updated_at: string;
+    owner_operation_id: string | null;
+    action_url: string | null;
+    payment_setup_url: string | null;
 };
 
 /**
@@ -6102,6 +6898,14 @@ export type DeliveryNote = {
      * Total of the document. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice and yields a false total (4,320.00 + 259.20 - 648.00 = 3,931.20 against a real 4,579.20).
      */
     total: string;
+    /**
+     * Total gross transport weight in kg (decimal string, scale 4): the sum of the lines that have a weight. `null` when no line has one. Partial when `lines_without_weight_count` is above 0.
+     */
+    total_gross_weight_kg?: string | null;
+    /**
+     * Number of product lines without a known weight. Services and free-text lines never count.
+     */
+    lines_without_weight_count?: number;
     currency: string;
     notes: string | null;
     /**
@@ -6175,14 +6979,22 @@ export type DeliveryNoteLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -6224,6 +7036,10 @@ export type DeliveryNoteLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+    /**
+     * Gross transport weight of the whole line in kg (decimal string, scale 4): quantity × the weight per commercial unit frozen when the line was created or edited in draft. `null` for services, free-text lines and products without a known weight. It does not change after delivery even if the catalog weight changes.
+     */
+    gross_weight_kg?: string | null;
 };
 
 /**
@@ -6540,6 +7356,86 @@ export type Employee = {
      * Last-update timestamp (ISO 8601).
      */
     updated_at: string | null;
+};
+
+/**
+ * EmployeeBatch
+ */
+export type EmployeeBatch = {
+    id: string;
+    kind: 'create' | 'reactivate';
+    status: 'draft' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'paid' | 'completed' | 'failed' | 'cancelled' | 'compensating' | 'compensated' | 'needs_review';
+    revision: number;
+    quote_version: number;
+    accepted_version: number | null;
+    expires_at: string | null;
+    quote_expired: boolean;
+    requested: number;
+    financial_attempt_started: boolean;
+    failure_code: string | null;
+    quote: EmployeeBatchQuote | null;
+    items: Array<{
+        row_id: string;
+        employee_id?: string | null;
+        profile?: EmployeeBatchProfile | null;
+        paid_until?: string | null;
+        coverage?: 'covered' | 'uncovered';
+    }>;
+    result: Array<{
+        row_id: string;
+        employee_id: string;
+    }>;
+    allowed_actions: Array<'get' | 'confirm' | 'refresh_quote' | 'cancel' | 'complete_action'>;
+    created_at: string;
+    updated_at: string;
+    action_url: string | null;
+    payment_setup_url: string | null;
+};
+
+/**
+ * EmployeeBatchProfile
+ */
+export type EmployeeBatchProfile = {
+    first_name: string;
+    last_name: string;
+    email: string;
+    employment_type: 'full_time' | 'part_time';
+    contract_hours: number;
+    ccaa: 'AN' | 'AR' | 'AS' | 'IB' | 'CN' | 'CB' | 'CL' | 'CM' | 'CT' | 'VC' | 'EX' | 'GA' | 'MD' | 'MC' | 'NC' | 'PV' | 'RI' | 'CE' | 'ML';
+    hire_date: string;
+    tax_id?: string | null;
+    job_title?: string | null;
+    external_id?: string | null;
+    metadata?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * EmployeeBatchQuote
+ */
+export type EmployeeBatchQuote = {
+    base_cents: number;
+    discount_cents: number;
+    tax_cents: number;
+    total_cents: number;
+    recurring_base_cents: number;
+    recurring_discount_cents: number;
+    recurring_tax_cents: number;
+    recurring_total_cents: number;
+    proration_date: number;
+    requested: number;
+    active_before: number;
+    covered_count: number;
+    transferred_paid_slots: number;
+    chargeable_count: number;
+    final_active_count: number;
+    fingerprint: string;
+    currency: 'EUR';
+    seats_billable: boolean;
+    requires_payment_method: boolean;
+    requires_financial_attempt: boolean;
+    expires_at: string;
 };
 
 /**
@@ -6908,6 +7804,22 @@ export type Error = {
          */
         details?: {
             /**
+             * Operation in the authenticated company that must be resolved before another employee-seat mutation.
+             */
+            operation_id?: string;
+            /**
+             * Employee-batch validation failures identified by the stable row_id; no employee was charged or created.
+             */
+            row_errors?: Array<{
+                row_id: string;
+                field: string;
+                message: string;
+            }>;
+            /**
+             * Stable row_id of every employee-batch row whose external_id is already taken (repeated inside the batch or already in use in the company). Present on 409 `external_id_already_exists` of employee batches; correct those rows and send the batch again.
+             */
+            row_ids?: Array<string>;
+            /**
              * Review fields that must be corrected before a purchase scan can be converted. Keys use public identifiers, for example supplier_id or lines.0.tax_rate.
              */
             field_errors?: {
@@ -6937,6 +7849,26 @@ export type Error = {
              * Amount sent in `lines[].line_total`, which differs from `expected` by more than one cent. Present on 422 `line_total_checksum_mismatch`.
              */
             received?: number;
+            /**
+             * Current active automation rule count on automation_active_rules_limit_exceeded.
+             */
+            active_rules?: number;
+            /**
+             * Plan limit reached, including the active automation rule cap on automation_active_rules_limit_exceeded.
+             */
+            limit?: number;
+            /**
+             * Resource whose quota was reached on plan_limit_exceeded, for example documents_year or users.
+             */
+            resource?: string;
+            /**
+             * Current usage of the resource on plan_limit_exceeded.
+             */
+            current?: number;
+            /**
+             * End of the quota period on plan_limit_exceeded; null for resources without a period, including platform users.
+             */
+            period_end?: string | null;
         };
         /**
          * Link to error reference in docs.
@@ -7138,6 +8070,26 @@ export type EventData = ({
 } & EventDataDeliveryNoteEmailSent) | ({
     type: 'delivery_note.email_failed';
 } & EventDataDeliveryNoteEmailFailed) | ({
+    type: 'transport_document.created';
+} & EventDataTransportDocumentCreated) | ({
+    type: 'transport_document.updated';
+} & EventDataTransportDocumentUpdated) | ({
+    type: 'transport_document.issued';
+} & EventDataTransportDocumentIssued) | ({
+    type: 'transport_document.modified';
+} & EventDataTransportDocumentModified) | ({
+    type: 'transport_document.closed';
+} & EventDataTransportDocumentClosed) | ({
+    type: 'transport_document.reopened';
+} & EventDataTransportDocumentReopened) | ({
+    type: 'transport_document.cancelled';
+} & EventDataTransportDocumentCancelled) | ({
+    type: 'transport_document.superseded';
+} & EventDataTransportDocumentSuperseded) | ({
+    type: 'transport_document.email_sent';
+} & EventDataTransportDocumentEmailSent) | ({
+    type: 'transport_document.email_failed';
+} & EventDataTransportDocumentEmailFailed) | ({
     type: 'purchase_invoice.created';
 } & EventDataPurchaseInvoiceCreated) | ({
     type: 'purchase_invoice.updated';
@@ -7204,6 +8156,8 @@ export type EventData = ({
 } & EventDataProductCreated) | ({
     type: 'product.updated';
 } & EventDataProductUpdated) | ({
+    type: 'product.replaced';
+} & EventDataProductReplaced) | ({
     type: 'payment.received';
 } & EventDataPaymentReceived) | ({
     type: 'payment.reversed';
@@ -8209,6 +9163,16 @@ export type EventDataProductCreated = {
 };
 
 /**
+ * EventDataProductReplaced
+ *
+ * Payload (`data`) emitted with the `product.replaced` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataProductReplaced = {
+    type: 'product.replaced';
+    object: Product;
+};
+
+/**
  * EventDataProductUpdated
  *
  * Payload (`data`) emitted with the `product.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
@@ -9117,6 +10081,119 @@ export type EventDataTimeEntryRecorded = {
 };
 
 /**
+ * EventDataTransportDocumentCancelled
+ *
+ * Payload (`data`) emitted with the `transport_document.cancelled` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentCancelled = {
+    type: 'transport_document.cancelled';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentClosed
+ *
+ * Payload (`data`) emitted with the `transport_document.closed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentClosed = {
+    type: 'transport_document.closed';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentCreated
+ *
+ * Payload (`data`) emitted with the `transport_document.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentCreated = {
+    type: 'transport_document.created';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentEmailFailed
+ *
+ * Payload (`data`) emitted with the `transport_document.email_failed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentEmailFailed = {
+    type: 'transport_document.email_failed';
+    object: TransportDocument;
+    recipient_email: string;
+    to: Array<string>;
+    cc: Array<string>;
+    bcc: Array<string>;
+    version: number;
+    error_message: string;
+    error_class: string;
+};
+
+/**
+ * EventDataTransportDocumentEmailSent
+ *
+ * Payload (`data`) emitted with the `transport_document.email_sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentEmailSent = {
+    type: 'transport_document.email_sent';
+    object: TransportDocument;
+    recipient_email: string;
+    to: Array<string>;
+    cc: Array<string>;
+    bcc: Array<string>;
+    transport_document_number: string;
+    version: number;
+};
+
+/**
+ * EventDataTransportDocumentIssued
+ *
+ * Payload (`data`) emitted with the `transport_document.issued` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentIssued = {
+    type: 'transport_document.issued';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentModified
+ *
+ * Payload (`data`) emitted with the `transport_document.modified` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentModified = {
+    type: 'transport_document.modified';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentReopened
+ *
+ * Payload (`data`) emitted with the `transport_document.reopened` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentReopened = {
+    type: 'transport_document.reopened';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentSuperseded
+ *
+ * Payload (`data`) emitted with the `transport_document.superseded` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentSuperseded = {
+    type: 'transport_document.superseded';
+    object: TransportDocument;
+};
+
+/**
+ * EventDataTransportDocumentUpdated
+ *
+ * Payload (`data`) emitted with the `transport_document.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataTransportDocumentUpdated = {
+    type: 'transport_document.updated';
+    object: TransportDocument;
+};
+
+/**
  * EventDeletedObject
  *
  * Degraded snapshot emitted with `*.deleted` events when the resource could no longer be recovered at emission time.
@@ -9407,7 +10484,7 @@ export type FindRecurringInvoiceByExternalIdRequest = {
  */
 export type FindSeriesByCodeRequest = {
     code: string;
-    document_type?: 'invoice' | 'quote' | 'delivery_note' | 'proforma';
+    document_type?: 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'transport_document';
 };
 
 /**
@@ -9600,7 +10677,7 @@ export type IntegrationEvent = {
     /**
      * Typed reason why the event was discarded, from a CLOSED catalogue, or `null` when it was not discarded. This is the axis to filter and group by. A value retired from the catalogue in a later version is still returned verbatim here, but its `discard_reason_label`, `is_actionable` and `is_replayable` degrade to neutral rather than breaking the page.
      */
-    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | null;
+    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable' | null;
     /**
      * Human-readable label of `discard_reason`, in Spanish (the platform's end-user language). `null` when there is no discard reason, or when the stored reason is no longer part of the current catalogue.
      */
@@ -10071,14 +11148,22 @@ export type InvoiceLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -10667,7 +11752,7 @@ export type LogTaskTimeV1Request = {
 /**
  * ManagedAccount
  *
- * An account your account provisioned for one of your clients: a SEPARATE account, with its own tax IDs and plan, that your account manages and pays until its holder claims it and takes over. It never carries the claim voucher: only the provisioning and the reissue return it, once.
+ * An account your account provisioned for one of your clients: a SEPARATE account, with its own tax IDs and plan, that your account manages and pays until its holder claims it and takes over. Its pending claim voucher is read in `claim`, without secret or link: those are returned once, by the provisioning and by the reissue.
  */
 export type ManagedAccount = {
     /**
@@ -10693,11 +11778,11 @@ export type ManagedAccount = {
     /**
      * Current plan of the managed account. `enterprise` is only assigned by Factuarea by contract.
      */
-    plan: 'emprendedor' | 'empresario' | 'enterprise';
+    plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
     /**
      * Plan requested by a downgrade that takes effect at the end of the current period, or `null`.
      */
-    pending_plan: 'emprendedor' | 'empresario' | null;
+    pending_plan: 'emprendedor' | 'empresario' | 'integral' | null;
     /**
      * Billing interval of the managed account (managed accounts are billed monthly).
      */
@@ -10760,6 +11845,43 @@ export type ManagedAccount = {
      * When the account was provisioned (ISO 8601).
      */
     created_at: string;
+    /**
+     * The PENDING claim voucher of the account, WITHOUT its secret or its link (those are returned once, by the provisioning and by the reissue). `null` when the account is already claimed, is a test account or has no pending voucher.
+     */
+    claim: {
+        /**
+         * `valid` while the voucher has not expired; `expired` once `expires_at` passed (reissue it).
+         */
+        status: 'valid' | 'expired';
+        /**
+         * When the voucher was issued (ISO 8601).
+         */
+        issued_at: string;
+        /**
+         * When the voucher expires (ISO 8601).
+         */
+        expires_at: string;
+        /**
+         * Days of validity the voucher was issued with.
+         */
+        ttl_days: number;
+        /**
+         * Whether the voucher left by email to the holder.
+         */
+        sent_by_email: boolean;
+        /**
+         * Email of the holder, masked, or `null` when the voucher was not sent by email.
+         */
+        masked_email: string | null;
+    } | null;
+    /**
+     * When the holder took over the payment of the account (ISO 8601), or `null` while your account still pays it (`paid_by_provider`).
+     */
+    payment_assumed_at: string | null;
+    /**
+     * End of the current billing period of the plan (ISO 8601): when a pending downgrade takes effect and the next periodic invoice is issued. `null` when the account is not charged to your account.
+     */
+    plan_renews_at: string | null;
 };
 
 /**
@@ -10785,7 +11907,7 @@ export type ManagedAccountClaim = {
      */
     claim_url: string | null;
     /**
-     * Expiry of the voucher (ISO 8601), or `null` when it was emailed to the holder.
+     * Expiry of the voucher (ISO 8601). It is returned also when the link was emailed to the holder (`send_email: true`): the expiry is not a secret. Always set: a reissue always issues a new voucher.
      */
     expires_at: string | null;
 };
@@ -10838,6 +11960,14 @@ export type ManagedAccountImport = {
          * Prorated net amount charged at once, in cents.
          */
         proration_amount_cents: number;
+        /**
+         * VAT of the amount charged at once, in cents (already rounded per account). 0 in imports saved before VAT was charged and in test imports.
+         */
+        tax_amount_cents?: number;
+        /**
+         * Amount actually charged at once with VAT (prorated amount plus `tax_amount_cents`), in cents. 0 in imports saved before VAT was charged and in test imports.
+         */
+        total_amount_cents?: number;
     };
     /**
      * Rows of the accounts file, in file order, with their claim voucher.
@@ -10909,7 +12039,7 @@ export type ManagedAccountImportPreview = {
          */
         currency: string;
         /**
-         * Cost of the new `managed_account` rows, charged on the `managed-accounts` subscription of your account.
+         * Cost of the new `managed_account` rows, charged on the `managed-accounts` subscription of your account. The VAT fields are additive: they are absent from the reports saved by earlier imports.
          */
         managed_account: {
             /**
@@ -10920,9 +12050,45 @@ export type ManagedAccountImportPreview = {
              * Net amount prorated to the end of your current billing period and charged at once when applying, in cents.
              */
             proration_amount_cents: number;
+            /**
+             * VAT of the prorated amount charged at once, in cents (the VAT of the batch is the sum of the VAT rounded per account). 0 when nothing is charged.
+             */
+            tax_amount_cents?: number;
+            /**
+             * Prorated amount plus its VAT: what is charged today, in cents.
+             */
+            total_amount_cents?: number;
+            /**
+             * Whole-number VAT percentage applied, or `null` when no rate can be computed (the VAT is then 0).
+             */
+            tax_rate?: number | null;
+            /**
+             * Date of the next periodic invoice of your subscription (ISO 8601), or `null`.
+             */
+            next_invoice_date?: string | null;
+            /**
+             * Units of the joint monthly fee that follows (your whole book plus the rows), or `null` when it cannot be computed.
+             */
+            recurring_quantity?: number | null;
+            /**
+             * Joint monthly fee that follows, taxable base, in cents, or `null`.
+             */
+            recurring_base_cents?: number | null;
+            /**
+             * Joint monthly fee that follows with VAT, in cents; `null` without a VAT rate.
+             */
+            recurring_total_cents?: number | null;
+            /**
+             * VAT of the monthly fee the batch ADDS, in cents, or `null` without a VAT rate.
+             */
+            monthly_tax_amount_cents?: number | null;
+            /**
+             * Monthly fee the batch adds with VAT, in cents, or `null` without a VAT rate.
+             */
+            monthly_total_cents?: number | null;
         };
         /**
-         * Cost of the new `own_nif` rows, charged as additional tax IDs of your account.
+         * Cost of the new `own_nif` rows, charged as additional tax IDs of your account. The VAT fields are additive: they are absent from the reports saved by earlier imports.
          */
         own_nif: {
             /**
@@ -10933,9 +12099,45 @@ export type ManagedAccountImportPreview = {
              * Net amount prorated to the end of your current billing period and charged at once when applying, in cents.
              */
             proration_amount_cents: number;
+            /**
+             * VAT of the prorated amount charged at once, in cents (the VAT of the batch is the sum of the VAT rounded per account). 0 when nothing is charged.
+             */
+            tax_amount_cents?: number;
+            /**
+             * Prorated amount plus its VAT: what is charged today, in cents.
+             */
+            total_amount_cents?: number;
+            /**
+             * Whole-number VAT percentage applied, or `null` when no rate can be computed (the VAT is then 0).
+             */
+            tax_rate?: number | null;
+            /**
+             * Date of the next periodic invoice of your subscription (ISO 8601), or `null`.
+             */
+            next_invoice_date?: string | null;
+            /**
+             * Units of the joint monthly fee that follows (your whole book plus the rows), or `null` when it cannot be computed.
+             */
+            recurring_quantity?: number | null;
+            /**
+             * Joint monthly fee that follows, taxable base, in cents, or `null`.
+             */
+            recurring_base_cents?: number | null;
+            /**
+             * Joint monthly fee that follows with VAT, in cents; `null` without a VAT rate.
+             */
+            recurring_total_cents?: number | null;
+            /**
+             * VAT of the monthly fee the batch ADDS, in cents, or `null` without a VAT rate.
+             */
+            monthly_tax_amount_cents?: number | null;
+            /**
+             * Monthly fee the batch adds with VAT, in cents, or `null` without a VAT rate.
+             */
+            monthly_total_cents?: number | null;
         };
         /**
-         * Total of both modes.
+         * Total of both modes. The VAT fields are additive: they are absent from the reports saved by earlier imports.
          */
         total: {
             /**
@@ -10946,6 +12148,42 @@ export type ManagedAccountImportPreview = {
              * Net amount prorated to the end of your current billing period and charged at once when applying, in cents.
              */
             proration_amount_cents: number;
+            /**
+             * VAT of the prorated amount charged at once, in cents (the VAT of the batch is the sum of the VAT rounded per account). 0 when nothing is charged.
+             */
+            tax_amount_cents?: number;
+            /**
+             * Prorated amount plus its VAT: what is charged today, in cents.
+             */
+            total_amount_cents?: number;
+            /**
+             * Whole-number VAT percentage applied, or `null` when no rate can be computed (the VAT is then 0).
+             */
+            tax_rate?: number | null;
+            /**
+             * Date of the next periodic invoice of your subscription (ISO 8601), or `null`.
+             */
+            next_invoice_date?: string | null;
+            /**
+             * Units of the joint monthly fee that follows (your whole book plus the rows), or `null` when it cannot be computed.
+             */
+            recurring_quantity?: number | null;
+            /**
+             * Joint monthly fee that follows, taxable base, in cents, or `null`.
+             */
+            recurring_base_cents?: number | null;
+            /**
+             * Joint monthly fee that follows with VAT, in cents; `null` without a VAT rate.
+             */
+            recurring_total_cents?: number | null;
+            /**
+             * VAT of the monthly fee the batch ADDS, in cents, or `null` without a VAT rate.
+             */
+            monthly_tax_amount_cents?: number | null;
+            /**
+             * Monthly fee the batch adds with VAT, in cents, or `null` without a VAT rate.
+             */
+            monthly_total_cents?: number | null;
         };
     };
     /**
@@ -10998,7 +12236,7 @@ export type ManagedAccountImportRow = {
      */
     status: 'VALID' | 'WARNING' | 'ALREADY_EXISTS' | 'BLOCKED' | 'ERROR';
     /**
-     * Reason of a `WARNING`, `BLOCKED` or `ERROR`, or `null`. Report codes: `managed_account_claimed`, `access_level_below_relation`, `plan_change_not_confirmed`, `plan_change_failed` (`WARNING`; an existing account whose profile was updated but whose confirmed plan change failed is `WARNING` with the reason of that failure in `errors.plan`); `managed_account_plan_not_self_serve`, `managed_account_provider_in_trial`, `managed_accounts_limit_reached`, `billing_not_current`, `payment_method_required`, `nif_transfer_required`, `additional_nif_not_in_plan`, `additional_nif_limit_reached`, `managed_account_external_ref_in_other_environment`, `managed_account_no_longer_managed`, `management_ended`, `access_level_raise_forbidden`, `access_level_above_relation`, `plan_change_not_paid_by_provider`, `plan_change_requires_operate`, `forbidden_action` (`BLOCKED`); `live_credential_required`, `insufficient_scope`, `row_apply_failed` (`ERROR`). A row the domain rejects while being applied is `BLOCKED` with the public code (or subcode) of that rejection, so treat unknown values as a `BLOCKED` reason. A column error is reported in `errors`, with `code` `null`; so is a value the account or tax ID rejects while the row is applied (`ERROR`, message in `errors.row`), which never stops the rest of the import.
+     * Reason of a `WARNING`, `BLOCKED` or `ERROR`, or `null`. Report codes: `managed_account_claimed`, `access_level_below_relation`, `plan_change_not_confirmed`, `plan_change_failed` (`WARNING`; an existing account whose profile was updated but whose confirmed plan change failed is `WARNING` with the reason of that failure in `errors.plan`); `managed_account_plan_not_self_serve`, `managed_account_provider_in_trial`, `managed_accounts_limit_reached`, `billing_not_current`, `payment_method_required`, `nif_transfer_required`, `additional_nif_not_in_plan`, `additional_nif_limit_reached`, `managed_account_external_ref_in_other_environment`, `managed_account_no_longer_managed`, `management_ended`, `access_level_raise_forbidden`, `access_level_above_relation`, `plan_change_not_paid_by_provider`, `plan_change_requires_operate`, `forbidden_action` (`BLOCKED`); `live_credential_required`, `insufficient_scope`, `row_apply_failed` (`ERROR`). A row the domain rejects while being applied is `BLOCKED` with the public code (or subcode) of that rejection, so treat unknown values as a `BLOCKED` reason. A column error is reported in `errors` (and its code in `error_codes`), with `code` `null`; so is a value the account or tax ID rejects while the row is applied (`ERROR`, message in `errors.row`), which never stops the rest of the import.
      */
     code: string | null;
     /**
@@ -11008,7 +12246,13 @@ export type ManagedAccountImportRow = {
         [key: string]: string;
     };
     /**
-     * Plan of a `managed_account` row (`emprendedor` or `empresario`), or `null`. An `own_nif` row inherits the plan of your account and carries no plan, and a row of status `ERROR` rejected while reading the file (it carries `errors` per column) carries `null` too; an `ERROR` raised while applying keeps the plan requested.
+     * Stable code of each error of `errors`, with the SAME keys (the column of the file, or `row` / `plan` for an error of the whole row or of its plan change): `required`, `invalid_mode`, `invalid_plan`, `plan_not_allowed`, `invalid_tax_id`, `invalid_email`, `invalid_language`, `invalid_access_level`, `too_long`, `too_short`, `duplicate_in_file`, `tax_id_mismatch`, `unknown_column`, `duplicate_column`, `unnamed_column` and `column_count_mismatch` (column errors), `invalid_value`, `row_rejected` and `row_apply_failed` (`row`), `plan_change_rejected` (`plan`; the concrete reason of `row_rejected` and `plan_change_rejected` is the row `code`). Language-independent: use it, not the Spanish message of `errors`, to react to or translate an error. Always an object, `{}` when there is none.
+     */
+    error_codes: {
+        [key: string]: 'required' | 'invalid_mode' | 'invalid_plan' | 'plan_not_allowed' | 'invalid_tax_id' | 'invalid_email' | 'invalid_language' | 'invalid_access_level' | 'too_long' | 'too_short' | 'duplicate_in_file' | 'tax_id_mismatch' | 'unknown_column' | 'duplicate_column' | 'unnamed_column' | 'column_count_mismatch' | 'invalid_value' | 'row_rejected' | 'row_apply_failed' | 'plan_change_rejected';
+    };
+    /**
+     * Plan of a `managed_account` row (`emprendedor`, `empresario` or `integral`), or `null`. An `own_nif` row inherits the plan of your account and carries no plan, and a row of status `ERROR` rejected while reading the file (it carries `errors` per column) carries `null` too; an `ERROR` raised while applying keeps the plan requested.
      */
     plan: string | null;
     /**
@@ -11031,6 +12275,14 @@ export type ManagedAccountImportRow = {
      * Customers queued for import into the tax ID of the row.
      */
     customers_queued: number;
+    /**
+     * Name of the tax ID read from the file, or `null` when the row carries none. The columns read from the file (`values`) are never published.
+     */
+    name: string | null;
+    /**
+     * Opaque identifier (UUID v7) of the tax ID the row registered or reconciled, only for `own_nif` rows (the tax ID of a `managed_account` row belongs to ANOTHER account, so it is not published); `null` otherwise.
+     */
+    company_id: string | null;
     /**
      * Reason of `customers_status: blocked`: the row itself was not applied (`nif_not_applied`), your account does not `operate` the managed account, the issuer is not an owner or admin of your own tax ID, your own tax ID is outside the tax ID scope of the key and was not registered by this import (`nif_not_in_key_scope`), the key lacks `contacts:write`, or the contact importer failed.
      */
@@ -11103,11 +12355,11 @@ export type ManagedAccountPlanChangePreview = {
     /**
      * Current plan of the managed account.
      */
-    from_plan: 'emprendedor' | 'empresario' | 'enterprise';
+    from_plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
     /**
      * Requested plan.
      */
-    to_plan: 'emprendedor' | 'empresario' | 'enterprise';
+    to_plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
     /**
      * `immediate` for an upgrade, no change or no real charge; `period_end` for a charged downgrade, pending until `effective_at`.
      */
@@ -11128,12 +12380,109 @@ export type ManagedAccountPlanChangePreview = {
      * ISO 4217 currency code, upper case.
      */
     currency: string;
+    /**
+     * End of the current billing period (ISO 8601), also for an upgrade; `null` when the managed account is not charged to your account.
+     */
+    renews_at: string | null;
+    /**
+     * Active additional tax IDs that a downgrade would deactivate. Empty when it deactivates none.
+     */
+    deactivates: Array<{
+        /**
+         * Opaque identifier (UUID v7) of the tax ID.
+         */
+        id: string;
+        /**
+         * Name of the tax ID.
+         */
+        name: string;
+        /**
+         * Tax ID (NIF/CIF/NIE).
+         */
+        tax_id: string;
+    }>;
+};
+
+/**
+ * ManagedAccountProvisioningPreview
+ *
+ * Preview, with no effect, of provisioning a new managed account of the requested plan for your account. A computed object with no identity. Amounts are integer CENTS and the key names the unit (`*_cents`): `amount_cents` is the taxable base charged today, `tax_amount_cents` its VAT and `total_cents` what is charged. When something is charged but the VAT could not be computed (the payment gateway returned no rate), `tax_rate`, `tax_amount_cents` and `total_cents` are all `null`: the base is never published as the total. With a test key every amount is 0.
+ */
+export type ManagedAccountProvisioningPreview = {
+    /**
+     * Always `managed_account_provisioning_preview`.
+     */
+    object: 'managed_account_provisioning_preview';
+    /**
+     * Taxable base (without VAT) charged today, in cents.
+     */
+    amount_cents: number;
+    /**
+     * VAT of `amount_cents`, in cents. `null` when something is charged but no rate could be computed.
+     */
+    tax_amount_cents: number | null;
+    /**
+     * `amount_cents` plus `tax_amount_cents`: what is charged, in cents. `null` when the VAT could not be computed: do not present `amount_cents` as the total.
+     */
+    total_cents: number | null;
+    /**
+     * Whole-number VAT percentage, or `null` when no rate can be computed.
+     */
+    tax_rate: number | null;
+    /**
+     * ISO 4217 currency code, lower case.
+     */
+    currency: string;
+    /**
+     * Date of the next periodic invoice of your subscription (ISO 8601), or `null`.
+     */
+    next_invoice_date: string | null;
+    /**
+     * Monthly price of the requested plan, without VAT, in cents, or `null`.
+     */
+    unit_amount_cents: number | null;
+    /**
+     * `true` when this provisioning creates the subscription and anchors the monthly billing day today.
+     */
+    is_first_seat: boolean;
+    /**
+     * Units of the joint monthly fee that follows (your whole book plus the requested plan), or `null`.
+     */
+    recurring_quantity: number | null;
+    /**
+     * Joint monthly fee that follows, taxable base, in cents, or `null`.
+     */
+    recurring_base_cents: number | null;
+    /**
+     * Joint monthly fee that follows with VAT, in cents; `null` without a VAT rate.
+     */
+    recurring_total_cents: number | null;
+    /**
+     * `true` when the charge is real and your account has no payment method; the amounts are then 0.
+     */
+    requires_payment_method: boolean;
+    /**
+     * Always `false` in this preview.
+     */
+    requires_active_plan: boolean;
+    /**
+     * Always `false` in this preview.
+     */
+    included_in_trial: boolean;
+    /**
+     * Always `false` in this preview.
+     */
+    already_covered: boolean;
+    /**
+     * Why nothing is charged today: `no_immediate_charge` (test key or no real charge). `null` when something is charged.
+     */
+    zero_reason: string | null;
 };
 
 /**
  * ManagedAccountWithClaim
  *
- * The response of provisioning a managed account: the fields of `ManagedAccount` PLUS its claim voucher. `claim_token` and `claim_url` are returned ONCE, only for a new live account provisioned with `send_email: false`. They are `null` when the link was emailed to the holder (`send_email: true`), for a test account, when the `external_ref` was already provisioned (200) and in an idempotent replay: the voucher is never stored in the clear, not even in the idempotency cache.
+ * The response of provisioning a managed account: the fields of `ManagedAccount` PLUS its claim voucher. `claim_token` and `claim_url` are returned ONCE, only for a new live account provisioned with `send_email: false`. They are `null` when the link was emailed to the holder (`send_email: true`), for a test account, when the `external_ref` was already provisioned (200) and in an idempotent replay: the voucher is never stored in the clear, not even in the idempotency cache. `claim_expires_at` is not a secret: it is returned also when the link was emailed and in an idempotent replay of that request. `reactivated` tells that the call reactivated a management that had ended before the holder claimed the account.
  */
 export type ManagedAccountWithClaim = {
     /**
@@ -11159,11 +12508,11 @@ export type ManagedAccountWithClaim = {
     /**
      * Current plan of the managed account. `enterprise` is only assigned by Factuarea by contract.
      */
-    plan: 'emprendedor' | 'empresario' | 'enterprise';
+    plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
     /**
      * Plan requested by a downgrade that takes effect at the end of the current period, or `null`.
      */
-    pending_plan: 'emprendedor' | 'empresario' | null;
+    pending_plan: 'emprendedor' | 'empresario' | 'integral' | null;
     /**
      * Billing interval of the managed account (managed accounts are billed monthly).
      */
@@ -11227,6 +12576,43 @@ export type ManagedAccountWithClaim = {
      */
     created_at: string;
     /**
+     * The PENDING claim voucher of the account, WITHOUT its secret or its link (those are returned once, by the provisioning and by the reissue). `null` when the account is already claimed, is a test account or has no pending voucher.
+     */
+    claim: {
+        /**
+         * `valid` while the voucher has not expired; `expired` once `expires_at` passed (reissue it).
+         */
+        status: 'valid' | 'expired';
+        /**
+         * When the voucher was issued (ISO 8601).
+         */
+        issued_at: string;
+        /**
+         * When the voucher expires (ISO 8601).
+         */
+        expires_at: string;
+        /**
+         * Days of validity the voucher was issued with.
+         */
+        ttl_days: number;
+        /**
+         * Whether the voucher left by email to the holder.
+         */
+        sent_by_email: boolean;
+        /**
+         * Email of the holder, masked, or `null` when the voucher was not sent by email.
+         */
+        masked_email: string | null;
+    } | null;
+    /**
+     * When the holder took over the payment of the account (ISO 8601), or `null` while your account still pays it (`paid_by_provider`).
+     */
+    payment_assumed_at: string | null;
+    /**
+     * End of the current billing period of the plan (ISO 8601): when a pending downgrade takes effect and the next periodic invoice is issued. `null` when the account is not charged to your account.
+     */
+    plan_renews_at: string | null;
+    /**
      * Plaintext claim voucher, returned ONCE. Treat it as a credential: whoever holds it can claim the account. `null` when there is no voucher to deliver (see the schema description).
      */
     claim_token: string | null;
@@ -11235,9 +12621,13 @@ export type ManagedAccountWithClaim = {
      */
     claim_url: string | null;
     /**
-     * Expiry of the voucher (ISO 8601), or `null` when no voucher was returned.
+     * Expiry of the voucher (ISO 8601). It is returned also when the link was emailed to the holder (`send_email: true`): the expiry is not a secret. `null` only when no voucher was issued (test account, idempotent retry or reactivated management).
      */
     claim_expires_at: string | null;
+    /**
+     * `true` only when provisioning REACTIVATED a management that had ended before the holder claimed the account (it carries no voucher, so `claim_expires_at` is `null`); `false` for a new account or one already in force.
+     */
+    reactivated: boolean;
 };
 
 /**
@@ -11392,7 +12782,7 @@ export type Me = {
 /**
  * MemberModuleAccess
  *
- * The module access level of an account member in one tax ID. `restrictions` is a DENY list: it states what has been WITHDRAWN, not what the person can do, so an empty object means no restriction at all and never no access.
+ * The module access level of an account member in one tax ID. `restrictions` is a DENY list: it states what has been WITHDRAWN, not what the person can do, so an empty object means no restriction at all and never no access. `grants` lists the administrator-only sections that were GRANTED on top.
  */
 export type MemberModuleAccess = {
     /**
@@ -11411,8 +12801,12 @@ export type MemberModuleAccess = {
      * Section to withdrawn capabilities. A section absent from the map has nothing withdrawn; an empty object means the member has no restriction at all. `access` is the root capability: withdrawing it makes the others irrelevant for that section.
      */
     restrictions: {
-        [key: string]: Array<'access' | 'delete' | 'send' | 'export'>;
+        [key: string]: Array<'access' | 'create' | 'edit' | 'delete' | 'send' | 'export'>;
     };
+    /**
+     * Administrator-only sections GRANTED to the member in this tax ID, on top of the User group. Never contains an Administrator key (user management, plan and subscription, API and developers, digital certificate). Empty when nothing was granted, and always empty for an `owner` or `admin`, who hold every permission of their plan. The capabilities inside a granted section are still governed by `restrictions`.
+     */
+    grants: Array<string>;
 };
 
 /**
@@ -11425,6 +12819,90 @@ export type MemberModuleAccess = {
 export type Metadata = {
     [key: string]: string;
 } | null;
+
+/**
+ * ModifyTransportDocumentRequest
+ *
+ * Modify an issued transport document. Required: `reason` (3-500 characters) and `data_origin` (`company` or `carrier_reported`). Send only the data that changes (vehicle, special authorization, dates, observations or the whole `shipments` list); the parties cannot change. Inside `shipments`, `id` only identifies a shipment of this document (any other returns 422 on `shipments.N.id`).
+ */
+export type ModifyTransportDocumentRequest = {
+    reason: string;
+    data_origin: 'company' | 'carrier_reported';
+    company_role?: 'shipper' | 'carrier';
+    special_authorization?: string | null;
+    transport_date?: string | null;
+    observations?: string | null;
+    vehicle?: {
+        tractor_plate?: string | null;
+        tractor_plate_country?: string | null;
+        trailer_plate?: string | null;
+        trailer_plate_country?: string | null;
+    };
+    shipments?: Array<{
+        id?: string | null;
+        transport_date?: string | null;
+        observations?: string | null;
+        delivery_note_id?: string | null;
+        loading_place_id?: string;
+        goods?: Array<{
+            description: string;
+            additional_description?: string | null;
+            quantity?: number | null;
+            unit?: string | null;
+            gross_weight_kg?: number | null;
+        }> | null;
+        declared_measure?: {
+            type?: string;
+            weight_kg?: number | null;
+            value?: number | null;
+            unit?: string | null;
+        } | null;
+        origin?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+        destination?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    }> | null;
+    shipper?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    carrier?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+};
 
 /**
  * Money
@@ -11699,7 +13177,7 @@ export type MonthlyTimeRecordClose = {
      */
     employee_count: number;
     /**
-     * Whether a digital seal exists for this close (mere presence; integrity verification is served by `GET /monthly-time-record-closes/{id}/seal`).
+     * Whether a digital seal exists for this close (mere presence; integrity verification is served by `GET /companies/{company}/monthly-time-record-closes/{monthly_time_record_close}/seal`).
      */
     is_sealed: boolean;
 };
@@ -11813,6 +13291,18 @@ export type NifTransfer = {
      * Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when whoever holds the secret can accept it.
      */
     recipient_account_id: string | null;
+    /**
+     * When the transfer was issued (ISO 8601), or `null` when the instant is not recorded.
+     */
+    issued_at: string | null;
+    /**
+     * When the transfer was accepted (ISO 8601), or `null` while nobody accepted it. It does not say WHICH account accepted it.
+     */
+    consumed_at: string | null;
+    /**
+     * When the issuing account revoked the transfer (ISO 8601), or `null` if it was not revoked.
+     */
+    revoked_at: string | null;
 };
 
 /**
@@ -11866,9 +13356,81 @@ export type NifTransferWithSecret = {
      */
     recipient_account_id: string | null;
     /**
+     * When the transfer was issued (ISO 8601), or `null` when the instant is not recorded.
+     */
+    issued_at: string | null;
+    /**
+     * When the transfer was accepted (ISO 8601), or `null` while nobody accepted it. It does not say WHICH account accepted it.
+     */
+    consumed_at: string | null;
+    /**
+     * When the issuing account revoked the transfer (ISO 8601), or `null` if it was not revoked.
+     */
+    revoked_at: string | null;
+    /**
      * The plaintext secret, returned ONCE and never again. Treat it as a credential: anyone holding it can take the NIF (or only the recipient account, when one is set). `null` only in an idempotent replay of the issuance, because the secret is never stored.
      */
     secret: string | null;
+};
+
+/**
+ * NonInvoicedCharge
+ *
+ * A Stripe charge that a charge rule left out of invoicing. No invoice or VERI*FACTU record is generated, but the charge is kept with its reason. The public `id` is the UUID v7; `transaction_id` (`pi_xxx`) is the external Stripe id.
+ */
+export type NonInvoicedCharge = {
+    /**
+     * UUID v7 of the record. Public identity (KEY `id`).
+     */
+    id: string;
+    /**
+     * Stripe-like discriminator. Always `non_invoiced_charge`.
+     */
+    object: 'non_invoiced_charge';
+    /**
+     * UUID v7 of the connected account.
+     */
+    connected_account_id: string;
+    /**
+     * External Stripe id of the charge (`pi_xxx`). NOT an internal UUID nor a foreign key.
+     */
+    transaction_id: string;
+    /**
+     * Decimal string in major units of `currency`, at Stripe's decimal scale for that currency (3,000 JPY → `"3000"`, 30.00 EUR → `"30.00"`, 5.124 KWD → `"5.124"`), like every other v1 amount.
+     */
+    amount: string;
+    /**
+     * Cumulative amount refunded by Stripe for this charge (succeeded and pending refunds), in the same format as `amount`. `0` if nothing has been refunded. It never exceeds `amount`, and it goes down if a pending refund later fails or is canceled.
+     */
+    refunded_amount: string;
+    /**
+     * Net amount of the charge, what the merchant keeps: `amount` minus `refunded_amount`, in the same format as `amount`.
+     */
+    net_amount: string;
+    /**
+     * ISO 4217 currency code, uppercase.
+     */
+    currency: string;
+    /**
+     * Charge description reported by Stripe, or `null`.
+     */
+    description: string | null;
+    /**
+     * Why the charge was not invoiced.
+     */
+    reason: 'indemnity_not_subject' | 'multipurpose_voucher' | 'invoiced_elsewhere';
+    /**
+     * UUID v7 of the rule that decided it, or `null` if the rule was deleted afterwards.
+     */
+    charge_rule_id: string | null;
+    /**
+     * When the charge happened (ISO 8601).
+     */
+    occurred_at: string;
+    /**
+     * When the most recent refund of the charge was recorded (ISO 8601), or `null` if nothing has been refunded.
+     */
+    refunded_at: string | null;
 };
 
 /**
@@ -12036,6 +13598,74 @@ export type PdfCapabilities = {
 export type PhoneString = string;
 
 /**
+ * PrepareEmployeeBatchBody
+ */
+export type PrepareEmployeeBatchBody = {
+    kind: 'create';
+    items: Array<{
+        row_id: string;
+        profile: EmployeeBatchProfile;
+    }>;
+} | {
+    kind: 'reactivate';
+    items: Array<{
+        row_id: string;
+        employee_id: string;
+    }>;
+};
+
+/**
+ * PrepareEmployeeSeatOfferBody
+ */
+export type PrepareEmployeeSeatOfferBody = {
+    code: string;
+    purchase: {
+        kind: 'employee_individual';
+        action: 'create';
+        profile: EmployeeBatchProfile;
+    } | {
+        kind: 'employee_individual';
+        action: 'reactivate';
+        employee_id: string;
+    } | {
+        kind: 'employee_batch';
+        batch_id: string;
+        quote_version: number;
+    };
+};
+
+/**
+ * PrepareGestoriaSeatOfferBody
+ */
+export type PrepareGestoriaSeatOfferBody = {
+    code: string;
+    purchase: {
+        kind: 'gestoria_purchase';
+        action: 'create';
+        profile: {
+            name: string;
+            tax_id: string;
+            business_name?: string | null;
+            address?: string | null;
+            city?: string | null;
+            postal_code?: string | null;
+            province?: string | null;
+            country?: string | null;
+            email?: string | null;
+            phone?: string | null;
+        };
+    } | {
+        kind: 'gestoria_purchase';
+        action: 'activate';
+        company_id: string;
+    } | {
+        kind: 'gestoria_purchase';
+        action: 'activate_batch';
+        company_ids: Array<string>;
+    };
+};
+
+/**
  * PreviewBusinessContactImportV1Request
  */
 export type PreviewBusinessContactImportV1Request = {
@@ -12063,6 +13693,44 @@ export type PreviewCatalogConfigurationImpactRequest = {
     }>;
     presentation_ids?: Array<string>;
     variant_ids?: Array<string>;
+};
+
+/**
+ * PreviewProductBaseUnitReplacementRequest
+ *
+ * Body of the base unit replacement preview: the new base unit, the equivalence between both units, an optional
+ * price to confirm and one `keep` or `retire` decision per presentation of the product being replaced.
+ */
+export type PreviewProductBaseUnitReplacementRequest = {
+    /**
+     * Base unit of the new product. Only the nine measure units are accepted: a packaging unit (`XPK`, `XBX`…) can only be a presentation unit.
+     */
+    target_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    /**
+     * Units of the CURRENT base that equal ONE unit of the NEW base (moving from kg to g,
+     * 1 g = 0.001 kg, so `0.001`; from kg to count units, 1 unit = 0.5 kg gives `0.5`). Required
+     * between a count unit and a measure unit; inside the same measure family it is calculated
+     * and between two different measure families there is none.
+     */
+    equivalence?: number | null;
+    /**
+     * Base price of the new product per its base unit. Confirm it when the conversion loses
+     * precision or there is no equivalence.
+     */
+    base_price?: number | null;
+    /**
+     * Decision per presentation of the product being replaced. Presentations you omit get the proposed decision.
+     */
+    presentations?: Array<{
+        /**
+         * Id (UUID v7) of a presentation of the product being replaced.
+         */
+        id: string;
+        /**
+         * `keep` moves the presentation to the new product; `retire` withdraws it.
+         */
+        decision: 'keep' | 'retire';
+    }>;
 };
 
 /**
@@ -12154,9 +13822,9 @@ export type PriceListItem = {
      */
     status: 'active' | 'retired';
     /**
-     * Why the entry was withdrawn. `null` while the entry is active.
+     * Why the entry was withdrawn. `product_replaced` means the product was replaced by another one with a different base unit (`POST /v1/companies/{company}/products/{product}/base-unit-replacement`): the entry keeps its price as history and, when it was transferred, a new entry for the new product carries the converted price. `null` while the entry is active.
      */
-    retirement_reason: 'product_deleted' | 'variant_deleted' | 'presentation_deleted' | 'configuration_deleted' | 'option_group_deleted' | 'option_value_deleted' | 'legacy_orphan' | null;
+    retirement_reason: 'product_deleted' | 'variant_deleted' | 'presentation_deleted' | 'configuration_deleted' | 'option_group_deleted' | 'option_value_deleted' | 'legacy_orphan' | 'product_replaced' | null;
     /**
      * Human-readable label of `retirement_reason`, in Spanish. `null` while the entry is active.
      */
@@ -12203,9 +13871,13 @@ export type Product = {
      */
     item_kind: 'product' | 'service';
     /**
-     * UNECE base unit code.
+     * UNECE base unit code. Only the nine measure units can be a base unit (`C62`, `KGM`, `GRM`, `LTR`, `MLT`, `MTR`, `MTK`, `HUR`, `DAY`); a packaging or count unit (`H87`, `XPK`, `XBX`…) can only be the unit of a presentation or a supplier offer. It cannot be edited once the product has history: see `base_unit_change` and `POST /v1/companies/{company}/products/{product}/base-unit-replacement`.
      */
-    base_unit: string;
+    base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    /**
+     * Gross transport weight in kg per BASE unit (decimal string, up to 4 decimals, greater than 0), packaging included; `null` when unknown. Rejected with 422 `gross_weight_not_allowed` for services and for products whose base unit is a mass unit (`KGM`, `GRM`), where the weight is the quantity itself. A variant weight replaces it for that variant; a fixed presentation may declare its own weight per commercial unit.
+     */
+    gross_weight_kg?: string | null;
     /**
      * Whether the product participates in document-driven stock movements (invoices, delivery notes). Requires the company `stock_management` module to be enabled. Defaults to `false`.
      */
@@ -12301,6 +13973,9 @@ export type Product = {
     external_id?: string | null;
     created_at: string | null;
     updated_at: string | null;
+    base_unit_change?: BaseUnitChange;
+    replaces?: ProductReplacementLink | null;
+    replaced_by?: ProductReplacementLink | null;
 };
 
 /**
@@ -12448,10 +14123,17 @@ export type ProductPresentation = {
     product_id: string;
     name: string;
     mode: 'fixed' | 'variable_measure';
-    unit: string;
+    /**
+     * UN/ECE code of the commercial unit of the presentation. The nine measure units can also be a base unit; the thirteen count and packaging units (`H87` piece, `XPK` pack, `XBX` box, …) are valid only here and in supplier offers. It must be expressible over the base unit of the product: a packaging unit needs a declared equivalence (`conversion_factor` or `nominal_base_quantity`), a measure unit must belong to the same family as the base; otherwise 422 `unit_not_expressible`.
+     */
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: string | null;
     nominal_base_quantity: string | null;
     barcode: string | null;
+    /**
+     * Own gross transport weight in kg per COMMERCIAL unit (decimal string, up to 4 decimals, greater than 0), packaging included; it overrides any derivation from the product or variant weight. `null` when the presentation declares none. Rejected with 422 `gross_weight_not_allowed` on `variable_measure` presentations.
+     */
+    gross_weight_kg?: string | null;
     /**
      * Own price PER COMMERCIAL UNIT, or `null` when the presentation declares none. Orthogonal to `conversion_factor`, which converts QUANTITY and is never reused as a price multiplier: a 3.5 kg tub priced at 50.00 is worth 50.00 per tub.
      */
@@ -12471,6 +14153,32 @@ export type ProductPresentation = {
 export type ProductRef = {
     id: string;
     name: string | null;
+};
+
+/**
+ * ProductReplacementLink
+ *
+ * The OTHER end of a base unit replacement: on `replaces`, the old product the current one replaced; on `replaced_by`, the new product that replaced the current one.
+ */
+export type ProductReplacementLink = {
+    /**
+     * Id of the other product.
+     */
+    id: string;
+    name: string;
+    /**
+     * Base unit of the other product.
+     */
+    base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    replaced_at: string;
+    /**
+     * Old base units per ONE new base unit, decimal string with scale 6. `null` between measure families with no declared equivalence.
+     */
+    equivalence: string | null;
+    /**
+     * Stock moved to the new product, decimal string with scale 4, ALWAYS in the unit of the NEW product.
+     */
+    stock_transferred: string;
 };
 
 /**
@@ -12540,6 +14248,10 @@ export type ProductVariant = {
     barcode: string | null;
     base_price_override: string | null;
     unit_cost_override: string | null;
+    /**
+     * Own gross transport weight in kg per BASE unit (decimal string, up to 4 decimals, greater than 0) that replaces the product weight for this variant; `null` inherits the product weight. Rejected with 422 `gross_weight_not_allowed` when the product base unit is a mass unit.
+     */
+    gross_weight_kg?: string | null;
     manage_stock: boolean;
     stock: string;
     low_stock_threshold: string | null;
@@ -12719,14 +14431,22 @@ export type ProformaLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -13234,7 +14954,7 @@ export type ProjectTimeSummary = {
 /**
  * ProvisionManagedAccountV1Request
  *
- * Provision a managed account for one of your clients. Required: `external_ref` (your own reference, unique per provider: repeating it returns the same account), `plan` (`emprendedor` or `empresario`), `tax_id` (Spanish tax ID) and `legal_name`. `access_level` is the level your account keeps on it (`none` by default). `owner_email` is required with a live key and whenever `send_email` is `true`; `send_email` is `false` by default, so the claim voucher comes back ONCE in the response for you to deliver. The rest of the fiscal profile (`display_name`, address, `language`) is optional. The provider is always the account of the key and never comes from the body; the environment of the new account is the one of the key.
+ * Provision a managed account for one of your clients. Required: `external_ref` (your own reference, unique per provider: repeating it returns the same account), `plan` (`emprendedor`, `empresario` or `integral`), `tax_id` (Spanish tax ID) and `legal_name`. `access_level` is the level your account keeps on it (`none` by default). `owner_email` is required with a live key and whenever `send_email` is `true`; `send_email` is `false` by default, so the claim voucher comes back ONCE in the response for you to deliver. The rest of the fiscal profile (`display_name`, address, `language`) is optional. The provider is always the account of the key and never comes from the body; the environment of the new account is the one of the key.
  */
 export type ProvisionManagedAccountV1Request = {
     /**
@@ -13242,9 +14962,9 @@ export type ProvisionManagedAccountV1Request = {
      */
     external_ref: string;
     /**
-     * Plan of the managed account: `emprendedor` or `empresario`. `enterprise` returns 422 `managed_account_plan_not_self_serve`.
+     * Plan of the managed account: `emprendedor`, `empresario` or `integral`. `enterprise` returns 422 `managed_account_plan_not_self_serve`.
      */
-    plan: 'emprendedor' | 'empresario' | 'enterprise';
+    plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
     /**
      * Access level your account keeps on the managed account: `none` (default, provisioning only), `view` (read-only) or `operate`.
      */
@@ -13326,6 +15046,7 @@ export type ProvisioningUsage = {
     managed_accounts_by_plan: {
         emprendedor: number;
         empresario: number;
+        integral: number;
         enterprise: number;
         [key: string]: number;
     };
@@ -14248,6 +15969,7 @@ export type QuarterlyDownloadV1Request = {
     year: number;
     quarter: number;
     include_index?: boolean | null;
+    include_non_invoiced_charges?: boolean | null;
     email?: string | null;
     message?: string | null;
 };
@@ -14393,14 +16115,22 @@ export type QuoteLine = {
         mode: string | null;
     } | null;
     item_kind: string | null;
-    commercial_unit_code: string | null;
-    base_unit_code: string | null;
+    commercial_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    base_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
     conversion_factor: string | null;
     base_quantity: string | null;
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -14485,7 +16215,7 @@ export type ReassignRetiredPriceListItemRequest = {
     configuration_id?: string | null;
     selection_signature?: string | null;
     unit_price: number;
-    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
 };
 
 /**
@@ -14784,7 +16514,15 @@ export type RecurringInvoiceLine = {
     price_list_id: string | null;
     price_list_name: string | null;
     price_source: string | null;
-    price_unit_code: string | null;
+    price_unit_code: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+    /**
+     * Pieces the customer asked for on a variable-weight line sold by count (decimal string, scale 4, greater than 0), e.g. `"4.0000"` for four pieces weighing `quantity` kg in total. Informational: the line is charged and the stock is discounted by `quantity` (the real weight), never by the pieces. `null` on any other line. Only accepted on a `variable_measure` presentation whose unit is a count unit.
+     */
+    counted_quantity: string | null;
+    /**
+     * UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack…). `null` exactly when `counted_quantity` is `null`.
+     */
+    counted_unit: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
     /**
      * Commercial combination frozen on the line, or `null` when the line was not sold or bought through one (legacy product, manual line).
      */
@@ -15025,7 +16763,7 @@ export type RegisterCompanyRepresentationV1Request = {
 /**
  * RegisterInvoicePaymentRequest
  *
- * Register a partial (or full) payment against an invoice. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `reference`, `notes`.
+ * Register a partial (or full) payment against an invoice. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `reference`, `notes`. `paid_on` cannot be later than today (422); an earlier date than the issue date is accepted as an advance payment.
  */
 export type RegisterInvoicePaymentRequest = {
     amount: number;
@@ -15038,7 +16776,7 @@ export type RegisterInvoicePaymentRequest = {
 /**
  * RegisterPurchaseInvoicePaymentRequest
  *
- * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, issue date ≤ payment date ≤ today, expense not cancelled) are enforced with a 422.
+ * Register a partial (or full) payment against an expense. Required: `amount` (> 0), `paid_on` (date) and `payment_method` (a value from the closed catalog). Optional: `bank_account_id`, `reference`, `notes`. The domain invariants (amount within the pending balance, payment date not later than today — an earlier date than the issue date is an advance payment —, expense not cancelled) are enforced with a 422.
  */
 export type RegisterPurchaseInvoicePaymentRequest = {
     amount: number;
@@ -15106,6 +16844,22 @@ export type RejectTimeCorrectionRequest = {
 export type RemissionMode = 'own_certificate' | 'social_collaborator' | 'power_of_attorney';
 
 /**
+ * ReopenTransportDocumentRequest
+ *
+ * Reopen a manually closed transport document. Required: `reason` (3-500 characters).
+ */
+export type ReopenTransportDocumentRequest = {
+    reason: string;
+};
+
+/**
+ * ReorderChargeRulesRequest
+ */
+export type ReorderChargeRulesRequest = {
+    rule_ids: Array<string>;
+};
+
+/**
  * ReorderProjectColumnsV1Request
  */
 export type ReorderProjectColumnsV1Request = {
@@ -15113,6 +16867,22 @@ export type ReorderProjectColumnsV1Request = {
      * `id` of ALL the columns of the project, in the desired order.
      */
     column_ids: Array<string>;
+};
+
+/**
+ * ReplaceProductBaseUnitRequest
+ *
+ * Body of the base unit replacement: the same fields as the preview plus the `impact_token` of a current preview.
+ */
+export type ReplaceProductBaseUnitRequest = {
+    target_base_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    equivalence?: number | null;
+    base_price?: number | null;
+    presentations?: Array<{
+        id: string;
+        decision: 'keep' | 'retire';
+    }>;
+    impact_token: string;
 };
 
 /**
@@ -15866,7 +17636,7 @@ export type SendAccountWebhookTestV1Request = {
     /**
      * Event type to simulate. It must be one the endpoint subscribes to; when omitted the first subscribed type is used.
      */
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed' | null;
 };
 
 /**
@@ -15975,7 +17745,20 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
+};
+
+/**
+ * SendTransportDocumentRequest
+ *
+ * Email the current PDF of the transport document. Optional `to`, `cc` and `bcc` (lists of emails, up to 5 distinct addresses in total; an address repeated within or across the lists, ignoring letter case, counts and is sent once) plus `subject` and `message`. Without `to`, the email of the carrier contact is used.
+ */
+export type SendTransportDocumentRequest = {
+    subject?: string | null;
+    message?: string | null;
+    to?: Array<string>;
+    cc?: Array<string>;
+    bcc?: Array<string>;
 };
 
 /**
@@ -15989,7 +17772,7 @@ export type Series = {
     code: string;
     name: string;
     /**
-     * invoice, quote, proforma, delivery_note, etc.
+     * Document type the series numbers: `invoice`, `quote`, `delivery_note`, `proforma` or `transport_document` (transport control documents, default code `DC`, created on the first issuance).
      */
     document_type: string;
     /**
@@ -16159,9 +17942,13 @@ export type SetAccountMemberModuleAccessV1Request = {
      */
     company_id: string;
     /**
-     * Map of section to WITHDRAWN capabilities. Required; it can be empty.
+     * Map of section to WITHDRAWN capabilities (`access`, `create`, `edit`, `delete`, `send`, `export`). Required; it can be empty.
      */
-    restrictions: Array<Array<'access' | 'delete' | 'send' | 'export'>>;
+    restrictions: Array<Array<'access' | 'create' | 'edit' | 'delete' | 'send' | 'export'>>;
+    /**
+     * Administrator-only sections GRANTED to the member in that tax ID (for example `verifactu`); never the Administrator keys (user management, plan and subscription, API and developers, digital certificate). Optional: omitted, the grants are left as they are; sent — even empty — it replaces them entirely.
+     */
+    grants?: Array<string>;
 };
 
 /**
@@ -16305,19 +18092,19 @@ export type StockMovement = {
      */
     stock_after: string;
     /**
-     * Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`, `initial`.
+     * Why the movement happened. Closed catalog: `invoice_sent`, `invoice_annulled`, `invoice_unsent`, `corrective_created`, `delivery_note_delivered`, `delivery_note_cancelled`, `purchase_invoice_registered`, `purchase_invoice_reverted`, `manual_adjustment`, `initial`, `base_unit_replacement_out`, `base_unit_replacement_in`. The last two are the pair a base unit replacement writes: `_out` empties the old product (in its unit) and `_in` fills the new one (in its unit).
      */
     reason: string;
     /**
-     * Kind of document that caused the movement. `manual` for an adjustment with no source document.
+     * Kind of document that caused the movement. `manual` for an adjustment with no source document; `base_unit_replacement` for the transfer of a base unit replacement.
      */
-    source_type: 'invoice' | 'delivery_note' | 'purchase_invoice' | 'manual';
+    source_type: 'invoice' | 'delivery_note' | 'purchase_invoice' | 'manual' | 'base_unit_replacement';
     /**
-     * Id of the source document, `null` for a manual adjustment or when the document is no longer reachable.
+     * Id of the source document, `null` for a manual adjustment or when the document is no longer reachable. For `base_unit_replacement` it is the id of the OTHER product of the replacement: the new one on the `_out` row and the old one on the `_in` row.
      */
     source_id: string | null;
     /**
-     * Human-readable number of the source document.
+     * Human-readable number of the source document. For `base_unit_replacement`, the name of the other product.
      */
     source_label: string | null;
     /**
@@ -16414,6 +18201,10 @@ export type Store = {
      * When the store was connected (ISO 8601), or `null` if unknown.
      */
     connected_at: string | null;
+    /**
+     * Optional note written in the notes of the invoices auto-created from this store's orders, or `null` when none is configured (the default: invoices carry no note). When an order needed a currency conversion to EUR, the conversion trace is appended to the note. Editable with `PATCH /v1/companies/{company}/stores/{store}`; `null` or an empty string clears it.
+     */
+    invoice_note: string | null;
 };
 
 /**
@@ -16667,6 +18458,16 @@ export type SubstituteSimplifiedV1Request = {
 };
 
 /**
+ * SupersedeTransportDocumentRequest
+ *
+ * Mark an issued transport document as superseded by the carrier document. Required: `reference` (1-300 characters, e.g. its number or URL) and `reason` (3-500 characters).
+ */
+export type SupersedeTransportDocumentRequest = {
+    reference: string;
+    reason: string;
+};
+
+/**
  * SupplierProductOffer
  */
 export type SupplierProductOffer = {
@@ -16676,7 +18477,10 @@ export type SupplierProductOffer = {
     supplier_id: string;
     variant_id: string | null;
     supplier_sku: string | null;
-    purchase_unit: string;
+    /**
+     * UN/ECE code of the unit the supplier sells in. Any of the 22 units; it must be expressible over the base unit of the product (422 `unit_not_expressible` otherwise).
+     */
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: string;
     unit_cost: string | null;
     currency: string;
@@ -17607,6 +19411,10 @@ export type Tax = {
      */
     is_system: boolean;
     /**
+     * Who owns the tax: `global` (Factuarea catalog, read-only for companies) or `company` (a tax created by your company, which only your company sees and can edit or delete).
+     */
+    ownership: 'global' | 'company';
+    /**
      * Free-text description of the tax.
      */
     description: string | null;
@@ -17827,7 +19635,7 @@ export type TaxCatalogOperationRegime = {
 /**
  * TaxCatalogRetentionRate
  *
- * A system withholding rate offered by the platform. Most entries are IRPF withholdings, but not all of them, and the `IRPF_` prefix of the `code` is no proof otherwise — codes are stable identifiers, not a tax classification. Two entries are not IRPF: `IRPF_5_GARANTIA` is contractual retention money on a construction contract, with no tax nature at all (it is not reported on form 111 and nothing is paid over to AEAT), and `IRPF_24` belongs to IRNR (RDL 5/2004), the non-resident income tax. Read each `label` for the nature of its own rate instead of assuming every entry is an IRPF withholding. This block is the catalog of what Factuarea ships, NOT an exhaustive list of every rate Spanish law defines, and it never includes the custom taxes a company creates through `POST /v1/companies/{company}/taxes`.
+ * A system withholding rate offered by the platform. Most entries are IRPF withholdings, but not all of them, and the `IRPF_` prefix of the `code` is no proof otherwise — codes are stable identifiers, not a tax classification. Two entries are not IRPF: `IRPF_5_GARANTIA` is contractual retention money on a construction contract, with no tax nature at all (it is not reported on form 111 and nothing is paid over to AEAT), and `IRPF_24` belongs to IRNR (RDL 5/2004), the non-resident income tax. Read each `label` for the nature of its own rate instead of assuming every entry is an IRPF withholding. This block is the catalog of what Factuarea ships, NOT an exhaustive list of every rate Spanish law defines, and it never includes the custom taxes a company creates in the application, which `GET /v1/companies/{company}/taxes` lists.
  */
 export type TaxCatalogRetentionRate = {
     /**
@@ -18196,7 +20004,7 @@ export type TaxStats = {
      */
     system_count: number;
     /**
-     * Company-specific taxes (`is_system=false`).
+     * Visible taxes with `is_system=false` (usually your company's own taxes).
      */
     custom_count: number;
     /**
@@ -18292,11 +20100,11 @@ export type TaxUsage = {
      */
     in_use: boolean;
     /**
-     * Sum of the six counters in `used_by`.
+     * Sum of the counters in `used_by`.
      */
     total_count: number;
     /**
-     * Number of references by kind of resource. Purchase invoice lines (they store a rate, not a tax reference) and recurring invoices (their lines are stored as a template) are not counted.
+     * Number of references by kind of resource. Purchase invoice lines (they store a rate, not a tax reference) are not counted.
      */
     used_by: {
         /**
@@ -18308,12 +20116,24 @@ export type TaxUsage = {
          */
         suppliers: number;
         /**
+         * Supplier contact profiles that use the tax as their default tax and are not already counted in `suppliers` (a supplier is never counted twice).
+         */
+        supplier_profiles: number;
+        /**
          * Invoice lines that reference the tax as VAT, withholding, surcharge or generic tax.
          */
         invoice_lines: number;
         quote_lines: number;
         proforma_lines: number;
         delivery_note_lines: number;
+        /**
+         * Recurring invoice templates with at least one line that references the tax (each template counts once).
+         */
+        recurring_invoices: number;
+        /**
+         * Document and category slots of your company tax configuration that use the tax as the default.
+         */
+        company_tax_defaults: number;
     };
 };
 
@@ -18703,6 +20523,332 @@ export type TransferAccountOwnershipV1Request = {
 };
 
 /**
+ * TransportAddress
+ *
+ * Address of a party, origin or destination of a transport control document.
+ */
+export type TransportAddress = {
+    /**
+     * Street and number.
+     */
+    line: string;
+    /**
+     * Postal code (5 digits in Spain).
+     */
+    postal_code: string;
+    city: string;
+    province: string | null;
+    /**
+     * ISO 3166-1 alpha-2 country code. Origin and destination must be `ES` to issue.
+     */
+    country: string;
+    /**
+     * Who is at that address (loading place or consignee), printed on the PDF. `null` on the addresses of the parties.
+     */
+    name: string | null;
+};
+
+/**
+ * TransportDocument
+ *
+ * A transport control document (DeCA, Spanish electronic administrative control document for road freight transport, Orden FOM/2861/2012). Each issued version is an immutable PDF served from a permanent public URL whose QR code travels with the driver.
+ */
+export type TransportDocument = {
+    /**
+     * Transport document ID (UUID v7).
+     */
+    id: string;
+    object: 'transport_document';
+    /**
+     * Number of the `DC` series, assigned when issuing with the numbering format of the series (by default code, year and a 3-digit sequence); `null` in `draft`.
+     */
+    number: string | null;
+    status: 'draft' | 'issued' | 'closed' | 'cancelled' | 'superseded';
+    /**
+     * Role of your company: contractual shipper or effective carrier.
+     */
+    company_role: 'shipper' | 'carrier';
+    /**
+     * Permanent public URL encoded in the QR code; it serves the current version PDF directly to the inspection. `null` in `draft`.
+     */
+    public_url: string | null;
+    /**
+     * Number of the current version; `null` in `draft`.
+     */
+    current_version: number | null;
+    shipper: TransportDocumentParty | null;
+    carrier: TransportDocumentParty | null;
+    vehicle: {
+        /**
+         * Plate of the tractor or rigid vehicle (required to issue).
+         */
+        tractor_plate: string | null;
+        tractor_plate_country: string | null;
+        /**
+         * Plate of the trailer or semi-trailer.
+         */
+        trailer_plate: string | null;
+        trailer_plate_country: string | null;
+    };
+    /**
+     * Special traffic authorization, when there is one.
+     */
+    special_authorization: string | null;
+    /**
+     * Transport date of the document, inherited by the shipments without their own date. It must be today or later (Europe/Madrid) to issue.
+     */
+    transport_date: string | null;
+    observations: string | null;
+    shipments: Array<TransportDocumentShipment>;
+    /**
+     * Stored PDF versions, oldest first. At most 50: the last one is reserved for cancelling or superseding, so modifications stop at 49 (422 `transport_document_version_limit_reached`).
+     */
+    versions: Array<TransportDocumentVersion>;
+    issued_at: string | null;
+    last_modified_at: string | null;
+    closed_at: string | null;
+    close_mode: 'manual' | 'automatic' | null;
+    /**
+     * Instant of the automatic close (end of the last transport date + 7 days, Europe/Madrid): a manually closed document can be reopened until then.
+     */
+    reopen_deadline: string | null;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    superseded_at: string | null;
+    /**
+     * Reference of the carrier document that supersedes this one.
+     */
+    superseding_reference: string | null;
+    /**
+     * End of the legal retention period (one year after closing, cancelling or superseding).
+     */
+    retention_until: string | null;
+    /**
+     * When the PDF files were purged (only for closed accounts after the retention period); the public URL then returns 410.
+     */
+    files_purged_at: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * TransportDocumentChange
+ *
+ * One changed datum: the field, its previous value and its current value (`null` when it did not exist).
+ */
+export type TransportDocumentChange = {
+    /**
+     * Changed datum, e.g. `vehicle.tractor_plate`, `shipments.2.destination` or `shipments.1.goods.3.quantity`.
+     */
+    field: string;
+    /**
+     * Value before the change, or `null`.
+     */
+    previous: unknown;
+    /**
+     * Value after the change, or `null`.
+     */
+    current: unknown;
+};
+
+/**
+ * TransportDocumentEvidence
+ *
+ * An entry of the issuance evidence of a transport control document (proof of issuance, art. 7.1 Orden FOM/2861/2012).
+ */
+export type TransportDocumentEvidence = {
+    /**
+     * `closed` is a manual close and `auto_closed` the automatic close of the daily process.
+     */
+    kind: 'issued' | 'modified' | 'closed' | 'auto_closed' | 'reopened' | 'cancelled' | 'superseded' | 'emailed' | 'downloaded';
+    /**
+     * PDF version the entry refers to, or `null`.
+     */
+    version: number | null;
+    /**
+     * ISO 8601 instant with its UTC offset.
+     */
+    occurred_at: string;
+    /**
+     * Current name of the person who did it, or `null` (API key, MCP client, automatic process or public download).
+     */
+    user_name: string | null;
+    /**
+     * Who did it, with the name it had at that moment: the user, the API key or the OAuth client of the MCP. `null` only for `auto_closed` and public downloads.
+     */
+    actor_name: string | null;
+    /**
+     * Recipients of an email delivery; `null` for any other kind.
+     */
+    recipients: {
+        to: Array<string>;
+        cc: Array<string>;
+        bcc: Array<string>;
+    } | null;
+    /**
+     * Truncated IP of a public download (/24 IPv4, /48 IPv6).
+     */
+    ip_prefix: string | null;
+    /**
+     * User agent of a public download.
+     */
+    user_agent: string | null;
+    /**
+     * Reason of a reopening, cancellation or supersession.
+     */
+    reason: string | null;
+};
+
+/**
+ * TransportDocumentParty
+ *
+ * Contractual shipper or effective carrier of a transport control document.
+ */
+export type TransportDocumentParty = {
+    name: string;
+    /**
+     * Tax ID: a Spanish NIF, NIE or CIF (checked with its control character) or a foreign identifier of 2 to 20 alphanumeric characters (`tax_id_country` other than `ES`, e.g. cabotage).
+     */
+    tax_id: string | null;
+    /**
+     * ISO 3166-1 alpha-2 country of the tax ID.
+     */
+    tax_id_country: string | null;
+    address: TransportAddress | null;
+    /**
+     * Contact (UUID v7) the party was copied from, or `null` when it was typed by hand or is your own company.
+     */
+    contact_id: string | null;
+};
+
+/**
+ * TransportDocumentShipment
+ *
+ * A shipment of a transport control document: origin, destination, date, goods and declared measure.
+ */
+export type TransportDocumentShipment = {
+    /**
+     * Shipment ID (UUID v7).
+     */
+    id: string;
+    origin: TransportAddress | null;
+    destination: TransportAddress | null;
+    /**
+     * Own transport date; `null` inherits the document `transport_date`.
+     */
+    transport_date: string | null;
+    /**
+     * Goods lines, without prices.
+     */
+    goods: Array<{
+        /**
+         * Concept of the goods.
+         */
+        description: string;
+        /**
+         * Optional secondary description printed below the concept.
+         */
+        additional_description: string | null;
+        /**
+         * Visible quantity (decimal string).
+         */
+        quantity: string | null;
+        unit: string | null;
+        /**
+         * Gross weight in kg PER UNIT (decimal string, scale 4), or `null` when unknown.
+         */
+        gross_weight_kg: string | null;
+    }>;
+    /**
+     * Declared measure of the shipment: a weight in kg or another measure (a value and a free unit such as `palets` or `m³`). Required to issue.
+     */
+    declared_measure: {
+        type: 'weight' | 'other';
+        /**
+         * Weight in kg when `type` is `weight`.
+         */
+        weight_kg: string | null;
+        /**
+         * Value when `type` is `other`.
+         */
+        value: string | null;
+        /**
+         * Free unit when `type` is `other`.
+         */
+        unit: string | null;
+    } | null;
+    /**
+     * Delivery note (UUID v7) the shipment was built from, or `null`.
+     */
+    delivery_note_id: string | null;
+    /**
+     * `true` when the delivery note changed (lines, quantities, delivery address or date) after the current version. Delivering or invoicing the delivery note does not count.
+     */
+    source_changed: boolean;
+    /**
+     * What changed in the delivery note compared with the shipment; empty when `source_changed` is `false`.
+     */
+    source_changes: Array<TransportDocumentChange>;
+    /**
+     * `true` when the delivery note was cancelled or deleted.
+     */
+    source_missing: boolean;
+    observations: string | null;
+};
+
+/**
+ * TransportDocumentStatusItem
+ *
+ * Transport document status from the closed catalog with its label and color for UI.
+ */
+export type TransportDocumentStatusItem = {
+    value: 'draft' | 'issued' | 'closed' | 'cancelled' | 'superseded';
+    /**
+     * Human-readable status label (Spanish).
+     */
+    label: string;
+    /**
+     * Suggested color for rendering the status in the UI.
+     */
+    color: string;
+};
+
+/**
+ * TransportDocumentVersion
+ *
+ * A stored, immutable PDF version of a transport control document.
+ */
+export type TransportDocumentVersion = {
+    number: number;
+    kind: 'issue' | 'modification' | 'cancellation' | 'supersession';
+    /**
+     * Reason of the modification, cancellation or supersession; `null` on the issue.
+     */
+    reason: string | null;
+    /**
+     * Who reported the data: your company or the carrier.
+     */
+    data_origin: 'company' | 'carrier_reported';
+    created_at: string;
+    /**
+     * Name of the actor (user, API key or MCP client) that created the version, or `null` when it cannot be attributed.
+     */
+    created_by: string | null;
+    /**
+     * Data changed compared with the previous version; the previous values are printed as «no longer valid».
+     */
+    changes: Array<TransportDocumentChange>;
+    /**
+     * sha256 of the stored PDF: recompute it over the downloaded file to verify it.
+     */
+    sha256: string;
+    /**
+     * Size of the stored PDF in bytes; a version never exceeds 5 MB (5,000,000 bytes): a larger render is rejected with 422 `transport_document_pdf_too_large` and nothing is saved.
+     */
+    size_bytes: number;
+};
+
+/**
  * UnassignAbsencePolicyRequest
  */
 export type UnassignAbsencePolicyRequest = {
@@ -18805,7 +20951,7 @@ export type UpdateAccountPersonalizationRequest = {
 /**
  * UpdateAccountWebhookV1Request
  *
- * Partial update of an account webhook endpoint: only the fields present are applied and the omitted ones keep their value. `url`, `enabled_events` (at least one), `account_relationship` and `api_version` cannot be set to `null`; `description: null` clears the description. The environment is not editable, and the signing secret has its own rotation operation.
+ * Partial update of an account webhook endpoint: only the fields present are applied and the omitted ones keep their value. `url`, `enabled_events` (at least one), `account_relationship` and `api_version` cannot be set to `null`; `description: null` clears the description. `status` (`active` or `disabled`) pauses or re-enables the endpoint. The environment is not editable, and the signing secret has its own rotation operation.
  */
 export type UpdateAccountWebhookV1Request = {
     /**
@@ -18815,7 +20961,7 @@ export type UpdateAccountWebhookV1Request = {
     /**
      * Complete new list of event types (at least one): the company events of the public catalog and the `account.*` events (`AccountEventType`). It replaces the current list and cannot be `null`.
      */
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed'>;
     /**
      * New relationship filter: `own`, `managed` or `all`. Cannot be `null`.
      */
@@ -18828,6 +20974,10 @@ export type UpdateAccountWebhookV1Request = {
      * New payload version (`YYYY-MM-DD`) to pin the endpoint to. Cannot be `null`; an unsupported one returns 422 with its own subcode.
      */
     api_version?: string;
+    /**
+     * Optional endpoint status: `active` re-enables the endpoint and `disabled` pauses it; omit it to leave the status unchanged. Cannot be `null`. Re-enabling an endpoint that the engine disabled because its creator lost the capability makes the caller its new creator.
+     */
+    status?: 'active' | 'disabled';
 };
 
 /**
@@ -18981,7 +21131,7 @@ export type UpdateCompanyV1Request = {
 /**
  * UpdateConnectedAccountRequest
  *
- * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled` and `subscription_autoinvoicing_enabled`.
+ * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled` and `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it).
  */
 export type UpdateConnectedAccountRequest = {
     name?: string;
@@ -18991,6 +21141,8 @@ export type UpdateConnectedAccountRequest = {
     require_nif?: boolean;
     refunds_enabled?: boolean;
     subscription_autoinvoicing_enabled?: boolean;
+    default_line_concept?: string | null;
+    invoice_note?: string | null;
 };
 
 /**
@@ -19086,6 +21238,7 @@ export type UpdateDeliveryNoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -19233,6 +21386,7 @@ export type UpdateInvoiceRequest = {
          */
         line_total?: number | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -19262,7 +21416,7 @@ export type UpdatePriceListRequest = {
 export type UpdateProductPresentationRequest = {
     name: string;
     mode: 'fixed' | 'variable_measure';
-    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor?: number | null;
     nominal_base_quantity?: number | null;
     barcode?: string | null;
@@ -19271,6 +21425,15 @@ export type UpdateProductPresentationRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight in kilograms PER COMMERCIAL UNIT,
+     * packaging included: up to four decimal places, greater than zero.
+     * Only for `fixed` presentations, where it replaces the weight
+     * derived from `conversion_factor`. Omit it to keep the current
+     * value; send `null` to clear it. Rejected with 422
+     * `gross_weight_not_allowed` for `variable_measure` presentations.
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -19287,6 +21450,7 @@ export type UpdateProductRequest = {
     low_stock_threshold?: number | null;
     item_kind?: 'product' | 'service';
     base_unit?: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    gross_weight_kg?: number | null;
     /**
      * Whether this product takes part in document-driven stock movements: with `true`, issuing or receiving a document that includes it moves its stock automatically and the movement is recorded in the stock ledger. It only takes effect if your company also has stock management enabled; absent or `null` means `false`.
      */
@@ -19397,6 +21561,15 @@ export type UpdateProductVariantRequest = {
         [key: string]: unknown;
     } | null;
     active?: boolean;
+    /**
+     * Own gross transport weight of the variant, in kilograms PER BASE
+     * UNIT: up to four decimal places, greater than zero. It overrides
+     * the product weight for this variant. Omit it to keep the current
+     * value; send `null` to clear it and inherit the product weight
+     * again. Rejected with 422 `gross_weight_not_allowed` for services
+     * and mass base units (`KGM`, `GRM`).
+     */
+    gross_weight_kg?: number | null;
 };
 
 /**
@@ -19466,6 +21639,7 @@ export type UpdateProformaRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -19610,6 +21784,7 @@ export type UpdatePurchaseInvoiceRequest = {
             package_quantity: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -19681,6 +21856,7 @@ export type UpdateQuoteRequest = {
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -19763,6 +21939,7 @@ export type UpdateRecurringInvoiceRequest = {
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
+        counted_quantity?: number | null;
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -19825,9 +22002,10 @@ export type UpdateSeriesRequest = {
  * shop— cannot be changed here: pointing an existing store at a different shop
  * would keep the invoicing history of the old one.
  *
- * Two fields accept an explicit `null` and it means something: `series_id: null`
- * goes back to the default series of your company, and `remote_base_url: null`
- * removes the declared address. Omitting either one leaves it untouched.
+ * Three fields accept an explicit `null` and it means something: `series_id: null`
+ * goes back to the default series of your company, `remote_base_url: null`
+ * removes the declared address, and `invoice_note: null` removes the note of the
+ * automatic invoices. Omitting either one leaves it untouched.
  * `simplified_threshold` is expressed in EUROS and capped at the legal maximum
  * for a simplified invoice.
  */
@@ -19869,6 +22047,10 @@ export type UpdateStoreV1Request = {
      */
     environment?: 'live' | 'test';
     /**
+     * Note written in the notes of every invoice issued automatically from this store (up to 500 characters). Send `null` or an empty string to remove it: invoices then carry no note.
+     */
+    invoice_note?: string | null;
+    /**
      * Authorize the host of `remote_base_url` as an outbound destination in the same call.
      */
     authorize_remote_host?: boolean;
@@ -19895,7 +22077,7 @@ export type UpdateSupplierProductOfferRequest = {
     supplier_id: string;
     variant_id?: string | null;
     supplier_sku?: string | null;
-    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    purchase_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
     conversion_factor: number;
     unit_cost?: number | null;
     availability: 'available' | 'unavailable' | 'unknown' | 'seasonal' | 'store_dependent';
@@ -20012,6 +22194,47 @@ export type UpdateTaskV1Request = {
 };
 
 /**
+ * UpdateTaxRequest
+ */
+export type UpdateTaxRequest = {
+    name?: string;
+    code?: string;
+    rate?: number;
+    applies_to?: 'sale' | 'purchase' | 'both';
+    country?: string | null;
+    description?: string | null;
+    is_active?: boolean;
+    /**
+     * Custom label for this tax shown to the customer on documents (e.g. "IVA 21% incluido"). Up to 200 characters.
+     */
+    customer_visible_label?: string | null;
+    external_reference?: string | null;
+    valid_from?: string | null;
+    /**
+     * End date of the tax validity window (`YYYY-MM-DD`). Must be on or after `valid_from`.
+     */
+    valid_until?: string | null;
+    reverse_charge?: boolean;
+    country_aeat_zone?: 'peninsula' | 'canarias' | 'ceuta' | 'melilla' | null;
+    /**
+     * FK to the linked equivalence-surcharge tax; `null` unlinks it. UUID v7 value referencing the Factuarea catalog plus your company's own taxes.
+     */
+    linked_surcharge_taxes_id?: string | null;
+    metadata?: Metadata;
+    /**
+     * Sets this tax as the default per document type. Object with optional booleans: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice`, `recurring_invoice`.
+     */
+    default_for_documents?: {
+        invoice?: boolean;
+        quote?: boolean;
+        delivery_note?: boolean;
+        proforma?: boolean;
+        purchase_invoice?: boolean;
+        recurring_invoice?: boolean;
+    };
+};
+
+/**
  * UpdateTimeTrackingSettingsRequest
  */
 export type UpdateTimeTrackingSettingsRequest = {
@@ -20042,6 +22265,88 @@ export type UpdateTimeTrackingSettingsRequest = {
 };
 
 /**
+ * UpdateTransportDocumentRequest
+ *
+ * Partial update of a draft transport document: an absent field is kept, an explicit `null` clears it and `shipments` replaces the whole list. Same fields and rules as the creation body, without `delivery_note_ids`. Inside `shipments`, `id` only identifies a shipment of THIS document (any other identifier returns 422 `parameter_invalid_value` on `shipments.N.id`) and a new shipment goes without `id`; an explicit `origin: null` clears the origin of that shipment.
+ */
+export type UpdateTransportDocumentRequest = {
+    company_role?: 'shipper' | 'carrier';
+    special_authorization?: string | null;
+    transport_date?: string | null;
+    observations?: string | null;
+    vehicle?: {
+        tractor_plate?: string | null;
+        tractor_plate_country?: string | null;
+        trailer_plate?: string | null;
+        trailer_plate_country?: string | null;
+    };
+    shipments?: Array<{
+        id?: string | null;
+        transport_date?: string | null;
+        observations?: string | null;
+        delivery_note_id?: string | null;
+        loading_place_id?: string;
+        goods?: Array<{
+            description: string;
+            additional_description?: string | null;
+            quantity?: number | null;
+            unit?: string | null;
+            gross_weight_kg?: number | null;
+        }> | null;
+        declared_measure?: {
+            type?: string;
+            weight_kg?: number | null;
+            value?: number | null;
+            unit?: string | null;
+        } | null;
+        origin?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+        destination?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    }> | null;
+    shipper?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+    carrier?: {
+        name?: string | null;
+        tax_id?: string | null;
+        tax_id_country?: string | null;
+        contact_id?: string | null;
+        address?: {
+            line?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            province?: string | null;
+            country?: string | null;
+            name?: string | null;
+        } | null;
+    };
+};
+
+/**
  * UpdateVeriFactuSettingsV1Request
  */
 export type UpdateVeriFactuSettingsV1Request = {
@@ -20061,7 +22366,7 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -20189,7 +22494,7 @@ export type UpsertPriceListItemRequest = {
     configuration_id?: string | null;
     selection_signature?: string | null;
     unit_price: number;
-    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY';
+    price_unit: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS';
 };
 
 /**
@@ -20320,7 +22625,7 @@ export type VeriFactuConfig = {
     active_certificate_id: string | null;
     updated_at: string | null;
     /**
-     * Who remits your records to AEAT: `own_certificate` (the default: your own certificate), `social_collaborator` (Factuarea remits with its certificate as social collaborator, annex I of the Resolution of 18-12-2024) or `power_of_attorney` (Factuarea remits under a power of attorney registered with AEAT). A third-party mode requires an active representation of the kind it asks for (`POST /v1/companies/{company}/verifactu/representation`); change it with `PUT /v1/companies/{company}/verifactu/settings`.
+     * Who remits your records to AEAT: `own_certificate` (the default: your own certificate), `social_collaborator` (Factuarea remits with its certificate as social collaborator, annex I of the Resolution of 18-12-2024) or `power_of_attorney` (Factuarea remits under a power of attorney registered with AEAT). A third-party mode requires an active representation of the kind it asks for (`POST /v1/companies/{company}/verifactu/representation`); change it with `PATCH /v1/companies/{company}/verifactu/settings`.
      */
     remission_mode: 'own_certificate' | 'social_collaborator' | 'power_of_attorney';
     /**
@@ -20344,7 +22649,7 @@ export type VeriFactuConfig = {
      */
     active_representation_is_expired: boolean;
     /**
-     * Whether this instance offers the `social_collaborator` remission mode (the social-collaboration agreement with AEAT is in force). It is a fact of the instance, the same for every company: while it is `false`, `PUT /v1/companies/{company}/verifactu/settings` with that mode returns 422 `social_collaborator_unavailable` and `power_of_attorney` covers the same use case.
+     * Whether this instance offers the `social_collaborator` remission mode (the social-collaboration agreement with AEAT is in force). It is a fact of the instance, the same for every company: while it is `false`, `PATCH /v1/companies/{company}/verifactu/settings` with that mode returns 422 `social_collaborator_unavailable` and `power_of_attorney` covers the same use case.
      */
     social_collaborator_available: boolean;
     /**
@@ -20580,6 +22885,20 @@ export type VerifyBusinessContactCensusV1Request = {
 };
 
 /**
+ * VersionedDurableOperationBody
+ */
+export type VersionedDurableOperationBody = {
+    quote_version: number;
+};
+
+/**
+ * VersionedEmployeeBatchBody
+ */
+export type VersionedEmployeeBatchBody = {
+    quote_version: number;
+};
+
+/**
  * VersionedPurchaseScanRequest
  */
 export type VersionedPurchaseScanRequest = {
@@ -20652,7 +22971,7 @@ export type WebhookEndpoint = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * Status of the endpoint: `active` (it receives deliveries), `degraded` (every delivery of the last 24 hours failed: deliveries are paused until a `ping` succeeds) or `disabled` (turned off by you: it receives none).
      */
@@ -20699,7 +23018,7 @@ export type WebhookEndpointWithSecret = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
     /**
      * Status of the endpoint: `active` (it receives deliveries), `degraded` (every delivery of the last 24 hours failed: deliveries are paused until a `ping` succeeds) or `disabled` (turned off by you: it receives none).
      */
@@ -20854,6 +23173,26 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadDeliveryNoteEmailSent) | ({
     type: 'delivery_note.email_failed';
 } & WebhookEventPayloadDeliveryNoteEmailFailed) | ({
+    type: 'transport_document.created';
+} & WebhookEventPayloadTransportDocumentCreated) | ({
+    type: 'transport_document.updated';
+} & WebhookEventPayloadTransportDocumentUpdated) | ({
+    type: 'transport_document.issued';
+} & WebhookEventPayloadTransportDocumentIssued) | ({
+    type: 'transport_document.modified';
+} & WebhookEventPayloadTransportDocumentModified) | ({
+    type: 'transport_document.closed';
+} & WebhookEventPayloadTransportDocumentClosed) | ({
+    type: 'transport_document.reopened';
+} & WebhookEventPayloadTransportDocumentReopened) | ({
+    type: 'transport_document.cancelled';
+} & WebhookEventPayloadTransportDocumentCancelled) | ({
+    type: 'transport_document.superseded';
+} & WebhookEventPayloadTransportDocumentSuperseded) | ({
+    type: 'transport_document.email_sent';
+} & WebhookEventPayloadTransportDocumentEmailSent) | ({
+    type: 'transport_document.email_failed';
+} & WebhookEventPayloadTransportDocumentEmailFailed) | ({
     type: 'purchase_invoice.created';
 } & WebhookEventPayloadPurchaseInvoiceCreated) | ({
     type: 'purchase_invoice.updated';
@@ -20920,6 +23259,8 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadProductCreated) | ({
     type: 'product.updated';
 } & WebhookEventPayloadProductUpdated) | ({
+    type: 'product.replaced';
+} & WebhookEventPayloadProductReplaced) | ({
     type: 'payment.received';
 } & WebhookEventPayloadPaymentReceived) | ({
     type: 'payment.reversed';
@@ -23666,6 +26007,43 @@ export type WebhookEventPayloadProductCreated = {
      */
     correlation_id: string | null;
     data: EventDataProductCreated;
+};
+
+/**
+ * WebhookEventPayloadProductReplaced
+ *
+ * Webhook delivery body for the `product.replaced` event.
+ */
+export type WebhookEventPayloadProductReplaced = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `product.replaced`.
+     */
+    type: 'product.replaced';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataProductReplaced;
 };
 
 /**
@@ -26555,6 +28933,376 @@ export type WebhookEventPayloadTimeEntryRecorded = {
 };
 
 /**
+ * WebhookEventPayloadTransportDocumentCancelled
+ *
+ * Webhook delivery body for the `transport_document.cancelled` event.
+ */
+export type WebhookEventPayloadTransportDocumentCancelled = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.cancelled`.
+     */
+    type: 'transport_document.cancelled';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentCancelled;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentClosed
+ *
+ * Webhook delivery body for the `transport_document.closed` event.
+ */
+export type WebhookEventPayloadTransportDocumentClosed = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.closed`.
+     */
+    type: 'transport_document.closed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentClosed;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentCreated
+ *
+ * Webhook delivery body for the `transport_document.created` event.
+ */
+export type WebhookEventPayloadTransportDocumentCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.created`.
+     */
+    type: 'transport_document.created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentCreated;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentEmailFailed
+ *
+ * Webhook delivery body for the `transport_document.email_failed` event.
+ */
+export type WebhookEventPayloadTransportDocumentEmailFailed = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.email_failed`.
+     */
+    type: 'transport_document.email_failed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentEmailFailed;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentEmailSent
+ *
+ * Webhook delivery body for the `transport_document.email_sent` event.
+ */
+export type WebhookEventPayloadTransportDocumentEmailSent = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.email_sent`.
+     */
+    type: 'transport_document.email_sent';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentEmailSent;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentIssued
+ *
+ * Webhook delivery body for the `transport_document.issued` event.
+ */
+export type WebhookEventPayloadTransportDocumentIssued = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.issued`.
+     */
+    type: 'transport_document.issued';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentIssued;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentModified
+ *
+ * Webhook delivery body for the `transport_document.modified` event.
+ */
+export type WebhookEventPayloadTransportDocumentModified = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.modified`.
+     */
+    type: 'transport_document.modified';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentModified;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentReopened
+ *
+ * Webhook delivery body for the `transport_document.reopened` event.
+ */
+export type WebhookEventPayloadTransportDocumentReopened = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.reopened`.
+     */
+    type: 'transport_document.reopened';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentReopened;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentSuperseded
+ *
+ * Webhook delivery body for the `transport_document.superseded` event.
+ */
+export type WebhookEventPayloadTransportDocumentSuperseded = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.superseded`.
+     */
+    type: 'transport_document.superseded';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentSuperseded;
+};
+
+/**
+ * WebhookEventPayloadTransportDocumentUpdated
+ *
+ * Webhook delivery body for the `transport_document.updated` event.
+ */
+export type WebhookEventPayloadTransportDocumentUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `transport_document.updated`.
+     */
+    type: 'transport_document.updated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataTransportDocumentUpdated;
+};
+
+/**
  * WeeklySchedule
  *
  * A fixed weekly work schedule for the Control Horario (time tracking) module. Defines, per weekday, the expected time ranges (from which the expected hours and the planned start time are derived). Its `mode` decides how balances are computed downstream: `validated` (the period is assumed fulfilled unless an exception) or `real_clocking` (only real clock-ins count).
@@ -26681,7 +29429,7 @@ export type WorkdaySessionStatus = {
 };
 
 /**
- * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+ * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
  */
 export type IdempotencyKey = string;
 
@@ -26694,7 +29442,7 @@ export type PublicApiV1AccountNifTransfersAcceptData = {
     body: AcceptNifTransferV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -26722,7 +29470,7 @@ export type PublicApiV1AccountNifTransfersAcceptErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -26734,7 +29482,7 @@ export type PublicApiV1AccountNifTransfersAcceptErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
      */
     409: Error;
     /**
@@ -26765,7 +29513,7 @@ export type PublicApiV1ProformasAcceptData = {
     body?: AcceptProformaRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -26832,7 +29580,7 @@ export type PublicApiV1QuotesAcceptData = {
     body?: AcceptQuoteRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -26899,7 +29647,7 @@ export type PublicApiV1AutomationsRulesActivateData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -26930,6 +29678,10 @@ export type PublicApiV1AutomationsRulesActivateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
      */
@@ -26966,7 +29718,7 @@ export type PublicApiV1CompaniesActivateBatchData = {
     body: ActivateCompaniesBatchV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -26994,7 +29746,7 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -27005,6 +29757,10 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      * The requested resource does not exist or belongs to another company. `account_not_found`: the account in the path does not exist or is not the account of the API key.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -27017,6 +29773,10 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The managed-company seat charge could not be verified. No company is created or activated and no charge is attempted; do not treat an unavailable amount as zero.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesActivateBatchError = PublicApiV1CompaniesActivateBatchErrors[keyof PublicApiV1CompaniesActivateBatchErrors];
@@ -27036,7 +29796,7 @@ export type PublicApiV1VerifactuCertificatesActivateData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -27103,7 +29863,7 @@ export type PublicApiV1CompaniesActivateData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -27135,7 +29895,7 @@ export type PublicApiV1CompaniesActivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -27146,6 +29906,10 @@ export type PublicApiV1CompaniesActivateErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -27158,6 +29922,10 @@ export type PublicApiV1CompaniesActivateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The managed-company seat charge could not be verified. No company is created or activated and no charge is attempted; do not treat an unavailable amount as zero.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesActivateError = PublicApiV1CompaniesActivateErrors[keyof PublicApiV1CompaniesActivateErrors];
@@ -27174,7 +29942,7 @@ export type PublicApiV1RecurringInvoicesActivateData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -27301,7 +30069,7 @@ export type PublicApiV1AccountMembersCreateData = {
     body: AddAccountMemberV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -27437,7 +30205,7 @@ export type PublicApiV1AccountConnectReturnDomainsCreateData = {
     body: AddConnectReturnDomainV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -27577,7 +30345,7 @@ export type PublicApiV1TasksCommentsCreateData = {
     body: AddTaskCommentV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -27705,7 +30473,7 @@ export type PublicApiV1TasksExternalLinksCreateData = {
     body: AddTaskExternalLinkV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -27772,7 +30540,7 @@ export type PublicApiV1InvoicesAnnulData = {
     body: AnnulInvoiceV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -27843,7 +30611,7 @@ export type PublicApiV1ManagedAccountsImportsCreateData = {
     body: ManagedAccountImportV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -27870,7 +30638,7 @@ export type PublicApiV1ManagedAccountsImportsCreateErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `import_in_progress`: another application of a bulk import of your account is still running, and imports of the same provider are applied one at a time. Nothing was applied. Wait for it to end and send the same files again with a NEW `Idempotency-Key`: rows the first import already applied come back as `ALREADY_EXISTS`, never duplicated nor charged twice.
+     * The request conflicts with data that already exists or with a request running at the same time. `import_in_progress`: either another application of a bulk import of your account is still running (imports of the same provider are applied one at a time) or the platform is already applying the maximum number of simultaneous imports across all providers, in which case the `message` says so. Nothing was applied and no daily quota was spent. Wait for it to end and send the same files again with a NEW `Idempotency-Key`: rows the first import already applied come back as `ALREADY_EXISTS`, never duplicated nor charged twice.
      */
     409: Error;
     /**
@@ -27905,7 +30673,7 @@ export type PublicApiV1AbsenceRequestsApproveData = {
     body?: ApproveAbsenceRequestRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -27972,7 +30740,7 @@ export type PublicApiV1TimeCorrectionsApproveData = {
     body?: ApproveTimeCorrectionRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28043,7 +30811,7 @@ export type PublicApiV1AbsencePoliciesArchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28110,7 +30878,7 @@ export type PublicApiV1AbsenceTypesArchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28177,7 +30945,7 @@ export type PublicApiV1ContactsArchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28247,7 +31015,7 @@ export type PublicApiV1ProjectsArchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28454,7 +31222,7 @@ export type PublicApiV1SeriesArchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28522,7 +31290,7 @@ export type PublicApiV1WorkSchedulesArchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28589,7 +31357,7 @@ export type PublicApiV1AbsencePoliciesAssignData = {
     body: AssignAbsencePolicyRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28656,7 +31424,7 @@ export type PublicApiV1ContactsRemoveContactRoleData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -28678,12 +31446,7 @@ export type PublicApiV1ContactsRemoveContactRoleData = {
          */
         role: string;
     };
-    query: {
-        /**
-         * Ignored: the role is always read from the `{role}` path segment.
-         */
-        role: 'customer' | 'supplier' | 'lead';
-    };
+    query?: never;
     url: '/companies/{company}/contacts/{contact}/roles/{role}';
 };
 
@@ -28732,10 +31495,10 @@ export type PublicApiV1ContactsRemoveContactRoleResponses = {
 export type PublicApiV1ContactsRemoveContactRoleResponse = PublicApiV1ContactsRemoveContactRoleResponses[keyof PublicApiV1ContactsRemoveContactRoleResponses];
 
 export type PublicApiV1ContactsAssignContactRoleData = {
-    body: ContactRoleV1Request;
+    body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28809,7 +31572,7 @@ export type PublicApiV1InvoicesAssignRealNumberData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -28880,7 +31643,7 @@ export type PublicApiV1WorkSchedulesAssignData = {
     body: AssignScheduleRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -28951,7 +31714,7 @@ export type PublicApiV1TasksLabelsAssignData = {
     body: AssignTaskLabelV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -29018,7 +31781,7 @@ export type PublicApiV1TasksAssignData = {
     body: AssignTaskV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -29085,7 +31848,7 @@ export type PublicApiV1PurchaseInvoicesAttachFileData = {
     body: AttachPurchaseInvoiceFileRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29117,7 +31880,7 @@ export type PublicApiV1PurchaseInvoicesAttachFileErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -29156,7 +31919,7 @@ export type PublicApiV1SeriesBootstrapData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -29223,7 +31986,7 @@ export type PublicApiV1ContactsBulkArchiveData = {
     body: BulkArchiveBusinessContactsV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29289,7 +32052,7 @@ export type PublicApiV1ContactsBulkChangeContactRoleStatusData = {
     body: BulkChangeContactRoleStatusV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29355,7 +32118,7 @@ export type PublicApiV1TasksBulkStatusData = {
     body: BulkChangeTaskStatusV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29422,7 +32185,7 @@ export type PublicApiV1ContactsBulkCreateData = {
     body: BulkCreateBusinessContactsV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29489,7 +32252,7 @@ export type PublicApiV1InvoicesBulkCreateData = {
     body: BulkCreateInvoicesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29556,7 +32319,7 @@ export type PublicApiV1ContactsBulkDeleteData = {
     body: BulkDeleteBusinessContactsV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29622,7 +32385,7 @@ export type PublicApiV1DeliveryNotesBulkDeleteData = {
     body: BulkDeleteDeliveryNotesRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29685,7 +32448,7 @@ export type PublicApiV1InvoicesBulkDeleteData = {
     body: BulkDeleteInvoicesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29748,7 +32511,7 @@ export type PublicApiV1ProductsBulkDeleteData = {
     body: BulkDeleteProductsRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29811,7 +32574,7 @@ export type PublicApiV1ProformasBulkDeleteData = {
     body: BulkDeleteProformasV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29874,7 +32637,7 @@ export type PublicApiV1PurchaseInvoicesBulkDeleteData = {
     body: BulkDeletePurchaseInvoicesRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -29937,7 +32700,7 @@ export type PublicApiV1QuotesBulkDeleteData = {
     body: BulkDeleteQuotesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30000,7 +32763,7 @@ export type PublicApiV1RecurringInvoicesBulkDeleteData = {
     body: BulkDeleteRecurringInvoicesRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30063,7 +32826,7 @@ export type PublicApiV1TasksBulkDeleteData = {
     body: BulkDeleteTasksV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30130,7 +32893,7 @@ export type PublicApiV1DeliveryNotesBulkPdfData = {
     body: BulkPdfDeliveryNotesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30195,7 +32958,7 @@ export type PublicApiV1InvoicesBulkPdfData = {
     body: BulkPdfInvoicesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30260,7 +33023,7 @@ export type PublicApiV1ProformasBulkPdfData = {
     body: BulkPdfProformasV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30325,7 +33088,7 @@ export type PublicApiV1QuotesBulkPdfData = {
     body: BulkPdfQuotesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30390,7 +33153,7 @@ export type PublicApiV1DeliveryNotesBulkSendData = {
     body: BulkSendDeliveryNotesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30453,7 +33216,7 @@ export type PublicApiV1InvoicesBulkSendData = {
     body: BulkSendInvoicesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30520,7 +33283,7 @@ export type PublicApiV1ProformasBulkSendData = {
     body: BulkSendProformasV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30583,7 +33346,7 @@ export type PublicApiV1QuotesBulkSendData = {
     body: BulkSendQuotesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30646,7 +33409,7 @@ export type PublicApiV1DeliveryNotesBulkStatusData = {
     body: BulkStatusDeliveryNotesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30713,7 +33476,7 @@ export type PublicApiV1InvoicesBulkStatusData = {
     body: BulkStatusInvoicesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30780,7 +33543,7 @@ export type PublicApiV1ProductsBulkStatusData = {
     body: BulkStatusProductsV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30843,7 +33606,7 @@ export type PublicApiV1ProformasBulkStatusData = {
     body: BulkStatusProformasV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30906,7 +33669,7 @@ export type PublicApiV1PurchaseInvoicesBulkStatusData = {
     body: BulkStatusPurchaseInvoicesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -30969,7 +33732,7 @@ export type PublicApiV1QuotesBulkStatusData = {
     body: BulkStatusQuotesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31032,7 +33795,7 @@ export type PublicApiV1RecurringInvoicesBulkStatusData = {
     body: BulkStatusRecurringInvoicesV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31095,7 +33858,7 @@ export type PublicApiV1ProductsBulkUpdateStockData = {
     body: BulkUpdateProductStockRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31161,7 +33924,7 @@ export type PublicApiV1TasksBulkUpdateData = {
     body: BulkUpdateTasksV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31401,7 +34164,7 @@ export type PublicApiV1AbsenceRequestsCancelData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -31468,7 +34231,7 @@ export type PublicApiV1AccountInvitationsCancelData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -31595,7 +34358,7 @@ export type PublicApiV1DeliveryNotesCancelData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31662,11 +34425,91 @@ export type PublicApiV1DeliveryNotesCancelResponses = {
 
 export type PublicApiV1DeliveryNotesCancelResponse = PublicApiV1DeliveryNotesCancelResponses[keyof PublicApiV1DeliveryNotesCancelResponses];
 
+export type PublicApiV1EmployeeBatchesCancelData = {
+    body: CancelDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the employee batch.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-batches/{id}/cancel';
+};
+
+export type PublicApiV1EmployeeBatchesCancelErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeBatchesCancelError = PublicApiV1EmployeeBatchesCancelErrors[keyof PublicApiV1EmployeeBatchesCancelErrors];
+
+export type PublicApiV1EmployeeBatchesCancelResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesCancelResponse = PublicApiV1EmployeeBatchesCancelResponses[keyof PublicApiV1EmployeeBatchesCancelResponses];
+
 export type PublicApiV1EmployeeInvitationsCancelData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -31734,7 +34577,7 @@ export type PublicApiV1EmployeeSeatsCancelData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31770,6 +34613,10 @@ export type PublicApiV1EmployeeSeatsCancelErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -31797,7 +34644,7 @@ export type PublicApiV1FaceSubmissionsCancelData = {
     body: CancelFaceSubmissionV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31864,7 +34711,7 @@ export type PublicApiV1RecurringInvoicesCancelData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -31927,11 +34774,238 @@ export type PublicApiV1RecurringInvoicesCancelResponses = {
 
 export type PublicApiV1RecurringInvoicesCancelResponse = PublicApiV1RecurringInvoicesCancelResponses[keyof PublicApiV1RecurringInvoicesCancelResponses];
 
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelData = {
+    body: CancelDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the employee seat offer redemption.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-seat-offer-redemptions/{id}/cancel';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelError = PublicApiV1EmployeeSeatOfferRedemptionsCancelErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsCancelErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsCancelResponse = PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelData = {
+    body: CancelDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the additional NIF seat offer redemption.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/gestoria-seat-offer-redemptions/{id}/cancel';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelError = PublicApiV1GestoriaSeatOfferRedemptionsCancelErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsCancelErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsCancelResponse = PublicApiV1GestoriaSeatOfferRedemptionsCancelResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsCancelResponses];
+
+export type PublicApiV1TransportDocumentsCancelData = {
+    body: CancelTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/cancel';
+};
+
+export type PublicApiV1TransportDocumentsCancelErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsCancelError = PublicApiV1TransportDocumentsCancelErrors[keyof PublicApiV1TransportDocumentsCancelErrors];
+
+export type PublicApiV1TransportDocumentsCancelResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsCancelResponse = PublicApiV1TransportDocumentsCancelResponses[keyof PublicApiV1TransportDocumentsCancelResponses];
+
 export type PublicApiV1AccountMembersDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -32058,7 +35132,7 @@ export type PublicApiV1AccountMembersUpdateData = {
     body?: ChangeAccountMemberRoleV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32125,7 +35199,7 @@ export type PublicApiV1ContactsChangeContactRoleStatusData = {
     body: ChangeContactRoleStatusV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32199,7 +35273,7 @@ export type PublicApiV1EmployeeSeatsChangeQuantityData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -32235,6 +35309,10 @@ export type PublicApiV1EmployeeSeatsChangeQuantityErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -32262,7 +35340,7 @@ export type PublicApiV1ManagedAccountsAccessLevelUpdateData = {
     body: ChangeManagedAccountAccessLevelV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32325,7 +35403,7 @@ export type PublicApiV1ManagedAccountsPlanUpdateData = {
     body: ChangeManagedAccountPlanV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -32388,7 +35466,7 @@ export type PublicApiV1TasksStatusData = {
     body?: ChangeTaskStatusV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32581,7 +35659,7 @@ export type PublicApiV1TimeEntriesClockInData = {
     body: ClockActionRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32651,7 +35729,7 @@ export type PublicApiV1TimeEntriesClockOutData = {
     body: ClockActionRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32793,7 +35871,7 @@ export type PublicApiV1MonthlyTimeRecordClosesCreateData = {
     body: CloseMonthlyTimeRecordRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32859,11 +35937,78 @@ export type PublicApiV1MonthlyTimeRecordClosesCreateResponses = {
 
 export type PublicApiV1MonthlyTimeRecordClosesCreateResponse = PublicApiV1MonthlyTimeRecordClosesCreateResponses[keyof PublicApiV1MonthlyTimeRecordClosesCreateResponses];
 
+export type PublicApiV1TransportDocumentsCloseData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/close';
+};
+
+export type PublicApiV1TransportDocumentsCloseErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsCloseError = PublicApiV1TransportDocumentsCloseErrors[keyof PublicApiV1TransportDocumentsCloseErrors];
+
+export type PublicApiV1TransportDocumentsCloseResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsCloseResponse = PublicApiV1TransportDocumentsCloseResponses[keyof PublicApiV1TransportDocumentsCloseResponses];
+
 export type PublicApiV1AbsencePoliciesCarryoverData = {
     body: ConfigureAbsencePolicyCarryoverRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -32925,6 +36070,270 @@ export type PublicApiV1AbsencePoliciesCarryoverResponses = {
 };
 
 export type PublicApiV1AbsencePoliciesCarryoverResponse = PublicApiV1AbsencePoliciesCarryoverResponses[keyof PublicApiV1AbsencePoliciesCarryoverResponses];
+
+export type PublicApiV1EmployeeBatchesConfirmData = {
+    body: VersionedEmployeeBatchBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the employee batch.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-batches/{id}/confirm';
+};
+
+export type PublicApiV1EmployeeBatchesConfirmErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeBatchesConfirmError = PublicApiV1EmployeeBatchesConfirmErrors[keyof PublicApiV1EmployeeBatchesConfirmErrors];
+
+export type PublicApiV1EmployeeBatchesConfirmResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesConfirmResponse = PublicApiV1EmployeeBatchesConfirmResponses[keyof PublicApiV1EmployeeBatchesConfirmResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the employee seat offer redemption.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-seat-offer-redemptions/{id}/confirm';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmError = PublicApiV1EmployeeSeatOfferRedemptionsConfirmErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsConfirmErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponse = PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the additional NIF seat offer redemption.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/gestoria-seat-offer-redemptions/{id}/confirm';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmError = PublicApiV1GestoriaSeatOfferRedemptionsConfirmErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsConfirmErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+    /**
+     * Accepted; retrieve this operation until terminal.
+     */
+    202: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponse = PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsConfirmResponses];
 
 export type PublicApiV1StoresIndexData = {
     body?: never;
@@ -33000,7 +36409,7 @@ export type PublicApiV1StoresCreateData = {
     body: ConnectStoreV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -33066,7 +36475,7 @@ export type PublicApiV1DeliveryNotesConvertData = {
     body: ConvertDeliveryNoteRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -33097,6 +36506,10 @@ export type PublicApiV1DeliveryNotesConvertErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -33145,7 +36558,7 @@ export type PublicApiV1ProformasConvertData = {
     body: ConvertProformaRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -33176,6 +36589,10 @@ export type PublicApiV1ProformasConvertErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -33302,7 +36719,7 @@ export type PublicApiV1QuotesConvertData = {
     body: ConvertQuoteRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -33333,6 +36750,10 @@ export type PublicApiV1QuotesConvertErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -33473,7 +36894,7 @@ export type PublicApiV1AbsencePoliciesCreateData = {
     body: CreateAbsencePolicyRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -33635,7 +37056,7 @@ export type PublicApiV1AbsenceRequestsCreateData = {
     body: CreateAbsenceRequestRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -33797,7 +37218,7 @@ export type PublicApiV1AbsenceTypesCreateData = {
     body: CreateAbsenceTypeRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -33932,7 +37353,7 @@ export type PublicApiV1AccountWebhooksCreateData = {
     body: CreateAccountWebhookV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -33960,7 +37381,7 @@ export type PublicApiV1AccountWebhooksCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -34058,7 +37479,7 @@ export type PublicApiV1AccountApiKeysCreateData = {
     body: CreateApiKeyV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -34228,7 +37649,7 @@ export type PublicApiV1AutomationsRulesCreateData = {
     body: CreateAutomationRuleV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -34433,7 +37854,7 @@ export type PublicApiV1ContactsCreateData = {
     body: CreateBusinessContactV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -34505,11 +37926,143 @@ export type PublicApiV1ContactsCreateResponses = {
 
 export type PublicApiV1ContactsCreateResponse = PublicApiV1ContactsCreateResponses[keyof PublicApiV1ContactsCreateResponses];
 
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account.
+         */
+        account: string;
+    };
+    query?: never;
+    url: '/companies/{company}/connected-accounts/{account}/charge-rules';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesListErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesListErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponses = {
+    /**
+     * The charge rules of the account, ordered by `position`. The list is not paginated.
+     */
+    200: {
+        data: Array<ChargeRule>;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesListResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateData = {
+    body: ChargeRuleRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account.
+         */
+        account: string;
+    };
+    query?: never;
+    url: '/companies/{company}/connected-accounts/{account}/charge-rules';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses = {
+    /**
+     * The newly created rule, placed at the end of the list.
+     */
+    201: {
+        data: ChargeRule;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses];
+
 export type PublicApiV1InvoicesCorrectiveData = {
     body: CreateCorrectiveInvoiceRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -34540,6 +38093,10 @@ export type PublicApiV1InvoicesCorrectiveErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -34798,7 +38355,7 @@ export type PublicApiV1DeliveryNotesCreateData = {
     body: CreateDeliveryNoteRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -34825,6 +38382,10 @@ export type PublicApiV1DeliveryNotesCreateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -34968,7 +38529,7 @@ export type PublicApiV1EmployeesCreateData = {
     body: CreateEmployeeRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -34996,7 +38557,7 @@ export type PublicApiV1EmployeesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -35008,7 +38569,7 @@ export type PublicApiV1EmployeesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another employee of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another employee of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_state_conflict` with `subcode` `employee_batch_payment_outcome_unknown`: the payment of the batch is still being verified. `details.operation_id` is the operation to keep following; do not charge again. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another.
      */
     409: Error;
     /**
@@ -35023,6 +38584,10 @@ export type PublicApiV1EmployeesCreateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * Reliable seat quote unavailable while employee batches are enabled; nobody was created or charged. Retry the same request.
+     */
+    503: Error;
 };
 
 export type PublicApiV1EmployeesCreateError = PublicApiV1EmployeesCreateErrors[keyof PublicApiV1EmployeesCreateErrors];
@@ -35248,7 +38813,7 @@ export type PublicApiV1InvoicesCreateData = {
     body: CreateInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -35275,6 +38840,10 @@ export type PublicApiV1InvoicesCreateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -35387,7 +38956,7 @@ export type PublicApiV1InvoicesVerifactuCreateData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -35526,7 +39095,7 @@ export type PublicApiV1AccountNifTransfersCreateData = {
     body: CreateNifTransferV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -35667,7 +39236,7 @@ export type PublicApiV1PriceListsCreateData = {
     body: CreatePriceListRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -35891,7 +39460,7 @@ export type PublicApiV1ProductsCreateData = {
     body: CreateProductRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -36037,7 +39606,7 @@ export type PublicApiV1ProductsPresentationsCreateData = {
     body: CreateProductPresentationRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -36180,7 +39749,7 @@ export type PublicApiV1ProductsVariantsCreateData = {
     body: CreateProductVariantRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -36405,7 +39974,7 @@ export type PublicApiV1ProformasCreateData = {
     body: CreateProformaRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -36432,6 +40001,10 @@ export type PublicApiV1ProformasCreateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -36532,7 +40105,7 @@ export type PublicApiV1ProjectsColumnsCreateData = {
     body: CreateProjectColumnV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -36673,7 +40246,7 @@ export type PublicApiV1ProjectsCreateData = {
     body: CreateProjectV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -36917,7 +40490,7 @@ export type PublicApiV1PurchaseInvoicesCreateData = {
     body: CreatePurchaseInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -37161,7 +40734,7 @@ export type PublicApiV1QuotesCreateData = {
     body: CreateQuoteRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -37188,6 +40761,10 @@ export type PublicApiV1QuotesCreateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -37231,7 +40808,7 @@ export type PublicApiV1InvoicesCreateRecurringData = {
     body: CreateRecurringFromInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -37447,7 +41024,7 @@ export type PublicApiV1RecurringInvoicesCreateData = {
     body: CreateRecurringInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -37541,7 +41118,7 @@ export type PublicApiV1SeriesListData = {
          */
         ending_before?: string;
         /**
-         * Document type (invoice, quote, etc.). Exact match on `document_type`.
+         * Document type: `invoice`, `quote`, `delivery_note`, `proforma` or `transport_document`. Exact match on `document_type`.
          */
         document_type?: string;
         /**
@@ -37605,7 +41182,7 @@ export type PublicApiV1SeriesCreateData = {
     body: CreateSeriesRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -37763,7 +41340,7 @@ export type PublicApiV1ProductsSupplierOffersCreateData = {
     body: CreateSupplierProductOfferRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -37887,7 +41464,7 @@ export type PublicApiV1ProjectsCustomFieldsCreateData = {
     body: CreateTaskCustomFieldV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38024,7 +41601,7 @@ export type PublicApiV1TaskLabelsCreateData = {
     body: CreateTaskLabelV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38151,7 +41728,7 @@ export type PublicApiV1TasksRelationsCreateData = {
     body: CreateTaskRelationV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38222,7 +41799,7 @@ export type PublicApiV1TasksUploadLinksCreateData = {
     body?: CreateTaskUploadLinkV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38403,7 +41980,7 @@ export type PublicApiV1TasksCreateData = {
     body: CreateTaskV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38468,6 +42045,386 @@ export type PublicApiV1TasksCreateResponses = {
 };
 
 export type PublicApiV1TasksCreateResponse = PublicApiV1TasksCreateResponses[keyof PublicApiV1TasksCreateResponses];
+
+export type PublicApiV1TaxesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
+         */
+        ending_before?: string;
+        /**
+         * Tax type: `vat`, `retention`, `surcharge`, `other`. Exact match on `type`.
+         */
+        type?: string;
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'type[in]'?: string;
+        /**
+         * Filter active / inactive taxes. Exact match on `is_active`.
+         */
+        is_active?: boolean;
+        /**
+         * Filter taxes that are your company's effective default (the tax your company proposes by default for the document). Exact match on `is_default`.
+         */
+        is_default?: boolean;
+        /**
+         * Scope: `sales`, `purchases`, `both`. Exact match on `applies_to`.
+         */
+        applies_to?: string;
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'applies_to[in]'?: string;
+        /**
+         * ISO 3166-1 alpha-2 country code. Exact match on `country`.
+         */
+        country?: string;
+        /**
+         * Short tax code (exact match). Exact match on `code`.
+         */
+        code?: string;
+        /**
+         * Escaped LIKE search over `name` and `code` (limit 80 chars). Exact match on `search`.
+         */
+        search?: string;
+        /**
+         * Exact AEAT key: S1..S3, E1..E6, N1..N2. Exact match on `external_reference`.
+         */
+        external_reference?: string;
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'external_reference[in]'?: string;
+        /**
+         * Filter the protected canonical taxes of the Factuarea catalog (`true`) vs the rest (`false`). To tell the global catalog from your own taxes use `ownership`. Exact match on `is_system`.
+         */
+        is_system?: boolean;
+        /**
+         * Whose taxes to list: `global` (the read-only Factuarea catalog) or `company` (your own). Omit it to list both. Any other value responds 422. Exact match on `ownership`.
+         */
+        ownership?: string;
+        /**
+         * AEAT fiscal zone: `peninsula`, `canarias`, `ceuta`, `melilla`. Exact match on `country_aeat_zone`.
+         */
+        country_aeat_zone?: string;
+        /**
+         * Indirect tax regime DERIVED from the AEAT zone: `iva`, `igic`, `ipsi`. Translated to the equivalent zone filter. Exact match on `indirect_tax_regime`.
+         */
+        indirect_tax_regime?: string;
+    };
+    url: '/companies/{company}/taxes';
+};
+
+export type PublicApiV1TaxesListErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesListError = PublicApiV1TaxesListErrors[keyof PublicApiV1TaxesListErrors];
+
+export type PublicApiV1TaxesListResponses = {
+    200: PaginatedList & {
+        data?: Array<Tax>;
+    };
+};
+
+export type PublicApiV1TaxesListResponse = PublicApiV1TaxesListResponses[keyof PublicApiV1TaxesListResponses];
+
+export type PublicApiV1TaxesCreateData = {
+    body: CreateTaxRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/taxes';
+};
+
+export type PublicApiV1TaxesCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `tax_code_already_exists`: the `code` is already used by a tax of the Factuarea catalog or by another tax of the company. Other companies may reuse it.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesCreateError = PublicApiV1TaxesCreateErrors[keyof PublicApiV1TaxesCreateErrors];
+
+export type PublicApiV1TaxesCreateResponses = {
+    /**
+     * Tax created successfully. The `Location` header contains the canonical URL of the newly created resource.
+     */
+    201: {
+        data: Tax;
+    };
+};
+
+export type PublicApiV1TaxesCreateResponse = PublicApiV1TaxesCreateResponses[keyof PublicApiV1TaxesCreateResponses];
+
+export type PublicApiV1TransportDocumentsIndexData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
+         */
+        ending_before?: string;
+        /**
+         * Transport document status: `draft`, `issued`, `closed`, `cancelled` or `superseded`. Exact match on `status`.
+         */
+        status?: 'draft' | 'issued' | 'closed' | 'cancelled' | 'superseded';
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'status[in]'?: string;
+        /**
+         * Transport date period (`YYYY-MM-DD`). A document matches when the date range of its shipments overlaps the period. Greater than or equal to the given value.
+         */
+        'transport_date[gte]'?: string;
+        /**
+         * Transport date period (`YYYY-MM-DD`). A document matches when the date range of its shipments overlaps the period. Less than or equal to the given value.
+         */
+        'transport_date[lte]'?: string;
+        /**
+         * Role of your company in the document: `shipper` (contractual shipper) or `carrier` (effective carrier). Exact match on `company_role`.
+         */
+        company_role?: 'shipper' | 'carrier';
+        /**
+         * Tax ID of the effective carrier. Exact match on `carrier_tax_id`.
+         */
+        carrier_tax_id?: string;
+        /**
+         * Delivery note ID (UUID v7): documents with at least one shipment from that delivery note. Exact match on `delivery_note_id`.
+         */
+        delivery_note_id?: string;
+        /**
+         * Free-text search over the number, the parties (name and tax ID) and the vehicle plates (1-255 characters). Exact match on `q`.
+         */
+        q?: string;
+        /**
+         * Sort order: `transport_date`, `number`, `created`, `updated` ascending, or with a `-` prefix for descending (default: documents are ordered by transport date, newest first).
+         */
+        sort?: 'transport_date' | '-transport_date' | 'number' | '-number' | 'created' | '-created' | 'updated' | '-updated';
+    };
+    url: '/companies/{company}/transport-documents';
+};
+
+export type PublicApiV1TransportDocumentsIndexErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsIndexError = PublicApiV1TransportDocumentsIndexErrors[keyof PublicApiV1TransportDocumentsIndexErrors];
+
+export type PublicApiV1TransportDocumentsIndexResponses = {
+    200: PaginatedList & {
+        data?: Array<TransportDocument>;
+    };
+};
+
+export type PublicApiV1TransportDocumentsIndexResponse = PublicApiV1TransportDocumentsIndexResponses[keyof PublicApiV1TransportDocumentsIndexResponses];
+
+export type PublicApiV1TransportDocumentsCreateData = {
+    body: CreateTransportDocumentRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents';
+};
+
+export type PublicApiV1TransportDocumentsCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` on `id`: the identifier you chose for the transport document (DeCA) is already used, by any company; `details.existing_resource_id` is that identifier. Generate a new UUID, or read the existing document if it is yours.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsCreateError = PublicApiV1TransportDocumentsCreateErrors[keyof PublicApiV1TransportDocumentsCreateErrors];
+
+export type PublicApiV1TransportDocumentsCreateResponses = {
+    /**
+     * Transport document created in `draft`. The `Location` header contains the canonical URL of the newly created resource.
+     */
+    201: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsCreateResponse = PublicApiV1TransportDocumentsCreateResponses[keyof PublicApiV1TransportDocumentsCreateResponses];
 
 export type PublicApiV1WebhookEndpointsListData = {
     body?: never;
@@ -38545,7 +42502,7 @@ export type PublicApiV1WebhookEndpointsCreateData = {
     body: CreateWebhookEndpointRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38573,7 +42530,7 @@ export type PublicApiV1WebhookEndpointsCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -38707,7 +42664,7 @@ export type PublicApiV1WorkSchedulesCreateData = {
     body: CreateWeeklyScheduleRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38777,7 +42734,7 @@ export type PublicApiV1CompaniesDeactivateData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38817,6 +42774,10 @@ export type PublicApiV1CompaniesDeactivateErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
+     */
+    409: Error;
+    /**
      * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
@@ -38844,7 +42805,7 @@ export type PublicApiV1EmployeesDeactivateData = {
     body?: DeactivateEmployeeRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -38884,6 +42845,10 @@ export type PublicApiV1EmployeesDeactivateErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -38911,7 +42876,7 @@ export type PublicApiV1AccountWebhooksDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -39038,7 +43003,7 @@ export type PublicApiV1AccountWebhooksUpdateData = {
     body?: UpdateAccountWebhookV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -39105,7 +43070,7 @@ export type PublicApiV1AutomationsRulesDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -39232,7 +43197,7 @@ export type PublicApiV1AutomationsRulesUpdateData = {
     body?: UpdateAutomationRuleV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -39299,7 +43264,7 @@ export type PublicApiV1ContactsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -39432,7 +43397,7 @@ export type PublicApiV1ContactsUpdateData = {
     body?: UpdateBusinessContactV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -39502,11 +43467,157 @@ export type PublicApiV1ContactsUpdateResponses = {
 
 export type PublicApiV1ContactsUpdateResponse = PublicApiV1ContactsUpdateResponses[keyof PublicApiV1ContactsUpdateResponses];
 
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account.
+         */
+        account: string;
+        /**
+         * Public identifier (UUID v7) of the charge rule.
+         */
+        rule: string;
+    };
+    query?: never;
+    url: '/companies/{company}/connected-accounts/{account}/charge-rules/{rule}';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesDeleteResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateData = {
+    body: ChargeRuleRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account.
+         */
+        account: string;
+        /**
+         * Public identifier (UUID v7) of the charge rule.
+         */
+        rule: string;
+    };
+    query?: never;
+    url: '/companies/{company}/connected-accounts/{account}/charge-rules/{rule}';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponses = {
+    /**
+     * The replaced rule. Its position does not change.
+     */
+    200: {
+        data: ChargeRule;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesUpdateResponses];
+
 export type PublicApiV1CompaniesDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -39545,6 +43656,10 @@ export type PublicApiV1CompaniesDeleteErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
+     */
+    409: Error;
     /**
      * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
@@ -39633,7 +43748,7 @@ export type PublicApiV1CompaniesUpdateData = {
     body?: UpdateCompanyV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -39700,7 +43815,7 @@ export type PublicApiV1DeliveryNotesDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -39827,7 +43942,7 @@ export type PublicApiV1DeliveryNotesUpdateData = {
     body?: UpdateDeliveryNoteRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -39898,7 +44013,7 @@ export type PublicApiV1InvoicesDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -40025,7 +44140,7 @@ export type PublicApiV1InvoicesUpdateData = {
     body?: UpdateInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -40096,7 +44211,7 @@ export type PublicApiV1PriceListsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -40223,7 +44338,7 @@ export type PublicApiV1PriceListsUpdateData = {
     body: UpdatePriceListRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -40290,7 +44405,7 @@ export type PublicApiV1PriceListsItemsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -40362,7 +44477,7 @@ export type PublicApiV1ProductsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -40498,7 +44613,7 @@ export type PublicApiV1ProductsUpdateData = {
     body?: UpdateProductRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -40569,7 +44684,7 @@ export type PublicApiV1ProductsGalleryDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -40641,7 +44756,7 @@ export type PublicApiV1ProductsPresentationsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -40713,7 +44828,7 @@ export type PublicApiV1ProductsPresentationsUpdateData = {
     body: UpdateProductPresentationRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -40784,7 +44899,7 @@ export type PublicApiV1ProductsVariantsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -40856,7 +44971,7 @@ export type PublicApiV1ProductsVariantsUpdateData = {
     body: UpdateProductVariantRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -40927,7 +45042,7 @@ export type PublicApiV1ProductsVideoDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -40995,7 +45110,7 @@ export type PublicApiV1ProductsVideoUploadData = {
     body: UploadProductVideoRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -41062,7 +45177,7 @@ export type PublicApiV1ProformasDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -41189,7 +45304,7 @@ export type PublicApiV1ProformasUpdateData = {
     body?: UpdateProformaRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -41260,7 +45375,7 @@ export type PublicApiV1ProjectsColumnsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -41344,7 +45459,7 @@ export type PublicApiV1ProjectsColumnsUpdateData = {
     body?: UpdateProjectColumnV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -41419,7 +45534,7 @@ export type PublicApiV1ProjectsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -41549,7 +45664,7 @@ export type PublicApiV1ProjectsUpdateData = {
     body?: UpdateProjectV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -41620,7 +45735,7 @@ export type PublicApiV1PurchaseInvoicesDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -41747,7 +45862,7 @@ export type PublicApiV1PurchaseInvoicesUpdateData = {
     body?: UpdatePurchaseInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -41818,7 +45933,7 @@ export type PublicApiV1PurchaseInvoicesDeleteFileData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -41943,7 +46058,7 @@ export type PublicApiV1QuotesDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -42070,7 +46185,7 @@ export type PublicApiV1QuotesUpdateData = {
     body?: UpdateQuoteRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -42141,7 +46256,7 @@ export type PublicApiV1RecurringInvoicesDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -42268,7 +46383,7 @@ export type PublicApiV1RecurringInvoicesUpdateData = {
     body?: UpdateRecurringInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -42339,7 +46454,7 @@ export type PublicApiV1ProductsSupplierOffersDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -42411,7 +46526,7 @@ export type PublicApiV1ProductsSupplierOffersUpdateData = {
     body: UpdateSupplierProductOfferRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -42482,7 +46597,7 @@ export type PublicApiV1TasksAttachmentsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -42620,7 +46735,7 @@ export type PublicApiV1TasksCommentsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -42695,7 +46810,7 @@ export type PublicApiV1TasksCommentsUpdateData = {
     body: EditTaskCommentV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -42766,7 +46881,7 @@ export type PublicApiV1ProjectsCustomFieldsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -42841,7 +46956,7 @@ export type PublicApiV1ProjectsCustomFieldsUpdateData = {
     body?: UpdateTaskCustomFieldV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -42912,7 +47027,7 @@ export type PublicApiV1TaskLabelsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -43042,7 +47157,7 @@ export type PublicApiV1TaskLabelsUpdateData = {
     body?: UpdateTaskLabelV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -43113,7 +47228,7 @@ export type PublicApiV1TasksRelationsDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -43188,7 +47303,7 @@ export type PublicApiV1TasksTimeEntriesDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -43326,7 +47441,7 @@ export type PublicApiV1TasksTimeEntriesUpdateData = {
     body?: UpdateTaskTimeEntryV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -43401,7 +47516,7 @@ export type PublicApiV1TasksDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -43535,7 +47650,7 @@ export type PublicApiV1TasksUpdateData = {
     body?: UpdateTaskV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -43598,11 +47713,403 @@ export type PublicApiV1TasksUpdateResponses = {
 
 export type PublicApiV1TasksUpdateResponse = PublicApiV1TasksUpdateResponses[keyof PublicApiV1TasksUpdateResponses];
 
+export type PublicApiV1TaxesDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the tax.
+         */
+        tax: string;
+    };
+    query?: never;
+    url: '/companies/{company}/taxes/{tax}';
+};
+
+export type PublicApiV1TaxesDeleteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesDeleteError = PublicApiV1TaxesDeleteErrors[keyof PublicApiV1TaxesDeleteErrors];
+
+export type PublicApiV1TaxesDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1TaxesDeleteResponse = PublicApiV1TaxesDeleteResponses[keyof PublicApiV1TaxesDeleteResponses];
+
+export type PublicApiV1TaxesShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the tax.
+         */
+        tax: string;
+    };
+    query?: never;
+    url: '/companies/{company}/taxes/{tax}';
+};
+
+export type PublicApiV1TaxesShowErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesShowError = PublicApiV1TaxesShowErrors[keyof PublicApiV1TaxesShowErrors];
+
+export type PublicApiV1TaxesShowResponses = {
+    200: {
+        data: Tax;
+    };
+};
+
+export type PublicApiV1TaxesShowResponse = PublicApiV1TaxesShowResponses[keyof PublicApiV1TaxesShowResponses];
+
+export type PublicApiV1TaxesUpdateData = {
+    body?: UpdateTaxRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the tax.
+         */
+        tax: string;
+    };
+    query?: never;
+    url: '/companies/{company}/taxes/{tax}';
+};
+
+export type PublicApiV1TaxesUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `tax_code_already_exists`: the `code` is already used by a tax of the Factuarea catalog or by another tax of the company. Other companies may reuse it.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesUpdateError = PublicApiV1TaxesUpdateErrors[keyof PublicApiV1TaxesUpdateErrors];
+
+export type PublicApiV1TaxesUpdateResponses = {
+    200: {
+        data: Tax;
+    };
+};
+
+export type PublicApiV1TaxesUpdateResponse = PublicApiV1TaxesUpdateResponses[keyof PublicApiV1TaxesUpdateResponses];
+
+export type PublicApiV1TransportDocumentsDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}';
+};
+
+export type PublicApiV1TransportDocumentsDeleteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsDeleteError = PublicApiV1TransportDocumentsDeleteErrors[keyof PublicApiV1TransportDocumentsDeleteErrors];
+
+export type PublicApiV1TransportDocumentsDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1TransportDocumentsDeleteResponse = PublicApiV1TransportDocumentsDeleteResponses[keyof PublicApiV1TransportDocumentsDeleteResponses];
+
+export type PublicApiV1TransportDocumentsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}';
+};
+
+export type PublicApiV1TransportDocumentsShowErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsShowError = PublicApiV1TransportDocumentsShowErrors[keyof PublicApiV1TransportDocumentsShowErrors];
+
+export type PublicApiV1TransportDocumentsShowResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsShowResponse = PublicApiV1TransportDocumentsShowResponses[keyof PublicApiV1TransportDocumentsShowResponses];
+
+export type PublicApiV1TransportDocumentsUpdateData = {
+    body?: UpdateTransportDocumentRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}';
+};
+
+export type PublicApiV1TransportDocumentsUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsUpdateError = PublicApiV1TransportDocumentsUpdateErrors[keyof PublicApiV1TransportDocumentsUpdateErrors];
+
+export type PublicApiV1TransportDocumentsUpdateResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsUpdateResponse = PublicApiV1TransportDocumentsUpdateResponses[keyof PublicApiV1TransportDocumentsUpdateResponses];
+
 export type PublicApiV1WebhookEndpointsDeleteData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -43729,7 +48236,7 @@ export type PublicApiV1WebhookEndpointsUpdateData = {
     body?: UpdateWebhookEndpointRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -43796,7 +48303,7 @@ export type PublicApiV1StripeAutoinvoicingAccountsDisconnectData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -43923,7 +48430,7 @@ export type PublicApiV1StripeAutoinvoicingAccountsUpdateData = {
     body?: UpdateConnectedAccountRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -43994,7 +48501,7 @@ export type PublicApiV1StoresDisconnectData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -44121,7 +48628,7 @@ export type PublicApiV1StoresUpdateData = {
     body?: UpdateStoreV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -44885,7 +49392,12 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptData = {
          */
         purchase_invoice: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * ID (UUID v7) of the expense payment whose receipt you want. Without it, the most recent active payment.
+         */
+        payment_id?: string | null;
+    };
     url: '/companies/{company}/purchase-invoices/{purchase_invoice}/payment-receipt';
 };
 
@@ -44906,6 +49418,10 @@ export type PublicApiV1PurchaseInvoicesPaymentReceiptErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * Validation failed, or the expense cannot undergo the requested state transition (e.g. marking an already-received expense as received). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -45169,6 +49685,146 @@ export type PublicApiV1TaxReportsDownloadResponses = {
 
 export type PublicApiV1TaxReportsDownloadResponse = PublicApiV1TaxReportsDownloadResponses[keyof PublicApiV1TaxReportsDownloadResponses];
 
+export type PublicApiV1TransportDocumentsIssuanceProofData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: {
+        /**
+         * Pass `1` (or `true`) to receive the PDF with `Content-Disposition: attachment`; otherwise it is served `inline`.
+         */
+        download?: string;
+    };
+    url: '/companies/{company}/transport-documents/{transport_document}/issuance-proof';
+};
+
+export type PublicApiV1TransportDocumentsIssuanceProofErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsIssuanceProofError = PublicApiV1TransportDocumentsIssuanceProofErrors[keyof PublicApiV1TransportDocumentsIssuanceProofErrors];
+
+export type PublicApiV1TransportDocumentsIssuanceProofResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1TransportDocumentsIssuanceProofResponse = PublicApiV1TransportDocumentsIssuanceProofResponses[keyof PublicApiV1TransportDocumentsIssuanceProofResponses];
+
+export type PublicApiV1TransportDocumentsPdfData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: {
+        /**
+         * Version number of the PDF to download (1, 2, …). Omit it to get the current version.
+         */
+        version?: number;
+        /**
+         * Pass `1` (or `true`) to receive the PDF with `Content-Disposition: attachment`; otherwise it is served `inline`.
+         */
+        download?: '0' | '1' | 'true' | 'false';
+    };
+    url: '/companies/{company}/transport-documents/{transport_document}/pdf';
+};
+
+export type PublicApiV1TransportDocumentsPdfErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The files of this transport document were purged when its retention period ended (one year after it was closed, cancelled or superseded, and only once the account was closed). The document and its data are kept, but its PDF can no longer be served or sent. Code `transport_document_file_unavailable`, `error.type: not_found_error`. Retrying returns the same error.
+     */
+    410: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsPdfError = PublicApiV1TransportDocumentsPdfErrors[keyof PublicApiV1TransportDocumentsPdfErrors];
+
+export type PublicApiV1TransportDocumentsPdfResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1TransportDocumentsPdfResponse = PublicApiV1TransportDocumentsPdfResponses[keyof PublicApiV1TransportDocumentsPdfResponses];
+
 export type PublicApiV1AutomationsRulesDryRunData = {
     body: DryRunAutomationRuleV1Request;
     headers?: {
@@ -45236,7 +49892,7 @@ export type PublicApiV1DeliveryNotesDuplicateData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -45267,6 +49923,10 @@ export type PublicApiV1DeliveryNotesDuplicateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -45307,7 +49967,7 @@ export type PublicApiV1InvoicesDuplicateData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -45338,6 +49998,10 @@ export type PublicApiV1InvoicesDuplicateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -45377,7 +50041,7 @@ export type PublicApiV1ProformasDuplicateData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -45408,6 +50072,10 @@ export type PublicApiV1ProformasDuplicateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -45448,7 +50116,7 @@ export type PublicApiV1QuotesDuplicateData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -45479,6 +50147,10 @@ export type PublicApiV1QuotesDuplicateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -45519,7 +50191,7 @@ export type PublicApiV1TasksDuplicateData = {
     body?: DuplicateTaskV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -45551,7 +50223,7 @@ export type PublicApiV1TasksDuplicateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -45597,7 +50269,7 @@ export type PublicApiV1ManagedAccountsManagementEndData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -45633,6 +50305,10 @@ export type PublicApiV1ManagedAccountsManagementEndErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `managed_account_claimed_while_ending`: the holder claimed the account while its management was being ended, and you were paying for it. Nothing was ended. Send the same request again: the management is now claimed, so the payment moves to the holder before the management ends.
+     */
+    409: Error;
+    /**
      * Validation failed, or a managed account rule rejected the operation: `managed_account_plan_not_self_serve` (`enterprise` is only assigned by Factuarea by contract), `managed_account_provider_in_trial` (a paid plan while your account is in trial), `managed_accounts_limit_reached` (the managed account limit of your account), `managed_account_not_claimable` (a test account has no claim voucher), `access_level_raise_forbidden` (once the holder claimed the account only the holder can raise your level), `enterprise_contract_transition_required` (moving to or from `enterprise` is a contract change) and `business_rule_violation` with subcode `nif_already_claimed_by_another_account` (provisioning a tax ID that already belongs to another account). The `error.param` field identifies which input is invalid, if any. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters. `idempotency_key_required`: this operation requires the `Idempotency-Key` header; the message names the rejected operation.
      */
     422: Error;
@@ -45660,7 +50336,7 @@ export type PublicApiV1InvoicesExportExcelData = {
     body?: ExportInvoicesExcelV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -46912,7 +51588,7 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -46926,7 +51602,7 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetData = {
          */
         company: string;
         /**
-         * Numeric identifier (integer) of the delivery-note signature audit record.
+         * Public identifier (UUID v7) of the delivery-note signature audit record.
          */
         auditId: string;
     };
@@ -46970,7 +51646,7 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetError = PublicApiV1Deli
 export type PublicApiV1DeliveryNotesSignatureAuditsForgetResponses = {
     200: {
         data: {
-            id: number;
+            id: string;
             forgotten: boolean;
         };
     };
@@ -46982,7 +51658,7 @@ export type PublicApiV1TaxReportsGenerate130Data = {
     body: GenerateModelo130V1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -47048,7 +51724,7 @@ export type PublicApiV1TaxReportsGenerate303Data = {
     body: GenerateModelo303V1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -47114,7 +51790,7 @@ export type PublicApiV1TaxReportsGenerate347Data = {
     body: GenerateModelo347V1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -47180,7 +51856,7 @@ export type PublicApiV1RecurringInvoicesGenerateData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -47211,6 +51887,10 @@ export type PublicApiV1RecurringInvoicesGenerateErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -47373,7 +52053,7 @@ export type PublicApiV1AccountMembersModuleAccessUpdateData = {
     body: SetAccountMemberModuleAccessV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -47744,6 +52424,74 @@ export type PublicApiV1AgendaListResponses = {
 
 export type PublicApiV1AgendaListResponse = PublicApiV1AgendaListResponses[keyof PublicApiV1AgendaListResponses];
 
+export type PublicApiV1AccountApiKeysUsageData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
+         */
+        account: string;
+        /**
+         * Public identifier (UUID v7) of the API key.
+         */
+        api_key: string;
+    };
+    query?: {
+        /**
+         * Number of days of the series, ending today: 7, 30 or 90 (default 30).
+         */
+        days?: 7 | 30 | 90;
+    };
+    url: '/accounts/{account}/api-keys/{api_key}/usage';
+};
+
+export type PublicApiV1AccountApiKeysUsageErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed — e.g. the API key plan limit was reached, or an invoice language outside the allowed catalog (`es`, `en`, `ca`). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AccountApiKeysUsageError = PublicApiV1AccountApiKeysUsageErrors[keyof PublicApiV1AccountApiKeysUsageErrors];
+
+export type PublicApiV1AccountApiKeysUsageResponses = {
+    200: {
+        data: ApiKeyUsage;
+    };
+};
+
+export type PublicApiV1AccountApiKeysUsageResponse = PublicApiV1AccountApiKeysUsageResponses[keyof PublicApiV1AccountApiKeysUsageResponses];
+
 export type PublicApiV1AutomationsCatalogShowData = {
     body?: never;
     headers?: {
@@ -47931,7 +52679,7 @@ export type PublicApiV1ContactsActivitiesData = {
          */
         contact: string;
     };
-    query: {
+    query?: {
         /**
          * Only activity about this kind of record: `contact`, `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice`, `recurring_invoice` or `contract`.
          */
@@ -47939,7 +52687,7 @@ export type PublicApiV1ContactsActivitiesData = {
         /**
          * Only activity in these directions: `sales`, `purchases` or `relationship` (all three when omitted).
          */
-        'direction[]': 'sales' | 'purchases' | 'relationship';
+        'direction[]'?: 'sales' | 'purchases' | 'relationship';
     };
     url: '/companies/{company}/contacts/{contact}/activities';
 };
@@ -48246,7 +52994,7 @@ export type PublicApiV1VerifactuRepresentationRevokeData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -48370,7 +53118,7 @@ export type PublicApiV1VerifactuRepresentationRegisterData = {
     body: RegisterCompanyRepresentationV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -48398,7 +53146,7 @@ export type PublicApiV1VerifactuRepresentationRegisterErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -48860,7 +53608,7 @@ export type PublicApiV1DeliveryNotesPublicLinkUpdateData = {
     body: UpdateDeliveryNotePublicLinkRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -49642,7 +54390,7 @@ export type PublicApiV1InvoicesPublicLinkUpdateData = {
     body: UpdateInvoicePublicLinkRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -50453,7 +55201,7 @@ export type PublicApiV1ProformasPublicLinkUpdateData = {
     body: UpdateProformaPublicLinkRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -50883,7 +55631,7 @@ export type PublicApiV1QuotesPublicLinkUpdateData = {
     body: UpdateQuotePublicLinkRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -51156,6 +55904,10 @@ export type PublicApiV1CompaniesSeatChargePreviewErrors = {
      */
     404: Error;
     /**
+     * Existing acquired seat conditions cannot be preserved by this purchase. Review them before adding companies; no financial intent or charge is created.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -51167,6 +55919,10 @@ export type PublicApiV1CompaniesSeatChargePreviewErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The paid-seat preview could not be verified. No company is created and no charge is attempted. Correct billing configuration or retry the preview; never treat this failure as a zero amount.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesSeatChargePreviewError = PublicApiV1CompaniesSeatChargePreviewErrors[keyof PublicApiV1CompaniesSeatChargePreviewErrors];
@@ -51313,6 +56069,7 @@ export type PublicApiV1SeriesStatsResponses = {
             quote: number;
             delivery_note: number;
             proforma: number;
+            transport_document: number;
         };
     };
 };
@@ -51378,7 +56135,7 @@ export type PublicApiV1StripeAutoinvoicingConfigUpdateData = {
     body?: UpdateStripeAutoinvoicingConfigRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -52163,7 +56920,7 @@ export type PublicApiV1TimeTrackingSettingsUpdateData = {
     body?: UpdateTimeTrackingSettingsRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -52221,6 +56978,204 @@ export type PublicApiV1TimeTrackingSettingsUpdateResponses = {
 };
 
 export type PublicApiV1TimeTrackingSettingsUpdateResponse = PublicApiV1TimeTrackingSettingsUpdateResponses[keyof PublicApiV1TimeTrackingSettingsUpdateResponses];
+
+export type PublicApiV1TransportDocumentsEvidenceData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/evidence';
+};
+
+export type PublicApiV1TransportDocumentsEvidenceErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsEvidenceError = PublicApiV1TransportDocumentsEvidenceErrors[keyof PublicApiV1TransportDocumentsEvidenceErrors];
+
+export type PublicApiV1TransportDocumentsEvidenceResponses = {
+    200: {
+        data: Array<TransportDocumentEvidence>;
+        meta: {
+            /**
+             * Number of public downloads recorded for the document.
+             */
+            downloads_total: number;
+            /**
+             * Number of public downloads included in `data`: the first ones, at most 100.
+             */
+            downloads_listed: number;
+        };
+    };
+};
+
+export type PublicApiV1TransportDocumentsEvidenceResponse = PublicApiV1TransportDocumentsEvidenceResponses[keyof PublicApiV1TransportDocumentsEvidenceResponses];
+
+export type PublicApiV1TransportDocumentsQrData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: {
+        /**
+         * Image format of the QR code: `svg` (default) or `png`.
+         */
+        format?: 'svg' | 'png';
+        /**
+         * Pass `1` (or `true`) to receive the image with `Content-Disposition: attachment`; otherwise it is served `inline`.
+         */
+        download?: '0' | '1' | 'true' | 'false';
+    };
+    url: '/companies/{company}/transport-documents/{transport_document}/qr';
+};
+
+export type PublicApiV1TransportDocumentsQrErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsQrError = PublicApiV1TransportDocumentsQrErrors[keyof PublicApiV1TransportDocumentsQrErrors];
+
+export type PublicApiV1TransportDocumentsQrResponses = {
+    200: Blob | File;
+};
+
+export type PublicApiV1TransportDocumentsQrResponse = PublicApiV1TransportDocumentsQrResponses[keyof PublicApiV1TransportDocumentsQrResponses];
+
+export type PublicApiV1TransportDocumentsStatusesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/statuses';
+};
+
+export type PublicApiV1TransportDocumentsStatusesErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsStatusesError = PublicApiV1TransportDocumentsStatusesErrors[keyof PublicApiV1TransportDocumentsStatusesErrors];
+
+export type PublicApiV1TransportDocumentsStatusesResponses = {
+    200: {
+        data: Array<TransportDocumentStatusItem>;
+    };
+};
+
+export type PublicApiV1TransportDocumentsStatusesResponse = PublicApiV1TransportDocumentsStatusesResponses[keyof PublicApiV1TransportDocumentsStatusesResponses];
 
 export type PublicApiV1VerifactuRecordsActivitiesData = {
     body?: never;
@@ -52554,7 +57509,7 @@ export type PublicApiV1ContactsImportData = {
     body: ImportBusinessContactsV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -52630,7 +57585,7 @@ export type PublicApiV1ProjectsTasksImportData = {
     body: ImportProjectTasksV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -52766,7 +57721,7 @@ export type PublicApiV1AccountInvitationsCreateData = {
     body: InviteAccountMemberV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -52836,7 +57791,7 @@ export type PublicApiV1ProjectsTimeInvoicesCreateData = {
     body: InvoiceTaskTimeV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -52868,7 +57823,7 @@ export type PublicApiV1ProjectsTimeInvoicesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -52911,7 +57866,7 @@ export type PublicApiV1InvoicesIssueData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -52978,6 +57933,77 @@ export type PublicApiV1InvoicesIssueResponses = {
 
 export type PublicApiV1InvoicesIssueResponse = PublicApiV1InvoicesIssueResponses[keyof PublicApiV1InvoicesIssueResponses];
 
+export type PublicApiV1TransportDocumentsIssueData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/issue';
+};
+
+export type PublicApiV1TransportDocumentsIssueErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsIssueError = PublicApiV1TransportDocumentsIssueErrors[keyof PublicApiV1TransportDocumentsIssueErrors];
+
+export type PublicApiV1TransportDocumentsIssueResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsIssueResponse = PublicApiV1TransportDocumentsIssueResponses[keyof PublicApiV1TransportDocumentsIssueResponses];
+
 export type PublicApiV1TasksEntityLinksListData = {
     body?: never;
     headers?: {
@@ -53039,7 +58065,7 @@ export type PublicApiV1TasksEntityLinksCreateData = {
     body: LinkTaskToEntityV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -53288,6 +58314,14 @@ export type PublicApiV1AccountRequestLogsListData = {
          * Inclusive upper bound of created_at (ISO 8601).
          */
         'created_at[lte]'?: string;
+        /**
+         * Only requests on your own tax IDs (`own`) or on tax IDs of client accounts (`client`).
+         */
+        relationship?: 'own' | 'client';
+        /**
+         * Only requests on one company (its public id), which must be within your account's scope.
+         */
+        company?: string;
         /**
          * Number of logs to return, between 1 and 100 (default 50).
          */
@@ -54123,7 +59157,7 @@ export type PublicApiV1CompaniesCreateData = {
     body: CreateCompanyV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -54151,7 +59185,7 @@ export type PublicApiV1CompaniesCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -54163,7 +59197,7 @@ export type PublicApiV1CompaniesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `managed_company_tax_id_already_exists`: that NIF is already registered; `details.existing_resource_id` is the company that holds it.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `managed_company_tax_id_already_exists`: that NIF is already registered; `details.existing_resource_id` is the company that holds it. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
      */
     409: Error;
     /**
@@ -54178,6 +59212,10 @@ export type PublicApiV1CompaniesCreateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The managed-company seat charge could not be verified. No company is created or activated and no charge is attempted; do not treat an unavailable amount as zero.
+     */
+    503: Error;
 };
 
 export type PublicApiV1CompaniesCreateError = PublicApiV1CompaniesCreateErrors[keyof PublicApiV1CompaniesCreateErrors];
@@ -54252,7 +59290,7 @@ export type PublicApiV1VerifactuCertificatesUploadData = {
     body: UploadCompanyCertificateV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -54280,7 +59318,7 @@ export type PublicApiV1VerifactuCertificatesUploadErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -54617,6 +59655,157 @@ export type PublicApiV1EmailsListResponses = {
 
 export type PublicApiV1EmailsListResponse = PublicApiV1EmailsListResponses[keyof PublicApiV1EmailsListResponses];
 
+export type PublicApiV1EmployeeBatchesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query: {
+        /**
+         * Pagination cursor: the `next_cursor` of the previous page.
+         */
+        cursor?: string | null;
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Only batches in these statuses, e.g. `draft`, `quoted`, `paid`, `completed` or `failed` (repeat the parameter).
+         */
+        'statuses[]': 'draft' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'paid' | 'completed' | 'failed' | 'cancelled' | 'compensating' | 'compensated' | 'needs_review';
+    };
+    url: '/companies/{company}/employee-batches';
+};
+
+export type PublicApiV1EmployeeBatchesListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeBatchesListError = PublicApiV1EmployeeBatchesListErrors[keyof PublicApiV1EmployeeBatchesListErrors];
+
+export type PublicApiV1EmployeeBatchesListResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: Array<EmployeeBatch>;
+        next_cursor: string | null;
+        has_more: boolean;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesListResponse = PublicApiV1EmployeeBatchesListResponses[keyof PublicApiV1EmployeeBatchesListResponses];
+
+export type PublicApiV1EmployeeBatchesPrepareData = {
+    body: PrepareEmployeeBatchBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-batches';
+};
+
+export type PublicApiV1EmployeeBatchesPrepareErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeBatchesPrepareError = PublicApiV1EmployeeBatchesPrepareErrors[keyof PublicApiV1EmployeeBatchesPrepareErrors];
+
+export type PublicApiV1EmployeeBatchesPrepareResponses = {
+    /**
+     * Prepared without purchase.
+     */
+    201: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesPrepareResponse = PublicApiV1EmployeeBatchesPrepareResponses[keyof PublicApiV1EmployeeBatchesPrepareResponses];
+
 export type PublicApiV1EmployeeInvitationsListData = {
     body?: never;
     headers?: {
@@ -54676,7 +59865,7 @@ export type PublicApiV1EmployeeInvitationsSendData = {
     body: SendEmployeeInvitationRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -55065,7 +60254,7 @@ export type PublicApiV1IntegrationsEventsListData = {
         /**
          * Typed reason why the event was discarded, from the closed catalogue.
          */
-        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable';
+        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable';
         /**
          * Whether the event was parked with its content so it can be replayed.
          */
@@ -55313,7 +60502,7 @@ export type PublicApiV1InvoicesFaceSubmissionsSubmitData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -55443,7 +60632,7 @@ export type PublicApiV1InvoicesPaymentsCreateData = {
     body: RegisterInvoicePaymentRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -55637,7 +60826,7 @@ export type PublicApiV1ManagedAccountsCreateData = {
     body: ProvisionManagedAccountV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -55660,7 +60849,7 @@ export type PublicApiV1ManagedAccountsCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -55697,6 +60886,101 @@ export type PublicApiV1ManagedAccountsCreateResponses = {
 };
 
 export type PublicApiV1ManagedAccountsCreateResponse = PublicApiV1ManagedAccountsCreateResponses[keyof PublicApiV1ManagedAccountsCreateResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account.
+         */
+        account: string;
+    };
+    query?: {
+        /**
+         * First day included (`YYYY-MM-DD`), by the date the charge happened. Optional. A malformed or non-existent date returns 422.
+         */
+        occurred_from?: string;
+        /**
+         * Last day included (`YYYY-MM-DD`), by the date the charge happened. Optional; it cannot be earlier than `occurred_from` (422).
+         */
+        occurred_to?: string;
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
+         */
+        ending_before?: string;
+    };
+    url: '/companies/{company}/connected-accounts/{account}/non-invoiced-charges';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListError = PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListErrors[keyof PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponses = {
+    /**
+     * Charges left out of invoicing by a rule, most recent first, with cursor pagination.
+     */
+    200: {
+        data: Array<NonInvoicedCharge>;
+        /**
+         * Whether there are more results after this page.
+         */
+        has_more: boolean;
+        /**
+         * Cursor to pass as `starting_after` to get the next page, or `null` on the last page.
+         */
+        next_cursor: string | null;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponse = PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponses[keyof PublicApiV1StripeAutoinvoicingAccountsNonInvoicedChargesListResponses];
 
 export type PublicApiV1NotificationsListData = {
     body?: never;
@@ -56181,7 +61465,7 @@ export type PublicApiV1PriceListsItemsUpsertData = {
     body: UpsertPriceListItemRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -56664,7 +61948,7 @@ export type PublicApiV1PurchaseInvoicesRegisterPaymentData = {
     body: RegisterPurchaseInvoicePaymentRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -57147,6 +62431,316 @@ export type PublicApiV1WorkSchedulesAssignmentsResponses = {
 
 export type PublicApiV1WorkSchedulesAssignmentsResponse = PublicApiV1WorkSchedulesAssignmentsResponses[keyof PublicApiV1WorkSchedulesAssignmentsResponses];
 
+export type PublicApiV1EmployeeSeatOfferRedemptionsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Pagination cursor: the `next_cursor` of the previous page.
+         */
+        cursor?: string | null;
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Only redemptions of this concept: `plan`, `employee-seats` or `gestoria-seats`.
+         */
+        concept?: 'plan' | 'employee-seats' | 'gestoria-seats' | null;
+        /**
+         * Only redemptions in these statuses, e.g. `quoted`, `applied`, `cancelled` or `failed` (repeat the parameter).
+         */
+        'statuses[]'?: 'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+    };
+    url: '/companies/{company}/employee-seat-offer-redemptions';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListError = PublicApiV1EmployeeSeatOfferRedemptionsListErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsListErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: Array<CustomerOfferRedemption>;
+        next_cursor: string | null;
+        has_more: boolean;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsListResponse = PublicApiV1EmployeeSeatOfferRedemptionsListResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsListResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareData = {
+    body: PrepareEmployeeSeatOfferBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-seat-offer-redemptions';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareError = PublicApiV1EmployeeSeatOfferRedemptionsPrepareErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsPrepareErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses = {
+    /**
+     * Prepared without purchase.
+     */
+    201: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponse = PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Pagination cursor: the `next_cursor` of the previous page.
+         */
+        cursor?: string | null;
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Only redemptions of this concept: `plan`, `employee-seats` or `gestoria-seats`.
+         */
+        concept?: 'plan' | 'employee-seats' | 'gestoria-seats' | null;
+        /**
+         * Only redemptions in these statuses, e.g. `quoted`, `applied`, `cancelled` or `failed` (repeat the parameter).
+         */
+        'statuses[]'?: 'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+    };
+    url: '/companies/{company}/gestoria-seat-offer-redemptions';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListError = PublicApiV1GestoriaSeatOfferRedemptionsListErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsListErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: Array<CustomerOfferRedemption>;
+        next_cursor: string | null;
+        has_more: boolean;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsListResponse = PublicApiV1GestoriaSeatOfferRedemptionsListResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsListResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareData = {
+    body: PrepareGestoriaSeatOfferBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/gestoria-seat-offer-redemptions';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareError = PublicApiV1GestoriaSeatOfferRedemptionsPrepareErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsPrepareErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponses = {
+    /**
+     * Prepared without purchase.
+     */
+    201: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponse = PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsPrepareResponses];
+
 export type PublicApiV1StripeAutoinvoicingCorrectivesListData = {
     body?: never;
     headers?: {
@@ -57344,7 +62938,7 @@ export type PublicApiV1TasksAttachmentsCreateData = {
     body: UploadTaskAttachmentV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -57376,7 +62970,7 @@ export type PublicApiV1TasksAttachmentsCreateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -57493,7 +63087,7 @@ export type PublicApiV1TasksTimeEntriesCreateData = {
     body: LogTaskTimeV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -57730,134 +63324,6 @@ export type PublicApiV1TaxReportsHistoryResponses = {
 
 export type PublicApiV1TaxReportsHistoryResponse = PublicApiV1TaxReportsHistoryResponses[keyof PublicApiV1TaxReportsHistoryResponses];
 
-export type PublicApiV1TaxesListData = {
-    body?: never;
-    headers?: {
-        /**
-         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
-         */
-        'Factuarea-Version'?: string;
-    };
-    path: {
-        /**
-         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
-         */
-        company: string;
-    };
-    query?: {
-        /**
-         * Number of objects to return, between 1 and 100 (default 25).
-         */
-        limit?: number;
-        /**
-         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
-         */
-        starting_after?: string;
-        /**
-         * Cursor for backward pagination: pass the `id` of the first object on the current page.
-         */
-        ending_before?: string;
-        /**
-         * Tax type: `vat`, `retention`, `surcharge`, `other`. Exact match on `type`.
-         */
-        type?: string;
-        /**
-         * Comma-separated list of values (CSV).
-         */
-        'type[in]'?: string;
-        /**
-         * Filter active / inactive taxes. Exact match on `is_active`.
-         */
-        is_active?: boolean;
-        /**
-         * Filter taxes marked as global default (legacy flag). Exact match on `is_default`.
-         */
-        is_default?: boolean;
-        /**
-         * Scope: `sales`, `purchases`, `both`. Exact match on `applies_to`.
-         */
-        applies_to?: string;
-        /**
-         * Comma-separated list of values (CSV).
-         */
-        'applies_to[in]'?: string;
-        /**
-         * ISO 3166-1 alpha-2 country code. Exact match on `country`.
-         */
-        country?: string;
-        /**
-         * Short tax code (exact match). Exact match on `code`.
-         */
-        code?: string;
-        /**
-         * Escaped LIKE search over `name` and `code` (limit 80 chars). Exact match on `search`.
-         */
-        search?: string;
-        /**
-         * Exact AEAT key: S1..S3, E1..E6, N1..N2. Exact match on `external_reference`.
-         */
-        external_reference?: string;
-        /**
-         * Comma-separated list of values (CSV).
-         */
-        'external_reference[in]'?: string;
-        /**
-         * Filter system taxes (global catalog) vs custom. Exact match on `is_system`.
-         */
-        is_system?: boolean;
-        /**
-         * AEAT fiscal zone: `peninsula`, `canarias`, `ceuta`, `melilla`. Exact match on `country_aeat_zone`.
-         */
-        country_aeat_zone?: string;
-        /**
-         * Indirect tax regime DERIVED from the AEAT zone: `iva`, `igic`, `ipsi`. Translated to the equivalent zone filter. Exact match on `indirect_tax_regime`.
-         */
-        indirect_tax_regime?: string;
-    };
-    url: '/companies/{company}/taxes';
-};
-
-export type PublicApiV1TaxesListErrors = {
-    /**
-     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
-     */
-    400: Error;
-    /**
-     * Missing or invalid API key.
-     */
-    401: Error;
-    /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
-     */
-    403: Error;
-    /**
-     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
-     */
-    404: Error;
-    /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
-     */
-    422: Error;
-    /**
-     * Rate limit exceeded. Retry after the duration in `Retry-After`.
-     */
-    429: Error;
-    /**
-     * Unexpected server error.
-     */
-    500: Error;
-};
-
-export type PublicApiV1TaxesListError = PublicApiV1TaxesListErrors[keyof PublicApiV1TaxesListErrors];
-
-export type PublicApiV1TaxesListResponses = {
-    200: PaginatedList & {
-        data?: Array<Tax>;
-    };
-};
-
-export type PublicApiV1TaxesListResponse = PublicApiV1TaxesListResponses[keyof PublicApiV1TaxesListResponses];
-
 export type PublicApiV1TimeCorrectionsListData = {
     body?: never;
     headers?: {
@@ -57950,7 +63416,7 @@ export type PublicApiV1TimeCorrectionsCreateData = {
     body: RequestTimeCorrectionRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58396,7 +63862,7 @@ export type PublicApiV1NotificationsMarkAllReadData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58459,7 +63925,7 @@ export type PublicApiV1DeliveryNotesMarkDeliveredData = {
     body?: MarkDeliveredRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58530,7 +63996,7 @@ export type PublicApiV1InvoicesMarkPaidData = {
     body?: MarkInvoicePaidRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58601,7 +64067,7 @@ export type PublicApiV1InvoicesMarkSentData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -58672,7 +64138,7 @@ export type PublicApiV1NotificationsReadData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58739,7 +64205,7 @@ export type PublicApiV1PurchaseInvoicesMarkPaidData = {
     body?: MarkPurchaseInvoicePaidRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58806,7 +64272,7 @@ export type PublicApiV1SeriesSetDefaultData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58933,7 +64399,7 @@ export type PublicApiV1SeriesUpdateData = {
     body?: UpdateSeriesRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -58996,11 +64462,78 @@ export type PublicApiV1SeriesUpdateResponses = {
 
 export type PublicApiV1SeriesUpdateResponse = PublicApiV1SeriesUpdateResponses[keyof PublicApiV1SeriesUpdateResponses];
 
+export type PublicApiV1TransportDocumentsModifyData = {
+    body: ModifyTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/modify';
+};
+
+export type PublicApiV1TransportDocumentsModifyErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsModifyError = PublicApiV1TransportDocumentsModifyErrors[keyof PublicApiV1TransportDocumentsModifyErrors];
+
+export type PublicApiV1TransportDocumentsModifyResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsModifyResponse = PublicApiV1TransportDocumentsModifyResponses[keyof PublicApiV1TransportDocumentsModifyResponses];
+
 export type PublicApiV1TasksRepositionData = {
     body?: MoveTaskOnBoardV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -59071,7 +64604,7 @@ export type PublicApiV1TasksMoveData = {
     body: MoveTaskToProjectV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -59142,7 +64675,7 @@ export type PublicApiV1AutomationsRulesPauseData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -59209,7 +64742,7 @@ export type PublicApiV1RecurringInvoicesPauseData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -59276,7 +64809,7 @@ export type PublicApiV1TimeEntriesPauseData = {
     body: ClockActionRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -59346,7 +64879,7 @@ export type PublicApiV1WebhookEndpointsPingData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -59419,7 +64952,7 @@ export type PublicApiV1ContactsPreviewImportData = {
     body: PreviewBusinessContactImportV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -59734,9 +65267,9 @@ export type PublicApiV1ManagedAccountsPlanPreviewData = {
     };
     query: {
         /**
-         * Requested plan: `emprendedor` or `empresario` (`enterprise` returns 422 `managed_account_plan_not_self_serve`).
+         * Requested plan: `emprendedor`, `empresario` or `integral` (`enterprise` returns 422 `managed_account_plan_not_self_serve`).
          */
-        plan: 'emprendedor' | 'empresario' | 'enterprise';
+        plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
     };
     url: '/accounts/{account}/plan/preview';
 };
@@ -59782,6 +65315,65 @@ export type PublicApiV1ManagedAccountsPlanPreviewResponses = {
 
 export type PublicApiV1ManagedAccountsPlanPreviewResponse = PublicApiV1ManagedAccountsPlanPreviewResponses[keyof PublicApiV1ManagedAccountsPlanPreviewResponses];
 
+export type PublicApiV1ManagedAccountsProvisioningPreviewData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Plan of the managed account to provision: `emprendedor`, `empresario` or `integral` (`enterprise` returns 422 `managed_account_plan_not_self_serve`).
+         */
+        plan: 'emprendedor' | 'empresario' | 'integral' | 'enterprise';
+    };
+    url: '/accounts/provisioning-preview';
+};
+
+export type PublicApiV1ManagedAccountsProvisioningPreviewErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * Validation failed, or a managed account rule rejected the operation: `managed_account_plan_not_self_serve` (`enterprise` is only assigned by Factuarea by contract), `managed_account_provider_in_trial` (a paid plan while your account is in trial), `managed_accounts_limit_reached` (the managed account limit of your account), `managed_account_not_claimable` (a test account has no claim voucher), `access_level_raise_forbidden` (once the holder claimed the account only the holder can raise your level), `enterprise_contract_transition_required` (moving to or from `enterprise` is a contract change) and `business_rule_violation` with subcode `nif_already_claimed_by_another_account` (provisioning a tax ID that already belongs to another account). The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * The price of the managed account plan could not be verified. Retry the preview; an unavailable amount is never a free purchase.
+     */
+    503: Error;
+};
+
+export type PublicApiV1ManagedAccountsProvisioningPreviewError = PublicApiV1ManagedAccountsProvisioningPreviewErrors[keyof PublicApiV1ManagedAccountsProvisioningPreviewErrors];
+
+export type PublicApiV1ManagedAccountsProvisioningPreviewResponses = {
+    200: {
+        data: ManagedAccountProvisioningPreview;
+    };
+};
+
+export type PublicApiV1ManagedAccountsProvisioningPreviewResponse = PublicApiV1ManagedAccountsProvisioningPreviewResponses[keyof PublicApiV1ManagedAccountsProvisioningPreviewResponses];
+
 export type PublicApiV1InvoicesPaymentReceiptData = {
     body?: never;
     headers?: {
@@ -59800,7 +65392,12 @@ export type PublicApiV1InvoicesPaymentReceiptData = {
          */
         invoice: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * ID (UUID v7) of the payment whose receipt you want. Without it, the most recent active payment.
+         */
+        payment_id?: string | null;
+    };
     url: '/companies/{company}/invoices/{invoice}/payment-receipt';
 };
 
@@ -59822,6 +65419,10 @@ export type PublicApiV1InvoicesPaymentReceiptErrors = {
      */
     404: Error;
     /**
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -59838,6 +65439,69 @@ export type PublicApiV1InvoicesPaymentReceiptResponses = {
 };
 
 export type PublicApiV1InvoicesPaymentReceiptResponse = PublicApiV1InvoicesPaymentReceiptResponses[keyof PublicApiV1InvoicesPaymentReceiptResponses];
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewData = {
+    body: PreviewProductBaseUnitReplacementRequest;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the product.
+         */
+        product: string;
+    };
+    query?: never;
+    url: '/companies/{company}/products/{product}/base-unit-replacement/preview';
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewError = PublicApiV1ProductsBaseUnitReplacementPreviewErrors[keyof PublicApiV1ProductsBaseUnitReplacementPreviewErrors];
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewResponses = {
+    200: {
+        data: BaseUnitReplacementPreview;
+    };
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementPreviewResponse = PublicApiV1ProductsBaseUnitReplacementPreviewResponses[keyof PublicApiV1ProductsBaseUnitReplacementPreviewResponses];
 
 export type PublicApiV1RecurringInvoicesPreviewData = {
     body?: never;
@@ -60037,7 +65701,7 @@ export type PublicApiV1PriceListsItemsPurgeRetiredData = {
     body: PurgeRetiredPriceListItemRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -60109,7 +65773,7 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipData = {
     body: QuarterlyDownloadV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -60174,7 +65838,7 @@ export type PublicApiV1InvoicesQuarterlySendEmailData = {
     body: QuarterlyDownloadV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -60242,7 +65906,7 @@ export type PublicApiV1EmployeesReactivateData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -60274,7 +65938,7 @@ export type PublicApiV1EmployeesReactivateErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -60285,6 +65949,10 @@ export type PublicApiV1EmployeesReactivateErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_state_conflict` with `subcode` `employee_batch_payment_outcome_unknown`: the payment of the batch is still being verified. `details.operation_id` is the operation to keep following; do not charge again. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -60297,6 +65965,10 @@ export type PublicApiV1EmployeesReactivateErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * Reliable seat quote unavailable while employee batches are enabled; nobody was created or charged. Retry the same request.
+     */
+    503: Error;
 };
 
 export type PublicApiV1EmployeesReactivateError = PublicApiV1EmployeesReactivateErrors[keyof PublicApiV1EmployeesReactivateErrors];
@@ -60313,7 +65985,7 @@ export type PublicApiV1PriceListsItemsReassignRetiredData = {
     body: ReassignRetiredPriceListItemRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60384,7 +66056,7 @@ export type PublicApiV1TimeEntriesManualData = {
     body: RecordManualTimeEntryRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60450,11 +66122,245 @@ export type PublicApiV1TimeEntriesManualResponses = {
 
 export type PublicApiV1TimeEntriesManualResponse = PublicApiV1TimeEntriesManualResponses[keyof PublicApiV1TimeEntriesManualResponses];
 
+export type PublicApiV1EmployeeBatchesRefreshQuoteData = {
+    body: VersionedEmployeeBatchBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the employee batch.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-batches/{id}/quote';
+};
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteError = PublicApiV1EmployeeBatchesRefreshQuoteErrors[keyof PublicApiV1EmployeeBatchesRefreshQuoteErrors];
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesRefreshQuoteResponse = PublicApiV1EmployeeBatchesRefreshQuoteResponses[keyof PublicApiV1EmployeeBatchesRefreshQuoteResponses];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the employee seat offer redemption.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-seat-offer-redemptions/{id}/quote';
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteError = PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteErrors];
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponse = PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteData = {
+    body: VersionedDurableOperationBody;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the additional NIF seat offer redemption.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/gestoria-seat-offer-redemptions/{id}/quote';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * Reliable quote or gateway outcome unavailable. Retry only the same operation.
+     */
+    503: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteError = PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponse = PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsRefreshQuoteResponses];
+
 export type PublicApiV1ManagedAccountsClaimTokensCreateData = {
     body?: ReissueManagedAccountClaimV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -60521,7 +66427,7 @@ export type PublicApiV1AbsenceRequestsRejectData = {
     body: RejectAbsenceRequestRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60588,7 +66494,7 @@ export type PublicApiV1ProformasRejectData = {
     body?: RejectProformaRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60655,7 +66561,7 @@ export type PublicApiV1QuotesRejectData = {
     body?: RejectQuoteRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60726,7 +66632,7 @@ export type PublicApiV1TimeCorrectionsRejectData = {
     body: RejectTimeCorrectionRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60797,7 +66703,7 @@ export type PublicApiV1AccountConnectReturnDomainsDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60865,7 +66771,7 @@ export type PublicApiV1TasksExternalLinksDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -60940,7 +66846,7 @@ export type PublicApiV1MonthlyTimeRecordClosesReopenData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -61003,11 +66909,148 @@ export type PublicApiV1MonthlyTimeRecordClosesReopenResponses = {
 
 export type PublicApiV1MonthlyTimeRecordClosesReopenResponse = PublicApiV1MonthlyTimeRecordClosesReopenResponses[keyof PublicApiV1MonthlyTimeRecordClosesReopenResponses];
 
+export type PublicApiV1TransportDocumentsReopenData = {
+    body: ReopenTransportDocumentRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/reopen';
+};
+
+export type PublicApiV1TransportDocumentsReopenErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsReopenError = PublicApiV1TransportDocumentsReopenErrors[keyof PublicApiV1TransportDocumentsReopenErrors];
+
+export type PublicApiV1TransportDocumentsReopenResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsReopenResponse = PublicApiV1TransportDocumentsReopenResponses[keyof PublicApiV1TransportDocumentsReopenResponses];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderData = {
+    body: ReorderChargeRulesRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the connected payment account.
+         */
+        account: string;
+    };
+    query?: never;
+    url: '/companies/{company}/connected-accounts/{account}/charge-rules/order';
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderError = PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderErrors[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderErrors];
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponses = {
+    /**
+     * All the rules of the account in their new order.
+     */
+    200: {
+        data: Array<ChargeRule>;
+    };
+};
+
+export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesReorderResponses];
+
 export type PublicApiV1ProjectsColumnsReorderData = {
     body: ReorderProjectColumnsV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -61072,11 +67115,85 @@ export type PublicApiV1ProjectsColumnsReorderResponses = {
 
 export type PublicApiV1ProjectsColumnsReorderResponse = PublicApiV1ProjectsColumnsReorderResponses[keyof PublicApiV1ProjectsColumnsReorderResponses];
 
+export type PublicApiV1ProductsBaseUnitReplacementCreateData = {
+    body: ReplaceProductBaseUnitRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the product.
+         */
+        product: string;
+    };
+    query?: never;
+    url: '/companies/{company}/products/{product}/base-unit-replacement';
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateError = PublicApiV1ProductsBaseUnitReplacementCreateErrors[keyof PublicApiV1ProductsBaseUnitReplacementCreateErrors];
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateResponses = {
+    /**
+     * Base unit replaced. The `Location` header contains the canonical URL of the NEW product that replaces the one in the path.
+     */
+    201: {
+        data: Product;
+    };
+};
+
+export type PublicApiV1ProductsBaseUnitReplacementCreateResponse = PublicApiV1ProductsBaseUnitReplacementCreateResponses[keyof PublicApiV1ProductsBaseUnitReplacementCreateResponses];
+
 export type PublicApiV1AutomationsRunsReplayData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -61148,7 +67265,7 @@ export type PublicApiV1AutomationsRunsStepsReplayData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -61228,7 +67345,7 @@ export type PublicApiV1IntegrationsEventsReplayData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -61295,7 +67412,7 @@ export type PublicApiV1WebhookEndpointsDeliveriesReplayData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -61370,7 +67487,7 @@ export type PublicApiV1InvoicesRescheduleData = {
     body: RescheduleInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -61437,7 +67554,7 @@ export type PublicApiV1AccountInvitationsResendData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -61504,7 +67621,7 @@ export type PublicApiV1EmployeeInvitationsResendData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -61894,7 +68011,7 @@ export type PublicApiV1ContactsRestoreData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -62038,7 +68155,7 @@ export type PublicApiV1RecurringInvoicesResumeData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -62105,7 +68222,7 @@ export type PublicApiV1TimeEntriesResumeData = {
     body: ClockActionRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -62175,7 +68292,7 @@ export type PublicApiV1AccountWebhooksDeliveriesRetryData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -62262,7 +68379,7 @@ export type PublicApiV1VerifactuRecordsRetryBlockedData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -62406,7 +68523,7 @@ export type PublicApiV1VerifactuEventsRetryData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -62476,7 +68593,7 @@ export type PublicApiV1VerifactuRecordsRetryData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -62550,7 +68667,7 @@ export type PublicApiV1InvoicesPaymentsRevertData = {
     body: RevertInvoicePaymentRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -62625,7 +68742,7 @@ export type PublicApiV1AccountMembersGrantsDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -62760,7 +68877,7 @@ export type PublicApiV1AccountMembersGrantsUpdateData = {
     body: SetAccountMemberGrantV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -62831,7 +68948,7 @@ export type PublicApiV1AccountApiKeysRevokeData = {
     body?: RevokeApiKeyV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -62898,7 +69015,7 @@ export type PublicApiV1VerifactuCertificatesRevokeData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -62971,7 +69088,7 @@ export type PublicApiV1AccountNifTransfersRevokeData = {
     body?: RevokeNifTransferV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -63038,7 +69155,7 @@ export type PublicApiV1AccountWebhooksRotateSecretData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -63105,7 +69222,7 @@ export type PublicApiV1AccountApiKeysRotateSecretData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -63172,7 +69289,7 @@ export type PublicApiV1WebhookEndpointsRotateSecretData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -63239,7 +69356,7 @@ export type PublicApiV1PurchaseScansReviewData = {
     body: SavePurchaseScanReviewV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -63313,7 +69430,7 @@ export type PublicApiV1InvoicesScheduleData = {
     body: ScheduleInvoiceRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -63439,7 +69556,7 @@ export type PublicApiV1MonthlyTimeRecordClosesSealData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -63989,7 +70106,7 @@ export type PublicApiV1AccountWebhooksTestData = {
     body?: SendAccountWebhookTestV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -64080,7 +70197,7 @@ export type PublicApiV1DeliveryNotesSendData = {
     body: SendDeliveryNoteRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -64151,7 +70268,7 @@ export type PublicApiV1InvoicesSendData = {
     body?: SendInvoiceRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -64222,7 +70339,7 @@ export type PublicApiV1InvoicesSendReminderData = {
     body?: SendInvoiceReminderV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -64289,7 +70406,7 @@ export type PublicApiV1ProformasSendData = {
     body?: SendProformaRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -64356,7 +70473,7 @@ export type PublicApiV1QuotesSendData = {
     body?: SendQuoteRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -64427,7 +70544,7 @@ export type PublicApiV1WebhookEndpointsTestEventData = {
     body?: SendTestEventRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -64494,11 +70611,82 @@ export type PublicApiV1WebhookEndpointsTestEventResponses = {
 
 export type PublicApiV1WebhookEndpointsTestEventResponse = PublicApiV1WebhookEndpointsTestEventResponses[keyof PublicApiV1WebhookEndpointsTestEventResponses];
 
+export type PublicApiV1TransportDocumentsSendData = {
+    body?: SendTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/send';
+};
+
+export type PublicApiV1TransportDocumentsSendErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * The files of this transport document were purged when its retention period ended (one year after it was closed, cancelled or superseded, and only once the account was closed). The document and its data are kept, but its PDF can no longer be served or sent. Code `transport_document_file_unavailable`, `error.type: not_found_error`. Retrying returns the same error.
+     */
+    410: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsSendError = PublicApiV1TransportDocumentsSendErrors[keyof PublicApiV1TransportDocumentsSendErrors];
+
+export type PublicApiV1TransportDocumentsSendResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsSendResponse = PublicApiV1TransportDocumentsSendResponses[keyof PublicApiV1TransportDocumentsSendResponses];
+
 export type PublicApiV1ProductsSupplierOffersPreferredData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -64569,7 +70757,7 @@ export type PublicApiV1TasksCustomFieldsSetData = {
     body: SetTaskCustomFieldValueV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -64635,6 +70823,144 @@ export type PublicApiV1TasksCustomFieldsSetResponses = {
 };
 
 export type PublicApiV1TasksCustomFieldsSetResponse = PublicApiV1TasksCustomFieldsSetResponses[keyof PublicApiV1TasksCustomFieldsSetResponses];
+
+export type PublicApiV1TaxesSetDefaultData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the tax.
+         */
+        tax: string;
+    };
+    query?: never;
+    url: '/companies/{company}/taxes/{tax}/set-default';
+};
+
+export type PublicApiV1TaxesSetDefaultErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesSetDefaultError = PublicApiV1TaxesSetDefaultErrors[keyof PublicApiV1TaxesSetDefaultErrors];
+
+export type PublicApiV1TaxesSetDefaultResponses = {
+    200: {
+        data: Tax;
+    };
+};
+
+export type PublicApiV1TaxesSetDefaultResponse = PublicApiV1TaxesSetDefaultResponses[keyof PublicApiV1TaxesSetDefaultResponses];
+
+export type PublicApiV1TaxesSetDefaultForDocumentData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the tax.
+         */
+        tax: string;
+        /**
+         * Document type: `invoice`, `quote`, `delivery_note`, `proforma`, `purchase_invoice` or `recurring_invoice`.
+         */
+        docType: string;
+    };
+    query?: never;
+    url: '/companies/{company}/taxes/{tax}/set-default/{docType}';
+};
+
+export type PublicApiV1TaxesSetDefaultForDocumentErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesSetDefaultForDocumentError = PublicApiV1TaxesSetDefaultForDocumentErrors[keyof PublicApiV1TaxesSetDefaultForDocumentErrors];
+
+export type PublicApiV1TaxesSetDefaultForDocumentResponses = {
+    200: {
+        data: Tax;
+    };
+};
+
+export type PublicApiV1TaxesSetDefaultForDocumentResponse = PublicApiV1TaxesSetDefaultForDocumentResponses[keyof PublicApiV1TaxesSetDefaultForDocumentResponses];
 
 export type PublicApiV1AbsenceBalancesShowData = {
     body?: never;
@@ -64758,7 +71084,7 @@ export type PublicApiV1AbsencePoliciesUpdateData = {
     body?: UpdateAbsencePolicyRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -64943,7 +71269,7 @@ export type PublicApiV1AbsenceTypesUpdateData = {
     body?: UpdateAbsenceTypeRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -65549,7 +71875,7 @@ export type PublicApiV1EmployeesUpdateData = {
     body?: UpdateEmployeeRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -65615,6 +71941,72 @@ export type PublicApiV1EmployeesUpdateResponses = {
 };
 
 export type PublicApiV1EmployeesUpdateResponse = PublicApiV1EmployeesUpdateResponses[keyof PublicApiV1EmployeesUpdateResponses];
+
+export type PublicApiV1EmployeeBatchesShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the employee batch.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/employee-batches/{id}';
+};
+
+export type PublicApiV1EmployeeBatchesShowErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeBatchesShowError = PublicApiV1EmployeeBatchesShowErrors[keyof PublicApiV1EmployeeBatchesShowErrors];
+
+export type PublicApiV1EmployeeBatchesShowResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: EmployeeBatch;
+    };
+};
+
+export type PublicApiV1EmployeeBatchesShowResponse = PublicApiV1EmployeeBatchesShowResponses[keyof PublicApiV1EmployeeBatchesShowResponses];
 
 export type PublicApiV1EventsShowData = {
     body?: never;
@@ -65907,7 +72299,7 @@ export type PublicApiV1MonthlyTimeRecordClosesShowResponses = {
 
 export type PublicApiV1MonthlyTimeRecordClosesShowResponse = PublicApiV1MonthlyTimeRecordClosesShowResponses[keyof PublicApiV1MonthlyTimeRecordClosesShowResponses];
 
-export type PublicApiV1TaxesShowData = {
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowData = {
     body?: never;
     headers?: {
         /**
@@ -65921,15 +72313,15 @@ export type PublicApiV1TaxesShowData = {
          */
         company: string;
         /**
-         * Public identifier (UUID v7) of the tax.
+         * Public identifier (UUID v7) of the employee seat offer redemption.
          */
-        tax: string;
+        id: string;
     };
     query?: never;
-    url: '/companies/{company}/taxes/{tax}';
+    url: '/companies/{company}/employee-seat-offer-redemptions/{id}';
 };
 
-export type PublicApiV1TaxesShowErrors = {
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowErrors = {
     /**
      * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
      */
@@ -65947,6 +72339,10 @@ export type PublicApiV1TaxesShowErrors = {
      */
     404: Error;
     /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -65956,15 +72352,84 @@ export type PublicApiV1TaxesShowErrors = {
     500: Error;
 };
 
-export type PublicApiV1TaxesShowError = PublicApiV1TaxesShowErrors[keyof PublicApiV1TaxesShowErrors];
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowError = PublicApiV1EmployeeSeatOfferRedemptionsShowErrors[keyof PublicApiV1EmployeeSeatOfferRedemptionsShowErrors];
 
-export type PublicApiV1TaxesShowResponses = {
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowResponses = {
+    /**
+     * Current durable operation.
+     */
     200: {
-        data: Tax;
+        data: CustomerOfferRedemption;
     };
 };
 
-export type PublicApiV1TaxesShowResponse = PublicApiV1TaxesShowResponses[keyof PublicApiV1TaxesShowResponses];
+export type PublicApiV1EmployeeSeatOfferRedemptionsShowResponse = PublicApiV1EmployeeSeatOfferRedemptionsShowResponses[keyof PublicApiV1EmployeeSeatOfferRedemptionsShowResponses];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the additional NIF seat offer redemption.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/companies/{company}/gestoria-seat-offer-redemptions/{id}';
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowError = PublicApiV1GestoriaSeatOfferRedemptionsShowErrors[keyof PublicApiV1GestoriaSeatOfferRedemptionsShowErrors];
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowResponses = {
+    /**
+     * Current durable operation.
+     */
+    200: {
+        data: CustomerOfferRedemption;
+    };
+};
+
+export type PublicApiV1GestoriaSeatOfferRedemptionsShowResponse = PublicApiV1GestoriaSeatOfferRedemptionsShowResponses[keyof PublicApiV1GestoriaSeatOfferRedemptionsShowResponses];
 
 export type PublicApiV1TimeCorrectionsShowData = {
     body?: never;
@@ -66328,7 +72793,7 @@ export type PublicApiV1WorkSchedulesUpdateData = {
     body?: UpdateWeeklyScheduleRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -66395,7 +72860,7 @@ export type PublicApiV1DeliveryNotesSignData = {
     body: SignDeliveryNoteRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -66427,7 +72892,7 @@ export type PublicApiV1DeliveryNotesSignErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -66466,7 +72931,7 @@ export type PublicApiV1RecurringInvoicesSkipData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -66533,7 +72998,7 @@ export type PublicApiV1StripeAutoinvoicingAuthorizationsCreateData = {
     body: StartConnectedAccountAuthorizationV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -66599,7 +73064,7 @@ export type PublicApiV1TasksTimerStartData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -66670,7 +73135,7 @@ export type PublicApiV1TaskTimersStopData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -66737,7 +73202,7 @@ export type PublicApiV1VerifactuRecordsSubsanarData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -66814,7 +73279,7 @@ export type PublicApiV1EmployeeSeatsSubscribeData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -66842,7 +73307,7 @@ export type PublicApiV1EmployeeSeatsSubscribeErrors = {
      */
     401: Error;
     /**
-     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, or the storage your plan grants is exhausted (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — free space or move to a plan with more storage). Nothing was created or modified — resolve the payment and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
      */
     402: Error;
     /**
@@ -66853,6 +73318,10 @@ export type PublicApiV1EmployeeSeatsSubscribeErrors = {
      * The requested resource does not exist or belongs to another company. `account_not_found`: the account in the path does not exist or is not the account of the API key.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -66881,7 +73350,7 @@ export type PublicApiV1InvoicesSubstituteSimplifiedData = {
     body: SubstituteSimplifiedV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -66908,6 +73377,10 @@ export type PublicApiV1InvoicesSubstituteSimplifiedErrors = {
      * Missing or invalid API key.
      */
     401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
     /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
@@ -66947,11 +73420,78 @@ export type PublicApiV1InvoicesSubstituteSimplifiedResponses = {
 
 export type PublicApiV1InvoicesSubstituteSimplifiedResponse = PublicApiV1InvoicesSubstituteSimplifiedResponses[keyof PublicApiV1InvoicesSubstituteSimplifiedResponses];
 
+export type PublicApiV1TransportDocumentsSupersedeData = {
+    body: SupersedeTransportDocumentRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the transport control document (DeCA).
+         */
+        transport_document: string;
+    };
+    query?: never;
+    url: '/companies/{company}/transport-documents/{transport_document}/supersede';
+};
+
+export type PublicApiV1TransportDocumentsSupersedeErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * Validation failed, or the transport document breaks a rule of the Spanish control document (DeCA): missing data to issue it (`transport_document_not_issuable`, with the list in `error.details.missing`), a transport date in the past, a shipment outside Spain, parties changed after issuing, a modification that changes nothing, or a lifecycle transition that its status does not allow. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TransportDocumentsSupersedeError = PublicApiV1TransportDocumentsSupersedeErrors[keyof PublicApiV1TransportDocumentsSupersedeErrors];
+
+export type PublicApiV1TransportDocumentsSupersedeResponses = {
+    200: {
+        data: TransportDocument;
+    };
+};
+
+export type PublicApiV1TransportDocumentsSupersedeResponse = PublicApiV1TransportDocumentsSupersedeResponses[keyof PublicApiV1TransportDocumentsSupersedeResponses];
+
 export type PublicApiV1ShopifyStoresConnectionTestData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -67018,7 +73558,7 @@ export type PublicApiV1WoocommerceStoresConnectionTestData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -67085,7 +73625,7 @@ export type PublicApiV1ProductsToggleActiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67148,11 +73688,78 @@ export type PublicApiV1ProductsToggleActiveResponses = {
 
 export type PublicApiV1ProductsToggleActiveResponse = PublicApiV1ProductsToggleActiveResponses[keyof PublicApiV1ProductsToggleActiveResponses];
 
+export type PublicApiV1TaxesToggleData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the tax.
+         */
+        tax: string;
+    };
+    query?: never;
+    url: '/companies/{company}/taxes/{tax}/toggle';
+};
+
+export type PublicApiV1TaxesToggleErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company.
+     */
+    404: Error;
+    /**
+     * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1TaxesToggleError = PublicApiV1TaxesToggleErrors[keyof PublicApiV1TaxesToggleErrors];
+
+export type PublicApiV1TaxesToggleResponses = {
+    200: {
+        data: Tax;
+    };
+};
+
+export type PublicApiV1TaxesToggleResponse = PublicApiV1TaxesToggleResponses[keyof PublicApiV1TaxesToggleResponses];
+
 export type PublicApiV1AccountOwnerTransferData = {
     body: TransferAccountOwnershipV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -67215,7 +73822,7 @@ export type PublicApiV1AbsencePoliciesUnarchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67282,7 +73889,7 @@ export type PublicApiV1AbsenceTypesUnarchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67349,7 +73956,7 @@ export type PublicApiV1ProjectsUnarchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67420,7 +74027,7 @@ export type PublicApiV1SeriesUnarchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67488,7 +74095,7 @@ export type PublicApiV1WorkSchedulesUnarchiveData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67555,7 +74162,7 @@ export type PublicApiV1AbsencePoliciesUnassignData = {
     body: UnassignAbsencePolicyRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67622,7 +74229,7 @@ export type PublicApiV1WorkSchedulesUnassignData = {
     body: UnassignScheduleRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67690,7 +74297,7 @@ export type PublicApiV1TasksLabelsUnassignData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67766,7 +74373,7 @@ export type PublicApiV1TasksUnassignData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67833,7 +74440,7 @@ export type PublicApiV1TasksEntityLinksDeleteData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67908,7 +74515,7 @@ export type PublicApiV1InvoicesUnscheduleData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -67975,7 +74582,7 @@ export type PublicApiV1InvoicesUnsendData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68042,7 +74649,7 @@ export type PublicApiV1AccountPersonalizationUpdateData = {
     body?: UpdateAccountPersonalizationRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68105,7 +74712,7 @@ export type PublicApiV1AccountApiKeysUpdateNifScopeData = {
     body: UpdateApiKeyNifScopeV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68172,7 +74779,7 @@ export type PublicApiV1ContactsUpdateBankAccountsData = {
     body: UpdateBusinessContactBankAccountsV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68242,7 +74849,7 @@ export type PublicApiV1ContactsUpdateCustomerProfileData = {
     body?: UpdateCustomerProfileV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68312,7 +74919,7 @@ export type PublicApiV1ProductsUpdateStockData = {
     body: UpdateProductStockRequest;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68379,7 +74986,7 @@ export type PublicApiV1ContactsUpdateSupplierProfileData = {
     body?: UpdateSupplierProfileV1Request;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68449,7 +75056,7 @@ export type PublicApiV1VerifactuSettingsUpdateData = {
     body?: UpdateVeriFactuSettingsV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -68512,7 +75119,7 @@ export type PublicApiV1ProductsGalleryUploadData = {
     body: UploadProductGalleryImageRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -68707,7 +75314,7 @@ export type PublicApiV1AccountVerifyCensusData = {
     body?: never;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -68770,7 +75377,7 @@ export type PublicApiV1ContactsVerifyCensusData = {
     body: VerifyBusinessContactCensusV1Request;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**
@@ -68833,7 +75440,7 @@ export type PublicApiV1CompaniesVerifyCreationData = {
     body?: never;
     headers?: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency).
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
          */
         'Idempotency-Key'?: string;
         /**
@@ -68873,6 +75480,10 @@ export type PublicApiV1CompaniesVerifyCreationErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     */
+    409: Error;
+    /**
      * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
@@ -68900,7 +75511,7 @@ export type PublicApiV1InvoicesVoidData = {
     body?: VoidInvoiceRequest;
     headers: {
         /**
-         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
          */
         'Idempotency-Key': string;
         /**

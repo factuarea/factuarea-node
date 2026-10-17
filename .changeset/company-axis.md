@@ -38,5 +38,7 @@ Added: the account axis (members and their module access, invitations, claim
 tokens, owner transfer, usage), `companies.issuingReadiness` and
 `recurringInvoices.bulkStatus`.
 
+Removed: the `ContactRoleV1Request` type export. The role of `contacts.assignContactRole` travels in the path (`/contacts/{contact}/roles/{role}`), so the operation no longer has a body.
+
 While the SDK is in `0.x` a breaking change stays a `minor`; `1.0.0` remains
 reserved for the API's GA (docs/VERSIONING.md).

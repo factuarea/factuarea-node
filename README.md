@@ -101,7 +101,7 @@ The SDK pins the [`Factuarea-Version`](https://docs.factuarea.com/guides/version
 
 Use `factuarea.contacts` for customer, supplier and lead identities. A contact can hold multiple roles, so creating a supplier relationship does not require duplicating an existing customer's identity. Sales documents still name their reference `client_id`, and purchases use `supplier_id`; both accept the canonical contact UUID with the corresponding active role.
 
-Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications` and `agenda`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
+Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications`, `agenda` and `transportDocuments`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
 
 ### Contacts
 
@@ -272,6 +272,34 @@ console.log(entry.duration_seconds);
 ```
 
 `tasks.search` filters by `q`, `project_id`, `status`, `column_id`, `priority`, `assignee_id` (a member id or `me`), `label_id`, `due_before`, `due_after`, `completed` and `sort`, and follows the cursor across pages. `taskTimers.current()` resolves to `{ data: null }` when no timer is running. Deleting a board column that still holds tasks needs a destination: `projects.columns.delete(project.id, column.id, { move_to_column_id })`, otherwise the API answers `409 column_has_tasks`. `agenda.list({ from, to, sources: "tasks,invoice_due" })` takes its layers as a comma-separated string.
+
+## Transport control documents (DeCA)
+
+`transportDocuments` covers the electronic control document of Spanish public road freight (DeCA): drafts, optionally pre-filled from delivery notes, issuing, modifying during the service, closing and reopening, cancelling or marking it as superseded by the carrier's own document, and the copy for the driver. It is not a delivery note, an invoice or a VeriFactu record. Like every company resource, each call takes the company id as its first argument. Keys need the `transport_documents:read`, `:write`, `:transition` and `:delete` scopes, and `pdfs:read` for the PDF. Issuing, modifying, cancelling, superseding and sending are irreversible: pin an `idempotencyKey` so a retry never repeats them. See the [guide](https://docs.factuarea.com/guides/transport-documents).
+
+```ts
+import type { TransportDocument } from "@factuarea/sdk";
+
+// A draft with one shipment per delivery note, then issue it: the next number of
+// the DC series, version 1 of the PDF and a permanent public URL behind the QR.
+const { data: draft } = (await factuarea.transportDocuments.create(
+  company,
+  {
+    company_role: "shipper",
+    carrier: { contact_id: carrier.id },
+    delivery_note_ids: [deliveryNote.id],
+    vehicle: { tractor_plate: "1234BCD" },
+  },
+  { idempotencyKey: "deca-draft-2026-118" },
+)) as { data: TransportDocument };
+await factuarea.transportDocuments.issue(company, draft.id, { idempotencyKey: "deca-issue-2026-118" });
+
+// The copy for the driver: the PDF of the current version and the QR image.
+const pdf = await factuarea.transportDocuments.pdf(company, draft.id);
+const qr = await factuarea.transportDocuments.qr(company, draft.id, { format: "png" });
+```
+
+`transportDocuments.index` filters by `status`, `transport_date[gte]`, `transport_date[lte]`, `company_role`, `carrier_tax_id`, `delivery_note_id`, `q` and `sort`, and follows the cursor across pages. `pdf(company, id, { version })` returns the stored PDF of any version byte for byte, and `qr` returns SVG unless you ask for `format: "png"`. An issue that lacks data answers `422 transport_document_not_issuable` with the missing items in `error.details.missing`.
 
 ## Pagination
 

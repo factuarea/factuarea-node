@@ -70,10 +70,10 @@ export class PurchaseInvoicesResource extends BaseResource {
     return this._binary(path, "GET", undefined, undefined, config);
   }
 
-  /** Download an expense payment receipt */
-  async paymentReceipt(company: string, purchaseInvoice: string, config?: RequestConfig): Promise<BinaryResponse> {
+  /** Download the receipt PDF of an expense payment */
+  async paymentReceipt(company: string, purchaseInvoice: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<BinaryResponse> {
     const path = this.buildPath("/companies/{company}/purchase-invoices/{purchase_invoice}/payment-receipt", { "company": company, "purchase_invoice": purchaseInvoice });
-    return this._binary(path, "GET", undefined, undefined, config);
+    return this._binary(path, "GET", params, undefined, config);
   }
 
   /** Find an expense by external ID */
