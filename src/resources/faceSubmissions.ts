@@ -11,14 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class FaceSubmissionsResource extends BaseResource {
   /** Request FACe submission cancellation */
-  async cancel(faceSubmission: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/face-submissions/{faceSubmission}/cancel", { "faceSubmission": faceSubmission });
+  async cancel(company: string, faceSubmission: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/face-submissions/{faceSubmission}/cancel", { "company": company, "faceSubmission": faceSubmission });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve a FACe submission */
-  async show(faceSubmission: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/face-submissions/{faceSubmission}", { "faceSubmission": faceSubmission });
+  async show(company: string, faceSubmission: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/face-submissions/{faceSubmission}", { "company": company, "faceSubmission": faceSubmission });
     return this._get<unknown>(path, undefined, config);
   }
 }

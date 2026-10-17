@@ -11,14 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class TaskTimersResource extends BaseResource {
   /** Retrieve the running task timer */
-  async current(config?: RequestConfig): Promise<unknown> {
-    const path = "/task-timers/current";
+  async current(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/task-timers/current", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Stop the running task timer */
-  async stop(config?: RequestConfig): Promise<unknown> {
-    const path = "/task-timers/stop";
+  async stop(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/task-timers/stop", { "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

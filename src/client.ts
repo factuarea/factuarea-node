@@ -1,35 +1,26 @@
 import { HttpClient, type FactuareaConfig } from "./core/http-client.js";
 import type { Environment } from "./core/auth.js";
 import { Webhooks } from "./core/webhooks.js";
-import { createResources } from "./resources/index.js";
-import type {
-  AccountResource,
-  AgendaResource,
-  ContactsResource,
-  DeliveryNotesResource,
-  EventCatalogResource,
-  EventsResource,
-  InvoicesResource,
-  NotificationsResource,
-  ProductsResource,
-  ProformasResource,
-  ProjectsResource,
-  PurchaseInvoicesResource,
-  PurchaseScansResource,
-  PurchaseScanEmailsResource,
-  QuotesResource,
-  RecurringInvoicesResource,
-  SeriesResource,
-  TaskLabelsResource,
-  TaskTimersResource,
-  TasksResource,
-  TaxReportsResource,
-  TaxesResource,
-  TransportDocumentsResource,
-  UsersResource,
-  VerifactuResource,
-  WebhookEndpointsResource,
-} from "./resources/index.js";
+import { createResources, type ResourceNamespaces } from "./resources/index.js";
+
+/**
+ * Every namespace the generated registry builds is a field of the client.
+ *
+ * Declaration merging, and not a hand-written list of fields, because the list
+ * is exactly what broke: `createResources()` has always built one namespace per
+ * resource file, while this class enumerated its fields by hand and had drifted
+ * to 17 of 62 — measured 2026-09-18 — so `factuarea.salesOrders.list(...)` and
+ * the other 44 namespaces existed in the resource layer and were unreachable
+ * from `new Factuarea(...)`. Neither `tsc --noEmit` nor `tsup` sees that: a
+ * field nobody declared is simply a field nobody can use.
+ *
+ * Extending the registry's own interface makes the drift impossible instead of
+ * merely caught: regenerating `src/resources/` with a new resource adds it to
+ * `ResourceNamespaces`, and the client gains it in the same commit, in types
+ * and at runtime. `Readonly` keeps the namespaces non-reassignable, as the
+ * enumerated fields were.
+ */
+export interface Factuarea extends Readonly<ResourceNamespaces> {}
 
 /**
  * The Factuarea API client.
@@ -43,46 +34,14 @@ import type {
  *
  * The environment (sandbox vs production) is selected by the key prefix
  * (`fact_test_` / `fact_live_`); no environment flag is needed.
+ *
+ * This client is for SERVERS. Its API key is a secret bound to the company and
+ * must never be shipped to a browser; the anonymous shopper lane has its own
+ * browser client with a publishable credential in `@factuarea/sdk/storefront`.
  */
 export class Factuarea {
   /** The environment derived from the API key prefix. */
   readonly environment: Environment;
-
-  readonly account: AccountResource;
-  /** Combined agenda of due tasks, document due dates, tax deadlines, absences and holidays. */
-  readonly agenda: AgendaResource;
-  /** Canonical identities with cumulative customer, supplier and lead roles. */
-  readonly contacts: ContactsResource;
-  readonly deliveryNotes: DeliveryNotesResource;
-  readonly eventCatalog: EventCatalogResource;
-  readonly events: EventsResource;
-  readonly invoices: InvoicesResource;
-  /** Notifications of the API key owner. */
-  readonly notifications: NotificationsResource;
-  readonly products: ProductsResource;
-  readonly proformas: ProformasResource;
-  /** Projects with their board columns, custom fields, time summary and time invoices. */
-  readonly projects: ProjectsResource;
-  readonly purchaseInvoices: PurchaseInvoicesResource;
-  readonly purchaseScans: PurchaseScansResource;
-  readonly purchaseScanEmails: PurchaseScanEmailsResource;
-  readonly quotes: QuotesResource;
-  readonly recurringInvoices: RecurringInvoicesResource;
-  readonly series: SeriesResource;
-  /** Company-wide task labels. */
-  readonly taskLabels: TaskLabelsResource;
-  /** The running task timer of the API key owner. */
-  readonly taskTimers: TaskTimersResource;
-  /** Tasks and their comments, relations, labels, attachments, time entries and links. */
-  readonly tasks: TasksResource;
-  readonly taxReports: TaxReportsResource;
-  readonly taxes: TaxesResource;
-  /** Transport control documents (DeCA) of Spanish road freight. */
-  readonly transportDocuments: TransportDocumentsResource;
-  /** Members of the company that can be assigned to tasks. */
-  readonly users: UsersResource;
-  readonly verifactu: VerifactuResource;
-  readonly webhookEndpoints: WebhookEndpointsResource;
 
   /** Webhook signature verification (stateless). */
   readonly webhooks: Webhooks;
@@ -95,32 +54,7 @@ export class Factuarea {
     this.environment = this.http.environment;
     this.webhooks = new Webhooks();
 
-    const resources = createResources(this.http);
-    this.account = resources.account;
-    this.agenda = resources.agenda;
-    this.contacts = resources.contacts;
-    this.deliveryNotes = resources.deliveryNotes;
-    this.eventCatalog = resources.eventCatalog;
-    this.events = resources.events;
-    this.invoices = resources.invoices;
-    this.notifications = resources.notifications;
-    this.products = resources.products;
-    this.proformas = resources.proformas;
-    this.projects = resources.projects;
-    this.purchaseInvoices = resources.purchaseInvoices;
-    this.purchaseScans = resources.purchaseScans;
-    this.purchaseScanEmails = resources.purchaseScanEmails;
-    this.quotes = resources.quotes;
-    this.recurringInvoices = resources.recurringInvoices;
-    this.series = resources.series;
-    this.taskLabels = resources.taskLabels;
-    this.taskTimers = resources.taskTimers;
-    this.tasks = resources.tasks;
-    this.taxReports = resources.taxReports;
-    this.taxes = resources.taxes;
-    this.transportDocuments = resources.transportDocuments;
-    this.users = resources.users;
-    this.verifactu = resources.verifactu;
-    this.webhookEndpoints = resources.webhookEndpoints;
+    // Wires every namespace the registry builds — all of them, always.
+    Object.assign(this, createResources(this.http));
   }
 }

@@ -11,37 +11,38 @@ import type { Page } from "../core/pagination.js";
 
 export class AbsenceTypesResource extends BaseResource {
   /** Archive an absence type */
-  async archive(absenceType: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/absence-types/{absence_type}/archive", { "absence_type": absenceType });
+  async archive(company: string, absenceType: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/absence-types/{absence_type}/archive", { "company": company, "absence_type": absenceType });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Create an absence type */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/absence-types";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/absence-types", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List all absence types */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/absence-types", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/absence-types", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve an absence type */
-  async show(absenceType: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/absence-types/{absence_type}", { "absence_type": absenceType });
+  async show(company: string, absenceType: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/absence-types/{absence_type}", { "company": company, "absence_type": absenceType });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update an absence type */
-  async update(absenceType: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/absence-types/{absence_type}", { "absence_type": absenceType });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, absenceType: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/absence-types/{absence_type}", { "company": company, "absence_type": absenceType });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 
   /** Unarchive an absence type */
-  async unarchive(absenceType: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/absence-types/{absence_type}/unarchive", { "absence_type": absenceType });
+  async unarchive(company: string, absenceType: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/absence-types/{absence_type}/unarchive", { "company": company, "absence_type": absenceType });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

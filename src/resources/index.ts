@@ -9,6 +9,7 @@ import { AbsenceTypesResource } from "./absenceTypes.js";
 import { AccountResource } from "./account.js";
 import { AgendaResource } from "./agenda.js";
 import { AutomationsResource } from "./automations.js";
+import { CarriersResource } from "./carriers.js";
 import { CompaniesResource } from "./companies.js";
 import { ContactsResource } from "./contacts.js";
 import { DeliveryNotesResource } from "./deliveryNotes.js";
@@ -24,9 +25,11 @@ import { EventsResource } from "./events.js";
 import { FaceSubmissionsResource } from "./faceSubmissions.js";
 import { GestoriaResource } from "./gestoria.js";
 import { GestoriaSeatOfferRedemptionsResource } from "./gestoriaSeatOfferRedemptions.js";
+import { GoodsReceiptsResource } from "./goodsReceipts.js";
 import { HolidaysResource } from "./holidays.js";
 import { IntegrationsResource } from "./integrations.js";
 import { InvoicesResource } from "./invoices.js";
+import { ManagedAccountsResource } from "./managedAccounts.js";
 import { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 import { NotificationsResource } from "./notifications.js";
 import { PaymentMethodsResource } from "./paymentMethods.js";
@@ -38,12 +41,21 @@ import { ProductsResource } from "./products.js";
 import { ProformasResource } from "./proformas.js";
 import { ProjectsResource } from "./projects.js";
 import { PurchaseInvoicesResource } from "./purchaseInvoices.js";
+import { PurchaseOrdersResource } from "./purchaseOrders.js";
+import { PurchaseReorderSuggestionsResource } from "./purchaseReorderSuggestions.js";
 import { PurchaseScanEmailsResource } from "./purchaseScanEmails.js";
 import { PurchaseScansResource } from "./purchaseScans.js";
 import { QuotesResource } from "./quotes.js";
 import { RecurringInvoicesResource } from "./recurringInvoices.js";
+import { ReturnsResource } from "./returns.js";
+import { SalesOrdersResource } from "./salesOrders.js";
 import { SeriesResource } from "./series.js";
 import { ShopifyResource } from "./shopify.js";
+import { StockAvailabilityResource } from "./stockAvailability.js";
+import { StockReservationsResource } from "./stockReservations.js";
+import { StockTransfersResource } from "./stockTransfers.js";
+import { StorefrontResource } from "./storefront.js";
+import { StorefrontKeysResource } from "./storefrontKeys.js";
 import { StoresResource } from "./stores.js";
 import { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
 import { TaskLabelsResource } from "./taskLabels.js";
@@ -59,6 +71,7 @@ import { TimeTrackingSettingsResource } from "./timeTrackingSettings.js";
 import { TransportDocumentsResource } from "./transportDocuments.js";
 import { UsersResource } from "./users.js";
 import { VerifactuResource } from "./verifactu.js";
+import { WarehousesResource } from "./warehouses.js";
 import { WebhookEndpointsResource } from "./webhookEndpoints.js";
 import { WoocommerceResource } from "./woocommerce.js";
 import { WorkSchedulesResource } from "./workSchedules.js";
@@ -71,6 +84,7 @@ export { AbsenceTypesResource } from "./absenceTypes.js";
 export { AccountResource } from "./account.js";
 export { AgendaResource } from "./agenda.js";
 export { AutomationsResource } from "./automations.js";
+export { CarriersResource } from "./carriers.js";
 export { CompaniesResource } from "./companies.js";
 export { ContactsResource } from "./contacts.js";
 export { DeliveryNotesResource } from "./deliveryNotes.js";
@@ -86,9 +100,11 @@ export { EventsResource } from "./events.js";
 export { FaceSubmissionsResource } from "./faceSubmissions.js";
 export { GestoriaResource } from "./gestoria.js";
 export { GestoriaSeatOfferRedemptionsResource } from "./gestoriaSeatOfferRedemptions.js";
+export { GoodsReceiptsResource } from "./goodsReceipts.js";
 export { HolidaysResource } from "./holidays.js";
 export { IntegrationsResource } from "./integrations.js";
 export { InvoicesResource } from "./invoices.js";
+export { ManagedAccountsResource } from "./managedAccounts.js";
 export { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 export { NotificationsResource } from "./notifications.js";
 export { PaymentMethodsResource } from "./paymentMethods.js";
@@ -100,12 +116,21 @@ export { ProductsResource } from "./products.js";
 export { ProformasResource } from "./proformas.js";
 export { ProjectsResource } from "./projects.js";
 export { PurchaseInvoicesResource } from "./purchaseInvoices.js";
+export { PurchaseOrdersResource } from "./purchaseOrders.js";
+export { PurchaseReorderSuggestionsResource } from "./purchaseReorderSuggestions.js";
 export { PurchaseScanEmailsResource } from "./purchaseScanEmails.js";
 export { PurchaseScansResource } from "./purchaseScans.js";
 export { QuotesResource } from "./quotes.js";
 export { RecurringInvoicesResource } from "./recurringInvoices.js";
+export { ReturnsResource } from "./returns.js";
+export { SalesOrdersResource } from "./salesOrders.js";
 export { SeriesResource } from "./series.js";
 export { ShopifyResource } from "./shopify.js";
+export { StockAvailabilityResource } from "./stockAvailability.js";
+export { StockReservationsResource } from "./stockReservations.js";
+export { StockTransfersResource } from "./stockTransfers.js";
+export { StorefrontResource } from "./storefront.js";
+export { StorefrontKeysResource } from "./storefrontKeys.js";
 export { StoresResource } from "./stores.js";
 export { StripeAutoinvoicingResource } from "./stripeAutoinvoicing.js";
 export { TaskLabelsResource } from "./taskLabels.js";
@@ -121,6 +146,7 @@ export { TimeTrackingSettingsResource } from "./timeTrackingSettings.js";
 export { TransportDocumentsResource } from "./transportDocuments.js";
 export { UsersResource } from "./users.js";
 export { VerifactuResource } from "./verifactu.js";
+export { WarehousesResource } from "./warehouses.js";
 export { WebhookEndpointsResource } from "./webhookEndpoints.js";
 export { WoocommerceResource } from "./woocommerce.js";
 export { WorkSchedulesResource } from "./workSchedules.js";
@@ -134,6 +160,7 @@ export interface ResourceNamespaces {
   account: AccountResource;
   agenda: AgendaResource;
   automations: AutomationsResource;
+  carriers: CarriersResource;
   companies: CompaniesResource;
   contacts: ContactsResource;
   deliveryNotes: DeliveryNotesResource;
@@ -149,9 +176,11 @@ export interface ResourceNamespaces {
   faceSubmissions: FaceSubmissionsResource;
   gestoria: GestoriaResource;
   gestoriaSeatOfferRedemptions: GestoriaSeatOfferRedemptionsResource;
+  goodsReceipts: GoodsReceiptsResource;
   holidays: HolidaysResource;
   integrations: IntegrationsResource;
   invoices: InvoicesResource;
+  managedAccounts: ManagedAccountsResource;
   monthlyTimeRecordCloses: MonthlyTimeRecordClosesResource;
   notifications: NotificationsResource;
   paymentMethods: PaymentMethodsResource;
@@ -163,12 +192,21 @@ export interface ResourceNamespaces {
   proformas: ProformasResource;
   projects: ProjectsResource;
   purchaseInvoices: PurchaseInvoicesResource;
+  purchaseOrders: PurchaseOrdersResource;
+  purchaseReorderSuggestions: PurchaseReorderSuggestionsResource;
   purchaseScanEmails: PurchaseScanEmailsResource;
   purchaseScans: PurchaseScansResource;
   quotes: QuotesResource;
   recurringInvoices: RecurringInvoicesResource;
+  returns: ReturnsResource;
+  salesOrders: SalesOrdersResource;
   series: SeriesResource;
   shopify: ShopifyResource;
+  stockAvailability: StockAvailabilityResource;
+  stockReservations: StockReservationsResource;
+  stockTransfers: StockTransfersResource;
+  storefront: StorefrontResource;
+  storefrontKeys: StorefrontKeysResource;
   stores: StoresResource;
   stripeAutoinvoicing: StripeAutoinvoicingResource;
   taskLabels: TaskLabelsResource;
@@ -184,6 +222,7 @@ export interface ResourceNamespaces {
   transportDocuments: TransportDocumentsResource;
   users: UsersResource;
   verifactu: VerifactuResource;
+  warehouses: WarehousesResource;
   webhookEndpoints: WebhookEndpointsResource;
   woocommerce: WoocommerceResource;
   workSchedules: WorkSchedulesResource;
@@ -199,6 +238,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     account: new AccountResource(client),
     agenda: new AgendaResource(client),
     automations: new AutomationsResource(client),
+    carriers: new CarriersResource(client),
     companies: new CompaniesResource(client),
     contacts: new ContactsResource(client),
     deliveryNotes: new DeliveryNotesResource(client),
@@ -214,9 +254,11 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     faceSubmissions: new FaceSubmissionsResource(client),
     gestoria: new GestoriaResource(client),
     gestoriaSeatOfferRedemptions: new GestoriaSeatOfferRedemptionsResource(client),
+    goodsReceipts: new GoodsReceiptsResource(client),
     holidays: new HolidaysResource(client),
     integrations: new IntegrationsResource(client),
     invoices: new InvoicesResource(client),
+    managedAccounts: new ManagedAccountsResource(client),
     monthlyTimeRecordCloses: new MonthlyTimeRecordClosesResource(client),
     notifications: new NotificationsResource(client),
     paymentMethods: new PaymentMethodsResource(client),
@@ -228,12 +270,21 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     proformas: new ProformasResource(client),
     projects: new ProjectsResource(client),
     purchaseInvoices: new PurchaseInvoicesResource(client),
+    purchaseOrders: new PurchaseOrdersResource(client),
+    purchaseReorderSuggestions: new PurchaseReorderSuggestionsResource(client),
     purchaseScanEmails: new PurchaseScanEmailsResource(client),
     purchaseScans: new PurchaseScansResource(client),
     quotes: new QuotesResource(client),
     recurringInvoices: new RecurringInvoicesResource(client),
+    returns: new ReturnsResource(client),
+    salesOrders: new SalesOrdersResource(client),
     series: new SeriesResource(client),
     shopify: new ShopifyResource(client),
+    stockAvailability: new StockAvailabilityResource(client),
+    stockReservations: new StockReservationsResource(client),
+    stockTransfers: new StockTransfersResource(client),
+    storefront: new StorefrontResource(client),
+    storefrontKeys: new StorefrontKeysResource(client),
     stores: new StoresResource(client),
     stripeAutoinvoicing: new StripeAutoinvoicingResource(client),
     taskLabels: new TaskLabelsResource(client),
@@ -249,6 +300,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     transportDocuments: new TransportDocumentsResource(client),
     users: new UsersResource(client),
     verifactu: new VerifactuResource(client),
+    warehouses: new WarehousesResource(client),
     webhookEndpoints: new WebhookEndpointsResource(client),
     woocommerce: new WoocommerceResource(client),
     workSchedules: new WorkSchedulesResource(client),

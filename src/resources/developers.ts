@@ -11,13 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class DevelopersRequestLogsResource extends BaseResource {
   /** List your API request logs */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/developers/request-logs", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/request-logs", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve an API request log */
-  async show(requestId: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/developers/request-logs/{request_id}", { "request_id": requestId });
+  async show(company: string, requestId: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/request-logs/{request_id}", { "company": company, "request_id": requestId });
     return this._get<unknown>(path, undefined, config);
   }
 }

@@ -11,8 +11,8 @@ import type { Page } from "../core/pagination.js";
 
 export class TimeEntriesChainResource extends BaseResource {
   /** Validate the time record hash chain */
-  async validate(config?: RequestConfig): Promise<unknown> {
-    const path = "/time-entries/chain/validate";
+  async validate(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/chain/validate", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 }
@@ -26,49 +26,50 @@ export class TimeEntriesResource extends BaseResource {
   }
 
   /** Clock in an employee */
-  async clockIn(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-entries/clock-in";
+  async clockIn(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/clock-in", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Clock out an employee */
-  async clockOut(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-entries/clock-out";
+  async clockOut(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/clock-out", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve an employee’s current workday state */
-  async current(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-entries/current";
+  async current(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/current", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** List all time entries */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/time-entries", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/time-entries", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Start a pause */
-  async pause(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-entries/pause";
+  async pause(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/pause", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Record a manual retroactive entry */
-  async manual(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-entries/manual";
+  async manual(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/manual", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Resume from a pause */
-  async resume(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-entries/resume";
+  async resume(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/resume", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Retrieve a time entry */
-  async show(timeEntry: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/time-entries/{time_entry}", { "time_entry": timeEntry });
+  async show(company: string, timeEntry: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-entries/{time_entry}", { "company": company, "time_entry": timeEntry });
     return this._get<unknown>(path, undefined, config);
   }
 }
