@@ -9,109 +9,82 @@ import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
 
 
-export class CompaniesApiKeysResource extends BaseResource {
-  /** Create a child API key */
-  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/api-keys", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
-  }
-
-  /** List child API keys */
-  async list(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/api-keys", { "company": company });
-    return this._get<unknown>(path, undefined, config);
-  }
-
-  /** Revoke a child API key */
-  async revoke(company: string, apiKey: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/api-keys/{api_key}", { "company": company, "api_key": apiKey });
-    return this._delete<unknown>(path, params, config, { idempotent: true });
-  }
-
-  /** Retrieve a child API key */
-  async show(company: string, apiKey: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/api-keys/{api_key}", { "company": company, "api_key": apiKey });
-    return this._get<unknown>(path, undefined, config);
-  }
-
-  /** Rotate a child API key secret */
-  async rotateSecret(company: string, apiKey: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/api-keys/{api_key}/rotate-secret", { "company": company, "api_key": apiKey });
-    return this._send<unknown>("POST", path, undefined, config);
-  }
-}
-
 export class CompaniesResource extends BaseResource {
-  readonly apiKeys: CompaniesApiKeysResource;
-
-  constructor(client: HttpClient) {
-    super(client);
-    this.apiKeys = new CompaniesApiKeysResource(client);
-  }
-
-  /** Activate several managed companies */
-  async activateBatch(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/companies/activate";
+  /** Activate several tax IDs of the account */
+  async activateBatch(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/activate", { "account": account });
     return this._send<unknown>("POST", path, body, config);
   }
 
-  /** Activate a managed company */
-  async activate(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/activate", { "company": company });
+  /** Activate a tax ID of the account */
+  async activate(account: string, company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}/activate", { "account": account, "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
-  /** Create a managed company */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/companies";
-    return this._send<unknown>("POST", path, body, config);
-  }
-
-  /** List your managed companies */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/companies";
-    return this._get<unknown>(path, params, config);
-  }
-
-  /** Deactivate a managed company */
-  async deactivate(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/deactivate", { "company": company });
+  /** Deactivate a tax ID of the account */
+  async deactivate(account: string, company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}/deactivate", { "account": account, "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
-  /** Archive a managed company */
-  async delete(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}", { "company": company });
+  /** Archive a tax ID of the account */
+  async delete(account: string, company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}", { "account": account, "company": company });
     return this._send<unknown>("DELETE", path, undefined, config);
   }
 
-  /** Retrieve a managed company */
-  async show(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}", { "company": company });
+  /** Retrieve a tax ID of the account */
+  async show(account: string, company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}", { "account": account, "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
-  /** Update a managed company */
-  async update(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}", { "company": company });
+  /** Update a tax ID of the account */
+  async update(account: string, company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}", { "account": account, "company": company });
     return this._send<unknown>("PATCH", path, body, config);
   }
 
-  /** Retrieve the creation status of a managed company */
-  async creationStatus(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/creation-status", { "company": company });
+  /** Retrieve invoicing statistics per company */
+  async stats(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/stats", { "account": account });
+    return this._get<unknown>(path, params, config);
+  }
+
+  /** Retrieve the creation status of a tax ID */
+  async creationStatus(account: string, company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}/creation-status", { "account": account, "company": company });
+    return this._get<unknown>(path, undefined, config);
+  }
+
+  /** Check whether a portfolio NIF can issue */
+  async issuingReadiness(account: string, company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}/issuing-readiness", { "account": account, "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Preview the seat charge of adding a company */
-  async seatChargePreview(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/companies/seat-charge-preview";
+  async seatChargePreview(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/seat-charge-preview", { "account": account });
     return this._get<unknown>(path, params, config);
   }
 
-  /** Verify the creation of a managed company */
-  async verifyCreation(company: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/companies/{company}/verify-creation", { "company": company });
+  /** List the tax IDs of your account */
+  async list(account: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/accounts/{account}/companies", { "account": account });
+    return this._paginate<unknown>(path, params, "cursor", config);
+  }
+
+  /** Register a tax ID in the account */
+  async create(account: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies", { "account": account });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
+  /** Verify the creation of a tax ID */
+  async verifyCreation(account: string, company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/accounts/{account}/companies/{company}/verify-creation", { "account": account, "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

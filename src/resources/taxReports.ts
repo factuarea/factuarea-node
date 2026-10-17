@@ -11,55 +11,56 @@ import type { Page } from "../core/pagination.js";
 
 export class TaxReportsResource extends BaseResource {
   /** Download tax report file */
-  async download(taxReport: string, config?: RequestConfig): Promise<BinaryResponse> {
-    const path = this.buildPath("/tax_reports/{tax_report}/download", { "tax_report": taxReport });
+  async download(company: string, taxReport: string, config?: RequestConfig): Promise<BinaryResponse> {
+    const path = this.buildPath("/companies/{company}/tax-reports/{tax_report}/download", { "company": company, "tax_report": taxReport });
     return this._binary(path, "GET", undefined, undefined, config);
   }
 
   /** Find a tax report by period */
-  async findByPeriod(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tax_reports/find-by-period";
+  async findByPeriod(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tax-reports/find-by-period", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Generate Modelo 130 */
-  async generate130(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tax_reports/130";
+  async generate130(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tax-reports/130", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Generate Modelo 303 */
-  async generate303(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tax_reports/303";
+  async generate303(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tax-reports/303", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** Generate Modelo 347 */
-  async generate347(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tax_reports/347";
+  async generate347(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tax-reports/347", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List tax report activities */
-  async activities(taxReport: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    const path = this.buildPath("/tax_reports/{tax_report}/activities", { "tax_report": taxReport });
+  async activities(company: string, taxReport: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/tax-reports/{tax_report}/activities", { "company": company, "tax_report": taxReport });
     return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve tax report stats */
-  async stats(config?: RequestConfig): Promise<unknown> {
-    const path = "/tax_reports/stats";
+  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tax-reports/stats", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List tax report history */
-  async history(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/tax_reports/history", params, "starting_after", config);
+  async history(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/tax-reports/history", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Preview a tax report */
-  async preview(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/tax_reports/preview";
+  async preview(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/tax-reports/preview", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 }

@@ -24,7 +24,13 @@ Requires **Node 20 or newer**. The SDK is runtime‑agnostic (built on the Web `
 import { Factuarea, type BusinessContact } from "@factuarea/sdk";
 
 const factuarea = new Factuarea({ apiKey: process.env.FACTUAREA_API_KEY! });
-const { data: contact } = (await factuarea.contacts.create({
+
+// Company axis: every company resource hangs off `/v1/companies/{company}/…`,
+// so the company id is the FIRST argument of the call. It is the `id` that
+// `factuarea.account.show()` returns in `data.scope[].id` — never the tax ID.
+const company = process.env.FACTUAREA_COMPANY_ID!;
+
+const { data: contact } = (await factuarea.contacts.create(company, {
   name: "Cliente Demo SL",
   kind: "company",
   tax_id: "B12345674",
@@ -34,7 +40,7 @@ const { data: contact } = (await factuarea.contacts.create({
 // Create an invoice. Single-resource calls (create/show/update) return the API
 // envelope `{ data, ... }`; read `.data` to get the resource. Operation
 // results are typed `unknown` in 0.x, so cast to the shape you expect.
-const created = (await factuarea.invoices.create({
+const created = (await factuarea.invoices.create(company, {
   // client_id is the invoice field; its value is the canonical contact UUID.
   client_id: contact.id,
   series_id: "01931b3e-7c4a-7f2e-9a8b-000000000001",
@@ -48,12 +54,12 @@ const created = (await factuarea.invoices.create({
 const invoice = created.data;
 
 // List with transparent auto-pagination (list yields the resources directly).
-for await (const inv of await factuarea.invoices.list({ status: "paid" })) {
+for await (const inv of await factuarea.invoices.list(company, { status: "paid" })) {
   console.log((inv as { id: string }).id);
 }
 
 // Download a PDF
-const pdf = await factuarea.invoices.pdf(invoice.id);
+const pdf = await factuarea.invoices.pdf(company, invoice.id);
 await require("node:fs/promises").writeFile("invoice.pdf", pdf.toBuffer());
 ```
 
@@ -95,7 +101,7 @@ The SDK pins the [`Factuarea-Version`](https://docs.factuarea.com/guides/version
 
 Use `factuarea.contacts` for customer, supplier and lead identities. A contact can hold multiple roles, so creating a supplier relationship does not require duplicating an existing customer's identity. Sales documents still name their reference `client_id`, and purchases use `supplier_id`; both accept the canonical contact UUID with the corresponding active role.
 
-Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications`, `agenda` and `transportDocuments`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
+Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications`, `agenda` and `transportDocuments`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
 
 ### Contacts
 
@@ -127,6 +133,71 @@ await factuarea.contacts.restore(contact.id);
 Filter `list` and `search` with `roles`, `tags`, `search` or `is_archived`. Arrays are serialized as `roles[]` / `tags[]` and kept across cursor pages. Use `roles: ["customer"]`, `roles: ["supplier"]`, `roles: ["lead"]` or `roles: ["none"]` for unassigned contacts. The public [Contact migration guide](https://docs.factuarea.com/guides/contact-migration) covers request fields, scopes and historical IDs.
 
 `BusinessContact`, the contact list/import response types and contact request types are exported from `@factuarea/sdk`. The resource wrappers return `unknown` in 0.x, so use the exported types for request validation and response casts.
+
+### Account model
+
+Every credential belongs to one **account**, and the account owns its tax IDs (NIF). The account axis hangs off `/v1/accounts/{account}/…`, so the account `id` is the FIRST argument of the call, exactly like the company on the company axis. It is the `id` that `factuarea.account.show()` returns in `data.account.id`. The NIF portfolio, the managed accounts, the NIF transfer and the account webhooks all live on this axis.
+
+```ts
+const account = process.env.FACTUAREA_ACCOUNT_ID!;
+
+// The account's NIF portfolio: list, add and read invoicing statistics per NIF.
+const nifs = await factuarea.companies.list(account, { limit: 50 });
+await factuarea.companies.create(account, { name: "Mi Empresa SL", tax_id: "B12345674" });
+await factuarea.companies.stats(account);
+
+// Managed accounts: provision one for a client, then read it back.
+await factuarea.managedAccounts.create({
+  external_ref: "client-0042",
+  plan: "emprendedor",
+  tax_id: "B12345674",
+  legal_name: "Cliente Demo SL",
+});
+for await (const managed of await factuarea.managedAccounts.list()) {
+  console.log((managed as { id: string }).id);
+}
+await factuarea.managedAccounts.show(managedAccountId);
+```
+
+**Bulk import.** Importing accounts takes `multipart/form-data`, so the methods receive a standard `FormData` and the SDK sends it as is (it never adds a JSON content type). `accounts_file` is required, `customers_file` is optional, and the options travel as `options[...]` form fields. Preview first, then apply:
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const form = new FormData();
+form.append("accounts_file", new Blob([await readFile("accounts.csv")], { type: "text/csv" }), "accounts.csv");
+form.append("customers_file", new Blob([await readFile("customers.csv")], { type: "text/csv" }), "customers.csv");
+form.append("options[send_email]", "false");
+
+await factuarea.managedAccounts.imports.template(); // the CSV template
+await factuarea.managedAccounts.imports.preview(form); // writes nothing
+await factuarea.managedAccounts.imports.create(form);  // applies it
+```
+
+**NIF transfer.** The issuing account creates the transfer for one NIF, the receiving account accepts it with the secret it was given, and the issuer can revoke it while it is pending:
+
+```ts
+await factuarea.account.nifTransfers.create(account, { company_id: companyId, recipient_account_id: recipientAccountId });
+await factuarea.account.nifTransfers.list(account);
+await factuarea.account.nifTransfers.accept(recipientAccount, { secret: transferSecret });
+await factuarea.account.nifTransfers.revoke(account, transferId);
+```
+
+**Account webhooks and request logs.** An account endpoint receives events of your own NIFs (`own`), of the accounts you manage (`managed`) or both (`all`). It needs a live key (`fact_live_…`):
+
+```ts
+await factuarea.account.webhooks.create(account, {
+  url: "https://example.com/webhooks/factuarea",
+  enabled_events: ["account.nif_added", "invoice.paid"],
+  account_relationship: "all",
+});
+const endpoints = await factuarea.account.webhooks.list(account);
+await factuarea.account.webhooks.rotateSecret(account, webhookId);
+await factuarea.account.webhooks.deliveries.list(account, webhookId);
+await factuarea.account.requestLogs.list(account);
+```
+
+The envelope of an account event carries `account`, `account_relationship` (`own` or `managed`) and `company_id` (`null` for an event of the account itself). Verify it with the same `verify` call as any other webhook, with the endpoint's own secret; the signature scheme is identical (see [Webhooks](#webhooks)).
 
 ### Migrating from `clients` and `suppliers`
 
@@ -204,7 +275,7 @@ console.log(entry.duration_seconds);
 
 ## Transport control documents (DeCA)
 
-`transportDocuments` covers the electronic control document of Spanish public road freight (DeCA): drafts, optionally pre-filled from delivery notes, issuing, modifying during the service, closing and reopening, cancelling or marking it as superseded by the carrier's own document, and the copy for the driver. It is not a delivery note, an invoice or a VeriFactu record. Keys need the `transport_documents:read`, `:write`, `:transition` and `:delete` scopes, and `pdfs:read` for the PDF. Issuing, modifying, cancelling, superseding and sending are irreversible: pin an `idempotencyKey` so a retry never repeats them. See the [guide](https://docs.factuarea.com/guides/transport-documents).
+`transportDocuments` covers the electronic control document of Spanish public road freight (DeCA): drafts, optionally pre-filled from delivery notes, issuing, modifying during the service, closing and reopening, cancelling or marking it as superseded by the carrier's own document, and the copy for the driver. It is not a delivery note, an invoice or a VeriFactu record. Like every company resource, each call takes the company id as its first argument. Keys need the `transport_documents:read`, `:write`, `:transition` and `:delete` scopes, and `pdfs:read` for the PDF. Issuing, modifying, cancelling, superseding and sending are irreversible: pin an `idempotencyKey` so a retry never repeats them. See the [guide](https://docs.factuarea.com/guides/transport-documents).
 
 ```ts
 import type { TransportDocument } from "@factuarea/sdk";
@@ -212,6 +283,7 @@ import type { TransportDocument } from "@factuarea/sdk";
 // A draft with one shipment per delivery note, then issue it: the next number of
 // the DC series, version 1 of the PDF and a permanent public URL behind the QR.
 const { data: draft } = (await factuarea.transportDocuments.create(
+  company,
   {
     company_role: "shipper",
     carrier: { contact_id: carrier.id },
@@ -220,14 +292,14 @@ const { data: draft } = (await factuarea.transportDocuments.create(
   },
   { idempotencyKey: "deca-draft-2026-118" },
 )) as { data: TransportDocument };
-await factuarea.transportDocuments.issue(draft.id, { idempotencyKey: "deca-issue-2026-118" });
+await factuarea.transportDocuments.issue(company, draft.id, { idempotencyKey: "deca-issue-2026-118" });
 
 // The copy for the driver: the PDF of the current version and the QR image.
-const pdf = await factuarea.transportDocuments.pdf(draft.id);
-const qr = await factuarea.transportDocuments.qr(draft.id, { format: "png" });
+const pdf = await factuarea.transportDocuments.pdf(company, draft.id);
+const qr = await factuarea.transportDocuments.qr(company, draft.id, { format: "png" });
 ```
 
-`transportDocuments.index` filters by `status`, `transport_date[gte]`, `transport_date[lte]`, `company_role`, `carrier_tax_id`, `delivery_note_id`, `q` and `sort`, and follows the cursor across pages. `pdf(id, { version })` returns the stored PDF of any version byte for byte, and `qr` returns SVG unless you ask for `format: "png"`. An issue that lacks data answers `422 transport_document_not_issuable` with the missing items in `error.details.missing`.
+`transportDocuments.index` filters by `status`, `transport_date[gte]`, `transport_date[lte]`, `company_role`, `carrier_tax_id`, `delivery_note_id`, `q` and `sort`, and follows the cursor across pages. `pdf(company, id, { version })` returns the stored PDF of any version byte for byte, and `qr` returns SVG unless you ask for `format: "png"`. An issue that lacks data answers `422 transport_document_not_issuable` with the missing items in `error.details.missing`.
 
 ## Pagination
 
@@ -262,7 +334,7 @@ Transient failures — `429` (rate limit), `5xx` and network errors — are retr
 Every `POST` automatically gets an `Idempotency-Key` (UUID), so a retried request never double‑creates a resource. The same key is reused across the retries of one logical call. Override per request:
 
 ```ts
-await factuarea.invoices.create(body, { idempotencyKey: "order-4711" });
+await factuarea.invoices.create(company, body, { idempotencyKey: "order-4711" });
 ```
 
 ## Typed errors
@@ -282,7 +354,7 @@ import {
 } from "@factuarea/sdk";
 
 try {
-  await factuarea.invoices.create(body);
+  await factuarea.invoices.create(company, body);
 } catch (error) {
   if (error instanceof ValidationError) {
     console.error(error.fields);     // { tax_id: ["NIF inválido"], … }
@@ -330,7 +402,7 @@ Verification uses HMAC‑SHA256 with a constant‑time comparison and a configur
 PDF and other binary endpoints return a `BinaryResponse` (not JSON):
 
 ```ts
-const pdf = await factuarea.invoices.pdf(invoiceId);
+const pdf = await factuarea.invoices.pdf(company, invoiceId);
 pdf.contentType;     // "application/pdf"
 pdf.toBuffer();      // Node Buffer
 pdf.toBlob();        // Blob (type preserved)

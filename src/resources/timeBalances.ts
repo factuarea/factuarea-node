@@ -11,20 +11,20 @@ import type { Page } from "../core/pagination.js";
 
 export class TimeBalancesResource extends BaseResource {
   /** Retrieve an employee’s time balance for a period */
-  async employee(employee: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/time-balances/employee/{employee}", { "employee": employee });
+  async employee(company: string, employee: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-balances/employee/{employee}", { "company": company, "employee": employee });
     return this._get<unknown>(path, params, config);
   }
 
   /** Retrieve an employee’s monthly time sheet */
-  async monthlySheet(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-balances/monthly-sheet";
+  async monthlySheet(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-balances/monthly-sheet", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 
   /** Retrieve the team time balance summary */
-  async teamSummary(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/time-balances/team-summary";
+  async teamSummary(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/time-balances/team-summary", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 }

@@ -9,8 +9,12 @@ name: Spec Sync
 #   • repository_dispatch (event_type: spec-updated) — pushed by the `factuarea`
 #     CI when the public spec is republished. The emitter is the `SDK Spec
 #     Dispatch` workflow in that repo (wired 2026-08-06); see docs/SPEC_SYNC.md.
+#     This trigger stays ACTIVE here, but the emitter's own tag trigger is
+#     PAUSED (see the note below), so a dispatch now only arrives when someone
+#     runs that workflow by hand.
 #   • workflow_dispatch — manual trigger.
-#   • schedule (daily) — fallback if the dispatch never arrives.
+#   • schedule (daily) — fallback if the dispatch never arrives. PAUSED on
+#     2026-09-22; the note below states the checkable condition to restore it.
 #
 # When the published spec differs CANONICALLY from the committed copy (parsed
 # JSON, key-order/whitespace-insensitive, x-codeSamples ignored — see
@@ -19,13 +23,64 @@ name: Spec Sync
 #
 # `schedule` restored 2026-08-06: published spec 345 paths vs 192 pinned, which
 # satisfies the `docs == prod` condition it was paused under on 2026-06-07.
+#
+# `schedule` PAUSED again 2026-09-22 by the company-axis wave, which re-anchors
+# every company resource under /companies/{company}/… and pins a document that
+# production does not serve yet. With the schedule live, the daily run would
+# download the PRODUCTION document and open a pull request that UNDOES the axis
+# in this SDK, and no gate would notice.
+#
+# The reactivation condition is deliberately NOT an operation count: a condition
+# written as a number is false the day someone reads it. Identity of the two
+# documents is what decides.
+#
+# PAUSED schedule since 2026-09-22; reactivate when: the spec published at $SPEC_URL and the copy
+# pinned in this repo are CANONICALLY identical — parse both, sort object keys recursively, drop
+# x-codeSamples, serialize without whitespace (scripts/spec-sync.mjs `canonicalize`) and compare the two
+# sha256 digests; equal ⇒ restore the block verbatim, different ⇒ it stays paused.
+# The same pause, with this same condition word for word, is in force in factuarea-node (this
+# file) and in factuarea-php; the emitter in the private `factuarea` repo
+# (.github/workflows/sdk-spec-dispatch.yml) is paused too. All three are
+# restored together, and only against this condition.
+#
+# Anyone can check that with no context, because this repo ships the procedure:
+#
+#   curl -fsSL "https://docs.factuarea.com/api/openapi" -o /tmp/published.json
+#   node scripts/spec-sync.mjs check /tmp/published.json   # changed=false ⇒ identical ⇒ restore
+#
+# Both sides must go through THAT procedure. A digest produced any other way —
+# raw bytes, or a sort that orders integer-like keys differently, as Python's
+# json.dumps(sort_keys=True) does — is not comparable, and reads as drift on a
+# document that is in fact identical.
+#
+# The pause is in force in THREE places, because pausing only the two receivers
+# would not have been enough:
+#   • factuarea-node — this file: `schedule`.
+#   • factuarea-php — .github/workflows/spec-sync.yml: the same `schedule`,
+#     carrying this same condition word for word.
+#   • factuarea (the private backend repo) — .github/workflows/sdk-spec-dispatch.yml:
+#     its `push: tags: v*` trigger. That emitter dispatches `spec-updated` to
+#     factuarea-node AND factuarea-php on every release tag, and a release
+#     unrelated to this work would be enough for both receivers to download the
+#     PRODUCTION document with their own `schedule` already off.
+# `repository_dispatch` here stays ACTIVE on purpose: with `schedule` paused it
+# is the only unattended trigger left, and test/spec-sync.test.ts ("keeps at
+# least one unattended trigger active") fails if it goes too. With the emitter
+# paused, it can now only be fired by hand.
+#
+# Condition met ⇒ put the block back under `on:`, exactly as it was:
+#
+#   schedule:
+#     - cron: "17 6 * * *" # daily at 06:17 UTC
+#
+# Condition not met ⇒ it stays paused. Nothing was disabled from the Actions
+# UI: that leaves no trace in the repo, is not reviewed in a PR and does not
+# survive a restore. Reactivating is the repository owner's call.
 
 on:
   repository_dispatch:
     types: [spec-updated]
   workflow_dispatch:
-  schedule:
-    - cron: "17 6 * * *" # daily at 06:17 UTC
 
 permissions:
   contents: write # create the sync branch

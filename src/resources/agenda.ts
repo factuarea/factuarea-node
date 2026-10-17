@@ -11,8 +11,8 @@ import type { Page } from "../core/pagination.js";
 
 export class AgendaResource extends BaseResource {
   /** List agenda items */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/agenda";
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/agenda", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 }

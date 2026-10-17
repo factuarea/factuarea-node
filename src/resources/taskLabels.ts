@@ -11,31 +11,32 @@ import type { Page } from "../core/pagination.js";
 
 export class TaskLabelsResource extends BaseResource {
   /** Create a task label */
-  async create(body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = "/task-labels";
+  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/task-labels", { "company": company });
     return this._send<unknown>("POST", path, body, config);
   }
 
   /** List task labels */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/task-labels", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/task-labels", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a task label */
-  async delete(label: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/task-labels/{label}", { "label": label });
+  async delete(company: string, label: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/task-labels/{label}", { "company": company, "label": label });
     return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a task label */
-  async show(label: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/task-labels/{label}", { "label": label });
+  async show(company: string, label: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/task-labels/{label}", { "company": company, "label": label });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** Update a task label */
-  async update(label: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/task-labels/{label}", { "label": label });
-    return this._send<unknown>("PUT", path, body, config);
+  async update(company: string, label: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/task-labels/{label}", { "company": company, "label": label });
+    return this._send<unknown>("PATCH", path, body, config);
   }
 }

@@ -11,8 +11,8 @@ import type { Page } from "../core/pagination.js";
 
 export class AbsenceCalendarResource extends BaseResource {
   /** Get the team absence calendar */
-  async show(params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
-    const path = "/absence-calendar";
+  async show(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/absence-calendar", { "company": company });
     return this._get<unknown>(path, params, config);
   }
 }

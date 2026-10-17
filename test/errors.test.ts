@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { BASE_URL, server, testClient, useMockServer } from "./helpers.js";
+import { BASE_URL, COMPANY, COMPANY_URL, server, testClient, useMockServer } from "./helpers.js";
 import {
   AuthenticationError,
   ConflictError,
@@ -31,7 +31,7 @@ describe("error envelope mapping", () => {
 
   for (const [status, body, ErrorClass] of cases) {
     it(`maps HTTP ${status} to ${ErrorClass.name}`, async () => {
-      server.use(http.get(`${BASE_URL}/account`, () => HttpResponse.json(body, { status })));
+      server.use(http.get(`${BASE_URL}/me`, () => HttpResponse.json(body, { status })));
       const error = await testClient().account.show().catch((e) => e);
       expect(error).toBeInstanceOf(ErrorClass);
       expect(error).toBeInstanceOf(FactuareaError);
@@ -42,7 +42,7 @@ describe("error envelope mapping", () => {
 
   it("exposes .code and .type on every error", async () => {
     server.use(
-      http.get(`${BASE_URL}/account`, () => HttpResponse.json(envelope("not_found_error", "resource_not_found"), { status: 404 })),
+      http.get(`${BASE_URL}/me`, () => HttpResponse.json(envelope("not_found_error", "resource_not_found"), { status: 404 })),
     );
     const error = (await testClient().account.show().catch((e) => e)) as FactuareaError;
     expect(error.code).toBe("resource_not_found");
@@ -51,35 +51,35 @@ describe("error envelope mapping", () => {
 
   it("ValidationError exposes per-field messages from param", async () => {
     server.use(
-      http.post(`${BASE_URL}/contacts`, () =>
+      http.post(`${COMPANY_URL}/contacts`, () =>
         HttpResponse.json(
           { error: { type: "invalid_request_error", code: "parameter_invalid", param: "tax_id", message: "NIF inválido", request_id: "r1" } },
           { status: 422 },
         ),
       ),
     );
-    const error = (await testClient().contacts.create({}).catch((e) => e)) as ValidationError;
+    const error = (await testClient().contacts.create(COMPANY, {}).catch((e) => e)) as ValidationError;
     expect(error).toBeInstanceOf(ValidationError);
     expect(error.fields).toEqual({ tax_id: ["NIF inválido"] });
   });
 
   it("ValidationError exposes a fields map when present", async () => {
     server.use(
-      http.post(`${BASE_URL}/contacts`, () =>
+      http.post(`${COMPANY_URL}/contacts`, () =>
         HttpResponse.json(
           { error: { type: "invalid_request_error", code: "validation_failed", message: "Invalid", fields: { name: ["Required"], email: ["Bad format"] } } },
           { status: 422 },
         ),
       ),
     );
-    const error = (await testClient().contacts.create({}).catch((e) => e)) as ValidationError;
+    const error = (await testClient().contacts.create(COMPANY, {}).catch((e) => e)) as ValidationError;
     expect(error.fields.name).toEqual(["Required"]);
     expect(error.fields.email).toEqual(["Bad format"]);
   });
 
   it("RateLimitError exposes retryAfter and requestId", async () => {
     server.use(
-      http.get(`${BASE_URL}/account`, () =>
+      http.get(`${BASE_URL}/me`, () =>
         HttpResponse.json(envelope("rate_limit_error", "rate_limited"), {
           status: 429,
           headers: { "Retry-After": "12", "X-Request-Id": "req_header" },
@@ -93,7 +93,7 @@ describe("error envelope mapping", () => {
 
   it("falls back to X-Request-Id header when the body omits request_id", async () => {
     server.use(
-      http.get(`${BASE_URL}/account`, () =>
+      http.get(`${BASE_URL}/me`, () =>
         HttpResponse.json(
           { error: { type: "not_found_error", code: "missing" } },
           { status: 404, headers: { "X-Request-Id": "req_from_header" } },
@@ -105,18 +105,18 @@ describe("error envelope mapping", () => {
   });
 
   it("raises ConnectionError on network failure", async () => {
-    server.use(http.get(`${BASE_URL}/account`, () => HttpResponse.error()));
+    server.use(http.get(`${BASE_URL}/me`, () => HttpResponse.error()));
     const error = await testClient({ maxRetries: 0 }).account.show().catch((e) => e);
     expect(error).toBeInstanceOf(ConnectionError);
   });
 
   it("never leaks the API key in error messages", async () => {
     server.use(
-      http.post(`${BASE_URL}/contacts`, () =>
+      http.post(`${COMPANY_URL}/contacts`, () =>
         HttpResponse.json(envelope("invalid_request_error", "parameter_invalid"), { status: 422 }),
       ),
     );
-    const error = (await testClient({ apiKey: "fact_test_supersecret" }).contacts.create({}).catch((e) => e)) as Error;
+    const error = (await testClient({ apiKey: "fact_test_supersecret" }).contacts.create(COMPANY, {}).catch((e) => e)) as Error;
     expect(JSON.stringify({ message: error.message, stack: error.stack })).not.toContain("supersecret");
   });
 });

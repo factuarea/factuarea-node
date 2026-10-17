@@ -11,13 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class UsersResource extends BaseResource {
   /** Retrieve the current user */
-  async me(config?: RequestConfig): Promise<unknown> {
-    const path = "/users/me";
+  async me(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/users/me", { "company": company });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List users */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/users", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/users", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }

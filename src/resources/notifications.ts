@@ -11,19 +11,20 @@ import type { Page } from "../core/pagination.js";
 
 export class NotificationsResource extends BaseResource {
   /** List notifications */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/notifications", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/notifications", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Mark all notifications as read */
-  async markAllRead(config?: RequestConfig): Promise<unknown> {
-    const path = "/notifications/mark-all-read";
+  async markAllRead(company: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/notifications/mark-all-read", { "company": company });
     return this._send<unknown>("POST", path, undefined, config);
   }
 
   /** Mark a notification as read */
-  async read(notification: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/notifications/{notification}/read", { "notification": notification });
+  async read(company: string, notification: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/notifications/{notification}/read", { "company": company, "notification": notification });
     return this._send<unknown>("POST", path, undefined, config);
   }
 }

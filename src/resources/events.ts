@@ -11,13 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class EventsResource extends BaseResource {
   /** List all events */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/events", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/events", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve an event */
-  async show(event: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/events/{event}", { "event": event });
+  async show(company: string, event: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/events/{event}", { "company": company, "event": event });
     return this._get<unknown>(path, undefined, config);
   }
 }

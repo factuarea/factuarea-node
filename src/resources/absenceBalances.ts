@@ -11,13 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class AbsenceBalancesResource extends BaseResource {
   /** List all absence balances */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/absence-balances", params, "starting_after", config);
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/absence-balances", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve an absence balance */
-  async show(absenceBalance: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/absence-balances/{absence_balance}", { "absence_balance": absenceBalance });
+  async show(company: string, absenceBalance: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/absence-balances/{absence_balance}", { "company": company, "absence_balance": absenceBalance });
     return this._get<unknown>(path, undefined, config);
   }
 }
