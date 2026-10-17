@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -11,13 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class DevelopersRequestLogsResource extends BaseResource {
   /** List your API request logs */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/developers/request-logs", params, "starting_after");
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/request-logs", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Retrieve an API request log */
-  async show(requestId: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/developers/request-logs/{request_id}", { "request_id": requestId });
+  async show(company: string, requestId: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/request-logs/{request_id}", { "company": company, "request_id": requestId });
     return this._get<unknown>(path, undefined, config);
   }
 }

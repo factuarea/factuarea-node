@@ -5,16 +5,30 @@
  * Run here with:   `node --experimental-strip-types examples/create-invoice.ts`
  *                  (Node 22.6+) — set FACTUAREA_API_KEY first.
  */
-import { Factuarea, ValidationError } from "../src/index.js";
+import { Factuarea, ValidationError, type BusinessContact } from "../src/index.js";
 
 const factuarea = new Factuarea({ apiKey: process.env.FACTUAREA_API_KEY ?? "fact_test_xxx" });
 
+// Company axis: every company resource hangs off `/v1/companies/{company}/…`,
+// so the company id is the first argument of the call. It is the `id` that
+// `factuarea.account.show()` returns in `data.scope[].id`.
+const company = process.env.FACTUAREA_COMPANY_ID ?? "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01";
+
+
 async function main(): Promise<void> {
   try {
+    const { data: contact } = (await factuarea.contacts.create(company, {
+      name: "Cliente Demo SL",
+      kind: "company",
+      roles: ["customer"],
+      tax_id: "B12345674",
+    })) as { data: BusinessContact };
+
     // create/show/update return the API envelope `{ data, ... }`. Operation
     // bodies/results are typed `unknown` in 0.x, so cast to the shape you expect.
-    const created = (await factuarea.invoices.create({
-      client_id: "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a9b",
+    const created = (await factuarea.invoices.create(company, {
+      // The invoice contract keeps client_id; pass the canonical contact UUID.
+      client_id: contact.id,
       series_id: "01931b3e-7c4a-7f2e-9a8b-000000000001",
       issued_on: "2026-06-05",
       due_on: "2026-07-05",

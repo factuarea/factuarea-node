@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -13,7 +13,7 @@ export class WarehousesLocationsResource extends BaseResource {
   /** Archive a location of a warehouse */
   async delete(company: string, warehouse: string, location: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/warehouses/{warehouse}/locations/{location}", { "company": company, "warehouse": warehouse, "location": location });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a location of a warehouse */
@@ -37,7 +37,7 @@ export class WarehousesLocationsResource extends BaseResource {
   /** List the locations of a warehouse */
   async list(company: string, warehouse: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/companies/{company}/warehouses/{warehouse}/locations", { "company": company, "warehouse": warehouse });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }
 
@@ -52,7 +52,7 @@ export class WarehousesResource extends BaseResource {
   /** Archive a warehouse */
   async delete(company: string, warehouse: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/warehouses/{warehouse}", { "company": company, "warehouse": warehouse });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a warehouse */
@@ -76,7 +76,7 @@ export class WarehousesResource extends BaseResource {
   /** List all warehouses */
   async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/companies/{company}/warehouses", { "company": company });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Find a warehouse by code */

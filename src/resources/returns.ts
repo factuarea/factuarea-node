@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -40,13 +40,13 @@ export class ReturnsResource extends BaseResource {
   /** List all returns */
   async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
     const path = this.buildPath("/companies/{company}/returns", { "company": company });
-    return this._paginate<unknown>(path, params, "starting_after");
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 
   /** Delete a return */
   async delete(company: string, returnParam: string, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/returns/{return}", { "company": company, "return": returnParam });
-    return this._send<unknown>("DELETE", path, undefined, config);
+    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a return */

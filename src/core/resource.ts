@@ -47,6 +47,33 @@ export function flattenQuery(
   return out;
 }
 
+/** Keys of `RequestConfig`: what tells a legacy `(…, config?)` call apart from a query-params object. */
+const REQUEST_CONFIG_KEYS: ReadonlySet<string> = new Set(["idempotencyKey", "timeout", "maxRetries", "headers"]);
+
+/**
+ * Splits the second and third arguments of an operation that shipped as
+ * `(…, config?)` and later gained its first query parameter, so it is now
+ * `(…, params?, config?)`. Without this, a call that already passed its
+ * request options second would send them as query parameters and drop the
+ * options.
+ *
+ * With a third argument the call is the new shape. With only a second one,
+ * a non-empty object whose keys are all `RequestConfig` keys is the legacy
+ * `config`; anything else is `params`.
+ */
+export function splitQueryAndConfig(
+  paramsOrConfig: Record<string, unknown> | RequestConfig | undefined,
+  config: RequestConfig | undefined,
+): { params: Record<string, unknown> | undefined; config: RequestConfig | undefined } {
+  if (config === undefined && paramsOrConfig !== undefined) {
+    const keys = Object.keys(paramsOrConfig);
+    if (keys.length > 0 && keys.every((key) => REQUEST_CONFIG_KEYS.has(key))) {
+      return { params: undefined, config: paramsOrConfig as RequestConfig };
+    }
+  }
+  return { params: paramsOrConfig as Record<string, unknown> | undefined, config };
+}
+
 /** Base class shared by every resource namespace. */
 export abstract class BaseResource {
   protected readonly client: HttpClient;
@@ -85,8 +112,15 @@ export abstract class BaseResource {
     path: string,
     body?: unknown,
     config?: RequestConfig,
+    opts?: { idempotent?: boolean },
   ): Promise<T> {
-    const response = await this.client.request<T>({ method, path, body, ...config });
+    const response = await this.client.request<T>({
+      method,
+      path,
+      body,
+      ...config,
+      idempotent: opts?.idempotent,
+    });
     return response.data;
   }
 
@@ -94,12 +128,14 @@ export abstract class BaseResource {
     path: string,
     query?: Record<string, unknown>,
     config?: RequestConfig,
+    opts?: { idempotent?: boolean },
   ): Promise<T> {
     const response = await this.client.request<T>({
       method: "DELETE",
       path,
       query: flattenQuery(query),
       ...config,
+      idempotent: opts?.idempotent,
     });
     return response.data;
   }
@@ -122,8 +158,9 @@ export abstract class BaseResource {
     path: string,
     query: Record<string, unknown> | undefined,
     cursorParam: CursorParam,
+    config?: RequestConfig,
   ): Promise<Page<T>> {
-    return fetchPage<T>(this.client, path, flattenQuery(query), cursorParam);
+    return fetchPage<T>(this.client, path, flattenQuery(query), cursorParam, config);
   }
 
   protected async _binary(

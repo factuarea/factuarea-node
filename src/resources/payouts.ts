@@ -2,7 +2,7 @@
 // Regenerate with `npm run generate:resources`. These wrappers compose the
 // hand-written core (`../core`) only — never the generated HTTP layer (D5).
 //
-// Method names follow backend/docs/api/sdk-method-naming.md @ 1.0.0.
+// Method names follow backend/docs/api/sdk-method-naming.md @ 1.1.0.
 
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
@@ -11,13 +11,14 @@ import type { Page } from "../core/pagination.js";
 
 export class PayoutsResource extends BaseResource {
   /** Retrieve a Stripe payout */
-  async show(payout: string, config?: RequestConfig): Promise<unknown> {
-    const path = this.buildPath("/payouts/{payout}", { "payout": payout });
+  async show(company: string, payout: string, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/payouts/{payout}", { "company": company, "payout": payout });
     return this._get<unknown>(path, undefined, config);
   }
 
   /** List Stripe payouts */
-  async list(params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
-    return this._paginate<unknown>("/payouts", params, "starting_after");
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<Page<unknown>> {
+    const path = this.buildPath("/companies/{company}/payouts", { "company": company });
+    return this._paginate<unknown>(path, params, "starting_after", config);
   }
 }
