@@ -4801,9 +4801,9 @@ export type ConnectedAccount = {
      */
     invoice_note: string | null;
     /**
-     * How the account was linked to Stripe: `account_links` (Stripe Connect onboarding) or `stripe_app` (Stripe App). Read-only.
+     * How the account was linked to Stripe: `account_links` (Stripe Connect onboarding), `stripe_app` (Stripe App) or `platform` (the own Stripe account of the company that issues the Factuarea invoices; it has no stored credential and does not accept `subscription_autoinvoicing_enabled`). Read-only.
      */
-    connection_method: 'account_links' | 'stripe_app';
+    connection_method: 'account_links' | 'stripe_app' | 'platform';
     /**
      * Authorization state of the link with Stripe: `authorized`, `reauthorization_required` (the account must be linked again) or `revoked`. Read-only.
      */
@@ -4816,6 +4816,18 @@ export type ConnectedAccount = {
      * When the account was connected (ISO 8601), or `null` if unknown.
      */
     connected_at: string | null;
+    /**
+     * Whether the Stripe fees of this account are recorded as a monthly purchase expense. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    fee_expenses_enabled: boolean;
+    /**
+     * Tax treatment of the fee expense: `reverse_charge_eu` (intra-community purchase at 21 %, self-assessed) or `exempt` (0 %, exemption cause E1). `null` until it is configured.
+     */
+    fee_expenses_tax_treatment: 'reverse_charge_eu' | 'exempt' | null;
+    /**
+     * First month recorded as a fee expense, as `YYYY-MM`, or `null` until it is configured.
+     */
+    fee_expenses_since: string | null;
 };
 
 /**
@@ -15132,7 +15144,7 @@ export type PurchaseInvoice = {
     due_on: string | null;
     subtotal: string;
     /**
-     * VAT BORNE (IVA soportado) of this expense, WITHOUT surcharge and WITHOUT withholding. Careful: on the sales-side documents (invoice, delivery note, quote, proforma) the SAME field name carries the NET aggregate `total_vat + total_surcharge − total_retention` instead. Header invariant here: `total === subtotal + taxes_total + total_surcharge − total_retention`. Read `total_vat` for a VAT figure whose meaning does not depend on the document family.
+     * VAT BORNE (IVA soportado) of this expense, WITHOUT surcharge and WITHOUT withholding. Careful: on the sales-side documents (invoice, delivery note, quote, proforma) the SAME field name carries the NET aggregate `total_vat + total_surcharge − total_retention` instead. Header invariant here (except for self-assessed `operation_class` `intracomunitaria` and `isp`, see `total`): `total === subtotal + taxes_total + total_surcharge − total_retention`. Read `total_vat` for a VAT figure whose meaning does not depend on the document family.
      */
     taxes_total: string;
     /**
@@ -15148,7 +15160,7 @@ export type PurchaseInvoice = {
      */
     total_surcharge: string;
     /**
-     * Total of the expense. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the one specific to this family, where `taxes_total` is the VAT alone - `total = subtotal + taxes_total + total_surcharge - total_retention`. Note that the aggregate shortcut of the sales-side families (`subtotal + taxes_total`) does NOT apply here: the same field name carries a different meaning on each side.
+     * Total of the expense. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the one specific to this family, where `taxes_total` is the VAT alone - `total = subtotal + taxes_total + total_surcharge - total_retention`. Note that the aggregate shortcut of the sales-side families (`subtotal + taxes_total`) does NOT apply here: the same field name carries a different meaning on each side. Exception: when `operation_class` is `intracomunitaria` or `isp` the VAT is self-assessed (the supplier does not charge it), so it is NOT part of the total: `total = subtotal - total_retention + total_surcharge`, and `total_vat` / `taxes_total` still publish the self-assessed VAT amount.
      */
     total: string;
     currency: string;
@@ -18438,13 +18450,25 @@ export type StripePayout = {
             fee?: string;
         }>;
         /**
-         * Sum of the component fees, as a 2-decimal string in the payout currency.
+         * Sum of the component fees, plus the standalone fees and the fees of the refunds, as a 2-decimal string in the payout currency.
          */
         fee_total?: string;
         /**
          * Sum of the component amounts, as a 2-decimal string in the payout currency.
          */
         gross_total?: string;
+        /**
+         * Sum of the refunds settled in the payout (negative), as a 2-decimal string in the payout currency. `"0.00"` when there are none.
+         */
+        refunds_total?: string;
+        /**
+         * Sum of the Stripe fees charged on their own, not attached to a charge (such as monthly or currency conversion fees), as a 2-decimal string in the payout currency. Already included in `fee_total`. `"0.00"` when there are none.
+         */
+        standalone_fee_total?: string;
+        /**
+         * Sum of the remaining movements settled in the payout (adjustments, disputes and similar; signed), as a 2-decimal string in the payout currency. `"0.00"` when there are none.
+         */
+        other_total?: string;
     };
 };
 
@@ -21131,7 +21155,7 @@ export type UpdateCompanyV1Request = {
 /**
  * UpdateConnectedAccountRequest
  *
- * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled` and `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it).
+ * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it) and the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`. Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
  */
 export type UpdateConnectedAccountRequest = {
     name?: string;
@@ -21143,6 +21167,18 @@ export type UpdateConnectedAccountRequest = {
     subscription_autoinvoicing_enabled?: boolean;
     default_line_concept?: string | null;
     invoice_note?: string | null;
+    /**
+     * Turns on or off the monthly purchase expense that records the Stripe fees of this account (Stripe accounts only). Turning it on requires the purchases module of the plan and, once on, a `fee_expenses_tax_treatment` and a `fee_expenses_since` (sent in the same request or already stored). Turning it off keeps the stored treatment and month and the expenses already created.
+     */
+    fee_expenses_enabled?: boolean;
+    /**
+     * Tax treatment of the fee expense: `reverse_charge_eu` (intra-community purchase at 21 %, self-assessed) or `exempt` (0 %, exemption cause E1). Any other value is rejected with 422 `parameter_invalid_value`.
+     */
+    fee_expenses_tax_treatment?: string;
+    /**
+     * First month to record as a fee expense, as `YYYY-MM`. It cannot be later than the current month, and only closed months are recorded. A malformed or future month is rejected with 422 `parameter_invalid_value`.
+     */
+    fee_expenses_since?: string;
 };
 
 /**
@@ -48454,7 +48490,7 @@ export type PublicApiV1StripeAutoinvoicingAccountsUpdateData = {
 
 export type PublicApiV1StripeAutoinvoicingAccountsUpdateErrors = {
     /**
-     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
      */
     400: Error;
     /**
