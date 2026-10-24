@@ -46,6 +46,12 @@ export class ProformasResource extends BaseResource {
     return this._send<unknown>("POST", path, body, config);
   }
 
+  /** Convert proforma to sales order */
+  async convertToSalesOrder(company: string, proforma: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+    const path = this.buildPath("/companies/{company}/proformas/{proforma}/convert-to-sales-order", { "company": company, "proforma": proforma });
+    return this._send<unknown>("POST", path, body, config);
+  }
+
   /** Create a proforma */
   async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
     const path = this.buildPath("/companies/{company}/proformas", { "company": company });

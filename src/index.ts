@@ -3,6 +3,14 @@
  *
  * Public surface (protected by SemVer). The generated layer (`./generated`)
  * is an implementation detail; only the symbols re-exported here are stable.
+ *
+ * This is the SERVER entry point: it authenticates with an integrator API key,
+ * which is a secret and must never reach a browser. The browser SDK of the
+ * anonymous shopper lane is a SEPARATE entry point, `@factuarea/sdk/storefront`
+ * (`src/storefront/index.ts`), and the two are deliberately NOT re-exported
+ * through each other: importing one must not pull the other into the bundle.
+ * `test/storefront/browser-safety.test.ts` asserts the separation on the
+ * resolved import graph, in both directions.
  */
 
 export { Factuarea } from "./client.js";
