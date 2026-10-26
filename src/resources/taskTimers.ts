@@ -7,18 +7,19 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1TaskTimersCurrentResponses, PublicApiV1TaskTimersStopResponses } from "../generated/types.gen.js";
 
 
 export class TaskTimersResource extends BaseResource {
   /** Retrieve the running task timer */
-  async current(company: string, config?: RequestConfig): Promise<unknown> {
+  async current(company: string, config?: RequestConfig): Promise<PublicApiV1TaskTimersCurrentResponses[200]> {
     const path = this.buildPath("/companies/{company}/task-timers/current", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaskTimersCurrentResponses[200]>(path, undefined, config);
   }
 
   /** Stop the running task timer */
-  async stop(company: string, config?: RequestConfig): Promise<unknown> {
+  async stop(company: string, config?: RequestConfig): Promise<PublicApiV1TaskTimersStopResponses[200]> {
     const path = this.buildPath("/companies/{company}/task-timers/stop", { "company": company });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1TaskTimersStopResponses[200]>("POST", path, undefined, config);
   }
 }

@@ -7,19 +7,20 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1PresenceLiveResponses, PublicApiV1PresenceShowResponses } from "../generated/types.gen.js";
 
 
 export class PresenceResource extends BaseResource {
   /** Retrieve an employee’s live presence */
-  async show(company: string, employee: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, employee: string, config?: RequestConfig): Promise<PublicApiV1PresenceShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/presence/{employee}", { "company": company, "employee": employee });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1PresenceShowResponses[200]>(path, undefined, config);
   }
 
   /** Get the live team presence */
-  async live(company: string, config?: RequestConfig): Promise<unknown> {
+  async live(company: string, config?: RequestConfig): Promise<PublicApiV1PresenceLiveResponses[200]> {
     const path = this.buildPath("/companies/{company}/presence", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1PresenceLiveResponses[200]>(path, undefined, config);
   }
 
   /** List office/remote presence declarations */

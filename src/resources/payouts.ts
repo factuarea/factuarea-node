@@ -7,13 +7,14 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1PayoutsShowResponses } from "../generated/types.gen.js";
 
 
 export class PayoutsResource extends BaseResource {
   /** Retrieve a Stripe payout */
-  async show(company: string, payout: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, payout: string, config?: RequestConfig): Promise<PublicApiV1PayoutsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/payouts/{payout}", { "company": company, "payout": payout });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1PayoutsShowResponses[200]>(path, undefined, config);
   }
 
   /** List Stripe payouts */

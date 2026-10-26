@@ -58,7 +58,7 @@ describe("error envelope mapping", () => {
         ),
       ),
     );
-    const error = (await testClient().contacts.create(COMPANY, {}).catch((e) => e)) as ValidationError;
+    const error = (await testClient().contacts.create(COMPANY, {} as never).catch((e) => e)) as ValidationError;
     expect(error).toBeInstanceOf(ValidationError);
     expect(error.fields).toEqual({ tax_id: ["NIF inválido"] });
   });
@@ -72,7 +72,7 @@ describe("error envelope mapping", () => {
         ),
       ),
     );
-    const error = (await testClient().contacts.create(COMPANY, {}).catch((e) => e)) as ValidationError;
+    const error = (await testClient().contacts.create(COMPANY, {} as never).catch((e) => e)) as ValidationError;
     expect(error.fields.name).toEqual(["Required"]);
     expect(error.fields.email).toEqual(["Bad format"]);
   });
@@ -116,7 +116,7 @@ describe("error envelope mapping", () => {
         HttpResponse.json(envelope("invalid_request_error", "parameter_invalid"), { status: 422 }),
       ),
     );
-    const error = (await testClient({ apiKey: "fact_test_supersecret" }).contacts.create(COMPANY, {}).catch((e) => e)) as Error;
+    const error = (await testClient({ apiKey: "fact_test_supersecret" }).contacts.create(COMPANY, {} as never).catch((e) => e)) as Error;
     expect(JSON.stringify({ message: error.message, stack: error.stack })).not.toContain("supersecret");
   });
 });

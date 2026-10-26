@@ -7,31 +7,32 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1TaxesActiveResponses, PublicApiV1TaxesByTypeResponses, PublicApiV1TaxesCalculateData, PublicApiV1TaxesCalculateResponses, PublicApiV1TaxesCalculateTotalsData, PublicApiV1TaxesCalculateTotalsResponses, PublicApiV1TaxesCreateData, PublicApiV1TaxesCreateResponses, PublicApiV1TaxesDefaultsResponses, PublicApiV1TaxesForPurchasesResponses, PublicApiV1TaxesForSalesResponses, PublicApiV1TaxesIsInUseResponses, PublicApiV1TaxesSetDefaultForDocumentResponses, PublicApiV1TaxesSetDefaultResponses, PublicApiV1TaxesShowResponses, PublicApiV1TaxesStatsResponses, PublicApiV1TaxesToggleResponses, PublicApiV1TaxesUpdateData, PublicApiV1TaxesUpdateResponses } from "../generated/types.gen.js";
 
 
 export class TaxesResource extends BaseResource {
   /** Calculate a tax over a base amount */
-  async calculate(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async calculate(company: string, body?: PublicApiV1TaxesCalculateData["body"], config?: RequestConfig): Promise<PublicApiV1TaxesCalculateResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/calculate", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1TaxesCalculateResponses[200]>("POST", path, body, config);
   }
 
   /** Calculate totals for a set of lines */
-  async calculateTotals(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async calculateTotals(company: string, body?: PublicApiV1TaxesCalculateTotalsData["body"], config?: RequestConfig): Promise<PublicApiV1TaxesCalculateTotalsResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/calculate-totals", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1TaxesCalculateTotalsResponses[200]>("POST", path, body, config);
   }
 
   /** Check whether a tax is in use */
-  async isInUse(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+  async isInUse(company: string, tax: string, config?: RequestConfig): Promise<PublicApiV1TaxesIsInUseResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/{tax}/is-in-use", { "company": company, "tax": tax });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxesIsInUseResponses[200]>(path, undefined, config);
   }
 
   /** Create a tax */
-  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, body?: PublicApiV1TaxesCreateData["body"], config?: RequestConfig): Promise<PublicApiV1TaxesCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/taxes", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1TaxesCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List all taxes */
@@ -47,68 +48,68 @@ export class TaxesResource extends BaseResource {
   }
 
   /** Retrieve a tax */
-  async show(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, tax: string, config?: RequestConfig): Promise<PublicApiV1TaxesShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/{tax}", { "company": company, "tax": tax });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxesShowResponses[200]>(path, undefined, config);
   }
 
   /** Update a tax */
-  async update(company: string, tax: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, tax: string, body?: PublicApiV1TaxesUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1TaxesUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/{tax}", { "company": company, "tax": tax });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1TaxesUpdateResponses[200]>("PATCH", path, body, config);
   }
 
   /** List active taxes */
-  async active(company: string, config?: RequestConfig): Promise<unknown> {
+  async active(company: string, config?: RequestConfig): Promise<PublicApiV1TaxesActiveResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/active", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxesActiveResponses[200]>(path, undefined, config);
   }
 
   /** Get default taxes for a document type */
-  async defaults(company: string, docType: string, config?: RequestConfig): Promise<unknown> {
+  async defaults(company: string, docType: string, config?: RequestConfig): Promise<PublicApiV1TaxesDefaultsResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/defaults/{docType}", { "company": company, "docType": docType });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxesDefaultsResponses[200]>(path, undefined, config);
   }
 
   /** Get tax stats */
-  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+  async stats(company: string, config?: RequestConfig): Promise<PublicApiV1TaxesStatsResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/stats", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxesStatsResponses[200]>(path, undefined, config);
   }
 
   /** List taxes filtered by type */
-  async byType(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async byType(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<PublicApiV1TaxesByTypeResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/by-type", { "company": company });
-    return this._get<unknown>(path, params, config);
+    return this._get<PublicApiV1TaxesByTypeResponses[200]>(path, params, config);
   }
 
   /** List taxes applicable to purchases */
-  async forPurchases(company: string, config?: RequestConfig): Promise<unknown> {
+  async forPurchases(company: string, config?: RequestConfig): Promise<PublicApiV1TaxesForPurchasesResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/for-purchases", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxesForPurchasesResponses[200]>(path, undefined, config);
   }
 
   /** List taxes applicable to sales */
-  async forSales(company: string, config?: RequestConfig): Promise<unknown> {
+  async forSales(company: string, config?: RequestConfig): Promise<PublicApiV1TaxesForSalesResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/for-sales", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxesForSalesResponses[200]>(path, undefined, config);
   }
 
   /** Mark a tax as the default for its type */
-  async setDefault(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+  async setDefault(company: string, tax: string, config?: RequestConfig): Promise<PublicApiV1TaxesSetDefaultResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/{tax}/set-default", { "company": company, "tax": tax });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1TaxesSetDefaultResponses[200]>("POST", path, undefined, config);
   }
 
   /** Set tax default for a document type */
-  async setDefaultForDocument(company: string, tax: string, docType: string, config?: RequestConfig): Promise<unknown> {
+  async setDefaultForDocument(company: string, tax: string, docType: string, config?: RequestConfig): Promise<PublicApiV1TaxesSetDefaultForDocumentResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/{tax}/set-default/{docType}", { "company": company, "tax": tax, "docType": docType });
-    return this._send<unknown>("PATCH", path, undefined, config);
+    return this._send<PublicApiV1TaxesSetDefaultForDocumentResponses[200]>("PATCH", path, undefined, config);
   }
 
   /** Toggle tax active state */
-  async toggle(company: string, tax: string, config?: RequestConfig): Promise<unknown> {
+  async toggle(company: string, tax: string, config?: RequestConfig): Promise<PublicApiV1TaxesToggleResponses[200]> {
     const path = this.buildPath("/companies/{company}/taxes/{tax}/toggle", { "company": company, "tax": tax });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1TaxesToggleResponses[200]>("POST", path, undefined, config);
   }
 }

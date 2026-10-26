@@ -70,7 +70,7 @@ describe("canonical contacts", () => {
       expect(await request.json()).toEqual(profile);
       return HttpResponse.json({ data: { id: contactId } });
     }));
-    await testClient().contacts.updateCustomerProfile(COMPANY, contactId, profile);
+    await testClient().contacts.updateCustomerProfile(COMPANY, contactId, profile as never);
   });
 
   it("archives and restores the same identity without losing its roles", async () => {

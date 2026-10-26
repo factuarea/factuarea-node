@@ -8,8 +8,9 @@ import { defineConfig } from "@hey-api/openapi-ts";
  * wrappers in `src/resources/` compose those types — regenerating from a
  * newer spec NEVER touches hand-written code (design D5).
  *
- * Input is the local pinned copy of the spec (`spec/openapi.json`), frozen
- * at the private spec commit e822661bc.
+ * Input is the local pinned copy of the spec (`spec/openapi.json`), copied
+ * byte for byte from the private repo's export. Its provenance (SHA256) is
+ * recorded in docs/SPEC_SYNC.md, "Pinned spec".
  */
 export default defineConfig({
   input: "./spec/openapi.json",

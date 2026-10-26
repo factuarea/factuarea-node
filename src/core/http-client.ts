@@ -76,7 +76,76 @@ export interface RequestOptions {
   timeout?: number;
   /** Per-request retry override. */
   maxRetries?: number;
+  /**
+   * Disables automatic retries for this request only (status and network
+   * errors alike) without touching the shared client. Used for operations
+   * whose repetition reaches a third party, such as a FACe submission.
+   */
+  noRetry?: boolean;
+  /**
+   * Aborts the request: no further attempt is made and a `ConnectionError` is
+   * thrown. An abort after the server accepted a mutation does not undo it.
+   */
+  signal?: AbortSignal;
+  /** Sent verbatim as `If-Match` (e.g. the quoted `ETag` of a previous read). */
+  ifMatch?: string;
+  /** Sent verbatim as `If-None-Match` (e.g. the quoted `ETag` of a cached download). */
+  ifNoneMatch?: string;
+  /** Called with the metadata of the final response, successful or not. */
+  onResponse?: (meta: ResponseMeta) => void;
 }
+
+/**
+ * Response metadata that the resource methods drop when they return only the
+ * decoded body. Delivered through the per-request `onResponse` callback.
+ */
+export interface ResponseMeta {
+  status: number;
+  headers: Headers;
+  requestId: string | null;
+  /** `ETag` response header, verbatim (quotes included), to reuse as `If-Match` / `If-None-Match`. */
+  etag: string | null;
+  /** `Retry-After` in seconds, or `null` when absent or unparsable. */
+  retryAfter: number | null;
+  /** `true` when the server replayed a stored response for the same `Idempotency-Key`. */
+  idempotentReplayed: boolean;
+}
+
+/** A 304 answer to a conditional request: there is no body, keep using the cached copy. */
+export interface NotModifiedResponse {
+  kind: "not_modified";
+  status: 304;
+  headers: Headers;
+  requestId: string | null;
+  etag: string | null;
+}
+
+/** The binary side of {@link BinaryOrJsonResponse} (a rendered PDF, etc.). */
+export interface BinaryOutputResponse extends BinaryResponse {
+  kind: "binary";
+  etag: string | null;
+}
+
+/** The JSON side of {@link BinaryOrJsonResponse} (e.g. a `202` with the `pdf_output_state`). */
+export interface JsonOutputResponse<T> {
+  kind: "json";
+  data: T;
+  status: number;
+  headers: Headers;
+  requestId: string | null;
+  etag: string | null;
+  /** `Retry-After` in seconds, or `null` when absent or unparsable. */
+  retryAfter: number | null;
+}
+
+/**
+ * Result of an operation that answers with bytes (`200`), a JSON status
+ * document (`200`/`202`) or no body (`304`). Narrow on `kind`.
+ */
+export type BinaryOrJsonResponse<T = unknown> =
+  | BinaryOutputResponse
+  | JsonOutputResponse<T>
+  | NotModifiedResponse;
 
 /** A successful HTTP response, decoded as JSON of type `T`. */
 export interface ApiResponse<T> {
@@ -98,6 +167,13 @@ export interface BinaryResponse {
   toBuffer(): Buffer;
   /** Convenience: the bytes as a Blob (preserving content-type). */
   toBlob(): Blob;
+}
+
+function abortedError(options: RequestOptions, cause?: unknown): ConnectionError {
+  return new ConnectionError({
+    message: `Factuarea: request to ${options.method} ${options.path} was aborted by the caller.`,
+    cause,
+  });
 }
 
 const METHODS_WITH_IDEMPOTENCY = new Set<HttpMethod>(["POST", "PUT", "PATCH", "DELETE"]);
@@ -152,6 +228,7 @@ export class HttpClient {
   async request<T>(options: RequestOptions): Promise<ApiResponse<T>> {
     const { response, requestId } = await this.#send(options, "application/json");
     const headers = response.headers;
+    options.onResponse?.(responseMeta(response, requestId));
 
     if (response.status === 204 || response.headers.get("content-length") === "0") {
       return { data: undefined as T, status: response.status, headers, requestId };
@@ -171,6 +248,7 @@ export class HttpClient {
   async requestBinary(options: RequestOptions): Promise<BinaryResponse> {
     const { response, requestId } = await this.#send(options, "application/pdf, application/octet-stream, */*");
     const headers = response.headers;
+    options.onResponse?.(responseMeta(response, requestId));
 
     if (!response.ok) {
       const text = await response.text();
@@ -191,6 +269,55 @@ export class HttpClient {
   }
 
   /**
+   * Performs a request whose success is bytes (`200`), a JSON document
+   * (`200`/`202`) or an empty `304`. Auth, retries and error mapping are those
+   * of {@link request}; a `304` is a result, not an error.
+   */
+  async requestBinaryOrJson<T = unknown>(options: RequestOptions): Promise<BinaryOrJsonResponse<T>> {
+    const { response, requestId } = await this.#send(options, "application/pdf, application/json");
+    const headers = response.headers;
+    const meta = responseMeta(response, requestId);
+    options.onResponse?.(meta);
+
+    if (response.status === 304) {
+      return { kind: "not_modified", status: 304, headers, requestId, etag: meta.etag };
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw errorFromResponse(response.status, safeJsonParse(text) ?? text, headers);
+    }
+
+    const contentType = headers.get("content-type");
+    if (contentType !== null && /json/i.test(contentType)) {
+      const text = await response.text();
+      const data = (text.length > 0 ? safeJsonParse(text) : undefined) as T;
+      return {
+        kind: "json",
+        data,
+        status: response.status,
+        headers,
+        requestId,
+        etag: meta.etag,
+        retryAfter: meta.retryAfter,
+      };
+    }
+
+    const body = await response.arrayBuffer();
+    return {
+      kind: "binary",
+      body,
+      contentType,
+      status: response.status,
+      headers,
+      requestId,
+      etag: meta.etag,
+      toBuffer: () => Buffer.from(body),
+      toBlob: () => new Blob([body], contentType ? { type: contentType } : undefined),
+    };
+  }
+
+  /**
    * Core send loop: builds the request, applies auth/idempotency/headers, and
    * retries transient failures with backoff. The `Idempotency-Key` is computed
    * once and reused across all attempts of the same logical request.
@@ -203,7 +330,7 @@ export class HttpClient {
     const authHeaders = await this.#auth.headers();
     const idempotencyKey = this.#resolveIdempotencyKey(options);
     const timeout = options.timeout ?? this.#timeout;
-    const maxRetries = options.maxRetries ?? this.#retry.maxRetries;
+    const maxRetries = options.noRetry ? 0 : (options.maxRetries ?? this.#retry.maxRetries);
 
     const headers: Record<string, string> = {
       Accept: accept,
@@ -213,6 +340,12 @@ export class HttpClient {
       ...authHeaders,
       ...options.headers,
     };
+    if (options.ifMatch !== undefined) {
+      headers["If-Match"] = options.ifMatch;
+    }
+    if (options.ifNoneMatch !== undefined) {
+      headers["If-None-Match"] = options.ifNoneMatch;
+    }
     if (idempotencyKey) {
       headers["Idempotency-Key"] = idempotencyKey;
     }
@@ -228,8 +361,14 @@ export class HttpClient {
     let lastError: FactuareaError | undefined;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (options.signal?.aborted) {
+        throw abortedError(options);
+      }
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeout);
+      // Forward the caller's abort (portable to every Node >= 20; `AbortSignal.any` needs 20.3).
+      const forwardAbort = () => controller.abort();
+      options.signal?.addEventListener("abort", forwardAbort, { once: true });
       try {
         const response = await this.#fetch(url, {
           method: options.method,
@@ -249,6 +388,9 @@ export class HttpClient {
         const requestId = response.headers.get("x-request-id");
         return { response, requestId };
       } catch (cause) {
+        if (options.signal?.aborted) {
+          throw abortedError(options, cause);
+        }
         lastError = new ConnectionError({
           message:
             cause instanceof Error && cause.name === "AbortError"
@@ -262,6 +404,7 @@ export class HttpClient {
         }
       } finally {
         clearTimeout(timer);
+        options.signal?.removeEventListener("abort", forwardAbort);
       }
     }
 
@@ -307,6 +450,18 @@ export class HttpClient {
     }
     return url.toString();
   }
+}
+
+function responseMeta(response: Response, requestId: string | null): ResponseMeta {
+  const retryAfter = parseRetryAfter(response.headers);
+  return {
+    status: response.status,
+    headers: response.headers,
+    requestId,
+    etag: response.headers.get("etag"),
+    retryAfter: retryAfter === undefined ? null : retryAfter,
+    idempotentReplayed: response.headers.get("idempotent-replayed")?.toLowerCase() === "true",
+  };
 }
 
 function safeJsonParse(text: string): unknown {

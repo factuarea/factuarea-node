@@ -18,6 +18,11 @@ async function main(): Promise<void> {
   const invoiceId = process.argv[2] ?? "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a9b";
 
   const pdf = await factuarea.invoices.pdf(company, invoiceId);
+  if (pdf.kind !== "binary") {
+    // `202`: the PDF is still being prepared (`pdf.data`, retry after `pdf.retryAfter` seconds).
+    console.log(`PDF not ready yet (HTTP ${pdf.status}); retry later.`);
+    return;
+  }
   console.log("Content-Type:", pdf.contentType);
 
   // Node: write the Buffer straight to a file.

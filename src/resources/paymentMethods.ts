@@ -7,12 +7,13 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1PaymentMethodsListResponses } from "../generated/types.gen.js";
 
 
 export class PaymentMethodsResource extends BaseResource {
   /** List payment methods */
-  async list(config?: RequestConfig): Promise<unknown> {
+  async list(config?: RequestConfig): Promise<PublicApiV1PaymentMethodsListResponses[200]> {
     const path = "/payment-methods";
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1PaymentMethodsListResponses[200]>(path, undefined, config);
   }
 }

@@ -7,12 +7,13 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1AgendaListResponses } from "../generated/types.gen.js";
 
 
 export class AgendaResource extends BaseResource {
   /** List agenda items */
-  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async list(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<PublicApiV1AgendaListResponses[200]> {
     const path = this.buildPath("/companies/{company}/agenda", { "company": company });
-    return this._get<unknown>(path, params, config);
+    return this._get<PublicApiV1AgendaListResponses[200]>(path, params, config);
   }
 }

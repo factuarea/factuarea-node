@@ -57,7 +57,7 @@ describe("purchase scanner", () => {
       expect(request.headers.get("Idempotency-Key")).toBe("scanner-review-key-003");
       return HttpResponse.json({ data: { id: scanId, version: 4 } });
     }));
-    expect(await testClient().purchaseScans.review(COMPANY, scanId, body, { idempotencyKey: "scanner-review-key-003" })).toEqual({ data: { id: scanId, version: 4 } });
+    expect(await testClient().purchaseScans.review(COMPANY, scanId, body as never, { idempotencyKey: "scanner-review-key-003" })).toEqual({ data: { id: scanId, version: 4 } });
   });
 
   it("archives with a versioned JSON DELETE body and downloads the original as binary", async () => {

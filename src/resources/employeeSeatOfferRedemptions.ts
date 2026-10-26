@@ -7,19 +7,20 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1EmployeeSeatOfferRedemptionsCancelData, PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses, PublicApiV1EmployeeSeatOfferRedemptionsConfirmData, PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses, PublicApiV1EmployeeSeatOfferRedemptionsPrepareData, PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses, PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteData, PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses, PublicApiV1EmployeeSeatOfferRedemptionsShowResponses } from "../generated/types.gen.js";
 
 
 export class EmployeeSeatOfferRedemptionsResource extends BaseResource {
   /** Cancel an employee-seat offer redemption */
-  async cancel(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async cancel(company: string, id: string, body?: PublicApiV1EmployeeSeatOfferRedemptionsCancelData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses[200 | 202]> {
     const path = this.buildPath("/companies/{company}/employee-seat-offer-redemptions/{id}/cancel", { "company": company, "id": id });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeSeatOfferRedemptionsCancelResponses[200 | 202]>("POST", path, body, config);
   }
 
   /** Confirm an employee-seat offer redemption */
-  async confirm(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async confirm(company: string, id: string, body?: PublicApiV1EmployeeSeatOfferRedemptionsConfirmData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses[200 | 202]> {
     const path = this.buildPath("/companies/{company}/employee-seat-offer-redemptions/{id}/confirm", { "company": company, "id": id });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeSeatOfferRedemptionsConfirmResponses[200 | 202]>("POST", path, body, config);
   }
 
   /** List an employee-seat offer redemption */
@@ -29,20 +30,20 @@ export class EmployeeSeatOfferRedemptionsResource extends BaseResource {
   }
 
   /** Prepare an employee-seat offer redemption */
-  async prepare(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async prepare(company: string, body?: PublicApiV1EmployeeSeatOfferRedemptionsPrepareData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses[201]> {
     const path = this.buildPath("/companies/{company}/employee-seat-offer-redemptions", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeSeatOfferRedemptionsPrepareResponses[201]>("POST", path, body, config);
   }
 
   /** Refresh the quote for an employee-seat offer redemption */
-  async refreshQuote(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async refreshQuote(company: string, id: string, body?: PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses[200]> {
     const path = this.buildPath("/companies/{company}/employee-seat-offer-redemptions/{id}/quote", { "company": company, "id": id });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeSeatOfferRedemptionsRefreshQuoteResponses[200]>("POST", path, body, config);
   }
 
   /** Retrieve an employee-seat offer redemption */
-  async show(company: string, id: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, id: string, config?: RequestConfig): Promise<PublicApiV1EmployeeSeatOfferRedemptionsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/employee-seat-offer-redemptions/{id}", { "company": company, "id": id });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1EmployeeSeatOfferRedemptionsShowResponses[200]>(path, undefined, config);
   }
 }

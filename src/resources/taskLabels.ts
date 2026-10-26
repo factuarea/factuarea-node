@@ -7,13 +7,14 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1TaskLabelsCreateData, PublicApiV1TaskLabelsCreateResponses, PublicApiV1TaskLabelsDeleteResponses, PublicApiV1TaskLabelsShowResponses, PublicApiV1TaskLabelsUpdateData, PublicApiV1TaskLabelsUpdateResponses } from "../generated/types.gen.js";
 
 
 export class TaskLabelsResource extends BaseResource {
   /** Create a task label */
-  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, body?: PublicApiV1TaskLabelsCreateData["body"], config?: RequestConfig): Promise<PublicApiV1TaskLabelsCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/task-labels", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1TaskLabelsCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List task labels */
@@ -23,20 +24,20 @@ export class TaskLabelsResource extends BaseResource {
   }
 
   /** Delete a task label */
-  async delete(company: string, label: string, config?: RequestConfig): Promise<unknown> {
+  async delete(company: string, label: string, config?: RequestConfig): Promise<PublicApiV1TaskLabelsDeleteResponses[200]> {
     const path = this.buildPath("/companies/{company}/task-labels/{label}", { "company": company, "label": label });
-    return this._send<unknown>("DELETE", path, undefined, config, { idempotent: true });
+    return this._send<PublicApiV1TaskLabelsDeleteResponses[200]>("DELETE", path, undefined, config, { idempotent: true });
   }
 
   /** Retrieve a task label */
-  async show(company: string, label: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, label: string, config?: RequestConfig): Promise<PublicApiV1TaskLabelsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/task-labels/{label}", { "company": company, "label": label });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaskLabelsShowResponses[200]>(path, undefined, config);
   }
 
   /** Update a task label */
-  async update(company: string, label: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, label: string, body?: PublicApiV1TaskLabelsUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1TaskLabelsUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/task-labels/{label}", { "company": company, "label": label });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1TaskLabelsUpdateResponses[200]>("PATCH", path, body, config);
   }
 }

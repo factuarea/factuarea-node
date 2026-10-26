@@ -7,6 +7,7 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1EventsShowResponses } from "../generated/types.gen.js";
 
 
 export class EventsResource extends BaseResource {
@@ -17,8 +18,8 @@ export class EventsResource extends BaseResource {
   }
 
   /** Retrieve an event */
-  async show(company: string, event: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, event: string, config?: RequestConfig): Promise<PublicApiV1EventsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/events/{event}", { "company": company, "event": event });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1EventsShowResponses[200]>(path, undefined, config);
   }
 }

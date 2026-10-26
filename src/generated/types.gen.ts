@@ -302,21 +302,37 @@ export type AcceptNifTransferV1Request = {
 /**
  * AcceptProformaRequest
  *
- * Optional body to record the client acceptance: `reason` (string, ≤500 chars) and `metadata` (object, ≤50 keys, ≤500 chars per value).
+ * Optional body to record the client acceptance: `reason` (string, ≤500 chars) and `metadata` (object, ≤50 keys, ≤500 chars per value) and, when revisioned presentation is enabled, `presentation_precondition` (first capture) and `expected_presentation_uuid` (retained capture).
  */
 export type AcceptProformaRequest = {
     reason?: string | null;
     metadata?: Metadata;
+    /**
+     * UUID of the presentation the caller reviewed. If it is no longer the current presentation of the document the request is rejected with 409 and nothing is changed. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. Optional: cite the retained capture you reviewed when the proforma already has one; a proforma that was never shared has none to cite and is accepted with `presentation_precondition` alone.
+     */
+    expected_presentation_uuid?: string | null;
+    /**
+     * Optional reviewed presentation precondition. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_precondition?: ProformaPresentationPrecondition;
 };
 
 /**
  * AcceptQuoteRequest
  *
- * Optional body to record the acceptance of the quote: `accepted_on` (date, defaults to today) and `notes`. A quote whose `valid_until` date has already passed cannot be accepted (422 `quote_expired`).
+ * Optional body to record the acceptance of the quote: `accepted_on` (date, defaults to today) and `notes` and, when revisioned presentation is enabled, `presentation_precondition` (first capture) and `expected_presentation_uuid` (retained capture). A quote whose `valid_until` date has already passed cannot be accepted (422 `quote_expired`).
  */
 export type AcceptQuoteRequest = {
     accepted_on?: string | null;
     notes?: string | null;
+    /**
+     * Optional reviewed presentation precondition. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_precondition?: QuotePresentationPrecondition;
+    /**
+     * UUID of the presentation the caller reviewed. If it is no longer the current presentation of the document the request is rejected with 409 and nothing is changed. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. Optional: cite the retained capture you reviewed when the quote already has one; a quote that was never shared has none to cite and is accepted with `presentation_precondition` alone.
+     */
+    expected_presentation_uuid?: string | null;
 };
 
 /**
@@ -2118,6 +2134,22 @@ export type AssignAbsencePolicyRequest = {
 };
 
 /**
+ * AssignDocumentPresentationRequest
+ *
+ * Supply expected_version and/or a strong If-Match from GET of this exact presentation URI. Sending neither returns 428; a mismatched tag returns 412 before a stale version returns 409. No document numbering, fiscal content, parties, alias selector or query override is accepted.
+ */
+export type AssignDocumentPresentationRequest = {
+    /**
+     * Required presence: null inherits; a UUID v7 explicitly selects a tenant template. Blank or omitted selectors are invalid.
+     */
+    template_id: string | null;
+    /**
+     * Positive canonical version bounded by the server integer range; booleans, floats and leading zeros are invalid.
+     */
+    expected_version?: number | string;
+};
+
+/**
  * AssignScheduleRequest
  */
 export type AssignScheduleRequest = {
@@ -3038,10 +3070,12 @@ export type BulkCreateBusinessContactsV1Request = {
 /**
  * BulkCreateInvoicesV1Request
  *
- * Create invoices in bulk. `invoices[]` holds up to 100 invoice payloads and `dry_run` (default `false`) validates each row without persisting. Per-row rules (format, duplicate `external_id`, recipient AEAT census) are reported per row instead of failing the whole batch.
+ * Create invoices in bulk. `invoices[]` holds up to 100 invoice payloads and `dry_run` (default `false`) validates each row without persisting. Per-row rules (format, duplicate `external_id`, recipient AEAT census) are reported per row instead of failing the whole batch. Each invoices.N may include payment_terms; bulk is create-only, so duplicate `external_id` values do not upsert an existing invoice and expected_payment_terms_version is not accepted. There is no top-level calendar block. The schedule uses the same closed row/account shapes, signed strings, balance and optional non-null UUID v7 id semantics as singular create; omitted ids are generated on actual creation. dry_run does not assign persisted ids; `invalid_invoice_payment_terms` and its exact `payment_terms.N` field path are reported per row, not as a top-level 422; actual execution uses the shared assembler.
  */
 export type BulkCreateInvoicesV1Request = {
-    invoices: Array<CreateInvoiceRequest>;
+    invoices: Array<CreateInvoiceRequest & {
+        payment_terms?: InvoicePaymentTermsInput;
+    }>;
     dry_run?: boolean | null;
 };
 
@@ -3285,6 +3319,12 @@ export type BulkSendDeliveryNotesV1Request = {
     subject?: string | null;
     message?: string | null;
     language?: string | null;
+    /**
+     * Optional map from each affected delivery-note UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: DeliveryNotePresentationPrecondition;
+    };
 };
 
 /**
@@ -3299,6 +3339,12 @@ export type BulkSendInvoicesV1Request = {
     subject?: string | null;
     message?: string | null;
     language?: string | null;
+    /**
+     * Optional map from each affected invoice UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: InvoicePresentationPrecondition;
+    };
 };
 
 /**
@@ -3313,6 +3359,12 @@ export type BulkSendProformasV1Request = {
     subject?: string | null;
     message?: string | null;
     language?: string | null;
+    /**
+     * Optional map from each affected proforma UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: ProformaPresentationPrecondition;
+    };
 };
 
 /**
@@ -3327,6 +3379,12 @@ export type BulkSendQuotesV1Request = {
     subject?: string | null;
     message?: string | null;
     language?: string | null;
+    /**
+     * Optional map from each affected quote UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: QuotePresentationPrecondition;
+    };
 };
 
 /**
@@ -3337,6 +3395,12 @@ export type BulkSendQuotesV1Request = {
 export type BulkStatusDeliveryNotesV1Request = {
     ids: Array<string>;
     new_status: 'delivered' | 'cancelled';
+    /**
+     * Optional map from each affected delivery-note UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: DeliveryNotePresentationPrecondition;
+    };
 };
 
 /**
@@ -3351,6 +3415,12 @@ export type BulkStatusInvoicesV1Request = {
      */
     new_status: 'issued' | 'sent' | 'paid';
     payment_date?: string | null;
+    /**
+     * Optional map from each affected invoice UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: InvoicePresentationPrecondition;
+    };
 };
 
 /**
@@ -3371,6 +3441,12 @@ export type BulkStatusProductsV1Request = {
 export type BulkStatusProformasV1Request = {
     ids: Array<string>;
     new_status: 'accepted' | 'rejected';
+    /**
+     * Optional map from each affected proforma UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: ProformaPresentationPrecondition;
+    };
 };
 
 /**
@@ -3392,6 +3468,12 @@ export type BulkStatusPurchaseInvoicesV1Request = {
 export type BulkStatusQuotesV1Request = {
     ids: Array<string>;
     new_status: 'approved' | 'rejected';
+    /**
+     * Optional map from each affected quote UUID to its complete seven-field presentation precondition. Keys must identify documents in this batch; do not reuse another document's source token. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_preconditions?: {
+        [key: string]: QuotePresentationPrecondition;
+    };
 };
 
 /**
@@ -3525,6 +3607,10 @@ export type BusinessContact = {
         dir3_accounting_office: string | null;
         dir3_managing_body: string | null;
         dir3_processing_unit: string | null;
+        /**
+         * Canonical DIR3 code of the proposing body (role 04): 9-10 uppercase alphanumeric characters starting with a letter. Not a foreign key. Always present for a customer profile; null when no proponent is recorded, including historical contacts.
+         */
+        dir3_proponent: string | null;
     } | null;
     supplier_profile: {
         default_taxes_uuid: string | null;
@@ -4801,9 +4887,9 @@ export type ConnectedAccount = {
      */
     invoice_note: string | null;
     /**
-     * How the account was linked to Stripe: `account_links` (Stripe Connect onboarding) or `stripe_app` (Stripe App). Read-only.
+     * How the account was linked to Stripe: `account_links` (Stripe Connect onboarding), `stripe_app` (Stripe App) or `platform` (the own Stripe account of the company that issues the Factuarea invoices; it has no stored credential and does not accept `subscription_autoinvoicing_enabled`). Read-only.
      */
-    connection_method: 'account_links' | 'stripe_app';
+    connection_method: 'account_links' | 'stripe_app' | 'platform';
     /**
      * Authorization state of the link with Stripe: `authorized`, `reauthorization_required` (the account must be linked again) or `revoked`. Read-only.
      */
@@ -4816,6 +4902,18 @@ export type ConnectedAccount = {
      * When the account was connected (ISO 8601), or `null` if unknown.
      */
     connected_at: string | null;
+    /**
+     * Whether the Stripe fees of this account are recorded as a monthly purchase expense. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    fee_expenses_enabled: boolean;
+    /**
+     * Tax treatment of the fee expense: `reverse_charge_eu` (intra-community purchase at 21 %, self-assessed) or `exempt` (0 %, exemption cause E1). `null` until it is configured.
+     */
+    fee_expenses_tax_treatment: 'reverse_charge_eu' | 'exempt' | null;
+    /**
+     * First month recorded as a fee expense, as `YYYY-MM`, or `null` until it is configured.
+     */
+    fee_expenses_since: string | null;
 };
 
 /**
@@ -4925,19 +5023,85 @@ export type ConsolidatedWorkforce = {
 
 /**
  * ConvertDeliveryNoteRequest
+ *
+ * Convert a delivery note. Required body: `target`, whose only accepted value is `invoice`; `target_series_id` optionally selects the series of the new invoice. Presentation precondition fields (`presentation_precondition`, `expected_*`, `purpose`, `format`) are not accepted by this operation: with revisioned presentation enabled for the company they are rejected with 422; otherwise they are ignored.
  */
 export type ConvertDeliveryNoteRequest = {
     target: 'invoice';
     target_series_id?: string | null;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    presentation_precondition?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_selection_version?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_source_token?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_preview_context_fingerprint?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_template_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_commercial_identity_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    purpose?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    format?: string;
 };
 
 /**
  * ConvertProformaRequest
  *
- * Convert a proforma. Required body: `target`, whose only accepted value is `invoice`: a proforma can only be converted to an invoice, so the other targets (`proforma`, `delivery_note`) do not apply.
+ * Convert a proforma. Required body: `target`, whose only accepted value is `invoice`: a proforma can only be converted to an invoice, so the other targets (`proforma`, `delivery_note`) do not apply. Presentation precondition fields (`presentation_precondition`, `expected_*`, `purpose`, `format`) are not accepted by this operation: with revisioned presentation enabled for the company they are rejected with 422; otherwise they are ignored.
  */
 export type ConvertProformaRequest = {
     target: 'invoice';
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    presentation_precondition?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_selection_version?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_source_token?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_preview_context_fingerprint?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_template_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_commercial_identity_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    purpose?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    format?: string;
 };
 
 /**
@@ -4950,11 +5114,45 @@ export type ConvertPurchaseScanRequest = {
 
 /**
  * ConvertQuoteRequest
+ *
+ * Convert a quote. Required body: `target`, whose only accepted value is `invoice`; `issued_on` and `due_on` optionally set the dates of the new invoice. Presentation precondition fields (`presentation_precondition`, `expected_*`, `purpose`, `format`) are not accepted by this operation: with revisioned presentation enabled for the company they are rejected with 422; otherwise they are ignored.
  */
 export type ConvertQuoteRequest = {
     target: 'invoice';
     issued_on?: string | null;
     due_on?: string | null;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    presentation_precondition?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_selection_version?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_source_token?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_preview_context_fingerprint?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_template_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_commercial_identity_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    purpose?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    format?: string;
 };
 
 /**
@@ -5080,7 +5278,7 @@ export type CreateApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one).
      */
-    scopes: Array<'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'transport_documents:read' | 'transport_documents:write' | 'transport_documents:delete' | 'transport_documents:transition' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'account:owner' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'members:read' | 'members:write' | 'invitations:read' | 'invitations:write' | 'nif_transfers:read' | 'nif_transfers:write' | 'accounts:read' | 'accounts:write' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
+    scopes: Array<'pdf_templates:read' | 'pdf_templates:write' | 'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'transport_documents:read' | 'transport_documents:write' | 'transport_documents:delete' | 'transport_documents:transition' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'account:owner' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'members:read' | 'members:write' | 'invitations:read' | 'invitations:write' | 'nif_transfers:read' | 'nif_transfers:write' | 'accounts:read' | 'accounts:write' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -5185,9 +5383,22 @@ export type CreateBusinessContactV1Request = {
          * Payment term in days (0-365). For a new contact, omitted or null means 30 days; an explicit 0 means immediate payment. For an existing contact upsert, an omitted profile is preserved and a supplied profile replaces its defaults.
          */
         payment_terms_days?: number | null;
+        /**
+         * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null.
+         */
         dir3_accounting_office?: string | null;
+        /**
+         * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null.
+         */
         dir3_managing_body?: string | null;
+        /**
+         * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null.
+         */
         dir3_processing_unit?: string | null;
+        /**
+         * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null. Proposing body (role 04).
+         */
+        dir3_proponent?: string | null;
     };
     supplier_profile?: {
         default_tax_uuid?: string | null;
@@ -5265,25 +5476,31 @@ export type CreateCompanyV1Request = {
 /**
  * CreateCorrectiveInvoiceRequest
  *
- * Generate a corrective (rectificativa) invoice for a previously issued invoice. `correction_reason` (required) maps to a VeriFactu R-code; `correction_type` is `full` or `partial`; the optional `correction_nature` is `I` (by differences: void the whole invoice with `full` and no `lines`, or correct amounts with `partial` and the adjustment `lines`) or `S` (substitution: `full` with the final `lines`, no negative quantity) — omitted, `full` with `lines` is `S` and the rest `I`; `unit_price` is never negative (a negative `quantity` subtracts); the optional `correction_code` (`R1`..`R5`) forces the explicit R-code and is validated against the AEAT legal matrix for the original invoice type. Optional `justification`, `notes`, and `lines[]` (none to void the whole invoice; required for a partial correction and for a substitution). Each line may also declare the fiscal nature of the line it corrects — `unit`, `regime_key`, `exemption_reason` and `exemption_reason_text` — with the same rules as `POST /v1/companies/{company}/invoices`: a key you OMIT inherits the value of the original line at the same index, a key you SEND (even `null`) replaces it, and `null` means explicitly none.
+ * Generate a corrective (rectificativa) invoice for a previously issued invoice. `correction_reason` (required) maps to a VeriFactu R-code; `correction_type` is `full` or `partial`; the optional `correction_nature` is `I` (by differences: void the whole invoice with `full` and no `lines`, or correct amounts with `partial` and the adjustment `lines`) or `S` (substitution: `full` with the final `lines`, no negative quantity) — omitted, `full` with `lines` is `S` and the rest `I`; `unit_price` is never negative (a negative `quantity` subtracts); the optional `correction_code` (`R1`..`R5`) forces the explicit R-code and is validated against the AEAT legal matrix for the original invoice type. Optional `justification`, `notes`, and `lines[]` (none to void the whole invoice; required for a partial correction and for a substitution). Each line may also declare the fiscal nature of the line it corrects — `unit`, `regime_key`, `exemption_reason` and `exemption_reason_text` — with the same rules as `POST /v1/companies/{company}/invoices`: a key you OMIT inherits the value of the original line at the same index, a key you SEND (even `null`) replaces it, and `null` means explicitly none. Commercial line inheritance is identity-based: lines.N.source_line_id may identify an active UUID v7 line of the original invoice once. Omitted commercial values inherit only from that identified source; there is no positional fallback for commercial data. New destination line ids are generated and caller-supplied destination ids are rejected. Header commercial data is copied from the source; do not send header commercial fields or read-only snapshot/source/version fields. payment_terms defaults to [] for the new corrective. A negative payable accepts only explicit negative signed two-decimal rows whose exact sum balances. New row ids may be omitted and are returned UUID v7; supplied null/empty ids are invalid. Account 02/04 must be present before this corrective is issued; no automatic schedule or collection is created. The corrective falls due on its last instalment, or 30 days after issue without a schedule.
  */
 export type CreateCorrectiveInvoiceRequest = {
-    correction_reason: 'error_fundado' | 'concurso' | 'incobrable' | 'error_importe' | 'error_cliente' | 'devolucion' | 'descuento' | 'otras';
-    correction_type: 'full' | 'partial';
-    correction_code?: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | null;
-    /**
-     * Nature of the correction (art. 15.5 Royal Decree 1619/2012; VeriFactu `TipoRectificativa`). Optional: OMIT it and `full` with `lines` is a substitution (`S`), while `full` without `lines` and `partial` are by differences (`I`). `I`, by differences: the corrective carries the amount of the rectification, whatever its sign — void the whole invoice with `correction_type: full` and no `lines`, or correct some amounts with `partial` and the adjustment `lines` (`full` with `lines` and an explicit `I` is rejected). `S`, substitution: `correction_type: full` with the FINAL `lines` of the correct invoice (no negative quantity); registered with `ImporteRectificacion` (base and tax of the original). An incoherent combination is rejected with 422 before anything is created.
-     */
-    correction_nature?: 'I' | 'S' | null;
-    series_id?: string | null;
-    justification?: string | null;
-    notes?: string | null;
-    tags?: Array<string> | null;
-    custom_fields?: Array<{
-        field: string;
-        value: string;
-    }> | null;
     lines?: Array<{
+        id?: string;
+        uuid?: string;
+        business_references?: {
+            issuer_contract_reference: string | null;
+            issuer_transaction_reference: string | null;
+            receiver_contract_reference: string | null;
+            receiver_transaction_reference: string | null;
+            file_reference: string | null;
+            issuer_contract_date: string | null;
+            issuer_transaction_date: string | null;
+            receiver_contract_date: string | null;
+            receiver_transaction_date: string | null;
+            file_date: string | null;
+        };
+        delivery_notes_references?: Array<{
+            number: string;
+            date: string | null;
+        }> | null;
+        sequence_number?: number | null;
+        source_line_uuid?: string;
+        source_line_id?: string;
         description?: string;
         additional_description?: string | null;
         quantity?: number;
@@ -5324,7 +5541,42 @@ export type CreateCorrectiveInvoiceRequest = {
             group_uuid: string;
             value_uuid: string;
         }> | null;
+    } & {
+        business_references?: InvoiceLineReferences | null;
+        delivery_notes_references?: Array<InvoiceDeliveryNoteReference> | null;
+        /**
+         * Optional sequence. JSON integers only: 0 is valid; booleans, floats and numeric strings are rejected.
+         */
+        sequence_number?: number | null;
+        /**
+         * Optional UUID v7 of a line of the corrected invoice. Copies omitted commercial values from that source, never from its position. Each source may occur once; destination id is generated.
+         */
+        source_line_id?: string;
     }>;
+    payment_terms?: InvoicePaymentTermsInput;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_selection_version?: string;
+    /**
+     * Optional nullable tenant-template UUID for the corrective invoice. Omit it to inherit the default; a UUID requests a compatible manual selection. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    pdf_template_id?: string | null;
+    correction_reason: 'error_fundado' | 'concurso' | 'incobrable' | 'error_importe' | 'error_cliente' | 'devolucion' | 'descuento' | 'otras';
+    correction_type: 'full' | 'partial';
+    correction_code?: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | null;
+    /**
+     * Nature of the correction (art. 15.5 Royal Decree 1619/2012; VeriFactu `TipoRectificativa`). Optional: OMIT it and `full` with `lines` is a substitution (`S`), while `full` without `lines` and `partial` are by differences (`I`). `I`, by differences: the corrective carries the amount of the rectification, whatever its sign — void the whole invoice with `correction_type: full` and no `lines`, or correct some amounts with `partial` and the adjustment `lines` (`full` with `lines` and an explicit `I` is rejected). `S`, substitution: `correction_type: full` with the FINAL `lines` of the correct invoice (no negative quantity); registered with `ImporteRectificacion` (base and tax of the original). An incoherent combination is rejected with 422 before anything is created.
+     */
+    correction_nature?: 'I' | 'S' | null;
+    series_id?: string | null;
+    justification?: string | null;
+    notes?: string | null;
+    tags?: Array<string> | null;
+    custom_fields?: Array<{
+        field: string;
+        value: string;
+    }> | null;
 };
 
 /**
@@ -5358,6 +5610,14 @@ export type CreateDeliveryNoteRequest = {
     currency?: 'EUR' | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
+    /**
+     * Optional tenant-template UUID. On a new document, omission or null inherits the current default; a UUID requests a compatible manual selection. If POST resolves to an existing external_id, omission preserves intent and null clears it. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Optional positive selection version. When POST upserts an existing external_id, it is the selection CAS and must be sent together with pdf_template_id. A new document initializes its selection version. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
     metadata?: Metadata;
     tags?: Array<string> | null;
     custom_fields?: Array<{
@@ -5372,14 +5632,29 @@ export type CreateDeliveryNoteRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -5453,56 +5728,35 @@ export type CreateEmployeeRequest = {
 /**
  * CreateInvoiceRequest
  *
- * Create an invoice. Required: `series_id`, `issued_on`, `due_on`, `lines[]` (at least one) and `client_id` — except on a simplified invoice (`type: F2`), where the client is optional. A terminal can issue an already-paid simplified invoice in ONE idempotent call (unattended checkout): send `type: F2`, `prices_include_tax`, a `payment` block and `options.register_verifactu`, and identify the operation with `external_id`. Optional: `notes`, `metadata`, `tags`, `custom_fields`, and an `options` object to atomically create, issue, send and wait for the PDF in a single call. Without `options` the invoice is created as a draft. A line may also be a DISBURSEMENT (`line_type: "SUPLIDO"`): an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) that is re-invoiced at cost and, under art. 78.Tres.3 of the Spanish VAT Act (LIVA), stays out of the taxable base — it carries no VAT, withholding, surcharge, discount or product, requires `source_invoice_reference`, and is not allowed on a simplified (`F2`) invoice. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line returns `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00.
+ * Create an invoice. Required: `series_id`, `issued_on`, `due_on`, `lines[]` (at least one) and `client_id` — except on a simplified invoice (`type: F2`), where the client is optional. A terminal can issue an already-paid simplified invoice in ONE idempotent call (unattended checkout): send `type: F2`, `prices_include_tax`, a `payment` block and `options.register_verifactu`, and identify the operation with `external_id`. Optional: `notes`, `metadata`, `tags`, `custom_fields`, and an `options` object to atomically create, issue, send and wait for the PDF in a single call. Without `options` the invoice is created as a draft. A line may also be a DISBURSEMENT (`line_type: "SUPLIDO"`): an amount paid in the name and on behalf of the client (an official fee, duty or registry charge) that is re-invoiced at cost and, under art. 78.Tres.3 of the Spanish VAT Act (LIVA), stays out of the taxable base — it carries no VAT, withholding, surcharge, discount or product, requires `source_invoice_reference`, and is not allowed on a simplified (`F2`) invoice. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line returns `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00. Optional commercial data: business_references has only receiver_contract_reference, receiver_transaction_reference and file_reference (20 Unicode characters each); invoicing_period requires start_date <= end_date; legal_literals is an ordered list (250 characters per item). Lines support five reference/date pairs, delivery_notes_references (number up to 30 characters, optional date) and a JSON-integer sequence_number from 0 to 2147483647. Administrative centres accept one DIR3 code per role 01..04; omission or null inherits a frozen contact snapshot, [] selects none. All public line ids are generated; caller-supplied ids and read-only source/snapshot/version fields are rejected. payment_terms accepts null/[]/an ordered instalment list; new row id may be omitted, but present id must be non-null UUID v7. due_date is real YYYY-MM-DD, amount is a nonzero signed two-decimal EUR string, payment_means is 01-19, and optional account contains IBAN and nullable BIC8/11 only for 02/04. Exact sum equals total_to_pay including disbursements. Omission/null means unknown, [] explicitly no schedule. Draft can save missing 02/04 accounts; immediate issue cannot. With a nonempty schedule the invoice falls due on its last instalment: `due_on` must be that date to issue it (422 `invoice_due_date_not_last_instalment` otherwise), while a draft keeps the date you send. New creation needs no CAS; existing external_id upsert requires expected_payment_terms_version when modifying a calendar.
  */
 export type CreateInvoiceRequest = {
-    /**
-     * Invoice type: `F1` (complete invoice, the default) or `F2` (simplified invoice, the ticket of a terminal). A simplified invoice needs simplified invoices enabled for the company (422 `simplified_invoices_disabled`) and cannot exceed the absolute cap of 3,000 € VAT included (422 `simplified_invoice_not_allowed`).
-     */
-    type?: 'F1' | 'F2' | null;
-    /**
-     * Id of the client (UUID v7). Required with `type: F1` (or without `type`), and the client must have a complete tax ID. Optional with `type: F2`: without it the invoice is an anonymous ticket; with it, a qualified simplified invoice (the client must belong to your company).
-     */
-    client_id?: string;
-    /**
-     * When `true`, the `unit_price` of every line is the FINAL price with taxes (VAT included) and the system computes the net base to the cent, so the invoice total equals the sum of the amounts you sent. If no distribution of the cents reaches that total the request is rejected with 422 `amount_reconciliation_failed` and nothing is issued. Catalog lines (`product_id`) are not accepted in this mode. Defaults to `false`.
-     */
-    prices_include_tax?: boolean | null;
-    /**
-     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012). It cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. It is printed on the PDF and reported in the VeriFactu record.
-     */
-    operation_on?: string | null;
-    /**
-     * Payment recorded in the same call: after issuing, a payment is registered for the whole amount due and the invoice ends up paid. It implies issuing. Its presence makes the request an unattended checkout.
-     */
-    payment?: {
-        /**
-         * Payment method, from the catalog of `GET /v1/payment-methods`. Required when `payment` is sent.
-         */
-        method: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other';
-        /**
-         * Date of the payment (ISO 8601); only its date is used. Defaults to the issue date.
-         */
-        paid_at?: string | null;
-        /**
-         * Reference of the payment, for example the transaction id of the card terminal (up to 100 characters).
-         */
-        reference?: string | null;
-    };
-    series_id?: string | null;
-    price_list_id?: string | null;
-    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
-    issued_on: string;
-    due_on: string;
-    notes?: string | null;
-    external_id?: string | null;
-    metadata?: Metadata;
-    tags?: Array<string> | null;
-    custom_fields?: Array<{
-        field: string;
-        value: string;
-    }> | null;
+    business_references?: InvoiceHeaderReferences | null;
+    invoicing_period?: InvoiceInvoicingPeriod | null;
+    legal_literals?: InvoiceLegalLiterals | null;
+    administrative_centres?: InvoiceAdministrativeCentres | null;
     lines: Array<{
+        id?: string;
+        uuid?: string;
+        business_references?: {
+            issuer_contract_reference: string | null;
+            issuer_transaction_reference: string | null;
+            receiver_contract_reference: string | null;
+            receiver_transaction_reference: string | null;
+            file_reference: string | null;
+            issuer_contract_date: string | null;
+            issuer_transaction_date: string | null;
+            receiver_contract_date: string | null;
+            receiver_transaction_date: string | null;
+            file_date: string | null;
+        };
+        delivery_notes_references?: Array<{
+            number: string;
+            date: string | null;
+        }> | null;
+        sequence_number?: number | null;
+        source_line_uuid?: string;
+        source_line_id?: string;
         description?: string | null;
         additional_description?: string | null;
         quantity: number;
@@ -5510,14 +5764,29 @@ export type CreateInvoiceRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -5563,7 +5832,76 @@ export type CreateInvoiceRequest = {
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+    } & {
+        business_references?: InvoiceLineReferences | null;
+        delivery_notes_references?: Array<InvoiceDeliveryNoteReference> | null;
+        /**
+         * Optional sequence. JSON integers only: 0 is valid; booleans, floats and numeric strings are rejected.
+         */
+        sequence_number?: number | null;
     }>;
+    payment_terms?: InvoicePaymentTermsInput;
+    /**
+     * Body CAS for editing an existing calendar, including null/[] and a no-op. Also required if total_to_pay changes with a nonempty current schedule. Missing returns 428, stale returns 409 with current_version only after parent authorization. 0 means no row. New creation needs no version; POST external_id upsert follows the update rules. Idempotent replay precedes CAS. Neither If-Match nor expected_version/administrative_version substitutes this field.
+     */
+    expected_payment_terms_version?: number;
+    /**
+     * Invoice type: `F1` (complete invoice, the default) or `F2` (simplified invoice, the ticket of a terminal). A simplified invoice needs simplified invoices enabled for the company (422 `simplified_invoices_disabled`) and cannot exceed the absolute cap of 3,000 € VAT included (422 `simplified_invoice_not_allowed`).
+     */
+    type?: 'F1' | 'F2' | null;
+    /**
+     * Id of the client (UUID v7). Required with `type: F1` (or without `type`), and the client must have a complete tax ID. Optional with `type: F2`: without it the invoice is an anonymous ticket; with it, a qualified simplified invoice (the client must belong to your company).
+     */
+    client_id?: string;
+    /**
+     * When `true`, the `unit_price` of every line is the FINAL price with taxes (VAT included) and the system computes the net base to the cent, so the invoice total equals the sum of the amounts you sent. If no distribution of the cents reaches that total the request is rejected with 422 `amount_reconciliation_failed` and nothing is issued. Catalog lines (`product_id`) are not accepted in this mode. Defaults to `false`.
+     */
+    prices_include_tax?: boolean | null;
+    /**
+     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012). It cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. It is printed on the PDF and reported in the VeriFactu record.
+     */
+    operation_on?: string | null;
+    /**
+     * Payment recorded in the same call: after issuing, a payment is registered for the whole amount due and the invoice ends up paid. It implies issuing. Its presence makes the request an unattended checkout.
+     */
+    payment?: {
+        /**
+         * Payment method, from the catalog of `GET /v1/payment-methods`. Required when `payment` is sent.
+         */
+        method: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other';
+        /**
+         * Date of the payment (ISO 8601); only its date is used. Defaults to the issue date.
+         */
+        paid_at?: string | null;
+        /**
+         * Reference of the payment, for example the transaction id of the card terminal (up to 100 characters).
+         */
+        reference?: string | null;
+    };
+    series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
+    /**
+     * Optional tenant-template UUID. On a new invoice, omission or null inherits the current default; a UUID requests a compatible manual selection. If POST resolves to an existing external_id, omission preserves intent and null clears it. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Positive selection version. It applies only when POST resolves to an existing external_id, where it is the selection CAS for pdf_template_id; a new invoice rejects it with 422. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
+    issued_on: string;
+    /**
+     * Due date (YYYY-MM-DD). It drives the overdue status, payment reminders and debt ageing. With a nonempty `payment_terms` schedule the invoice falls due on its last instalment, so send that date: a draft keeps a different one, but issuing it (in this call through `options`, or later) returns 422 `invoice_due_date_not_last_instalment` and nothing is issued.
+     */
+    due_on: string;
+    notes?: string | null;
+    external_id?: string | null;
+    metadata?: Metadata;
+    tags?: Array<string> | null;
+    custom_fields?: Array<{
+        field: string;
+        value: string;
+    }> | null;
     options?: {
         /**
          * When `true`, the invoice is issued right after it is created (definitive number, frozen document) instead of staying as a draft.
@@ -5606,6 +5944,55 @@ export type CreateNifTransferV1Request = {
      * Public identifier (UUID v7) of the ONLY account that will be able to accept this transfer. Optional: without it, whoever holds the secret can accept it.
      */
     recipient_account_id?: string | null;
+};
+
+/**
+ * CreatePdfTemplatePreviewRequest
+ *
+ * Requires the existing `pdfs:read` and additional `pdf_templates:read` scopes. Send exactly one of `example`, `unsaved_form`, `persisted_draft`, `presentation_revision` or `invoice_substitution`, with required purpose, format and locale. A `persisted_draft` source accepts a draft document or a quote, pro-forma or delivery note that has left draft and has no retained presentation yet; with a retained presentation (or an issued invoice) it returns 403. `invoice_substitution` is only valid for `invoice` / `complete` / `a4` and must omit the visual triple. Example and unsaved form require the complete `base_preset`, `layout_version` and `configuration`; owner-bound sources accept that complete triple or omit all three. Partial or explicit-null triples return 422 with field paths. Omission resolves the exact effective root from the authoritative owner on the server, preserves null defaults and retained pins, and performs no import or live fill. A supplied full root must match that root exactly. The commercial identity selector exists only on `example`: omit it or send null/`inherit` for inheritance; `exact_revision` requires both retained identity and revision UUIDs; `draft` requires a library administrator and all six nullable keys (`commercial_name`, `logo_asset_id`, `brand_image_asset_id`, `brand_mode`, `contact_email`, `contact_phone`); `logo_dark_asset_id`, `brand_image_dark_asset_id`, `dark_background_fallback` (default `silhouette`) and `brand_size` (default `medium`) are optional. Draft assets must already be retained; preview neither reads live brand data nor saves, publishes, or asserts continuity. A revision source binds an authentic owner document and exact retained parent, nullable target template (null inherits), captured/current_legal policy and positive `expected_version` CAS. Its returned `source_token` and revision precondition authorize only a later explicit Revise action; they never authorize issue, send, accept or sign. Semantic normalization precedes admission and equivalent previews may resolve to one retained artifact; HTTP idempotency still compares the raw body, so changing the body with the same key returns 409. Missing canonical tenant initialization or disabled revisioned presentation returns a recoverable 422 `pdf_presentation_not_ready` (`invalid_request_error`) with no artifact, intent or reservation: preserve form data and complete authorized initialization. GET and preview never import or initialize; an owner CLI may be an optional initialization entry point, never a required client step. Exact retained prepared/READY reads do not require fresh initialization.
+ */
+export type CreatePdfTemplatePreviewRequest = {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    locale: 'es' | 'en' | 'ca';
+    base_preset: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version: '1';
+    configuration: PdfTemplateConfiguration;
+    source: PdfPreviewExampleSource;
+} | {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    locale: 'es' | 'en' | 'ca';
+    base_preset: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version: '1';
+    configuration: PdfTemplateConfiguration;
+    source: PdfPreviewUnsavedFormSource;
+} | (unknown & {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    locale: 'es' | 'en' | 'ca';
+    base_preset?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version?: '1';
+    configuration?: PdfTemplateConfiguration;
+    source: PdfPreviewPersistedDraftSource;
+}) | (unknown & {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    locale: 'es' | 'en' | 'ca';
+    base_preset?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version?: '1';
+    configuration?: PdfTemplateConfiguration;
+    source: PdfPreviewPresentationRevisionSource;
+}) | {
+    document_type: 'invoice';
+    purpose: 'complete';
+    format: 'a4';
+    locale: 'es' | 'en' | 'ca';
+    source: PdfPreviewInvoiceSubstitutionSource;
 };
 
 /**
@@ -5774,6 +6161,14 @@ export type CreateProformaRequest = {
     series_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
+    /**
+     * Optional tenant-template UUID. On a new document, omission or null inherits the current default; a UUID requests a compatible manual selection. If POST resolves to an existing external_id, omission preserves intent and null clears it. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Optional positive selection version. When POST upserts an existing external_id, it is the selection CAS and must be sent together with pdf_template_id. A new document initializes its selection version. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
     issued_on: string;
     valid_until?: string | null;
     validity_days?: number | null;
@@ -5801,14 +6196,29 @@ export type CreateProformaRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -5980,6 +6390,14 @@ export type CreateQuoteRequest = {
     series_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
+    /**
+     * Optional tenant-template UUID. On a new document, omission or null inherits the current default; a UUID requests a compatible manual selection. If POST resolves to an existing external_id, omission preserves intent and null clears it. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Optional positive selection version. When POST upserts an existing external_id, it is the selection CAS and must be sent together with pdf_template_id. A new document initializes its selection version. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
     issued_on: string;
     valid_until: string;
     notes?: string | null;
@@ -6000,14 +6418,29 @@ export type CreateQuoteRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional: when you omit it (or send `null`) the line takes, in this order, the tax it references or the tax assigned to its product, and otherwise the DEFAULT TAX of your company for this kind of document (tax settings), inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. The line ends up exactly as if you had chosen that tax. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line): the API never guesses a rate. A `0` you send is honoured as a real 0 % rate, never confused with «not stated».
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -6036,6 +6469,16 @@ export type CreateQuoteRequest = {
  * Create a recurring invoice from an existing invoice, reusing its lines, client and series. The body supplies only the recurrence configuration: `frequency` and `start_on` are required; `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `generation_mode` (`draft`, `issue` or `issue_and_send`) and an `auto_delivery` object are optional.
  */
 export type CreateRecurringFromInvoiceRequest = {
+    /**
+     * Create omitted/null means latest inherited. Update omitted preserves; null resets inheritance; a complete object replaces the policy. {} and partial objects are invalid. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_policy?: RecurringPresentationPolicy | null;
+    /**
+     * Relative payment calendar of the recurrence; the schema explains the null, [] and list semantics. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    payment_terms_template?: RecurringPaymentTermsTemplate;
+    expected_source_context_hash?: string;
+    recovery?: string;
     frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
     start_on: string;
     end_on?: string | null;
@@ -6068,6 +6511,20 @@ export type CreateRecurringFromInvoiceRequest = {
  * Create a recurring invoice template that auto-generates invoices on a fixed cadence. Required: `client_id`, `series_id`, `frequency`, `start_on` and `lines[]` (at least one). Optional: `end_on`, `name`, `description`, `notes`, `metadata`, `holiday_handling`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `generation_mode`, `auto_delivery`, `tags` and `custom_fields`. `generation_mode` (`draft`, `issue` or `issue_and_send`) decides what each run does with the generated invoice; `send_automatically` is its derived compatibility field. `frequency` accepts `daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `semiannual` or `yearly`.
  */
 export type CreateRecurringInvoiceRequest = {
+    /**
+     * Create omitted/null means latest inherited. Update omitted preserves; null resets inheritance; a complete object replaces the policy. {} and partial objects are invalid. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_policy?: RecurringPresentationPolicy | null;
+    /**
+     * Relative payment calendar of the recurrence; the schema explains the null, [] and list semantics. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    payment_terms_template?: RecurringPaymentTermsTemplate;
+    /**
+     * Body CAS required on update/existing external_id upsert when policy, terms, governing client or series is provided, even null/no-op. Missing=428, stale=409. Fresh creation rejects this field; from-invoice does not accept it. Unrelated edits preserve this version. No parent If-Match or other version substitutes it. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_presentation_policy_version?: number;
+    expected_source_context_hash?: string;
+    recovery?: string;
     client_id: string;
     series_id?: string | null;
     price_list_id?: string | null;
@@ -6127,7 +6584,13 @@ export type CreateRecurringInvoiceRequest = {
         surcharge?: number | null;
         exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
         regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20' | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
@@ -6147,8 +6610,14 @@ export type CreateRecurringInvoiceRequest = {
 
 /**
  * CreateSeriesRequest
+ *
+ * Create a fiscal numbering series using code and document_type, with the existing name, initial_number, invoice_kind, counter_reset, year_reset and number_format options. Optional pdf_template_id is a tenant-template UUID or null; omitted or null creates an inherited preference at version 1, a compatible assignment at version 2. No visual precondition is needed on creation. Invoice purpose and supported paper formats must match; ticket-only invoice templates are valid. The visual preference does not change numbering, fiscal evidence or captured document presentations.
  */
 export type CreateSeriesRequest = {
+    /**
+     * Optional tenant-template UUID. Omitted preserves (inherits on creation), null clears, empty or two selectors return 422.
+     */
+    pdf_template_id?: string | null;
     code: string;
     name?: string | null;
     document_type: 'invoice' | 'quote' | 'delivery_note' | 'proforma' | 'transport_document';
@@ -6930,6 +7399,8 @@ export type DeliveryNote = {
      * UUID v7 of the invoice this delivery note was converted into.
      */
     converted_to_id: string | null;
+    pdf_output_state: DocumentPdfOutputState;
+    presentation: DocumentPresentationState | null;
     created_at: string | null;
     updated_at: string | null;
 };
@@ -7043,6 +7514,21 @@ export type DeliveryNoteLine = {
 };
 
 /**
+ * DeliveryNotePresentationPrecondition
+ *
+ * Delivery-note action precondition. All seven values travel together; this family accepts complete-purpose A4 output only.
+ */
+export type DeliveryNotePresentationPrecondition = {
+    expected_selection_version: number;
+    expected_source_token: string;
+    expected_preview_context_fingerprint: string;
+    expected_template_revision_id: string | null;
+    expected_commercial_identity_revision_id: string | null;
+    purpose: 'complete';
+    format: 'a4';
+};
+
+/**
  * DeliveryNoteStats
  *
  * Aggregated summary of the delivery notes (*albaranes*) of the authenticated company: total, accumulated amount, breakdown by status, pending signature and converted to invoice this month. Returned by `GET /v1/companies/{company}/delivery-notes/stats`.
@@ -7106,6 +7592,175 @@ export type DeliveryNoteStatusItem = {
 };
 
 /**
+ * DocumentPdfOutputState
+ *
+ * Safe summary of the retained PDF output for a document. This is not artifact metadata: it never exposes snapshots, proofs, or storage paths. `download_url` is present only for a ready artifact.
+ */
+export type DocumentPdfOutputState = {
+    /**
+     * Revisioned PDF output state, or `null` when the document has no retained output state.
+     */
+    state: 'prepared' | 'queued' | 'processing' | 'ready' | 'failed' | 'unavailable' | 'corrupt' | null;
+    presentation_id: string | null;
+    artifact_id: string | null;
+    /**
+     * PDF format captured for this output, or `null` when unavailable.
+     */
+    format: string | null;
+    variant: 'official' | 'alternative' | null;
+    /**
+     * Stable reason when output is unavailable, such as `privacy_erased`.
+     */
+    unavailable_reason: string | null;
+    error: {
+        /**
+         * Stable error code of the retained output. A `failed` output carries `pdf_generation_failed`, `pdf_engine_profile_unavailable`, `pdf_image_resource_unavailable` or `pdf_payload_resource_unavailable`; an output erased for privacy carries `pdf_signature_personal_data_forgotten`. `pdf_generation_failed` is also the code of the 503 error returned by direct PDF download endpoints.
+         */
+        code: string;
+        retryable: boolean;
+        correlation_id: string | null;
+    } | null;
+    /**
+     * Suggested retry delay in seconds, or `null` when no retry is scheduled.
+     */
+    retry_after: number | null;
+    /**
+     * Relative download URL of the ready PDF artifact (`/v1/companies/{company}/pdf-artifacts/{artifact}/download`). Non-null only when `state` is `ready`; never an internal storage path.
+     */
+    download_url: string | null;
+};
+
+/**
+ * DocumentPresentationCaptureSummary
+ *
+ * Sixteen retained metadata fields, including the original purpose and format even after erasure. captured means a readable retained snapshot, not a ready PDF. A privacy tombstone preserves metadata and hashes but cannot recreate personal data.
+ */
+export type DocumentPresentationCaptureSummary = {
+    id: string;
+    number: number;
+    parent_id: string | null;
+    kind: 'original' | 'derived' | 'legacy_observed';
+    derivation_kind: null | 'visual_revision' | 'legal_qr' | 'legal_snapshot_refresh' | 'signature_capture';
+    created_at: string;
+    reason: string | null;
+    template_id: string | null;
+    revision_id: string | null;
+    origin: 'manual' | 'series' | 'contact_default' | 'document_type_default' | 'company_default' | 'legacy';
+    locale: 'es' | 'en' | 'ca';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    source_kind: 'captured' | 'legacy_observed';
+    availability: 'captured' | 'unavailable';
+    unavailable_reason: null | 'privacy_erased';
+};
+
+/**
+ * DocumentPresentationHistoryEnvelope
+ *
+ * Page-based history in descending capture number. This is not the cursor envelope used by document lists.
+ */
+export type DocumentPresentationHistoryEnvelope = {
+    data: Array<DocumentPresentationCaptureSummary>;
+    meta: {
+        page: number;
+        per_page: number;
+        total: number;
+    };
+};
+
+/**
+ * DocumentPresentationRevisionEnvelope
+ */
+export type DocumentPresentationRevisionEnvelope = {
+    data: {
+        presentation: DocumentPresentationCaptureSummary;
+        state: DocumentPresentationState;
+    };
+};
+
+/**
+ * DocumentPresentationSelection
+ *
+ * Current proposal for a future capture. It does not replace retained evidence or prove prepared PDF bytes. The preview fingerprint is null until an authentic preview has been prepared.
+ */
+export type DocumentPresentationSelection = {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    /**
+     * Original owner UUID; existing RFC UUID versions remain valid.
+     */
+    document_id: string;
+    origin: 'manual' | 'series' | 'contact_default' | 'document_type_default' | 'company_default' | 'legacy';
+    template_id: string | null;
+    revision_id: string | null;
+    presentation_id: string | null;
+    selection_version: number;
+    base_preset: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version: '1';
+    locale: 'es' | 'en' | 'ca';
+    selection_mode: 'inherit' | 'manual';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    contact_id: string | null;
+    commercial_identity_id: string | null;
+    commercial_identity_revision_id: string | null;
+    commercial_identity_version: number | null;
+    preview_context_fingerprint: string | null;
+    warnings: Array<DocumentPresentationWarning>;
+};
+
+/**
+ * DocumentPresentationSelectionAvailability
+ */
+export type DocumentPresentationSelectionAvailability = {
+    selectable: boolean;
+    reason: null | 'template_archived' | 'template_incompatible' | 'template_unavailable' | 'commercial_identity_archived' | 'commercial_identity_unavailable' | 'capability_unavailable' | 'inherited_candidate_unavailable';
+    requires_confirmation: boolean;
+};
+
+/**
+ * DocumentPresentationState
+ *
+ * Exactly fifteen public fields. A virtual head has id=null and versions=1. Readiness is legacy until global activation and tenant initialization are confirmed. Reads do not initialize or mutate. Retained capture and current selection are independent.
+ */
+export type DocumentPresentationState = {
+    id: string | null;
+    manual_template_id: string | null;
+    selection_version: number;
+    pointer_version: number;
+    binding_version: number;
+    render_activation: 'legacy' | 'revisioned';
+    can_select: boolean;
+    can_revise: boolean;
+    capture_matches_source: boolean | null;
+    selection: DocumentPresentationSelection | null;
+    captured_presentation: DocumentPresentationCaptureSummary | null;
+    selection_candidate: DocumentPresentationSelection | null;
+    selection_availability: DocumentPresentationSelectionAvailability;
+    warnings: Array<DocumentPresentationWarning>;
+    legal_source_changed: boolean;
+};
+
+/**
+ * DocumentPresentationStateEnvelope
+ */
+export type DocumentPresentationStateEnvelope = {
+    data: DocumentPresentationState;
+};
+
+/**
+ * DocumentPresentationWarning
+ */
+export type DocumentPresentationWarning = {
+    code: string;
+    path: string | null;
+    /**
+     * Stable identifier of the notice (values are fixed and safe to match on). N04: reviewed preview/source context changed (409, refresh_required); N14: stale presentation version (409, retain local edits and reload); N15: conversion destination selection changed (informational destination review); N21: legal invoice snapshot changed (informational on read, 409 before stale delivery).
+     */
+    notice_id: null | 'N01' | 'N02' | 'N03' | 'N04' | 'N05' | 'N06' | 'N07' | 'N08' | 'N09' | 'N10' | 'N11' | 'N12' | 'N13' | 'N14' | 'N15' | 'N16' | 'N17' | 'N18' | 'N19' | 'N20' | 'N21' | 'N22';
+    requires_confirmation: boolean;
+};
+
+/**
  * DryRunAutomationRuleV1Request
  */
 export type DryRunAutomationRuleV1Request = {
@@ -7123,6 +7778,82 @@ export type DryRunAutomationRuleV1Request = {
      * ID (UUID v7) of the sample resource to predict against. Required for rules whose actions operate on a document.
      */
     event_aggregate_id?: string | null;
+};
+
+/**
+ * DuplicateDeliveryNoteRequest
+ *
+ * Duplicate a delivery note into a new draft. The body is optional: `pdf_template_id` selects the tenant template of the copy.
+ */
+export type DuplicateDeliveryNoteRequest = {
+    /**
+     * Optional nullable tenant-template UUID for the copy. Omit it to inherit the default; a UUID requests a compatible manual selection. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    pdf_template_id?: string | null;
+};
+
+/**
+ * DuplicateInvoiceRequest
+ *
+ * Duplicate an invoice into a new draft. The body is optional: `pdf_template_id` selects the tenant template of the copy. Presentation precondition fields (`expected_*`, `purpose`, `format`) are not accepted by this operation: with revisioned presentation enabled for the company they are rejected with 422; otherwise they are ignored.
+ */
+export type DuplicateInvoiceRequest = {
+    /**
+     * Optional nullable tenant-template UUID for the copy. Omit it to inherit the default; a UUID requests a compatible manual selection. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_selection_version?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_source_token?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_preview_context_fingerprint?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_template_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_commercial_identity_revision_id?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    purpose?: string;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    format?: string;
+};
+
+/**
+ * DuplicateProformaRequest
+ *
+ * Duplicate a proforma into a new draft. The body is optional: `pdf_template_id` selects the tenant template of the copy.
+ */
+export type DuplicateProformaRequest = {
+    /**
+     * Optional nullable tenant-template UUID for the copy. Omit it to inherit the default; a UUID requests a compatible manual selection. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    pdf_template_id?: string | null;
+};
+
+/**
+ * DuplicateQuoteRequest
+ *
+ * Duplicate a quote into a new draft. The body is optional: `pdf_template_id` selects the tenant template of the copy.
+ */
+export type DuplicateQuoteRequest = {
+    /**
+     * Optional nullable tenant-template UUID for the copy. Omit it to inherit the default; a UUID requests a compatible manual selection. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    pdf_template_id?: string | null;
 };
 
 /**
@@ -10274,11 +11005,11 @@ export type ExportInvoicesExcelV1Request = {
 /**
  * FaceSubmission
  *
- * A submission of an invoice to FACe (the Spanish B2G general entry point). Tracks the FACe registry number and the processing status reported by the FACe web service.
+ * Tenant-scoped durable FACe attempt. Frozen administrative and payment versions identify the prepared source independently of subsequent invoice or contact changes.
  */
 export type FaceSubmission = {
     /**
-     * UUID v7 of the FACe submission.
+     * New attempts use UUIDv7; retained legacy identities are not rewritten.
      */
     id: string;
     object: 'face_submission';
@@ -10287,31 +11018,35 @@ export type FaceSubmission = {
      */
     invoice_id: string;
     /**
-     * FACe processing status (`submitted`, `registered_rcf`, `accounted`, `paid`, `rejected`, `cancellation_requested`, `cancelled`, `error`). Kept up to date by the system polling — there is no refresh endpoint in v1.
+     * FACe processing status. `prepared` and `transmission_uncertain` precede the FACe acknowledgement; afterwards `submitted`, `registered_rcf`, `accounted`, `paid`, `rejected`, `cancellation_requested`, `cancelled` or `error`. Kept up to date by the system polling — there is no refresh endpoint in v1.
      */
-    status: string;
+    status: 'prepared' | 'transmission_uncertain' | 'submitted' | 'registered_rcf' | 'accounted' | 'paid' | 'rejected' | 'cancellation_requested' | 'cancelled' | 'error';
     /**
      * Registry number assigned by FACe on presentation. Synthetic `FACE-SANDBOX-*` for sandbox (test key) submissions.
      */
     registry_number: string | null;
     /**
-     * DIR3 code of the accounting office (oficina contable, role 01) snapshotted at submission time.
+     * Frozen role 01 of this attempt.
      */
     dir3_accounting_office: string;
     /**
-     * DIR3 code of the managing body (órgano gestor, role 02) snapshotted at submission time.
+     * Frozen role 02 of this attempt.
      */
     dir3_managing_body: string;
     /**
-     * DIR3 code of the processing unit (unidad tramitadora, role 03) snapshotted at submission time.
+     * Frozen role 03 of this attempt.
      */
     dir3_processing_unit: string;
     /**
-     * Local transmission error code, `null` unless the submission is in `error` state.
+     * Optional frozen role 04; not substituted by a live contact value.
+     */
+    dir3_proponent: string | null;
+    /**
+     * Only error with confirmed_not_received authorizes a fresh attempt after audited reconciliation.
      */
     error_code: string | null;
     /**
-     * Human-readable transmission error message (in Spanish), `null` unless the submission is in `error` state.
+     * Safe public summary, never a raw SOAP or storage diagnostic.
      */
     error_message: string | null;
     /**
@@ -10323,6 +11058,26 @@ export type FaceSubmission = {
      */
     last_polled_at: string | null;
     created_at: string;
+    administrative_version: number | null;
+    administrative_revision_id: string | null;
+    payment_terms_version: number | null;
+    source_fingerprint: string | null;
+    artifact_sha256: string | null;
+    prepared_at: string | null;
+    transmission_started_at: string | null;
+    /**
+     * Only a prepared attempt with an intact retained artifact may continue; current actor send authority is also required.
+     */
+    can_transmit: boolean;
+    /**
+     * Uncertain transmission blocks new submissions, cancellation and automatic retry.
+     */
+    requires_reconciliation: boolean;
+    signing_certificate_fingerprint: string | null;
+    /**
+     * Legacy unverified bytes remain downloadable without inventing historical hashes or regenerating them.
+     */
+    artifact_status: 'ready' | 'unavailable' | 'corrupt' | 'unverified';
 };
 
 /**
@@ -10947,8 +11702,34 @@ export type Invoice = {
      * Where the invoice comes from: `native` (issued in Factuarea) or `historical_import` (a historical invoice registered by import: literal number from the file, no series counter and no VeriFactu record).
      */
     origin: 'native' | 'historical_import';
+    pdf_output_state: DocumentPdfOutputState;
+    presentation: DocumentPresentationState | null;
     created_at: string;
     updated_at: string;
+    business_references: InvoiceHeaderReferences | null;
+    invoicing_period: InvoiceInvoicingPeriod | null;
+    legal_literals: InvoiceLegalLiterals;
+    administrative_snapshot: InvoiceAdministrativeCentres | null;
+    administrative_override: InvoiceAdministrativeCentres | null;
+    administrative_centres: InvoiceAdministrativeCentres | null;
+    administrative_version: number;
+    administrative_revision_id: string | null;
+    readonly structured_source_snapshots: Array<InvoiceStructuredSourceSnapshot>;
+    payment_terms: InvoicePaymentTerms;
+    /**
+     * 0 means no component row; a persisted row starts at 1. Calendar CAS is independent of administrative and visual versions.
+     */
+    readonly payment_terms_version: number;
+    /**
+     * none unknown; explicit business intent (including []); legacy an observed adaptation, not historical evidence.
+     */
+    readonly payment_terms_source: 'none' | 'explicit' | 'legacy';
+    readonly payment_terms_currency: 'EUR';
+    readonly payment_terms_captured_at: string | null;
+    /**
+     * Frozen once before issuance or internal legacy capture; no change on collection/reversal. Unknown none is not frozen or adapted automatically on issue.
+     */
+    readonly payment_terms_frozen_at: string | null;
 };
 
 /**
@@ -11060,6 +11841,62 @@ export type InvoiceActivity = {
 };
 
 /**
+ * InvoiceAdministrativeCentre
+ */
+export type InvoiceAdministrativeCentre = {
+    /**
+     * 01 accounting office; 02 managing body; 03 processing unit; 04 proposing body.
+     */
+    role_code: '01' | '02' | '03' | '04';
+    /**
+     * DIR3: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; the normalized value is returned.
+     */
+    code: string;
+    /**
+     * Optional label, preserved verbatim, at most 40 Unicode characters.
+     */
+    name?: string | null;
+};
+
+/**
+ * InvoiceAdministrativeCentres
+ *
+ * At most one entry per role, returned sorted by role_code. [] explicitly selects no administrative centres; it never falls back to current contact defaults.
+ */
+export type InvoiceAdministrativeCentres = Array<InvoiceAdministrativeCentre>;
+
+/**
+ * InvoiceAdministrativeHistory
+ *
+ * Version starts at 1. Snapshot null means unknown legacy capture; snapshot [] means known empty. Override null inherits the frozen snapshot, while override [] selects no centres.
+ */
+export type InvoiceAdministrativeHistory = {
+    invoice_id: string;
+    version: number;
+    snapshot: InvoiceAdministrativeCentres | null;
+    override: InvoiceAdministrativeCentres | null;
+    /**
+     * Append-only history in ascending version order.
+     */
+    revisions: Array<InvoiceAdministrativeRevision>;
+};
+
+/**
+ * InvoiceAdministrativeRevision
+ *
+ * An immutable administrative routing revision. Actor and correlation identify the authorized write; it does not change fiscal parties, amounts, issuance or payment terms.
+ */
+export type InvoiceAdministrativeRevision = {
+    id: string;
+    version: number;
+    administrative_centres: InvoiceAdministrativeCentres;
+    reason: string;
+    created_at: string;
+    actor_id: string | null;
+    correlation_id: string | null;
+};
+
+/**
  * InvoiceCorrective
  *
  * Correction data of a corrective invoice. Present (object) when `is_corrective=true`, `null` on ordinary invoices.
@@ -11102,6 +11939,102 @@ export type InvoiceCorrective = {
      */
     correction_aeat_type: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | null;
 };
+
+/**
+ * InvoiceDeliveryNoteReference
+ *
+ * A delivery-note number of at most 30 Unicode characters and an optional real YYYY-MM-DD date.
+ */
+export type InvoiceDeliveryNoteReference = {
+    number: string;
+    date?: string | null;
+};
+
+/**
+ * InvoiceHeaderReferences
+ *
+ * Exactly three supported header keys. On update, omitted keys preserve their values, an empty object does nothing and null clears the whole object. Dates and issuer references are line-only.
+ */
+export type InvoiceHeaderReferences = {
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    receiver_contract_reference?: string | null;
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    receiver_transaction_reference?: string | null;
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    file_reference?: string | null;
+};
+
+/**
+ * InvoiceInstalment
+ */
+export type InvoiceInstalment = unknown & {
+    /**
+     * Persisted public instalment UUID v7, always returned.
+     */
+    id: string;
+    /**
+     * Real YYYY-MM-DD date, year 0001-9999. Rows preserve input order and their dates must be nondecreasing; equal dates are allowed. The date of the last row is the due date of the invoice (`due_on`).
+     */
+    due_date: string;
+    /**
+     * Signed EUR amount with exactly two decimals, never a JSON number. Every nonzero row has the sign of total_to_pay, and the exact sum equals total_to_pay including disbursements. No mixed-sign compensation, exponent, whitespace or implicit proration.
+     */
+    amount: string;
+    /**
+     * Contractual payment code, independent of the operational payment_method: 01 cash; 02 direct debit; 04 bank transfer; 11 cheque; 19 card. BIC is never a payment code.
+     */
+    payment_means: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19';
+    account: InvoicePaymentAccount | null;
+};
+
+/**
+ * InvoiceInstalmentInput
+ */
+export type InvoiceInstalmentInput = unknown & {
+    /**
+     * Optional by omission for a new instalment. If supplied, it must be a nonempty UUID v7 string; null is invalid. Omitted always creates a new identity, even when date/amount/position match a previous row. Active identities belong to this invoice; retired identities cannot be reused.
+     */
+    id?: string;
+    /**
+     * Real YYYY-MM-DD date, year 0001-9999. Rows preserve input order and their dates must be nondecreasing; equal dates are allowed. The date of the last row is the due date of the invoice (`due_on`).
+     */
+    due_date: string;
+    /**
+     * Signed EUR amount with exactly two decimals, never a JSON number. Every nonzero row has the sign of total_to_pay, and the exact sum equals total_to_pay including disbursements. No mixed-sign compensation, exponent, whitespace or implicit proration.
+     */
+    amount: string;
+    /**
+     * Contractual payment code, independent of the operational payment_method: 01 cash; 02 direct debit; 04 bank transfer; 11 cheque; 19 card. BIC is never a payment code.
+     */
+    payment_means: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19';
+    /**
+     * Omitted or null means no contractual account. Only codes 02 (debited) and 04 (credited) may carry one. Saving an incomplete draft is allowed; a new issue or legacy capture with 02/04 requires the account before commit. No live-bank fallback for an explicit row.
+     */
+    account?: InvoicePaymentAccountInput | null;
+};
+
+/**
+ * InvoiceInvoicingPeriod
+ *
+ * Two real YYYY-MM-DD dates with start_date <= end_date; equal dates are valid. A supplied period replaces the whole period, null clears it.
+ */
+export type InvoiceInvoicingPeriod = {
+    start_date: string;
+    end_date: string;
+};
+
+/**
+ * InvoiceLegalLiterals
+ *
+ * Ordered legal text supplied by the business. Each item has at most 250 Unicode characters. Order and duplicate items are preserved; null or [] clears the list. This is independent of calculated fiscal legal_mentions.
+ */
+export type InvoiceLegalLiterals = Array<string>;
 
 /**
  * InvoiceLine
@@ -11237,6 +12170,64 @@ export type InvoiceLine = {
      * Free-text wording of the exemption provision of this line (≤255 chars), printed under the line description to satisfy the mention required by art. 6.1.j of Royal Decree 1619/2012 when the catalogued cause does not cover it. Orthogonal to `exemption_reason` and to the document-level exemption cause: no coherence is enforced between them and the automatic header legal mention is unchanged.
      */
     exemption_reason_text?: string | null;
+    id: string;
+    business_references: InvoiceLineReferences | null;
+    /**
+     * Ordered delivery-note references; duplicates are preserved. A supplied list replaces the previous list.
+     */
+    delivery_notes_references: Array<InvoiceDeliveryNoteReference>;
+    /**
+     * Optional sequence. JSON integers only: 0 is valid; booleans, floats and numeric strings are rejected.
+     */
+    sequence_number: number | null;
+};
+
+/**
+ * InvoiceLineReferences
+ *
+ * Five reference/date pairs. Partial updates merge by key; a date cannot remain after its reference is cleared. A reference without a date is valid. Null clears all pairs.
+ */
+export type InvoiceLineReferences = {
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    issuer_contract_reference?: string | null;
+    /**
+     * A real calendar date in YYYY-MM-DD. A non-null date requires its matching reference after merging the update.
+     */
+    issuer_contract_date?: string | null;
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    issuer_transaction_reference?: string | null;
+    /**
+     * A real calendar date in YYYY-MM-DD. A non-null date requires its matching reference after merging the update.
+     */
+    issuer_transaction_date?: string | null;
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    receiver_contract_reference?: string | null;
+    /**
+     * A real calendar date in YYYY-MM-DD. A non-null date requires its matching reference after merging the update.
+     */
+    receiver_contract_date?: string | null;
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    receiver_transaction_reference?: string | null;
+    /**
+     * A real calendar date in YYYY-MM-DD. A non-null date requires its matching reference after merging the update.
+     */
+    receiver_transaction_date?: string | null;
+    /**
+     * At most 20 Unicode characters. Null clears the reference; whitespace-only text is invalid.
+     */
+    file_reference?: string | null;
+    /**
+     * A real calendar date in YYYY-MM-DD. A non-null date requires its matching reference after merging the update.
+     */
+    file_date?: string | null;
 };
 
 /**
@@ -11257,6 +12248,28 @@ export type InvoicePayment = {
      * Payment date (YYYY-MM-DD).
      */
     date: string | null;
+};
+
+/**
+ * InvoicePaymentAccount
+ */
+export type InvoicePaymentAccount = {
+    iban: string;
+    bic: string | null;
+};
+
+/**
+ * InvoicePaymentAccountInput
+ */
+export type InvoicePaymentAccountInput = {
+    /**
+     * A valid IBAN after removing ASCII spaces and uppercasing: 15-34 alphanumeric characters and MOD97 checksum. No ES-only restriction. Invalid input is reported by field without echoing the account.
+     */
+    iban: string;
+    /**
+     * Optional BIC. Trim/uppercase normalization; 8 or 11 characters, pattern AAAABBCC or AAAABBCCDDD. An 8-character BIC remains 8 characters in this contract.
+     */
+    bic?: string | null;
 };
 
 /**
@@ -11329,6 +12342,35 @@ export type InvoicePaymentDetail = {
      * When the payment was last updated (ISO 8601), or `null`.
      */
     updated_at: string | null;
+};
+
+/**
+ * InvoicePaymentTerms
+ *
+ * Contractual instalments, independent of payments and collection status. Order and persisted identities are preserved. Reading never captures legacy data or queries live bank accounts.
+ */
+export type InvoicePaymentTerms = Array<InvoiceInstalment> | null;
+
+/**
+ * InvoicePaymentTermsInput
+ *
+ * Create omitted/null means unknown; [] means explicitly no schedule, including a positive payable. Update omitted preserves, null removes the schedule only on a draft, [] explicitly selects none, and a list replaces all rows. No merge or automatic matching by index. A nonempty list must balance exactly; total zero allows only null/[]. With a nonempty list the invoice falls due on its last instalment: `due_on` must be that date when the invoice is issued (422 `invoice_due_date_not_last_instalment`), a draft keeps the date you send, and an update that replaces the list without `due_on` moves it to the last instalment.
+ */
+export type InvoicePaymentTermsInput = Array<InvoiceInstalmentInput> | null;
+
+/**
+ * InvoicePresentationPrecondition
+ *
+ * Invoice action precondition. All seven values travel together; two nullable revision IDs must still be present. Invoice producers support all four invoice purposes and all three output formats.
+ */
+export type InvoicePresentationPrecondition = {
+    expected_selection_version: number;
+    expected_source_token: string;
+    expected_preview_context_fingerprint: string;
+    expected_template_revision_id: string | null;
+    expected_commercial_identity_revision_id: string | null;
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
 };
 
 /**
@@ -11512,6 +12554,113 @@ export type InvoiceStatusItem = {
 };
 
 /**
+ * InvoiceStructuredFiscalSourceSnapshot
+ *
+ * Read-only, complete commercial source tree captured on duplication, correction or F3 substitution. Divergent sources remain separate and are never silently merged.
+ */
+export type InvoiceStructuredFiscalSourceSnapshot = {
+    /**
+     * Original invoice identity, preserved exactly, including valid legacy UUIDs. Each source invoice occurs once.
+     */
+    invoice_uuid: string;
+    business_data: {
+        business_references: InvoiceHeaderReferences | null;
+        invoicing_period: InvoiceInvoicingPeriod | null;
+        legal_literals: InvoiceLegalLiterals;
+    };
+    line_business_data: Array<InvoiceStructuredSourceLine>;
+    administrative_snapshot: InvoiceAdministrativeCentres | null;
+    administrative_override: InvoiceAdministrativeCentres | null;
+    administrative_version: number;
+    administrative_revision_id: string | null;
+};
+
+/**
+ * InvoiceStructuredSourceLine
+ */
+export type InvoiceStructuredSourceLine = {
+    uuid: string;
+    business_references: InvoiceLineReferences | null;
+    /**
+     * Ordered delivery-note references; duplicates are preserved. A supplied list replaces the previous list.
+     */
+    delivery_notes_references: Array<InvoiceDeliveryNoteReference>;
+    /**
+     * Optional sequence. JSON integers only: 0 is valid; booleans, floats and numeric strings are rejected.
+     */
+    sequence_number: number | null;
+};
+
+/**
+ * InvoiceStructuredSourceSnapshot
+ *
+ * Structured source snapshot union: the unchanged fiscal tree or a strict `document_visual_projection`. The Invoice fiscal reader ignores the visual branch.
+ */
+export type InvoiceStructuredSourceSnapshot = InvoiceStructuredFiscalSourceSnapshot | InvoiceStructuredVisualSourceSnapshot;
+
+/**
+ * InvoiceStructuredVisualProjection
+ *
+ * Exact visual projection of the document. All 18 fields are present; nullable values, zero/false values and raw decimal strings remain distinguishable.
+ */
+export type InvoiceStructuredVisualProjection = {
+    line_uuid: string;
+    sku: string | null;
+    unit_code: string | null;
+    unit_label: string | null;
+    variant_label: string | null;
+    /**
+     * Raw decimal string; zero, trailing scale and null are preserved.
+     */
+    pack_quantity: string | null;
+    /**
+     * Raw decimal string; zero, trailing scale and null are preserved.
+     */
+    units_per_pack: string | null;
+    /**
+     * Raw decimal string; zero, trailing scale and null are preserved.
+     */
+    commercial_weight: string | null;
+    photo_asset_uuid: string | null;
+    batch_number: string | null;
+    expiry_date: string | null;
+    commercial_weight_unit: string | null;
+    presentation_label: string | null;
+    price_unit_code: string | null;
+    option_snapshots: Array<{
+        group_name: string | null;
+        value_name: string | null;
+        /**
+         * Raw decimal string; zero, trailing scale and null are preserved.
+         */
+        price_adjustment: string | null;
+        applied: boolean | null;
+    }> | null;
+    option_adjustments_absorbed: boolean | null;
+    is_pack: boolean | null;
+    /**
+     * Raw decimal string; zero, trailing scale and null are preserved.
+     */
+    total_units: string | null;
+};
+
+/**
+ * InvoiceStructuredVisualSourceSnapshot
+ *
+ * Strict visual source snapshot. visual_projection.line_uuid equals target_line_uuid; one visual source is retained per target line.
+ */
+export type InvoiceStructuredVisualSourceSnapshot = {
+    kind: 'document_visual_projection';
+    source_family: 'quote' | 'proforma' | 'delivery-note';
+    /**
+     * Original source UUID; valid legacy UUID versions remain accepted.
+     */
+    source_document_uuid: string;
+    target_line_uuid: string;
+    visual_projection: InvoiceStructuredVisualProjection;
+};
+
+/**
  * InvoiceSubstitutedBy
  *
  * Reference to the full invoice (F3) that replaced this simplified invoice (F2). `null` when not applicable.
@@ -11584,11 +12733,11 @@ export type InvoiceWithCheckoutBlocks = Invoice & {
         csv: string | null;
     } | null;
     /**
-     * The A4 PDF of the invoice. `null` while the invoice is still a draft (it has no PDF yet). For another paper — 80 or 58 mm tickets — call `GET /v1/companies/{company}/invoices/{invoice}/pdf?format=ticket_80|ticket_58`, which renders in the request.
+     * The PDF of the invoice. `null` while the invoice is still a draft (it has no PDF yet). Without revisioned document templates it is the A4 PDF; for another paper — 80 or 58 mm tickets — call `GET /v1/companies/{company}/invoices/{invoice}/pdf?format=ticket_80|ticket_58`, which renders in the request. With revisioned document templates it is the output retained for the presentation captured at issuance, in that presentation's paper (a simplified invoice may be retained as an 80 mm ticket), and `url` serves that paper.
      */
     pdf?: {
         /**
-         * `ready`: the PDF is already in the private cache and `url` serves it at once (only with `options.wait_for_pdf`, which enqueues the render and waits up to about 15 s). `pending`: the render was enqueued and `url` answers 404 until the worker materializes it (seconds) — also the state of a `wait_for_pdf` whose wait expired. It is never an error.
+         * `ready`: the PDF is already rendered and `url` serves it at once (only with `options.wait_for_pdf`, which enqueues the render and waits up to about 15 s). `pending`: the render was enqueued and `url` does not serve it yet — 404, or 503 `pdf_artifact_not_ready` with `Retry-After` for a retained output — until the worker renders it (seconds); it is also the state of a `wait_for_pdf` whose wait expired and of a retained output that could not be enqueued yet, which `GET /v1/companies/{company}/invoices/{invoice}/pdf-link` enqueues. It is never an error.
          */
         status: 'ready' | 'pending';
         /**
@@ -11604,6 +12753,42 @@ export type InvoiceWithCheckoutBlocks = Invoice & {
      * Public link of the invoice (`/d/{id}`) from which the end customer downloads it — the same as `public_link.url`. `null` while the invoice is a draft or when its public link is disabled.
      */
     public_url?: string | null;
+};
+
+/**
+ * IssueInvoiceRequest
+ *
+ * Optional reviewed presentation precondition for issuing an invoice: seven top-level fields that travel together. They only take effect when revisioned presentation is enabled for the company; otherwise they are ignored. When it is enabled, the request must carry all seven, and omitting them returns 428 `pdf_presentation_precondition_required`.
+ */
+export type IssueInvoiceRequest = {
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_selection_version?: number;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_source_token?: string;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_preview_context_fingerprint?: string;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_template_revision_id?: string | null;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_commercial_identity_revision_id?: string | null;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    purpose?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    format?: 'a4' | 'ticket_80' | 'ticket_58';
 };
 
 /**
@@ -13577,6 +14762,76 @@ export type PayrollExportFormat = {
 };
 
 /**
+ * PdfArtifact
+ *
+ * Closed 24-key artifact metadata. A preparation is not a published original. READY bytes are verified and privately read from this exact artifact. Privacy erasure preserves only safe retained metadata: state=unavailable, unavailable_reason=privacy_erased, error.code=pdf_signature_personal_data_forgotten, error.retryable=false and sensitive tokens/digests/download_url null. No public privacy_erased state, readiness flag, storage path, plan, HTML, engine identity or credentials.
+ */
+export type PdfArtifact = unknown & {
+    id: string;
+    purpose: 'document' | 'preview';
+    state: 'prepared' | 'queued' | 'processing' | 'ready' | 'failed' | 'unavailable' | 'corrupt';
+    document_id: string | null;
+    source_kind: 'captured' | 'example' | 'unsaved_form' | 'persisted_draft' | 'presentation_revision' | 'invoice_substitution';
+    context_authority: 'captured' | 'illustrative' | 'delivery_precondition' | 'revision_precondition' | 'substitution_precondition';
+    context_fingerprint: string | null;
+    expected_preview_context_fingerprint: string | null;
+    source_token: string | null;
+    selection_version: number | null;
+    template_revision_id: string | null;
+    commercial_identity_revision_id: string | null;
+    artifact_fingerprint: string | null;
+    sha256: string | null;
+    size_bytes: number | null;
+    expires_at: string | null;
+    effective_font: PdfArtifactEffectiveFont;
+    warnings: PdfArtifactWarnings;
+    geometry: PdfArtifactGeometry;
+    metadata_url: string | null;
+    download_url: string | null;
+    retry_after: number | null;
+    error: {
+        /**
+         * Stable error code of the retained output. A `failed` output carries `pdf_generation_failed`, `pdf_engine_profile_unavailable`, `pdf_image_resource_unavailable` or `pdf_payload_resource_unavailable`; an output erased for privacy carries `pdf_signature_personal_data_forgotten`. `pdf_generation_failed` is also the code of the 503 error returned by direct PDF download endpoints.
+         */
+        code: string;
+        retryable: boolean;
+        correlation_id: string | null;
+    } | null;
+    unavailable_reason: string | null;
+};
+
+/**
+ * PdfArtifactEffectiveFont
+ */
+export type PdfArtifactEffectiveFont = {
+    requested_family: string;
+    effective_family: string;
+    files: Array<{
+        name: string;
+        sha256: string;
+    }>;
+    reasons: Array<string>;
+};
+
+/**
+ * PdfArtifactGeometry
+ */
+export type PdfArtifactGeometry = {
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    orientation: 'portrait' | 'landscape';
+    width_mm: number | null;
+    height_mm: number | null;
+};
+
+/**
+ * PdfArtifactWarnings
+ */
+export type PdfArtifactWarnings = Array<{
+    path: string;
+    reason: string;
+}>;
+
+/**
  * PdfCapabilities
  *
  * Read-only document branding capabilities of the effective account.
@@ -13588,6 +14843,1031 @@ export type PdfCapabilities = {
     requires_attribution: boolean;
     available_templates: Array<'classic' | 'modern' | 'minimal' | 'corporative' | 'premium'>;
     upgrade_plan: string | null;
+};
+
+/**
+ * PdfCommercialIdentity
+ */
+export type PdfCommercialIdentity = {
+    id: string;
+    name: string;
+    description: string | null;
+    state: 'active' | 'archived';
+    version: number;
+    availability: {
+        selectable: boolean;
+        reason: string | null;
+    };
+    created_at: string;
+    updated_at: string;
+    current_revision: PdfCommercialIdentityRevision;
+};
+
+/**
+ * PdfCommercialIdentityList
+ */
+export type PdfCommercialIdentityList = {
+    items: Array<PdfCommercialIdentity>;
+    meta: {
+        page: number;
+        per_page: number;
+        total: number;
+    };
+};
+
+/**
+ * PdfCommercialIdentityRevision
+ */
+export type PdfCommercialIdentityRevision = {
+    id: string;
+    identity_id: string;
+    number: number;
+    identity_version: number;
+    state: 'active' | 'archived';
+    commercial_name: string | null;
+    logo_asset_id: string | null;
+    brand_image_asset_id: string | null;
+    brand_mode: 'logo' | 'imago' | 'none' | null;
+    /**
+     * Version of the logo for dark backgrounds (asset of kind `logo`); requires `logo_asset_id`.
+     */
+    logo_dark_asset_id: string | null;
+    /**
+     * Version of the brand image for dark backgrounds (asset of kind `imago`); requires `brand_image_asset_id`.
+     */
+    brand_image_dark_asset_id: string | null;
+    /**
+     * On a dark background, without a dark version and when the brand does not contrast: a white silhouette (`silhouette`, default) or the light plate (`plate`).
+     */
+    dark_background_fallback: 'silhouette' | 'plate';
+    /**
+     * Default brand size, used by templates whose `branding.size` is `inherit` (default `medium`).
+     */
+    brand_size: 'small' | 'medium' | 'large';
+    contact_email: string | null;
+    contact_phone: string | null;
+    created_at: string;
+};
+
+/**
+ * PdfLibraryImpact
+ */
+export type PdfLibraryImpact = {
+    target_kind: 'template' | 'commercial_identity';
+    target_id: string;
+    target_version: number;
+    action: 'publish' | 'archive';
+    impact_fingerprint: string;
+    associations: Array<{
+        key: string;
+        id: string;
+        version: number;
+        formats: Array<'a4' | 'ticket_80' | 'ticket_58'>;
+        action: 'replace_or_clear' | 'pause' | 'retained';
+        template_id: string | null;
+        commercial_identity_id: string | null;
+        pinned_template_revision_id: string | null;
+        pinned_commercial_identity_revision_id: string | null;
+        kind: 'company_default' | 'template';
+        document_type: null;
+        purpose: null;
+    } | {
+        key: string;
+        id: string;
+        version: number;
+        formats: Array<'a4' | 'ticket_80' | 'ticket_58'>;
+        action: 'replace_or_clear' | 'pause' | 'retained';
+        template_id: string | null;
+        commercial_identity_id: string | null;
+        pinned_template_revision_id: string | null;
+        pinned_commercial_identity_revision_id: string | null;
+        kind: 'type_default' | 'contact_default' | 'series' | 'recurring';
+        document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note' | 'transport-document';
+        purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    }>;
+    retained_counts: {
+        presentations: number | null;
+        prepared: number | null;
+        pinned: number | null;
+    };
+    warnings: Array<{
+        code: string;
+        path: string | null;
+        notice_id: string | null;
+        requires_confirmation: boolean;
+    }>;
+};
+
+/**
+ * PdfPreviewCommercialIdentitySelector
+ *
+ * Only example supports this closed selector. Omitted or null means inherit; inherit has no IDs. exact_revision requires both retained IDs. draft requires all seven nullable keys and library administrator authority; it never saves or publishes a brand or asserts continuity.
+ */
+export type PdfPreviewCommercialIdentitySelector = {
+    mode: 'inherit';
+} | {
+    mode: 'exact_revision';
+    identity_id: string;
+    revision_id: string;
+} | {
+    mode: 'draft';
+    configuration: {
+        commercial_name: string | null;
+        logo_asset_id: string | null;
+        brand_image_asset_id: string | null;
+        brand_mode: 'logo' | 'imago' | 'none' | null;
+        /**
+         * Optional. Logo version for dark backgrounds; requires `logo_asset_id`.
+         */
+        logo_dark_asset_id?: string | null;
+        /**
+         * Optional. Brand image version for dark backgrounds; requires `brand_image_asset_id`.
+         */
+        brand_image_dark_asset_id?: string | null;
+        /**
+         * Optional, default `silhouette`.
+         */
+        dark_background_fallback?: 'silhouette' | 'plate';
+        /**
+         * Optional, default `medium`.
+         */
+        brand_size?: 'small' | 'medium' | 'large';
+        contact_email: string | null;
+        contact_phone: string | null;
+    };
+};
+
+/**
+ * PdfPreviewExampleSource
+ */
+export type PdfPreviewExampleSource = {
+    kind: 'example';
+    scenario: 'standard' | 'long' | 'simplified' | 'corrective' | 'simplified_corrective' | 'f3' | 'unvalued_delivery_note';
+    commercial_identity?: PdfPreviewCommercialIdentitySelector | null;
+};
+
+/**
+ * PdfPreviewForm
+ *
+ * Unsaved closed form. No owner, line or instalment identity is created; row_key is only local UI identity. Currency strings are exact decimals, never JSON numbers. Null is known absence; ordered custom fields retain duplicates.
+ */
+export type PdfPreviewForm = {
+    series_id: string | null;
+    contact_id: string | null;
+    selection: {
+        mode: 'inherit' | 'explicit';
+        template_id: string | null;
+    };
+    document: {
+        date: string | null;
+        due_date: string | null;
+        expiry_date: string | null;
+        delivery_date: string | null;
+        number: string | null;
+        notes: string | null;
+        terms: string | null;
+        payment_method: string | null;
+        payment_reference: string | null;
+        operation_date: string | null;
+        operation_regime: string | null;
+        /**
+         * Invoice exemption cause of the header (`GET /v1/tax-catalog` publishes the catalogue). Optional: omitting it or sending `null` previews the invoice without a cause. When set, its legal mention opens the automatic legal mentions of the preview, exactly as it does when the invoice is saved. Only for `document_type` `invoice`. The preview does not reject a cause that contradicts the VAT of the lines; saving the invoice does (422 `exemption_cause_contradicts_taxed_lines`).
+         */
+        exemption_reason?: 'exenta_art_20' | 'exenta_art_21' | 'exenta_art_22' | 'exenta_art_24' | 'exenta_art_25' | 'exenta_art_26' | 'exenta_art_140' | 'no_sujeta_art_7_9' | 'no_sujeta_localizacion' | 'isp_art_84' | 'regimen_agrario_art_129' | 'regimen_bienes_usados_art_135' | 'regimen_agencias_viaje_art_141' | 'regimen_recargo_equivalencia_art_154' | 'regimen_criterio_caja_art_163_decies' | 'otro' | null;
+        legal_type: string | null;
+        is_corrective: boolean;
+        correction_nature: string | null;
+        correction_type: string | null;
+        correction_reason: string | null;
+        original_invoice_id: string | null;
+        original_invoice_number: string | null;
+        original_invoice_date: string | null;
+        base_rectificada: string | null;
+        cuota_rectificada: string | null;
+        recargo_rectificado: string | null;
+        substituted_invoices: Array<{
+            id: string | null;
+            number: string;
+            date: string;
+        }>;
+        shipping_cost: string | null;
+    };
+    recipient: {
+        name: string | null;
+        tax_id: string | null;
+        address: string | null;
+        postal_code: string | null;
+        city: string | null;
+        province: string | null;
+        country: string | null;
+        email: string | null;
+        phone: string | null;
+        website: string | null;
+        display_name: string | null;
+    } | null;
+    delivery: {
+        address: string | null;
+        postal_code: string | null;
+        city: string | null;
+        province: string | null;
+        country: string | null;
+        transport_details: string | null;
+    } | null;
+    lines: Array<{
+        row_key: string;
+        description: string;
+        additional_description: string | null;
+        notes: string | null;
+        /**
+         * Kind of line. Null is treated as NORMAL.
+         */
+        line_type: 'NORMAL' | 'SUPLIDO' | null;
+        unit: string | null;
+        quantity: string;
+        unit_price: string;
+        discount: string | null;
+        vat_rate: string | null;
+        retention_rate: string | null;
+        surcharge_rate: string | null;
+        indirect_tax_regime: string | null;
+        regime_key: string | null;
+        exemption_reason: string | null;
+        exemption_reason_text: string | null;
+        business_references: {
+            issuer_contract_reference: string | null;
+            issuer_contract_date: string | null;
+            issuer_transaction_reference: string | null;
+            issuer_transaction_date: string | null;
+            receiver_contract_reference: string | null;
+            receiver_contract_date: string | null;
+            receiver_transaction_reference: string | null;
+            receiver_transaction_date: string | null;
+            file_reference: string | null;
+            file_date: string | null;
+        } | null;
+        delivery_notes_references: Array<{
+            number: string;
+            date: string | null;
+        }>;
+        sequence_number: number | null;
+        commercial_display: {
+            sku: string | null;
+            unit_code: string | null;
+            unit_label: string | null;
+            variant_label: string | null;
+            pack_quantity: string | null;
+            units_per_pack: string | null;
+            commercial_weight: string | null;
+            photo_asset_id: string | null;
+            batch_number: string | null;
+            expiry_date: string | null;
+            commercial_weight_unit: string | null;
+            presentation_label: string | null;
+            price_unit_code: string | null;
+            option_snapshots: Array<{
+                group_name: string | null;
+                value_name: string | null;
+                price_adjustment: string | null;
+                applied: boolean | null;
+            }> | null;
+            option_adjustments_absorbed: boolean | null;
+            is_pack: boolean | null;
+            total_units: string | null;
+            /**
+             * Optional. UN/ECE code of the measure unit the line is based on (`KGM`, `LTR`, …), shown next to `base_quantity`. Omit it or send null when the line has none.
+             */
+            base_unit_code?: 'C62' | 'KGM' | 'GRM' | 'LTR' | 'MLT' | 'MTR' | 'MTK' | 'HUR' | 'DAY' | null;
+            /**
+             * Optional. Quantity of the line expressed in its base unit: a decimal string with at most 4 decimals and the same sign as the line quantity (negative only on a corrective invoice that is not a substitution). Omit it or send null when the line has none.
+             */
+            base_quantity?: string | null;
+            /**
+             * Optional. Informative pieces of a variable-measure line counted in pieces: a decimal string greater than 0 with at most 4 decimals. It never changes the amounts of the line. Omit it or send null when the line is not counted in pieces.
+             */
+            counted_quantity?: string | null;
+            /**
+             * Optional. UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack, …). Omit it or send null when `counted_quantity` is not sent.
+             */
+            counted_unit_code?: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+        };
+        /**
+         * Gross weight of the line for a delivery note; accepted only when the previewed document is a delivery note. Omit it or send null when the line carries no transport weight.
+         */
+        transport_weight?: {
+            physical_product: boolean;
+            /**
+             * Gross weight in kilograms of one unit: greater than zero, at most 9999999999.9999, and only for a physical product. Null when it is unknown.
+             */
+            unit_gross_weight_kg: string | null;
+        } | null;
+    }>;
+    business_data: {
+        business_references: {
+            receiver_contract_reference: string | null;
+            receiver_transaction_reference: string | null;
+            file_reference: string | null;
+        } | null;
+        invoicing_period: {
+            start_date: string;
+            end_date: string;
+        } | null;
+        legal_literals: Array<string>;
+    } | null;
+    administrative_centres: Array<{
+        role_code: string;
+        code: string;
+        name: string | null;
+    }> | null;
+    payment_terms: Array<{
+        due_date: string;
+        amount: string;
+        payment_means: string;
+        account: {
+            iban: string;
+            bic: string | null;
+        } | null;
+    }> | null;
+    custom_fields: Array<{
+        field: string;
+        value: string;
+    }>;
+    legal_mentions: Array<string>;
+};
+
+/**
+ * PdfPreviewInvoiceSubstitutionSource
+ *
+ * Detached preview of a simplified-invoice substitution. Only valid with `document_type: invoice`, `purpose: complete` and `format: a4`; the visual triple (`base_preset`, `layout_version`, `configuration`) must be omitted entirely, otherwise the request returns 422 `pdf_presentation_invalid`. Nothing is persisted or substituted.
+ */
+export type PdfPreviewInvoiceSubstitutionSource = {
+    kind: 'invoice_substitution';
+    document_id: string | null;
+    source_invoice_uuids: Array<string>;
+    /**
+     * Same length and order as `source_invoice_uuids`; values must be unique, so at most one entry may be null.
+     */
+    line_uuids: Array<string | null>;
+    client_uuid: string;
+    notes: string | null;
+    prepared_date: string;
+    template_id: string | null;
+};
+
+/**
+ * PdfPreviewPersistedDraftSource
+ */
+export type PdfPreviewPersistedDraftSource = {
+    kind: 'persisted_draft';
+    document_id: string;
+};
+
+/**
+ * PdfPreviewPresentationRevisionSource
+ *
+ * Exact retained parent, authentic current owner UUID, explicit nullable target, captured/current_legal policy and positive integer CAS. The returned revision_precondition token authorizes only an explicit Revise; it cannot authorize issue, send, accept or sign.
+ */
+export type PdfPreviewPresentationRevisionSource = {
+    kind: 'presentation_revision';
+    document_id: string;
+    parent_id: string;
+    template_id: string | null;
+    source_policy: 'captured' | 'current_legal';
+    expected_version: number;
+};
+
+/**
+ * PdfPreviewUnsavedFormSource
+ */
+export type PdfPreviewUnsavedFormSource = {
+    kind: 'unsaved_form';
+    form: PdfPreviewForm;
+};
+
+/**
+ * PdfTemplateAsset
+ */
+export type PdfTemplateAsset = {
+    id: string;
+    kind: 'logo' | 'imago' | 'photo';
+    mime: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+    sha256: string;
+    size_bytes: number;
+    created_at: string;
+};
+
+/**
+ * PdfTemplateConfiguration
+ *
+ * Structured template configuration. A schema_version 1 revision carries only the original keys; a schema_version 2 revision adds `header`, `table`, `legal_footer`, `page.density`, `typography.zone_scale`, `sections.privacy_text`, `sections.general_terms`, `sections.general_terms_placement`, `sections.section_titles`, `sections.show_generic_privacy_notice` and `legal_footer.notices_placement`, plus the `xl` brand size and the `total_with_tax` column. The new keys are absent from a schema_version 1 revision when read. Plain text only; description column remains visible. Fiscal content is enforced by the document renderer.
+ */
+export type PdfTemplateConfiguration = {
+    branding: {
+        mode: 'logo' | 'imago' | 'none' | null;
+        /**
+         * Brand size. `inherit` (default for new templates) uses the `brand_size` of the commercial identity; without one, `medium`. Sizes are optical areas of the ink. `xl` (schema_version 2 only) is the largest size, for wide logos.
+         */
+        size: 'small' | 'medium' | 'large' | 'inherit' | 'xl';
+    };
+    typography: {
+        font_family: 'roboto' | 'inter' | 'lato' | 'open-sans' | 'poppins' | 'montserrat' | 'arial' | 'helvetica' | 'times' | 'georgia' | 'verdana' | 'calibri';
+        font_size: number;
+        /**
+         * Schema_version 2 only. Text size per zone of the document, relative to `font_size`.
+         */
+        zone_scale?: {
+            /**
+             * Text size of the document body (parties, fields, notes): `s` = 0.9x, `m` = 1x (default), `l` = 1.1x of the base font size.
+             */
+            body: 's' | 'm' | 'l';
+            /**
+             * Text size of the lines table: `s` = 0.9x, `m` = 1x (default), `l` = 1.1x.
+             */
+            lines: 's' | 'm' | 'l';
+            /**
+             * Text size of the legal footer, register text and fiscal QR captions: `s` = 0.9x, `m` = 1x (default), `l` = 1.1x.
+             */
+            legal: 's' | 'm' | 'l';
+        };
+        /**
+         * Schema_version 2 only. Color of the highlighted texts (document title and number, section labels and total): `brand` (default) uses `colors.primary` and `ink` uses `colors.text`. It does not require the advanced editor: the Essential plan can change it, like `colors.primary`.
+         */
+        highlight?: 'brand' | 'ink';
+    };
+    colors: {
+        text: string;
+        line: string;
+        /**
+         * Brand color. Together with `typography.highlight` it is the only color option the Essential plan can change without the advanced editor; changing any other color (`secondary`, `text`, `line`, `table_header_bg`, `table_border`, `alternate_row`, `surface`) returns 403 `feature_not_available_in_plan` there, and the server never derives them from `primary`.
+         */
+        primary: string;
+        secondary: string;
+        table_header_bg: string;
+        table_border: string;
+        alternate_row: string;
+        /**
+         * Schema_version 2 only. Color of the decorative surface of the design, `null` by default: the side strip of `premium` (`null` follows `colors.primary`) and the dark frame of `corporative` (`null` uses its dark `#0c111d`). The other designs ignore it. Secondary texts always use the neutral gray `colors.secondary`. Layout option: it requires the advanced editor.
+         */
+        surface?: string | null;
+    };
+    page: {
+        orientation: 'portrait' | 'landscape';
+        margins_mm: {
+            top: number;
+            right: number;
+            bottom: number;
+            left: number;
+        };
+        show_page_numbers: boolean;
+        /**
+         * Schema_version 2 only. `compact` reduces vertical spacing so that short documents fit on one page; `standard` (default) keeps the template spacing.
+         */
+        density?: 'standard' | 'compact';
+    };
+    watermark: {
+        enabled: boolean;
+        text: string;
+    };
+    /**
+     * Document subtitle per document type and language. Besides plain text it may use the tokens `{status}`, `{reference}`, `{title}` and `{number}`, replaced when the document is rendered; a token with no value is removed together with its orphan separators and an unknown brace expression is kept literally. Any language key is accepted and tokens are not validated.
+     */
+    titles: {
+        invoice: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        simplified: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        corrective: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        f3: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        quote: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        proforma: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        'delivery-note': {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+    };
+    /**
+     * Columns of the lines table, in print order; the list is replaced as a whole. `description` cannot be hidden. The `sku` column is only printed on the pro forma (catalog code); on the other documents it is not printed even when visible, and the SKU appears only with `table.concept_mode` `combined`.
+     */
+    columns: Array<{
+        id: 'description' | 'sku' | 'quantity' | 'unit' | 'unit_price' | 'discount' | 'tax' | 'total' | 'total_with_tax' | 'photo' | 'variant' | 'pack' | 'batch' | 'expiry' | 'commercial_weight';
+        visible: boolean;
+        labels: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+    }>;
+    company_fields: {
+        name: boolean;
+        tax_id: boolean;
+        address: boolean;
+        email: boolean;
+        phone: boolean;
+        website: boolean;
+    };
+    client_fields: {
+        name: boolean;
+        tax_id: boolean;
+        address: boolean;
+        email: boolean;
+        phone: boolean;
+    };
+    custom_field_definitions: Array<{
+        key: string;
+        label: {
+            es: string;
+            en: string;
+            ca: string;
+        };
+        visible: boolean;
+    }>;
+    sections: {
+        /**
+         * Document notes: `auto` prints them when the document has notes and `no` hides them. `yes` is still accepted and behaves exactly like `auto`.
+         */
+        notes_mode: 'yes' | 'no' | 'auto';
+        /**
+         * Text per language; the document language is used and, when it is empty, `es`.
+         */
+        footer_text: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        /**
+         * Text per language; the document language is used and, when it is empty, `es`.
+         */
+        conditions_text: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        /**
+         * Text per language; the document language is used and, when it is empty, `es`.
+         */
+        commercial_register_text: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        show_payment_info: boolean;
+        show_bank_details: boolean;
+        /**
+         * Schema_version 2 only. Data protection text per language (plain text, up to 5000 characters), printed in small type after the notes and conditions and just before the commercial register text; only the document language is used, with no fallback to another language, so when that language is empty nothing is printed.
+         */
+        privacy_text?: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        /**
+         * Schema_version 2 only. General terms and conditions per language (plain text, up to 20000 characters; line breaks are kept), printed in two columns after the totals or on an annex page according to `general_terms_placement`; only the document language is used, with no fallback to another language, so when that language is empty no general terms are printed.
+         */
+        general_terms?: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+        /**
+         * Schema_version 2 only. Where the general terms are printed: `after_totals` (default) right after the totals and `annex_page` on their own page at the end.
+         */
+        general_terms_placement?: 'after_totals' | 'annex_page';
+        /**
+         * Schema_version 2 only. Whether the generic RGPD notice that an invoice to a natural person adds to its legal mentions is printed in the PDF and on the public link. It is not mandatory on the invoice. It is never printed when the template has its own `privacy_text` for the document language. Default `false` in a new template; `true` in a template imported from the previous settings and when a stored revision does not carry the key. Fiscal mentions (exemption, reverse charge, cash-basis regime) and the user's own literals are always printed. Available on every plan.
+         */
+        show_generic_privacy_notice?: boolean;
+        /**
+         * Schema_version 2 only. Hides the title of the optional blocks and leaves only their text; all `true` by default except `legal_mentions` (`false` in a new template). It never hides legal or fiscal notices (corrective and simplified invoice notices, the tax QR block, the ticket «Register»). Changing it requires the advanced template editor: without it the call answers 403 `feature_not_available_in_plan`, and an unedited plan prints every title.
+         */
+        section_titles?: {
+            /**
+             * Whether the «Notes» title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            notes: boolean;
+            /**
+             * Whether the «Conditions» title (both the document conditions and the template conditions) is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            conditions: boolean;
+            /**
+             * Whether the «Payment information» title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            payment: boolean;
+            /**
+             * Whether the «Additional information» (custom fields) title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            custom_fields: boolean;
+            /**
+             * Whether the «Business references» and administrative-centres titles is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            references: boolean;
+            /**
+             * Whether the «General terms and conditions of the invoice» title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            general_terms: boolean;
+            /**
+             * Whether the «Legal mentions» title is printed (default false in a new template; a stored revision without the key reads as true). `false` prints the mentions without their title; the mentions themselves are always printed.
+             */
+            legal_mentions: boolean;
+        };
+    };
+    /**
+     * Schema_version 2 only. Header options.
+     */
+    header?: {
+        /**
+         * Header layout. `preset` (default) keeps the header of the base template; `executive` splits issuer and document data; `beside_logo` places the document title and dates to the left, next to the logo; `centered` centers logo, title and dates.
+         */
+        layout: 'preset' | 'executive' | 'beside_logo' | 'centered';
+        /**
+         * Side of the logo in the header (default `left`). `right` mirrors the layout: the logo goes to the other side and the title and dates to the opposite one. Ignored when `layout` is `centered`. Layout option: it requires the advanced editor, like the rest of the `header` keys.
+         */
+        logo_side: 'left' | 'right';
+    };
+    /**
+     * Schema_version 2 only. Lines table options.
+     */
+    table?: {
+        /**
+         * Row style of the lines table: `preset` (default) keeps the one of the base template, `rules` draws a rule under each row, `zebra` alternates the row background and `none` draws no separators.
+         */
+        row_style: 'preset' | 'rules' | 'zebra' | 'none';
+        /**
+         * Concept column: `separate` (default) shows SKU and description in their own columns; `combined` prints the SKU in bold above the description.
+         */
+        concept_mode: 'separate' | 'combined';
+        /**
+         * Whether the additional description of each line (the grey line under the concept) is printed. Default `true`; `false` hides it in the PDF while the concept, variant, presentation and catalog detail stay. Part of the advanced editor: changing it requires a plan that includes it (403 `feature_not_available_in_plan` otherwise).
+         */
+        show_line_descriptions: boolean;
+    };
+    /**
+     * Schema_version 2 only. Legal footer options.
+     */
+    legal_footer?: {
+        /**
+         * Where the register and footer texts are printed: `last_page` (default) after the general terms at the bottom of the last page, `every_page` in a footer repeated on every page and `body` at the end of the document body.
+         */
+        mode: 'body' | 'every_page' | 'last_page';
+        /**
+         * Schema_version 2 only. Where the legal mentions and the data protection text are printed: `after_content` (default) right after the lines and totals, `page_bottom` anchored to the bottom of the last page of the document, before the general terms annex when they are on their own page. When the anchored block would exceed about 60 mm it is printed after the content instead and the editor preview reports `legal_notices_not_anchored`; the ticket never anchors. The footer and register texts keep following `mode`. Available on every plan.
+         */
+        notices_placement?: 'after_content' | 'page_bottom';
+    };
+};
+
+/**
+ * PdfTemplateConfigurationChanges
+ *
+ * Partial structured template configuration: only the sections and fields to change, merged over the stored configuration. A write always stores the revision as schema_version 2: the new keys you omit take their default values (`preset`, `separate`, `body`, `standard`, `m`, empty texts, `after_totals`), which render exactly like a schema_version 1 configuration. Plain text only; description column remains visible. Fiscal content is enforced by the document renderer.
+ */
+export type PdfTemplateConfigurationChanges = {
+    branding?: {
+        mode?: 'logo' | 'imago' | 'none' | null;
+        /**
+         * Brand size. `inherit` (default for new templates) uses the `brand_size` of the commercial identity; without one, `medium`. Sizes are optical areas of the ink. `xl` (schema_version 2 only) is the largest size, for wide logos.
+         */
+        size?: 'small' | 'medium' | 'large' | 'inherit' | 'xl';
+    };
+    typography?: {
+        font_family?: 'roboto' | 'inter' | 'lato' | 'open-sans' | 'poppins' | 'montserrat' | 'arial' | 'helvetica' | 'times' | 'georgia' | 'verdana' | 'calibri';
+        font_size?: number;
+        /**
+         * Schema_version 2 only. Text size per zone of the document, relative to `font_size`.
+         */
+        zone_scale?: {
+            /**
+             * Text size of the document body (parties, fields, notes): `s` = 0.9x, `m` = 1x (default), `l` = 1.1x of the base font size.
+             */
+            body?: 's' | 'm' | 'l';
+            /**
+             * Text size of the lines table: `s` = 0.9x, `m` = 1x (default), `l` = 1.1x.
+             */
+            lines?: 's' | 'm' | 'l';
+            /**
+             * Text size of the legal footer, register text and fiscal QR captions: `s` = 0.9x, `m` = 1x (default), `l` = 1.1x.
+             */
+            legal?: 's' | 'm' | 'l';
+        };
+        /**
+         * Schema_version 2 only. Color of the highlighted texts (document title and number, section labels and total): `brand` (default) uses `colors.primary` and `ink` uses `colors.text`. It does not require the advanced editor: the Essential plan can change it, like `colors.primary`.
+         */
+        highlight?: 'brand' | 'ink';
+    };
+    colors?: {
+        text?: string;
+        line?: string;
+        /**
+         * Brand color. Together with `typography.highlight` it is the only color option the Essential plan can change without the advanced editor; changing any other color (`secondary`, `text`, `line`, `table_header_bg`, `table_border`, `alternate_row`, `surface`) returns 403 `feature_not_available_in_plan` there, and the server never derives them from `primary`.
+         */
+        primary?: string;
+        secondary?: string;
+        table_header_bg?: string;
+        table_border?: string;
+        alternate_row?: string;
+        /**
+         * Schema_version 2 only. Color of the decorative surface of the design, `null` by default: the side strip of `premium` (`null` follows `colors.primary`) and the dark frame of `corporative` (`null` uses its dark `#0c111d`). The other designs ignore it. Secondary texts always use the neutral gray `colors.secondary`. Layout option: it requires the advanced editor.
+         */
+        surface?: string | null;
+    };
+    page?: {
+        orientation?: 'portrait' | 'landscape';
+        margins_mm?: {
+            top?: number;
+            right?: number;
+            bottom?: number;
+            left?: number;
+        };
+        show_page_numbers?: boolean;
+        /**
+         * Schema_version 2 only. `compact` reduces vertical spacing so that short documents fit on one page; `standard` (default) keeps the template spacing.
+         */
+        density?: 'standard' | 'compact';
+    };
+    watermark?: {
+        enabled?: boolean;
+        text?: string;
+    };
+    /**
+     * Document subtitle per document type and language. Besides plain text it may use the tokens `{status}`, `{reference}`, `{title}` and `{number}`, replaced when the document is rendered; a token with no value is removed together with its orphan separators and an unknown brace expression is kept literally. Any language key is accepted and tokens are not validated.
+     */
+    titles?: {
+        invoice?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        simplified?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        corrective?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        f3?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        quote?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        proforma?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        'delivery-note'?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+    };
+    /**
+     * Columns of the lines table, in print order; the list is replaced as a whole. `description` cannot be hidden. The `sku` column is only printed on the pro forma (catalog code); on the other documents it is not printed even when visible, and the SKU appears only with `table.concept_mode` `combined`.
+     */
+    columns?: Array<{
+        id: 'description' | 'sku' | 'quantity' | 'unit' | 'unit_price' | 'discount' | 'tax' | 'total' | 'total_with_tax' | 'photo' | 'variant' | 'pack' | 'batch' | 'expiry' | 'commercial_weight';
+        visible?: boolean;
+        labels?: {
+            es: string | null;
+            en: string | null;
+            ca: string | null;
+        };
+    }>;
+    company_fields?: {
+        name?: boolean;
+        tax_id?: boolean;
+        address?: boolean;
+        email?: boolean;
+        phone?: boolean;
+        website?: boolean;
+    };
+    client_fields?: {
+        name?: boolean;
+        tax_id?: boolean;
+        address?: boolean;
+        email?: boolean;
+        phone?: boolean;
+    };
+    custom_field_definitions?: Array<{
+        key: string;
+        label: {
+            es: string;
+            en: string;
+            ca: string;
+        };
+        visible?: boolean;
+    }>;
+    sections?: {
+        /**
+         * Document notes: `auto` prints them when the document has notes and `no` hides them. `yes` is still accepted and behaves exactly like `auto`.
+         */
+        notes_mode?: 'yes' | 'no' | 'auto';
+        footer_text?: string | {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        conditions_text?: string | {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        commercial_register_text?: string | {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        show_payment_info?: boolean;
+        show_bank_details?: boolean;
+        /**
+         * Schema_version 2 only. Data protection text per language (plain text, up to 5000 characters), printed in small type after the notes and conditions and just before the commercial register text; only the document language is used, with no fallback to another language, so when that language is empty nothing is printed.
+         */
+        privacy_text?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        /**
+         * Schema_version 2 only. General terms and conditions per language (plain text, up to 20000 characters; line breaks are kept), printed in two columns after the totals or on an annex page according to `general_terms_placement`; only the document language is used, with no fallback to another language, so when that language is empty no general terms are printed.
+         */
+        general_terms?: {
+            es?: string | null;
+            en?: string | null;
+            ca?: string | null;
+        };
+        /**
+         * Schema_version 2 only. Where the general terms are printed: `after_totals` (default) right after the totals and `annex_page` on their own page at the end.
+         */
+        general_terms_placement?: 'after_totals' | 'annex_page';
+        /**
+         * Schema_version 2 only. Whether the generic RGPD notice that an invoice to a natural person adds to its legal mentions is printed in the PDF and on the public link. It is not mandatory on the invoice. It is never printed when the template has its own `privacy_text` for the document language. Default `false` in a new template; `true` in a template imported from the previous settings and when a stored revision does not carry the key. Fiscal mentions (exemption, reverse charge, cash-basis regime) and the user's own literals are always printed. Available on every plan.
+         */
+        show_generic_privacy_notice?: boolean;
+        /**
+         * Schema_version 2 only. Hides the title of the optional blocks and leaves only their text; all `true` by default except `legal_mentions` (`false` in a new template). It never hides legal or fiscal notices (corrective and simplified invoice notices, the tax QR block, the ticket «Register»). Changing it requires the advanced template editor: without it the call answers 403 `feature_not_available_in_plan`, and an unedited plan prints every title.
+         */
+        section_titles?: {
+            /**
+             * Whether the «Notes» title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            notes?: boolean;
+            /**
+             * Whether the «Conditions» title (both the document conditions and the template conditions) is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            conditions?: boolean;
+            /**
+             * Whether the «Payment information» title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            payment?: boolean;
+            /**
+             * Whether the «Additional information» (custom fields) title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            custom_fields?: boolean;
+            /**
+             * Whether the «Business references» and administrative-centres titles is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            references?: boolean;
+            /**
+             * Whether the «General terms and conditions of the invoice» title is printed (default true). `false` prints the block without its title and keeps its text or rows.
+             */
+            general_terms?: boolean;
+            /**
+             * Whether the «Legal mentions» title is printed (default false in a new template; a stored revision without the key reads as true). `false` prints the mentions without their title; the mentions themselves are always printed.
+             */
+            legal_mentions?: boolean;
+        };
+    };
+    /**
+     * Schema_version 2 only. Header options.
+     */
+    header?: {
+        /**
+         * Header layout. `preset` (default) keeps the header of the base template; `executive` splits issuer and document data; `beside_logo` places the document title and dates to the left, next to the logo; `centered` centers logo, title and dates.
+         */
+        layout?: 'preset' | 'executive' | 'beside_logo' | 'centered';
+        /**
+         * Side of the logo in the header (default `left`). `right` mirrors the layout: the logo goes to the other side and the title and dates to the opposite one. Ignored when `layout` is `centered`. Layout option: it requires the advanced editor, like the rest of the `header` keys.
+         */
+        logo_side?: 'left' | 'right';
+    };
+    /**
+     * Schema_version 2 only. Lines table options.
+     */
+    table?: {
+        /**
+         * Row style of the lines table: `preset` (default) keeps the one of the base template, `rules` draws a rule under each row, `zebra` alternates the row background and `none` draws no separators.
+         */
+        row_style?: 'preset' | 'rules' | 'zebra' | 'none';
+        /**
+         * Concept column: `separate` (default) shows SKU and description in their own columns; `combined` prints the SKU in bold above the description.
+         */
+        concept_mode?: 'separate' | 'combined';
+        /**
+         * Whether the additional description of each line (the grey line under the concept) is printed. Default `true`; `false` hides it in the PDF while the concept, variant, presentation and catalog detail stay. Part of the advanced editor: changing it requires a plan that includes it (403 `feature_not_available_in_plan` otherwise).
+         */
+        show_line_descriptions?: boolean;
+    };
+    /**
+     * Schema_version 2 only. Legal footer options.
+     */
+    legal_footer?: {
+        /**
+         * Where the register and footer texts are printed: `last_page` (default) after the general terms at the bottom of the last page, `every_page` in a footer repeated on every page and `body` at the end of the document body.
+         */
+        mode?: 'body' | 'every_page' | 'last_page';
+        /**
+         * Schema_version 2 only. Where the legal mentions and the data protection text are printed: `after_content` (default) right after the lines and totals, `page_bottom` anchored to the bottom of the last page of the document, before the general terms annex when they are on their own page. When the anchored block would exceed about 60 mm it is printed after the content instead and the editor preview reports `legal_notices_not_anchored`; the ticket never anchors. The footer and register texts keep following `mode`. Available on every plan.
+         */
+        notices_placement?: 'after_content' | 'page_bottom';
+    };
+};
+
+/**
+ * PdfTemplateContactPreference
+ */
+export type PdfTemplateContactPreference = {
+    id: string;
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    template_id: string | null;
+    version: number;
+    persisted: boolean;
+};
+
+/**
+ * PdfTemplateDefaults
+ */
+export type PdfTemplateDefaults = {
+    id: string;
+    version: number;
+    company_template_id: string | null;
+    company_commercial_identity_id: string | null;
+    type_defaults: Array<{
+        document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note' | 'transport-document';
+        purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+        template_id: string | null;
+    }>;
+    /**
+     * Returns `legacy` while revisioned presentation is disabled for the company. Effective activation is projected at rollout; never accepted in PATCH.
+     */
+    readonly render_activation: 'legacy' | 'revisioned';
+};
+
+/**
+ * PdfTemplateRevision
+ */
+export type PdfTemplateRevision = {
+    id: string;
+    template_id: string;
+    number: number;
+    base_preset: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version: '1';
+    /**
+     * `1` for configurations saved before the layout options, `2` for those that carry `header`, `table` and `legal_footer`.
+     */
+    schema_version: 1 | 2;
+    /**
+     * Template kind: `commercial` (invoice, quote, pro forma and delivery note) or `transport-document` (transport control document, DeCA). It is fixed at creation and never changes. Defaults to `commercial` when omitted on create and returned on every template and revision.
+     */
+    document_kind: 'commercial' | 'transport-document';
+    configuration: PdfTemplateConfiguration;
+    supported_types: Array<'invoice' | 'quote' | 'proforma' | 'delivery-note'>;
+    supported_purposes: {
+        invoice?: Array<'complete' | 'simplified' | 'corrective' | 'simplified_corrective'>;
+        quote?: Array<'complete'>;
+        proforma?: Array<'complete'>;
+        'delivery-note'?: Array<'complete'>;
+    };
+    supported_formats: Array<'a4' | 'ticket_80' | 'ticket_58'>;
+    commercial_identity_id: string | null;
 };
 
 /**
@@ -13663,6 +15943,20 @@ export type PrepareGestoriaSeatOfferBody = {
         action: 'activate_batch';
         company_ids: Array<string>;
     };
+};
+
+/**
+ * PreparePdfArtifactRequest
+ *
+ * Prepare this exact authorized capture using its owner, document and presentation UUIDs. `official` follows that capture; `alternative` changes only an authorized output format and never changes publication or head. The closed body accepts no caller-supplied company or actor and no write `If-Match`. Keep the raw body and idempotency key for an exact replay; a changed body under the same key returns 409. Preparation rechecks current source authority and CAS and does not import templates or substitute the latest presentation. Retained exact prepared/READY artifacts remain readable under their existing guards.
+ */
+export type PreparePdfArtifactRequest = {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    document_id: string;
+    presentation_id: string;
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    variant: 'official' | 'alternative';
 };
 
 /**
@@ -14382,6 +16676,8 @@ export type Proforma = {
      * Indicates whether the shareable public link is currently active.
      */
     link_is_active: boolean;
+    pdf_output_state: DocumentPdfOutputState;
+    presentation: DocumentPresentationState | null;
     created_at: string;
     updated_at: string;
 };
@@ -14488,6 +16784,21 @@ export type ProformaLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+};
+
+/**
+ * ProformaPresentationPrecondition
+ *
+ * Proforma action precondition as accepted by the v1 proforma actions. All seven values travel together; nullable revision IDs remain required keys.
+ */
+export type ProformaPresentationPrecondition = {
+    expected_selection_version: number;
+    expected_source_token: string;
+    expected_preview_context_fingerprint: string;
+    expected_template_revision_id: string | null;
+    expected_commercial_identity_revision_id: string | null;
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
 };
 
 /**
@@ -15096,6 +17407,14 @@ export type PublicLink = {
      * Maximum number of days allowed when extending the link validity (business limit).
      */
     max_days: number;
+    /**
+     * Exact publication intent for the current presentation/CAS. `public_url` is null while queued and is populated only for the exact ready, publicly shared, authorized version. Always returned (possibly `null`) by the `public-link` sub-resource; the `public_link` embedded in an invoice omits it.
+     */
+    publication?: {
+        publication_id: string;
+        state: 'queued' | 'ready';
+        public_url: string | null;
+    } | null;
 };
 
 /**
@@ -15132,7 +17451,7 @@ export type PurchaseInvoice = {
     due_on: string | null;
     subtotal: string;
     /**
-     * VAT BORNE (IVA soportado) of this expense, WITHOUT surcharge and WITHOUT withholding. Careful: on the sales-side documents (invoice, delivery note, quote, proforma) the SAME field name carries the NET aggregate `total_vat + total_surcharge − total_retention` instead. Header invariant here: `total === subtotal + taxes_total + total_surcharge − total_retention`. Read `total_vat` for a VAT figure whose meaning does not depend on the document family.
+     * VAT BORNE (IVA soportado) of this expense, WITHOUT surcharge and WITHOUT withholding. Careful: on the sales-side documents (invoice, delivery note, quote, proforma) the SAME field name carries the NET aggregate `total_vat + total_surcharge − total_retention` instead. Header invariant here (except for self-assessed `operation_class` `intracomunitaria` and `isp`, see `total`): `total === subtotal + taxes_total + total_surcharge − total_retention`. Read `total_vat` for a VAT figure whose meaning does not depend on the document family.
      */
     taxes_total: string;
     /**
@@ -15148,7 +17467,7 @@ export type PurchaseInvoice = {
      */
     total_surcharge: string;
     /**
-     * Total of the expense. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the one specific to this family, where `taxes_total` is the VAT alone - `total = subtotal + taxes_total + total_surcharge - total_retention`. Note that the aggregate shortcut of the sales-side families (`subtotal + taxes_total`) does NOT apply here: the same field name carries a different meaning on each side.
+     * Total of the expense. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the one specific to this family, where `taxes_total` is the VAT alone - `total = subtotal + taxes_total + total_surcharge - total_retention`. Note that the aggregate shortcut of the sales-side families (`subtotal + taxes_total`) does NOT apply here: the same field name carries a different meaning on each side. Exception: when `operation_class` is `intracomunitaria` or `isp` the VAT is self-assessed (the supplier does not charge it), so it is NOT part of the total: `total = subtotal - total_retention + total_surcharge`, and `total_vat` / `taxes_total` still publish the self-assessed VAT amount.
      */
     total: string;
     currency: string;
@@ -16066,6 +18385,8 @@ export type Quote = {
      * Whether the public share link is currently active.
      */
     link_is_active: boolean;
+    pdf_output_state: DocumentPdfOutputState;
+    presentation: DocumentPresentationState | null;
     created_at: string;
     updated_at: string;
 };
@@ -16172,6 +18493,21 @@ export type QuoteLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+};
+
+/**
+ * QuotePresentationPrecondition
+ *
+ * Quote action precondition. All seven values travel together; this family accepts complete-purpose A4 output only.
+ */
+export type QuotePresentationPrecondition = {
+    expected_selection_version: number;
+    expected_source_token: string;
+    expected_preview_context_fingerprint: string;
+    expected_template_revision_id: string | null;
+    expected_commercial_identity_revision_id: string | null;
+    purpose: 'complete';
+    format: 'a4';
 };
 
 /**
@@ -16400,6 +18736,10 @@ export type RecurringInvoice = {
     };
     created_at: string;
     updated_at: string;
+    presentation_policy: RecurringPresentationPolicy;
+    payment_terms_template: RecurringPaymentTermsTemplate;
+    readonly presentation_policy_version: number;
+    readonly presentation_pause_reason: 'template_archived' | 'template_blocked' | 'template_incompatible' | 'commercial_identity_archived' | 'commercial_identity_blocked' | 'entitlement_unavailable' | 'configuration_invalid' | null;
 };
 
 /**
@@ -16447,6 +18787,18 @@ export type RecurringInvoiceActivity = {
 };
 
 /**
+ * RecurringInvoiceGenerateResult
+ */
+export type RecurringInvoiceGenerateResult = {
+    object: 'recurring_invoice.generate_result';
+    invoice_id: string;
+    /**
+     * Drafts have no definitive number.
+     */
+    invoice_number: string | null;
+};
+
+/**
  * RecurringInvoiceLine
  *
  * A line item on a recurring invoice template.
@@ -16488,11 +18840,11 @@ export type RecurringInvoiceLine = {
      */
     regime_key: string | null;
     /**
-     * Public identifier (UUID v7) of the catalog tax applied as IRPF withholding to the line. Opaque: it does not take part in the `taxes`/`total` computation (the formula uses the flat `retention` percentage). `null` if not informed.
+     * Public identifier (UUID v7) of the catalog tax applied as IRPF withholding to the line. The `taxes`/`total` computation uses the flat `retention` percentage; when a line is written with this id and without `retention_rate`, that percentage is taken from this tax, and a tax of another kind or a different declared percentage is rejected with `tax_rate_mismatch`. `null` if not informed.
      */
     retention_rate_id: string | null;
     /**
-     * Public identifier (UUID v7) of the catalog tax applied as equivalence surcharge to the line. Opaque: it does not take part in the `taxes`/`total` computation (the formula uses the flat `surcharge` percentage). `null` if not informed.
+     * Public identifier (UUID v7) of the catalog tax applied as equivalence surcharge to the line. The `taxes`/`total` computation uses the flat `surcharge` percentage; when a line is written with this id and without `surcharge_rate`, that percentage is taken from this tax, and a tax of another kind or a different declared percentage is rejected with `tax_rate_mismatch`. `null` if not informed.
      */
     surcharge_rate_id: string | null;
     /**
@@ -16725,6 +19077,66 @@ export type RecurringInvoiceStats = {
 };
 
 /**
+ * RecurringPaymentAccount
+ */
+export type RecurringPaymentAccount = {
+    /**
+     * Normalized, checksum-valid contractual IBAN.
+     */
+    iban: string;
+    bic: string | null;
+};
+
+/**
+ * RecurringPaymentTermsEntry
+ */
+export type RecurringPaymentTermsEntry = unknown & {
+    /**
+     * Whole days from the invoice date fixed for this generation. Nondecreasing order; equal offsets allowed. Calendar overflow is rejected.
+     */
+    offset_days: number;
+    /**
+     * Nonzero exact signed EUR string; all rows share a sign. Invoice validates the exact sum against the final payable including disbursements.
+     */
+    amount: string;
+    payment_means: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19';
+    /**
+     * Only 02/04 may carry an account. Null is allowed in configuration/draft, but issue/export enforces the contractual bank requirements. No live bank or commercial-brand fallback.
+     */
+    account: RecurringPaymentAccount | null;
+};
+
+/**
+ * RecurringPaymentTermsTemplate
+ *
+ * null means unknown, [] means explicitly no calendar, a list replaces the whole relative calendar. No row id or due_date is accepted. Each new invoice receives fresh instalment UUIDs and dates from its fixed generation date; a replay creates none.
+ */
+export type RecurringPaymentTermsTemplate = Array<RecurringPaymentTermsEntry> | null;
+
+export type RecurringPresentationPolicy = ({
+    mode?: 'latest';
+    revision_id?: null;
+    commercial_identity_id?: null;
+    commercial_identity_revision_id?: null;
+} | (({
+    commercial_identity_id?: string;
+    commercial_identity_revision_id?: string;
+} | {
+    commercial_identity_id?: null;
+    commercial_identity_revision_id?: null;
+}) & {
+    mode?: 'pinned';
+    template_id?: string;
+    revision_id?: string;
+})) & {
+    mode: 'latest' | 'pinned';
+    template_id: string | null;
+    revision_id: string | null;
+    commercial_identity_id: string | null;
+    commercial_identity_revision_id: string | null;
+};
+
+/**
  * RegisterCompanyRepresentationV1Request
  *
  * Register the representation that authorizes Factuarea to remit your VeriFactu records to AEAT on your behalf. Send `multipart/form-data`: `kind`, `signer_name`, `signer_tax_id` and `granted_on` are required, plus the evidence — `document` (PDF, up to 5 MB) for the signed annex I, and `document` or `power_of_attorney_reference` for a power of attorney. The optional `valid_until` sets the last day of validity: without it the representation does not expire. An active representation that already exists is revoked and kept in the history.
@@ -16842,6 +19254,15 @@ export type RejectTimeCorrectionRequest = {
  * Who submits the VeriFactu records of your company to AEAT. It does not change whether the company operates in VERI*FACTU or NO VERI*FACTU mode: it only decides whose electronic certificate signs and submits the records. `own_certificate` (default): the records are submitted with the electronic certificate of the company itself. `social_collaborator`: Factuarea submits the records on your behalf as a social collaborator, with the certificate of Factuarea; it needs an active `social_collaboration_annex_i` representation. `power_of_attorney`: Factuarea submits the records on your behalf as an attorney-in-fact, with the certificate of Factuarea; it needs an active `aeat_power_of_attorney` representation.
  */
 export type RemissionMode = 'own_certificate' | 'social_collaborator' | 'power_of_attorney';
+
+/**
+ * RenderPdfArtifactRequest
+ *
+ * Render only the exact prepared artifact in `sync` or `async` mode, using its retained plan, source authority and admission marker. The server reuses the marker and canonical result, so an internal retry, idempotency replay or already READY artifact is not charged twice. Rendering never rereads live defaults, replaces the capture, publishes a new head or starts work from a metadata GET. A changed source or stale CAS requires refresh and an explicit new action.
+ */
+export type RenderPdfArtifactRequest = {
+    mode: 'sync' | 'async';
+};
 
 /**
  * ReopenTransportDocumentRequest
@@ -17200,6 +19621,72 @@ export type RevertInvoicePaymentRequest = {
      * Optional free-text remark kept with the reversal trail, up to 500 characters. A longer note returns 422 `payment_reversal_invalid`.
      */
     note?: string | null;
+};
+
+/**
+ * ReviseDocumentPresentationRequest
+ *
+ * Create a new retained capture only from an authentic `presentation_revision` preview of the exact parent. Use that preview source token, fingerprint, owner identity and positive expected-version CAS; a token is valid only for explicit Revise and never issues, sends, accepts or signs. `captured` preserves the parent's legal source and QR; `current_legal` refreshes only the authorized invoice legal source. A null target template inherits the parent's selection. Omitted locale, purpose and format inherit from the parent. If-Match cannot replace revision context. The body accepts no arbitrary parties, visual configuration, tenant or document type. Preview visual input for persisted documents and revisions must be fully omitted or provide all three root fields; partial or explicit-null triples fail 422 and a different supplied root fails the exact-root guard. Source, purpose, format and locale are required on preview, not on this revision action. Initialization pending returns recoverable 422 `pdf_presentation_not_ready` (`invalid_request_error`): preserve data and complete authorized tenant initialization; GET/preview never import. A CLI is optional for the owner, not a manual client step.
+ */
+export type ReviseDocumentPresentationRequest = {
+    /**
+     * Retained parent dimension; omitted inherits.
+     */
+    parent_id: string;
+    /**
+     * Retained parent dimension; omitted inherits.
+     */
+    template_id?: string | null;
+    /**
+     * Positive canonical version bounded by the server integer range; booleans, floats and leading zeros are invalid.
+     */
+    expected_version: number | string;
+    /**
+     * Retained parent dimension; omitted inherits.
+     */
+    reason: string;
+    /**
+     * Authenticate the exact revision preview and current source.
+     */
+    expected_source_token: string;
+    /**
+     * Authenticate the exact revision preview and current source.
+     */
+    expected_preview_context_fingerprint: string;
+    /**
+     * Authenticate the exact revision preview and current source.
+     */
+    expected_template_revision_id?: string | null;
+    /**
+     * Authenticate the exact revision preview and current source.
+     */
+    expected_commercial_identity_revision_id?: string | null;
+    /**
+     * Retained parent dimension; omitted inherits.
+     */
+    source_policy?: 'captured' | 'current_legal';
+    /**
+     * Retained parent dimension; omitted inherits.
+     */
+    purpose?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    /**
+     * Retained parent dimension; omitted inherits.
+     */
+    format?: 'a4' | 'ticket_80' | 'ticket_58';
+};
+
+/**
+ * ReviseInvoiceAdministrativeRoutingRequest
+ *
+ * Append an administrative routing revision. Required: administrative_centres (a list, including []), a nonblank reason (1-500 Unicode characters) and expected_version (JSON integer >= 1) in the body. There are no additional body keys. Missing expected_version returns 428; stale version returns 409 with the authorized current_version. Use the returned administrative_version for the next write. If-Match of the parent invoice does not satisfy this precondition. Codes normalize trim and uppercase, roles 01..04 are unique, optional names preserve text up to 40 characters. No fiscal or payment data changes.
+ */
+export type ReviseInvoiceAdministrativeRoutingRequest = {
+    administrative_centres: InvoiceAdministrativeCentres;
+    reason: string;
+    /**
+     * Required administrative version from history or the invoice response. Missing means 428, stale means 409 with current_version after authorization. Only this body precondition is accepted; parent invoice If-Match does not replace it.
+     */
+    expected_version: number;
 };
 
 /**
@@ -17652,6 +20139,18 @@ export type SendDeliveryNoteRequest = {
      * Integer id of the email template, from the shared catalog of templates (it is not a UUID).
      */
     template_id?: number | null;
+    /**
+     * Optional reviewed presentation precondition. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_precondition?: DeliveryNotePresentationPrecondition;
+    /**
+     * UUID of the presentation the caller reviewed. If it is no longer the current presentation of the document the request is rejected with 409 and nothing is changed. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_presentation_uuid?: string | null;
+    /**
+     * UUID of the publication of the delivery-note presentation the caller reviewed, or null. If it is no longer the current publication the request is rejected with 409 and nothing is sent. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_publication_id?: string | null;
 };
 
 /**
@@ -17703,7 +20202,7 @@ export type SendInvoiceReminderV1Request = {
 /**
  * SendInvoiceRequest
  *
- * Email an invoice. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters) and `body` (string). If the client has no email and `to` is absent, it returns 422 `missing_required_param`.
+ * Email an invoice. A draft is issued and then emailed in one step: the reviewed presentation precondition is checked once, by the issue (the first write of the document), and the email carries the capture that issue left; repeating the precondition is neither needed nor checked against the issued invoice. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters), `body` (string), `attach_facturae` (boolean) and `submission_id` (UUID of a retained FACe submission; requires `attach_facturae: true`). A selected submission attaches its exact retained XML for this invoice; it does not submit to FACe or regenerate the artifact. If the client has no email and `to` is absent, it returns 422 `missing_required_param`. Presentation precondition fields (`expected_selection_version`, `expected_source_token`, `expected_preview_context_fingerprint`, `expected_template_revision_id`, `expected_commercial_identity_revision_id`, `purpose`, `format`) only take effect when revisioned presentation is enabled for the company; otherwise they are ignored. When revisioned presentation is enabled, the seven fields are all-or-none and are only required while the invoice has no retained capture (an already captured invoice is re-sent as captured without them).
  */
 export type SendInvoiceRequest = {
     to?: string | null;
@@ -17711,12 +20210,52 @@ export type SendInvoiceRequest = {
     bcc?: Array<string> | null;
     subject?: string | null;
     body?: string | null;
+    /**
+     * Attach the invoice Facturae XML. When `submission_id` is supplied, the XML comes from that exact retained FACe submission.
+     */
+    attach_facturae?: boolean | null;
+    /**
+     * UUID of an existing FACe submission belonging to this invoice and company. Requires `attach_facturae: true`; attaches the retained XML without submitting again or regenerating it.
+     */
+    submission_id?: string | null;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. When enabled, supply all seven fields together, or omit all seven when no reviewed context is being submitted.
+     */
+    expected_selection_version?: number;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. When enabled, supply all seven fields together, or omit all seven when no reviewed context is being submitted.
+     */
+    expected_source_token?: string;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. When enabled, supply all seven fields together, or omit all seven when no reviewed context is being submitted.
+     */
+    expected_preview_context_fingerprint?: string;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. When enabled, supply all seven fields together, or omit all seven when no reviewed context is being submitted.
+     */
+    expected_template_revision_id?: string | null;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. When enabled, supply all seven fields together, or omit all seven when no reviewed context is being submitted.
+     */
+    expected_commercial_identity_revision_id?: string | null;
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. When enabled, supply all seven fields together, or omit all seven when no reviewed context is being submitted.
+     */
+    purpose?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    /**
+     * Top-level Invoice presentation precondition field. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. When enabled, supply all seven fields together, or omit all seven when no reviewed context is being submitted.
+     */
+    format?: 'a4' | 'ticket_80' | 'ticket_58';
+    /**
+     * UUID of the presentation the caller reviewed. If it is no longer the current presentation of the document the request is rejected with 409 and nothing is changed. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. Only for re-sending an invoice that already has a retained capture; when a draft is issued and sent in one step it is not needed, because the email carries the capture the issue just left.
+     */
+    expected_presentation_uuid?: string | null;
 };
 
 /**
  * SendProformaRequest
  *
- * Email a proforma. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters) and `body` (string). If the client has no email and `to` is absent, it returns 422 `missing_required_param`.
+ * Email a proforma. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters), `body` (string) and, when revisioned presentation is enabled, `presentation_precondition` and `expected_presentation_uuid`. If the client has no email and `to` is absent, it returns 422 `missing_required_param`.
  */
 export type SendProformaRequest = {
     to?: string | null;
@@ -17724,12 +20263,20 @@ export type SendProformaRequest = {
     bcc?: Array<string> | null;
     subject?: string | null;
     body?: string | null;
+    /**
+     * Optional reviewed presentation precondition. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_precondition?: ProformaPresentationPrecondition;
+    /**
+     * UUID of the presentation the caller reviewed. If it is no longer the current presentation of the document the request is rejected with 409 and nothing is changed. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. Only for re-sending a proforma that already has a retained capture.
+     */
+    expected_presentation_uuid?: string | null;
 };
 
 /**
  * SendQuoteRequest
  *
- * Email a quote. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters) and `body` (string). If the client has no email and `to` is absent, it returns 422 `missing_required_param`.
+ * Email a quote. Optional body: `to` (string), `cc[]` and `bcc[]` (arrays of emails), `subject` (max 200 characters), `body` (string) and, when revisioned presentation is enabled, `presentation_precondition` and `expected_presentation_uuid`. If the client has no email and `to` is absent, it returns 422 `missing_required_param`. A draft quote is numbered (`draft` → `pending`) and then sent in one step: the reviewed `presentation_precondition` is checked by the numbering, which captures what was reviewed, and the email carries that capture.
  */
 export type SendQuoteRequest = {
     to?: string | null;
@@ -17737,6 +20284,14 @@ export type SendQuoteRequest = {
     bcc?: Array<string> | null;
     subject?: string | null;
     body?: string | null;
+    /**
+     * Optional reviewed presentation precondition. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_precondition?: QuotePresentationPrecondition;
+    /**
+     * UUID of the presentation the caller reviewed. If it is no longer the current presentation of the document the request is rejected with 409 and nothing is changed. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored. Only for re-sending a quote that already has a retained capture.
+     */
+    expected_presentation_uuid?: string | null;
 };
 
 /**
@@ -17767,6 +20322,9 @@ export type SendTransportDocumentRequest = {
  * A document numbering series. It can be edited with `PATCH /v1/companies/{company}/series/{series}` under the fiscal guards of the numbering (code, mask and purpose are fixed once documents exist) and it is never deleted: archive it instead.
  */
 export type Series = {
+    /**
+     * Public series UUID v7.
+     */
     id: string;
     object: 'series';
     code: string;
@@ -17779,6 +20337,14 @@ export type Series = {
      * Fixed purpose of an invoice series (RD 1619/2012 arts. 6.1.a, 7.1.a and 15): `complete` (complete invoices `F1` and the `F3` that replaces simplified invoices — the usual series), `simplified` (simplified invoices `F2`), `corrective` (corrective invoices `R1`–`R4`) or `simplified_corrective` (corrective invoices of simplified invoices `R5`). An invoice can only be issued in a series of its own purpose, otherwise issuing fails with `series_invoice_kind_mismatch`. Set on creation (default `complete`), editable with `PATCH /v1/companies/{company}/series/{series}` until the series has any invoice (`series_invoice_kind_locked`) and never on the default series of its purpose (`series_default_kind_change`). `null` for series of other document types.
      */
     invoice_kind: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective' | null;
+    /**
+     * Saved tenant-template UUID v7, or null to inherit. Kept even if the saved template later becomes unavailable.
+     */
+    pdf_template_id: string | null;
+    /**
+     * Independent visual association version; fiscal-only edits do not increment it.
+     */
+    pdf_template_version: number;
     /**
      * Legacy alias for code. Use code field. Will be removed in v2.
      */
@@ -17916,6 +20482,33 @@ export type SeriesBootstrapResult = {
 };
 
 /**
+ * SeriesPdfTemplate
+ *
+ * Saved tenant-template preference of a series. Availability may change while the saved identity and version remain intact. Fiscal numbering and captured document presentations are independent.
+ */
+export type SeriesPdfTemplate = {
+    id: string;
+    object: 'series_pdf_template';
+    pdf_template_id: string | null;
+    version: number;
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note' | 'transport_document' | 'contract';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    is_series_archived: boolean;
+    template_state: 'active' | 'archived' | null;
+    supported_formats: Array<'a4' | 'ticket_80' | 'ticket_58'>;
+    availability: {
+        selectable: boolean;
+        reason: string | null;
+    };
+    warnings: Array<{
+        code: string;
+        path: string | null;
+        notice_id: string | null;
+        requires_confirmation: boolean;
+    }>;
+};
+
+/**
  * SeriesRef
  */
 export type SeriesRef = {
@@ -18008,13 +20601,41 @@ export type ShopifyConnectionCheck = {
 /**
  * SignDeliveryNoteRequest
  *
- * Sign a delivery note on receipt. Required: `signed_by` (name of the person who receives it), `recipient_dni` (Spanish DNI/NIE of the signer) and `signature_image_base64` (the signature as a raw base64 PNG, without the `data:` prefix). Optional: `signed_at` (ISO 8601, defaults to now). A signature image that cannot be decoded or is too large returns 422 `invalid_param_format` or `payload_too_large`.
+ * Sign a delivery note on receipt. Required: `signed_by` (name of the person who receives it, at most 120 characters), `recipient_dni` (Spanish DNI/NIE of the signer) and `signature_image_base64` (the signature as a raw base64 PNG, without the `data:` prefix). Optional: `signed_at` (ISO 8601) is deprecated and ignored: it is still accepted so existing clients keep working, but the signature date is always set by the server. A signature image that cannot be decoded or is too large returns 422 `invalid_param_format` or `payload_too_large`.
  */
 export type SignDeliveryNoteRequest = {
+    /**
+     * Name of the person who receives the delivery note (at most 120 characters).
+     */
     signed_by: string;
     recipient_dni: string;
     signature_image_base64: string;
+    /**
+     * Deprecated and ignored: accepted only for compatibility with existing clients. The signature date is always set by the server.
+     *
+     * @deprecated
+     */
     signed_at?: string | null;
+    /**
+     * UUID of the retained presentation of the delivery note that the signature is bound to. Part of the exact presentation context, which is all-or-nothing: when any of the five `expected_*` fields is sent, all except `expected_publication_id` are required, and the request must carry an `Idempotency-Key` header with a UUID v7. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_presentation_id?: string;
+    /**
+     * UUID of the publication the signature is bound to, or null when the presentation has none. Optional member of the exact presentation context (all-or-nothing with the other `expected_*` fields). It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_publication_id?: string | null;
+    /**
+     * Positive external version of the presentation the signature is bound to. Required together with the rest of the exact presentation context. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_external_version?: number;
+    /**
+     * Source token of the reviewed presentation: 64 lowercase hexadecimal characters. Required together with the rest of the exact presentation context. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_source_token?: string;
+    /**
+     * UUID of the exact PDF artifact the recipient reviewed before signing. Required together with the rest of the exact presentation context. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_artifact_id?: string;
 };
 
 /**
@@ -18438,13 +21059,25 @@ export type StripePayout = {
             fee?: string;
         }>;
         /**
-         * Sum of the component fees, as a 2-decimal string in the payout currency.
+         * Sum of the component fees, plus the standalone fees and the fees of the refunds, as a 2-decimal string in the payout currency.
          */
         fee_total?: string;
         /**
          * Sum of the component amounts, as a 2-decimal string in the payout currency.
          */
         gross_total?: string;
+        /**
+         * Sum of the refunds settled in the payout (negative), as a 2-decimal string in the payout currency. `"0.00"` when there are none.
+         */
+        refunds_total?: string;
+        /**
+         * Sum of the Stripe fees charged on their own, not attached to a charge (such as monthly or currency conversion fees), as a 2-decimal string in the payout currency. Already included in `fee_total`. `"0.00"` when there are none.
+         */
+        standalone_fee_total?: string;
+        /**
+         * Sum of the remaining movements settled in the payout (adjustments, disputes and similar; signed), as a 2-decimal string in the payout currency. `"0.00"` when there are none.
+         */
+        other_total?: string;
     };
 };
 
@@ -18455,6 +21088,14 @@ export type SubstituteSimplifiedV1Request = {
     client_id: string;
     simplified_invoice_ids: Array<string>;
     notes?: string | null;
+    /**
+     * Optional nullable tenant-template UUID for the substitute invoice. Omit it to inherit the default; a UUID requests a compatible manual selection. It only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Not accepted by this operation: rejected with 422 when revisioned presentation is enabled for the company, ignored otherwise.
+     */
+    expected_selection_version?: string;
 };
 
 /**
@@ -20262,6 +22903,49 @@ export type TeamTimeBalanceSummary = {
 };
 
 /**
+ * TenantPdfTemplate
+ */
+export type TenantPdfTemplate = {
+    id: string;
+    name: string;
+    description: string | null;
+    state: 'active' | 'archived';
+    version: number;
+    /**
+     * Template kind: `commercial` (invoice, quote, pro forma and delivery note) or `transport-document` (transport control document, DeCA). It is fixed at creation and never changes. Defaults to `commercial` when omitted on create and returned on every template and revision.
+     */
+    document_kind: 'commercial' | 'transport-document';
+    availability: {
+        selectable: boolean;
+        reason: string | null;
+    };
+    created_at: string;
+    updated_at: string;
+    supported_types: Array<'invoice' | 'quote' | 'proforma' | 'delivery-note'>;
+    supported_purposes: {
+        invoice?: Array<'complete' | 'simplified' | 'corrective' | 'simplified_corrective'>;
+        quote?: Array<'complete'>;
+        proforma?: Array<'complete'>;
+        'delivery-note'?: Array<'complete'>;
+    };
+    supported_formats: Array<'a4' | 'ticket_80' | 'ticket_58'>;
+    commercial_identity_id: string | null;
+    current_revision: PdfTemplateRevision;
+};
+
+/**
+ * TenantPdfTemplateList
+ */
+export type TenantPdfTemplateList = {
+    items: Array<TenantPdfTemplate>;
+    meta: {
+        page: number;
+        per_page: number;
+        total: number;
+    };
+};
+
+/**
  * TimeBalance
  *
  * The time balance of an arbitrary period (`from`/`to`) of an employee for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by employee + period, so it exposes `employee_id` (UUID v7) and never an `id`. It is the same contract the monthly close reuses over closed periods. Totals are in minutes; `days` is the daily breakdown.
@@ -20846,6 +23530,43 @@ export type TransportDocumentVersion = {
      * Size of the stored PDF in bytes; a version never exceeds 5 MB (5,000,000 bytes): a larger render is rejected with 422 `transport_document_pdf_too_large` and nothing is saved.
      */
     size_bytes: number;
+    presentation: TransportDocumentVersionPresentation;
+};
+
+/**
+ * TransportDocumentVersionPresentation
+ *
+ * Template design the PDF of this version was painted with, read-only and without the plan policy. Also present in the `data.object` of the `transport_document.*` webhooks. Versions issued before the template library, or while the revisioned presentation was inactive, report `origin: legacy` and every other field `null`.
+ */
+export type TransportDocumentVersionPresentation = {
+    /**
+     * Where the design came from: the «control documents» default, the company main template, or the legacy design.
+     */
+    origin: 'transport_document_default' | 'company_default' | 'legacy';
+    /**
+     * Template used (UUID v7), `null` in `legacy`.
+     */
+    template_id: string | null;
+    /**
+     * Template name when the version was issued.
+     */
+    template_name: string | null;
+    /**
+     * Exact template revision used (UUID v7).
+     */
+    template_revision_id: string | null;
+    /**
+     * Base design of the template.
+     */
+    base_preset: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium' | null;
+    /**
+     * Commercial brand used (UUID v7), when there is one.
+     */
+    commercial_identity_id: string | null;
+    /**
+     * Exact brand revision used (UUID v7).
+     */
+    commercial_identity_revision_id: string | null;
 };
 
 /**
@@ -21131,7 +23852,7 @@ export type UpdateCompanyV1Request = {
 /**
  * UpdateConnectedAccountRequest
  *
- * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled` and `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it).
+ * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it) and the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`. Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
  */
 export type UpdateConnectedAccountRequest = {
     name?: string;
@@ -21143,6 +23864,18 @@ export type UpdateConnectedAccountRequest = {
     subscription_autoinvoicing_enabled?: boolean;
     default_line_concept?: string | null;
     invoice_note?: string | null;
+    /**
+     * Turns on or off the monthly purchase expense that records the Stripe fees of this account (Stripe accounts only). Turning it on requires the purchases module of the plan and, once on, a `fee_expenses_tax_treatment` and a `fee_expenses_since` (sent in the same request or already stored). Turning it off keeps the stored treatment and month and the expenses already created.
+     */
+    fee_expenses_enabled?: boolean;
+    /**
+     * Tax treatment of the fee expense: `reverse_charge_eu` (intra-community purchase at 21 %, self-assessed) or `exempt` (0 %, exemption cause E1). Any other value is rejected with 422 `parameter_invalid_value`.
+     */
+    fee_expenses_tax_treatment?: string;
+    /**
+     * First month to record as a fee expense, as `YYYY-MM`. It cannot be later than the current month, and only closed months are recorded. A malformed or future month is rejected with 422 `parameter_invalid_value`.
+     */
+    fee_expenses_since?: string;
 };
 
 /**
@@ -21157,9 +23890,22 @@ export type UpdateCustomerProfileV1Request = {
     operation_regime?: 'general' | 'intracomunitaria' | 'importacion_exportacion' | 'isp' | null;
     payment_method?: 'bank_transfer' | 'direct_debit' | 'sepa_direct_debit' | 'cash' | 'credit_card' | 'check' | 'paypal' | 'bizum' | 'other' | null;
     payment_terms_days?: number | null;
+    /**
+     * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null.
+     */
     dir3_accounting_office?: string | null;
+    /**
+     * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null.
+     */
     dir3_managing_body?: string | null;
+    /**
+     * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null.
+     */
     dir3_processing_unit?: string | null;
+    /**
+     * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null. Proposing body (role 04).
+     */
+    dir3_proponent?: string | null;
 };
 
 /**
@@ -21171,8 +23917,12 @@ export type UpdateCustomerProfileV1Request = {
  * is required when `action=extend`.
  */
 export type UpdateDeliveryNotePublicLinkRequest = {
-    action: 'revoke' | 'activate' | 'extend' | 'reset';
+    action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
+    publication_context?: {
+        presentation_id: string;
+        expected_binding_version: number;
+    };
 };
 
 /**
@@ -21207,6 +23957,14 @@ export type UpdateDeliveryNoteRequest = {
     external_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
+    /**
+     * Optional nullable tenant-template UUID. Omission preserves current intent; null clears manual intent and inherits; a UUID selects a compatible manual template. Send expected_selection_version whenever this field is present. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Positive current selection version used as the body CAS. It is required exactly when pdf_template_id is present; omit both fields to leave the current presentation intent unchanged. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
     metadata?: Metadata;
     tags?: Array<string> | null;
     custom_fields?: Array<{
@@ -21221,14 +23979,29 @@ export type UpdateDeliveryNoteRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -21309,34 +24082,46 @@ export type UpdateEmployeeRequest = {
  * for the same operation, without renaming the class.
  */
 export type UpdateInvoicePublicLinkRequest = {
-    action: 'revoke' | 'activate' | 'extend' | 'reset';
+    action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
+    publication_context?: {
+        presentation_id: string;
+        expected_binding_version: number;
+    };
 };
 
 /**
  * UpdateInvoiceRequest
+ *
+ * Update a draft invoice. Omitted commercial fields preserve their values; null clears, reference objects merge by key and lists replace while preserving order and duplicates. Retain lines.N.id (UUID v7) to keep a line when reordering; omit it for a new line. Repeated, retired or foreign identities reject the whole update. A non-null reference date requires its paired reference after merging. Header references have only three supported keys (20 characters); line references have five pairs, delivery-note numbers have 30 characters, literals 250 and sequence_number accepts only JSON integers 0-2147483647. Administrative centres null inherits the frozen snapshot; [] selects none. Source line ids, source trees and administrative snapshot/version fields are read-only. payment_terms omitted preserves; null removes only in draft, [] explicitly selects none, list replaces the whole schedule. A nonempty replacement sent without `due_on` moves `due_on` to its last instalment, the date on which the invoice falls due. Every supplied calendar requires raw JSON-integer expected_payment_terms_version >= 0, including no-op/null/[]. If total_to_pay changes with a nonempty current calendar, provide a balanced replacement in the same request. Missing version=428, stale=409 with current_version after authorization; no partial line/fiscal-tree/calendar save. Optional row id is non-null UUID v7; omission always makes a new identity and excluded old identities retire. Versions/source/currency/timestamps/legacy_context are server-owned. Explicit row accounts never use a live fallback; reads do not adapt legacy.
  */
 export type UpdateInvoiceRequest = {
-    client_id?: string;
-    type?: 'F1' | 'F2';
-    series_id?: string | null;
-    price_list_id?: string | null;
-    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
-    issued_on?: string;
-    due_on?: string;
-    /**
-     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date. It can only be changed while the invoice is a draft, and it cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15.
-     */
-    operation_on?: string | null;
-    notes?: string | null;
-    external_id?: string | null;
-    metadata?: Metadata;
-    tags?: Array<string> | null;
-    custom_fields?: Array<{
-        field: string;
-        value: string;
-    }> | null;
+    business_references?: InvoiceHeaderReferences | null;
+    invoicing_period?: InvoiceInvoicingPeriod | null;
+    legal_literals?: InvoiceLegalLiterals | null;
+    administrative_centres?: InvoiceAdministrativeCentres | null;
     lines?: Array<{
+        id?: string;
+        uuid?: string;
+        business_references?: {
+            issuer_contract_reference: string | null;
+            issuer_transaction_reference: string | null;
+            receiver_contract_reference: string | null;
+            receiver_transaction_reference: string | null;
+            file_reference: string | null;
+            issuer_contract_date: string | null;
+            issuer_transaction_date: string | null;
+            receiver_contract_date: string | null;
+            receiver_transaction_date: string | null;
+            file_date: string | null;
+        };
+        delivery_notes_references?: Array<{
+            number: string;
+            date: string | null;
+        }> | null;
+        sequence_number?: number | null;
+        source_line_uuid?: string;
+        source_line_id?: string;
         description?: string | null;
         additional_description?: string | null;
         quantity?: number;
@@ -21344,14 +24129,29 @@ export type UpdateInvoiceRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -21397,7 +24197,53 @@ export type UpdateInvoiceRequest = {
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+    } & {
+        business_references?: InvoiceLineReferences | null;
+        delivery_notes_references?: Array<InvoiceDeliveryNoteReference> | null;
+        /**
+         * Optional sequence. JSON integers only: 0 is valid; booleans, floats and numeric strings are rejected.
+         */
+        sequence_number?: number | null;
+        /**
+         * Existing active UUID v7 of a line of THIS invoice. Omit for a new line. Reordering preserves commercial data by identity, not index; repeated or foreign identities are rejected.
+         */
+        id?: string;
     }>;
+    payment_terms?: InvoicePaymentTermsInput;
+    /**
+     * Body CAS for editing an existing calendar, including null/[] and a no-op. Also required if total_to_pay changes with a nonempty current schedule. Missing returns 428, stale returns 409 with current_version only after parent authorization. 0 means no row. New creation needs no version; POST external_id upsert follows the update rules. Idempotent replay precedes CAS. Neither If-Match nor expected_version/administrative_version substitutes this field.
+     */
+    expected_payment_terms_version?: number;
+    client_id?: string;
+    type?: 'F1' | 'F2';
+    series_id?: string | null;
+    price_list_id?: string | null;
+    reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
+    /**
+     * Optional nullable tenant-template UUID. Omission preserves current intent; null clears manual intent and inherits; a UUID selects a compatible manual template. Send expected_selection_version whenever this field is present. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Positive current selection version used as the body CAS. It is required exactly when pdf_template_id is present; omit both fields to leave the current presentation intent unchanged. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
+    issued_on?: string;
+    /**
+     * New due date (YYYY-MM-DD), only while the invoice is a draft. With a nonempty schedule the invoice falls due on its last instalment: when you replace `payment_terms` and leave `due_on` out, it moves to that date; when you send both and they differ, the draft keeps them and issuing it returns 422 `invoice_due_date_not_last_instalment`.
+     */
+    due_on?: string;
+    /**
+     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date. It can only be changed while the invoice is a draft, and it cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15.
+     */
+    operation_on?: string | null;
+    notes?: string | null;
+    external_id?: string | null;
+    metadata?: Metadata;
+    tags?: Array<string> | null;
+    custom_fields?: Array<{
+        field: string;
+        value: string;
+    }> | null;
 };
 
 /**
@@ -21582,8 +24428,12 @@ export type UpdateProductVariantRequest = {
  * collide in `components.schemas`.
  */
 export type UpdateProformaPublicLinkRequest = {
-    action: 'revoke' | 'activate' | 'extend' | 'reset';
+    action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
+    publication_context?: {
+        presentation_id: string;
+        expected_binding_version: number;
+    };
 };
 
 /**
@@ -21596,6 +24446,14 @@ export type UpdateProformaRequest = {
     series_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
+    /**
+     * Optional nullable tenant-template UUID. Omission preserves current intent; null clears manual intent and inherits; a UUID selects a compatible manual template. Send expected_selection_version whenever this field is present. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Positive current selection version used as the body CAS. It is required exactly when pdf_template_id is present; omit both fields to leave the current presentation intent unchanged. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
     issued_on?: string;
     valid_until?: string | null;
     validity_days?: number | null;
@@ -21623,14 +24481,29 @@ export type UpdateProformaRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -21807,8 +24680,12 @@ export type UpdatePurchaseInvoiceRequest = {
  * collide in `components.schemas`.
  */
 export type UpdateQuotePublicLinkRequest = {
-    action: 'revoke' | 'activate' | 'extend' | 'reset';
+    action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
+    publication_context?: {
+        presentation_id: string;
+        expected_binding_version: number;
+    };
 };
 
 /**
@@ -21821,6 +24698,14 @@ export type UpdateQuoteRequest = {
     series_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only';
+    /**
+     * Optional nullable tenant-template UUID. Omission preserves current intent; null clears manual intent and inherits; a UUID selects a compatible manual template. Send expected_selection_version whenever this field is present. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Positive current selection version used as the body CAS. It is required exactly when pdf_template_id is present; omit both fields to leave the current presentation intent unchanged. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
+    expected_selection_version?: number;
     issued_on?: string;
     valid_until?: string;
     notes?: string | null;
@@ -21840,14 +24725,29 @@ export type UpdateQuoteRequest = {
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
         unit_price?: number | string | null;
+        /**
+         * Public identifier (UUID v7) of the VAT-class tax of the catalog chosen for the line. Optional. Without `tax_rate`, the rate (and the indirect-tax regime, the AEAT qualification and, for an exempt or not-subject tax, the exemption cause) comes from that tax. A tax that is not a VAT-class tax, or a `tax_rate` that differs from the rate of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line). Send only the id, or a `tax_rate` equal to the tax's own rate.
+         */
         tax_rate_id?: string | null;
         /**
          * VAT rate of the line (0–100). Optional, and it matters whenever `lines` is sent, because a `PUT` replaces the whole set of lines: a line that omits it (or sends `null`) takes the tax it references or the tax assigned to its product and otherwise the DEFAULT TAX of your company for this kind of document, inherited as a whole: its rate, its indirect-tax regime (IVA, IGIC or IPSI) and its AEAT qualification; an exempt or not-subject default also declares its cause (`exemption_reason`) on the line unless the line sends its own. If none of them exists the request is rejected with 422 `missing_required_param`, with `error.param` = `lines.N.tax_rate` and `error.line_index` = N (the zero-based index of the line); a rate already stored on a line is NOT kept if you resend the line without it. A `0` you send is honoured as a real 0 % rate.
          */
         tax_rate?: number | null;
+        /**
+         * Withholding (IRPF) percentage of the line, 0–100 (the magnitude: a catalog withholding stored with a negative sign is declared here without it). Optional: when you omit it (or send `null`) and the line carries `retention_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N.
+         */
         retention_rate?: number | null;
+        /**
+         * Equivalence-surcharge percentage of the line, 0–100. Optional: when you omit it (or send `null`) and the line carries `surcharge_rate_id`, it is taken from that tax. If you send both and the percentage differs from the one of the chosen tax, the request is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N.
+         */
         surcharge_rate?: number | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         product_id?: string | null;
         variant_id?: string | null;
@@ -21876,6 +24776,20 @@ export type UpdateQuoteRequest = {
  * Partial update of a recurring invoice template; only the fields sent overwrite the current value, omitted ones are preserved. Writable fields mirror creation (`client_id`, `series_id`, `name`, `description`, `frequency`, `holiday_handling`, `start_on`, `end_on`, `notes`, `metadata`, `days_before_due`, `max_occurrences`, `email_to`, `send_automatically`, `generation_mode`, `auto_delivery`, `lines[]`). Omitting `generation_mode` keeps the current mode.
  */
 export type UpdateRecurringInvoiceRequest = {
+    /**
+     * Create omitted/null means latest inherited. Update omitted preserves; null resets inheritance; a complete object replaces the policy. {} and partial objects are invalid. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    presentation_policy?: RecurringPresentationPolicy | null;
+    /**
+     * Relative payment calendar of the recurrence; the schema explains the null, [] and list semantics. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    payment_terms_template?: RecurringPaymentTermsTemplate;
+    /**
+     * Body CAS required on update/existing external_id upsert when policy, terms, governing client or series is provided, even null/no-op. Missing=428, stale=409. Fresh creation rejects this field; from-invoice does not accept it. Unrelated edits preserve this version. No parent If-Match or other version substitutes it. This field only takes effect when revisioned presentation is enabled for the company; otherwise it is ignored.
+     */
+    expected_presentation_policy_version?: number;
+    expected_source_context_hash?: string;
+    recovery?: string;
     client_id?: string;
     series_id?: string | null;
     price_list_id?: string | null;
@@ -21935,7 +24849,13 @@ export type UpdateRecurringInvoiceRequest = {
         surcharge?: number | null;
         exemption_reason?: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
         regime_key?: '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '14' | '15' | '17' | '18' | '19' | '20' | null;
+        /**
+         * Public identifier (UUID v7) of the withholding (IRPF) tax of the catalog chosen for the line. Optional. Without `retention_rate`, the percentage of the line is taken from that tax (its magnitude, 0–100): sending only the id never computes the withholding at 0 %. A tax of another class (for example a VAT or an equivalence-surcharge tax), or a `retention_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.retention_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         retention_rate_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of the equivalence-surcharge tax of the catalog chosen for the line. Optional. Without `surcharge_rate`, the percentage of the line is taken from that tax: sending only the id never computes the surcharge at 0 %. A tax of another class (for example a VAT or a withholding tax), or a `surcharge_rate` that differs from the percentage of the chosen tax, is rejected with 422 `parameter_invalid_value` (subcode `tax_rate_mismatch`), with `error.param` = `lines.N.surcharge_rate` and `error.line_index` = N (the zero-based index of the line).
+         */
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         configuration_uuid?: string | null;
@@ -21955,8 +24875,18 @@ export type UpdateRecurringInvoiceRequest = {
 
 /**
  * UpdateSeriesRequest
+ *
+ * Partially edit a series with PUT, preserving all fiscal guards and omitted fields. Optional pdf_template_id preserves on omission, clears on null and assigns a compatible tenant template on UUID. If the selector is provided, even null or the current UUID, supply pdf_template_expected_version (integer >=1). A purpose change with a saved preference also requires this body CAS. A parent-series ETag does not replace it: missing CAS 428, stale CAS 409; invalid or incompatible input 422 rolls back the complete fiscal and visual edit. Empty strings, the other transport selector and two selectors are invalid. number_format is the fiscal mask, not PDF paper.
  */
 export type UpdateSeriesRequest = {
+    /**
+     * Optional tenant-template UUID. Omitted preserves (inherits on creation), null clears, empty or two selectors return 422.
+     */
+    pdf_template_id?: string | null;
+    /**
+     * Required visual CAS when a selector is supplied, even null or unchanged, or purpose changes with a saved template. A parent-series ETag cannot replace this body CAS.
+     */
+    pdf_template_expected_version?: number;
     /**
      * Series name (1-100 characters).
      */
@@ -29429,9 +32359,3200 @@ export type WorkdaySessionStatus = {
 };
 
 /**
+ * Event
+ *
+ * A read-only record of something that happened in your account. The same object is delivered to your webhook endpoints.
+ */
+export type EventWritable = {
+    /**
+     * Opaque identifier of the event, a UUID v7 (e.g. `01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a9b`). Consistent with the `id` field of every other v1 resource.
+     */
+    id: string;
+    /**
+     * Always `event`.
+     */
+    object: 'event';
+    /**
+     * Event type in `<category>.<action>` form (e.g. `invoice.paid`, `quote.approved`). See `GET /event-catalog` for the full list.
+     */
+    type: string;
+    /**
+     * UUID v7 of the resource that produced this event (e.g. the invoice for `invoice.paid`). `null` for events without backfill. Distinct from `id`, which identifies the event itself.
+     */
+    aggregate_id: string | null;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context (e.g. born from scheduler sweeps). The key is always present.
+     */
+    correlation_id: string | null;
+    /**
+     * API version (date-based) the event data was serialized under, sealed at emission (e.g. `2026-10-05`). An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the latest version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * `true` for events generated in production (live keys, `fact_live_`); `false` for events generated in test mode (sandbox company, test keys `fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`, which reflects the key environment (live vs sandbox): a test delivery may be issued in either, so e.g. `livemode: true, test: true` is valid.
+     */
+    test: boolean;
+    data: EventDataWritable;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+};
+
+/**
+ * EventData
+ *
+ * The payload embedded when the event was emitted, discriminated by `type`. Carries the full snapshot of the affected resource under `object` — identical to the `GET` of that resource at emission time (for an invoice, `GET /v1/companies/{company}/invoices/{invoice}`) — plus event-specific keys, e.g. `{ "type": "invoice.paid", "object": { ...invoice... }, "amount": "1210.00" }`. The snapshot is frozen: later changes to the resource do not rewrite past events.
+ */
+export type EventDataWritable = ({
+    type: 'invoice.created';
+} & EventDataInvoiceCreatedWritable) | ({
+    type: 'invoice.auto_created';
+} & EventDataInvoiceAutoCreatedWritable) | ({
+    type: 'invoice.corrective_auto_created';
+} & EventDataInvoiceCorrectiveAutoCreatedWritable) | ({
+    type: 'invoice.subscription_auto_created';
+} & EventDataInvoiceSubscriptionAutoCreatedWritable) | ({
+    type: 'invoice.updated';
+} & EventDataInvoiceUpdatedWritable) | ({
+    type: 'invoice.issued';
+} & EventDataInvoiceIssuedWritable) | ({
+    type: 'invoice.sent';
+} & EventDataInvoiceSentWritable) | ({
+    type: 'invoice.marked_sent';
+} & EventDataInvoiceMarkedSentWritable) | ({
+    type: 'invoice.unsent';
+} & EventDataInvoiceUnsentWritable) | ({
+    type: 'invoice.paid';
+} & EventDataInvoicePaidWritable) | ({
+    type: 'invoice.cancelled';
+} & EventDataInvoiceCancelledWritable) | ({
+    type: 'invoice.annulled';
+} & EventDataInvoiceAnnulledWritable) | ({
+    type: 'invoice.overdue';
+} & EventDataInvoiceOverdueWritable) | ({
+    type: 'invoice.deleted';
+} & EventDataInvoiceDeletedWritable) | ({
+    type: 'invoice.number_assigned';
+} & EventDataInvoiceNumberAssignedWritable) | ({
+    type: 'invoice.rectified';
+} & EventDataInvoiceRectifiedWritable) | ({
+    type: 'invoice.email_sent';
+} & EventDataInvoiceEmailSentWritable) | ({
+    type: 'invoice.email_failed';
+} & EventDataInvoiceEmailFailedWritable) | ({
+    type: 'invoice.payment_reminder_sent';
+} & EventDataInvoicePaymentReminderSentWritable) | ({
+    type: 'invoice.simplified_created';
+} & EventDataInvoiceSimplifiedCreatedWritable) | ({
+    type: 'invoice.simplified_substituted';
+} & EventDataInvoiceSimplifiedSubstitutedWritable) | ({
+    type: 'invoice.substituted_by_complete';
+} & EventDataInvoiceSubstitutedByCompleteWritable) | ({
+    type: 'invoice.verifactu_submitted';
+} & EventDataInvoiceVerifactuSubmittedWritable) | ({
+    type: 'invoice.verifactu_failed';
+} & EventDataInvoiceVerifactuFailedWritable) | ({
+    type: 'invoice.metadata_changed';
+} & EventDataInvoiceMetadataChangedWritable) | ({
+    type: 'quote.created';
+} & EventDataQuoteCreated) | ({
+    type: 'quote.updated';
+} & EventDataQuoteUpdated) | ({
+    type: 'quote.deleted';
+} & EventDataQuoteDeleted) | ({
+    type: 'quote.approved';
+} & EventDataQuoteApproved) | ({
+    type: 'quote.rejected';
+} & EventDataQuoteRejected) | ({
+    type: 'quote.converted';
+} & EventDataQuoteConverted) | ({
+    type: 'quote.expired';
+} & EventDataQuoteExpired) | ({
+    type: 'quote.marked_as_pending';
+} & EventDataQuoteMarkedAsPending) | ({
+    type: 'quote.cancelled';
+} & EventDataQuoteCancelled) | ({
+    type: 'quote.number_assigned';
+} & EventDataQuoteNumberAssigned) | ({
+    type: 'quote.metadata_changed';
+} & EventDataQuoteMetadataChanged) | ({
+    type: 'quote.email_sent';
+} & EventDataQuoteEmailSent) | ({
+    type: 'quote.email_failed';
+} & EventDataQuoteEmailFailed) | ({
+    type: 'proforma.created';
+} & EventDataProformaCreated) | ({
+    type: 'proforma.updated';
+} & EventDataProformaUpdated) | ({
+    type: 'proforma.deleted';
+} & EventDataProformaDeleted) | ({
+    type: 'proforma.accepted';
+} & EventDataProformaAccepted) | ({
+    type: 'proforma.rejected';
+} & EventDataProformaRejected) | ({
+    type: 'proforma.cancelled';
+} & EventDataProformaCancelled) | ({
+    type: 'proforma.expired';
+} & EventDataProformaExpired) | ({
+    type: 'proforma.converted_to_invoice';
+} & EventDataProformaConvertedToInvoice) | ({
+    type: 'proforma.number_assigned';
+} & EventDataProformaNumberAssigned) | ({
+    type: 'proforma.metadata_changed';
+} & EventDataProformaMetadataChanged) | ({
+    type: 'proforma.email_sent';
+} & EventDataProformaEmailSent) | ({
+    type: 'proforma.email_failed';
+} & EventDataProformaEmailFailed) | ({
+    type: 'delivery_note.created';
+} & EventDataDeliveryNoteCreated) | ({
+    type: 'delivery_note.updated';
+} & EventDataDeliveryNoteUpdated) | ({
+    type: 'delivery_note.status_changed';
+} & EventDataDeliveryNoteStatusChanged) | ({
+    type: 'delivery_note.signed';
+} & EventDataDeliveryNoteSigned) | ({
+    type: 'delivery_note.converted';
+} & EventDataDeliveryNoteConverted) | ({
+    type: 'delivery_note.email_sent';
+} & EventDataDeliveryNoteEmailSent) | ({
+    type: 'delivery_note.email_failed';
+} & EventDataDeliveryNoteEmailFailed) | ({
+    type: 'transport_document.created';
+} & EventDataTransportDocumentCreated) | ({
+    type: 'transport_document.updated';
+} & EventDataTransportDocumentUpdated) | ({
+    type: 'transport_document.issued';
+} & EventDataTransportDocumentIssued) | ({
+    type: 'transport_document.modified';
+} & EventDataTransportDocumentModified) | ({
+    type: 'transport_document.closed';
+} & EventDataTransportDocumentClosed) | ({
+    type: 'transport_document.reopened';
+} & EventDataTransportDocumentReopened) | ({
+    type: 'transport_document.cancelled';
+} & EventDataTransportDocumentCancelled) | ({
+    type: 'transport_document.superseded';
+} & EventDataTransportDocumentSuperseded) | ({
+    type: 'transport_document.email_sent';
+} & EventDataTransportDocumentEmailSent) | ({
+    type: 'transport_document.email_failed';
+} & EventDataTransportDocumentEmailFailed) | ({
+    type: 'purchase_invoice.created';
+} & EventDataPurchaseInvoiceCreated) | ({
+    type: 'purchase_invoice.updated';
+} & EventDataPurchaseInvoiceUpdated) | ({
+    type: 'purchase_invoice.paid';
+} & EventDataPurchaseInvoicePaid) | ({
+    type: 'purchase_invoice.cancelled';
+} & EventDataPurchaseInvoiceCancelled) | ({
+    type: 'purchase_invoice.metadata_changed';
+} & EventDataPurchaseInvoiceMetadataChanged) | ({
+    type: 'purchase_invoice.payment_registered';
+} & EventDataPurchaseInvoicePaymentRegistered) | ({
+    type: 'recurring_invoice.created';
+} & EventDataRecurringInvoiceCreatedWritable) | ({
+    type: 'recurring_invoice.activated';
+} & EventDataRecurringInvoiceActivatedWritable) | ({
+    type: 'recurring_invoice.paused';
+} & EventDataRecurringInvoicePausedWritable) | ({
+    type: 'recurring_invoice.updated';
+} & EventDataRecurringInvoiceUpdatedWritable) | ({
+    type: 'recurring_invoice.deleted';
+} & EventDataRecurringInvoiceDeletedWritable) | ({
+    type: 'recurring_invoice.completed';
+} & EventDataRecurringInvoiceCompletedWritable) | ({
+    type: 'recurring_invoice.executed';
+} & EventDataRecurringInvoiceExecutedWritable) | ({
+    type: 'recurring_invoice.failed';
+} & EventDataRecurringInvoiceFailedWritable) | ({
+    type: 'recurring_invoice.metadata_changed';
+} & EventDataRecurringInvoiceMetadataChangedWritable) | ({
+    type: 'recurring_invoice.cancelled';
+} & EventDataRecurringInvoiceCancelledWritable) | ({
+    type: 'client.created';
+} & EventDataClientCreated) | ({
+    type: 'client.updated';
+} & EventDataClientUpdated) | ({
+    type: 'client.deleted';
+} & EventDataClientDeleted) | ({
+    type: 'client.metadata_changed';
+} & EventDataClientMetadataChanged) | ({
+    type: 'contact.created';
+} & EventDataContactCreated) | ({
+    type: 'contact.updated';
+} & EventDataContactUpdated) | ({
+    type: 'contact.archived';
+} & EventDataContactArchived) | ({
+    type: 'contact.restored';
+} & EventDataContactRestored) | ({
+    type: 'contact.deleted';
+} & EventDataContactDeleted) | ({
+    type: 'contact.role.assigned';
+} & EventDataContactRoleAssigned) | ({
+    type: 'contact.role.activated';
+} & EventDataContactRoleActivated) | ({
+    type: 'contact.role.deactivated';
+} & EventDataContactRoleDeactivated) | ({
+    type: 'contact.role.removed';
+} & EventDataContactRoleRemoved) | ({
+    type: 'contact.customer_profile.updated';
+} & EventDataContactCustomerProfileUpdated) | ({
+    type: 'contact.supplier_profile.updated';
+} & EventDataContactSupplierProfileUpdated) | ({
+    type: 'product.created';
+} & EventDataProductCreated) | ({
+    type: 'product.updated';
+} & EventDataProductUpdated) | ({
+    type: 'product.replaced';
+} & EventDataProductReplaced) | ({
+    type: 'payment.received';
+} & EventDataPaymentReceived) | ({
+    type: 'payment.reversed';
+} & EventDataPaymentReversed) | ({
+    type: 'tax.metadata_changed';
+} & EventDataTaxMetadataChanged) | ({
+    type: 'tax.validity_changed';
+} & EventDataTaxValidityChanged) | ({
+    type: 'tax.external_reference_changed';
+} & EventDataTaxExternalReferenceChanged) | ({
+    type: 'series.created';
+} & EventDataSeriesCreated) | ({
+    type: 'series.updated';
+} & EventDataSeriesUpdated) | ({
+    type: 'series.deleted';
+} & EventDataSeriesDeleted) | ({
+    type: 'series.archived';
+} & EventDataSeriesArchived) | ({
+    type: 'series.unarchived';
+} & EventDataSeriesUnarchived) | ({
+    type: 'series.marked_as_default';
+} & EventDataSeriesMarkedAsDefault) | ({
+    type: 'series.demoted_from_default';
+} & EventDataSeriesDemotedFromDefault) | ({
+    type: 'series.year_reset';
+} & EventDataSeriesYearReset) | ({
+    type: 'series.month_reset';
+} & EventDataSeriesMonthReset) | ({
+    type: 'series.number_consumed';
+} & EventDataSeriesNumberConsumed) | ({
+    type: 'facturae.face_submitted';
+} & EventDataFacturaeFaceSubmittedWritable) | ({
+    type: 'facturae.face_status_changed';
+} & EventDataFacturaeFaceStatusChangedWritable) | ({
+    type: 'facturae.face_cancellation_requested';
+} & EventDataFacturaeFaceCancellationRequestedWritable) | ({
+    type: 'payout.reconciled';
+} & EventDataPayoutReconciled) | ({
+    type: 'employee.created';
+} & EventDataEmployeeCreated) | ({
+    type: 'employee.updated';
+} & EventDataEmployeeUpdated) | ({
+    type: 'employee.deactivated';
+} & EventDataEmployeeDeactivated) | ({
+    type: 'employee.invited';
+} & EventDataEmployeeInvited) | ({
+    type: 'time_entry.recorded';
+} & EventDataTimeEntryRecorded) | ({
+    type: 'time_entry.corrected';
+} & EventDataTimeEntryCorrected) | ({
+    type: 'absence.requested';
+} & EventDataAbsenceRequested) | ({
+    type: 'absence.approved';
+} & EventDataAbsenceApproved) | ({
+    type: 'absence.rejected';
+} & EventDataAbsenceRejected) | ({
+    type: 'monthly_register.closed';
+} & EventDataMonthlyRegisterClosed) | ({
+    type: 'automation_rule.activated';
+} & EventDataAutomationRuleActivated) | ({
+    type: 'automation_rule.paused';
+} & EventDataAutomationRulePaused) | ({
+    type: 'automation_rule.auto_paused';
+} & EventDataAutomationRuleAutoPaused) | ({
+    type: 'automation_run.started';
+} & EventDataAutomationRunStarted) | ({
+    type: 'automation_run.completed';
+} & EventDataAutomationRunCompleted) | ({
+    type: 'automation_run.failed';
+} & EventDataAutomationRunFailed) | ({
+    type: 'automation_run.step_dead_lettered';
+} & EventDataAutomationRunStepDeadLettered) | ({
+    type: 'order.invoiced';
+} & EventDataOrderInvoicedWritable) | ({
+    type: 'order.refunded';
+} & EventDataOrderRefundedWritable) | ({
+    type: 'task.created';
+} & EventDataTaskCreated) | ({
+    type: 'task.updated';
+} & EventDataTaskUpdated) | ({
+    type: 'task.deleted';
+} & EventDataTaskDeleted) | ({
+    type: 'task.status_changed';
+} & EventDataTaskStatusChanged) | ({
+    type: 'task.completed';
+} & EventDataTaskCompleted) | ({
+    type: 'task.assigned';
+} & EventDataTaskAssigned) | ({
+    type: 'task.unassigned';
+} & EventDataTaskUnassigned) | ({
+    type: 'task.moved';
+} & EventDataTaskMoved) | ({
+    type: 'task.due_soon';
+} & EventDataTaskDueSoon) | ({
+    type: 'task.overdue';
+} & EventDataTaskOverdue) | ({
+    type: 'task_comment.created';
+} & EventDataTaskCommentCreated) | ({
+    type: 'task_comment.updated';
+} & EventDataTaskCommentUpdated) | ({
+    type: 'task_comment.deleted';
+} & EventDataTaskCommentDeleted) | ({
+    type: 'task_time_entry.created';
+} & EventDataTaskTimeEntryCreated) | ({
+    type: 'task_time_entry.updated';
+} & EventDataTaskTimeEntryUpdated) | ({
+    type: 'task_time_entry.deleted';
+} & EventDataTaskTimeEntryDeleted) | ({
+    type: 'task_time_entry.invoiced';
+} & EventDataTaskTimeEntryInvoiced) | ({
+    type: 'project.created';
+} & EventDataProjectCreated) | ({
+    type: 'project.updated';
+} & EventDataProjectUpdated) | ({
+    type: 'project.archived';
+} & EventDataProjectArchived) | ({
+    type: 'project.deleted';
+} & EventDataProjectDeleted);
+
+/**
+ * EventDataFacturaeFaceCancellationRequested
+ *
+ * Payload (`data`) emitted with the `facturae.face_cancellation_requested` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataFacturaeFaceCancellationRequestedWritable = {
+    type: 'facturae.face_cancellation_requested';
+    object: InvoiceWritable;
+    face_submission_id: string | null;
+    reason: string;
+};
+
+/**
+ * EventDataFacturaeFaceStatusChanged
+ *
+ * Payload (`data`) emitted with the `facturae.face_status_changed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataFacturaeFaceStatusChangedWritable = {
+    type: 'facturae.face_status_changed';
+    object: InvoiceWritable;
+    face_submission_id: string | null;
+    from_status: string;
+    to_status: string;
+};
+
+/**
+ * EventDataFacturaeFaceSubmitted
+ *
+ * Payload (`data`) emitted with the `facturae.face_submitted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataFacturaeFaceSubmittedWritable = {
+    type: 'facturae.face_submitted';
+    object: InvoiceWritable;
+    face_submission_id: string | null;
+    face_registry_number: string;
+};
+
+/**
+ * EventDataInvoiceAnnulled
+ *
+ * Payload (`data`) emitted with the `invoice.annulled` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceAnnulledWritable = {
+    type: 'invoice.annulled';
+    object: InvoiceWritable;
+    annulled_at: string | null;
+    reason: string | null;
+};
+
+/**
+ * EventDataInvoiceAutoCreated
+ *
+ * Payload (`data`) emitted with the `invoice.auto_created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceAutoCreatedWritable = {
+    type: 'invoice.auto_created';
+    object: InvoiceWritable;
+    invoice: {
+        uuid: string;
+        number: string | null;
+        client_uuid?: string | null;
+        /**
+         * Total amount of the invoice (EUR), as a 2-decimal string.
+         */
+        total: string;
+        source: string;
+    };
+};
+
+/**
+ * EventDataInvoiceCancelled
+ *
+ * Payload (`data`) emitted with the `invoice.cancelled` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceCancelledWritable = {
+    type: 'invoice.cancelled';
+    object: InvoiceWritable;
+    cancelled_at: string | null;
+};
+
+/**
+ * EventDataInvoiceCorrectiveAutoCreated
+ *
+ * Payload (`data`) emitted with the `invoice.corrective_auto_created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceCorrectiveAutoCreatedWritable = {
+    type: 'invoice.corrective_auto_created';
+    object: InvoiceWritable;
+    corrective: {
+        uuid: string;
+        original_invoice_uuid: string;
+        refund_id: string;
+        provider: string;
+        /**
+         * Amount of the individual refund (EUR), as a 2-decimal string.
+         */
+        amount: string;
+        correction_type: string;
+    };
+};
+
+/**
+ * EventDataInvoiceCreated
+ *
+ * Payload (`data`) emitted with the `invoice.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceCreatedWritable = {
+    type: 'invoice.created';
+    object: InvoiceWritable;
+};
+
+/**
+ * EventDataInvoiceDeleted
+ *
+ * Payload (`data`) emitted with the `invoice.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceDeletedWritable = {
+    type: 'invoice.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: InvoiceWritable | EventDeletedObject;
+};
+
+/**
+ * EventDataInvoiceEmailFailed
+ *
+ * Payload (`data`) emitted with the `invoice.email_failed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceEmailFailedWritable = {
+    type: 'invoice.email_failed';
+    object: InvoiceWritable;
+    recipient_email: string | null;
+    error_message: string | null;
+    error_class: string | null;
+    cc: Array<string>;
+    bcc: Array<string>;
+};
+
+/**
+ * EventDataInvoiceEmailSent
+ *
+ * Payload (`data`) emitted with the `invoice.email_sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceEmailSentWritable = {
+    type: 'invoice.email_sent';
+    object: InvoiceWritable;
+    recipient_email: string | null;
+    invoice_number: string | null;
+    cc: Array<string>;
+    bcc: Array<string>;
+};
+
+/**
+ * EventDataInvoiceIssued
+ *
+ * Payload (`data`) emitted with the `invoice.issued` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceIssuedWritable = {
+    type: 'invoice.issued';
+    object: InvoiceWritable;
+};
+
+/**
+ * EventDataInvoiceMarkedSent
+ *
+ * Payload (`data`) emitted with the `invoice.marked_sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceMarkedSentWritable = {
+    type: 'invoice.marked_sent';
+    object: InvoiceWritable;
+};
+
+/**
+ * EventDataInvoiceMetadataChanged
+ *
+ * Payload (`data`) emitted with the `invoice.metadata_changed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceMetadataChangedWritable = {
+    type: 'invoice.metadata_changed';
+    object: InvoiceWritable;
+    previous_keys: Array<string>;
+    new_keys: Array<string>;
+};
+
+/**
+ * EventDataInvoiceNumberAssigned
+ *
+ * Payload (`data`) emitted with the `invoice.number_assigned` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceNumberAssignedWritable = {
+    type: 'invoice.number_assigned';
+    object: InvoiceWritable;
+    previous_number: string | null;
+    new_number: string | null;
+};
+
+/**
+ * EventDataInvoiceOverdue
+ *
+ * Payload (`data`) emitted with the `invoice.overdue` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceOverdueWritable = {
+    type: 'invoice.overdue';
+    object: InvoiceWritable;
+    due_date: string | null;
+    days_overdue: number;
+};
+
+/**
+ * EventDataInvoicePaid
+ *
+ * Payload (`data`) emitted with the `invoice.paid` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoicePaidWritable = {
+    type: 'invoice.paid';
+    object: InvoiceWritable;
+    /**
+     * Amount of the payment that settled the invoice (EUR), as a 2-decimal string.
+     */
+    amount: string;
+    payment_date: string | null;
+    payment_method: string | null;
+    payment_reference: string | null;
+};
+
+/**
+ * EventDataInvoicePaymentReminderSent
+ *
+ * Payload (`data`) emitted with the `invoice.payment_reminder_sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoicePaymentReminderSentWritable = {
+    type: 'invoice.payment_reminder_sent';
+    object: InvoiceWritable;
+    recipient_email: string | null;
+    invoice_number: string | null;
+};
+
+/**
+ * EventDataInvoiceRectified
+ *
+ * Payload (`data`) emitted with the `invoice.rectified` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceRectifiedWritable = {
+    type: 'invoice.rectified';
+    object: InvoiceWritable;
+    corrective_invoice_id: string | null;
+    corrective_invoice_number: string | null;
+};
+
+/**
+ * EventDataInvoiceSent
+ *
+ * Payload (`data`) emitted with the `invoice.sent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys. Deprecated: alias of `invoice.issued`, emitted at the same instant and with the same `data.object`. New integrations should subscribe to `invoice.issued`; its removal will be announced with a `Sunset` date.
+ *
+ * @deprecated
+ */
+export type EventDataInvoiceSentWritable = {
+    type: 'invoice.sent';
+    object: InvoiceWritable;
+};
+
+/**
+ * EventDataInvoiceSimplifiedCreated
+ *
+ * Payload (`data`) emitted with the `invoice.simplified_created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceSimplifiedCreatedWritable = {
+    type: 'invoice.simplified_created';
+    object: InvoiceWritable;
+    invoice_number: string | null;
+};
+
+/**
+ * EventDataInvoiceSimplifiedSubstituted
+ *
+ * Payload (`data`) emitted with the `invoice.simplified_substituted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceSimplifiedSubstitutedWritable = {
+    type: 'invoice.simplified_substituted';
+    object: InvoiceWritable;
+    substituted_invoice_ids: Array<string>;
+};
+
+/**
+ * EventDataInvoiceSubscriptionAutoCreated
+ *
+ * Payload (`data`) emitted with the `invoice.subscription_auto_created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceSubscriptionAutoCreatedWritable = {
+    type: 'invoice.subscription_auto_created';
+    object: InvoiceWritable;
+    subscription: {
+        uuid: string;
+        stripe_subscription_id: string;
+        stripe_invoice_id: string;
+        billing_reason: string;
+        period_start: string;
+        period_end: string;
+    };
+};
+
+/**
+ * EventDataInvoiceSubstitutedByComplete
+ *
+ * Payload (`data`) emitted with the `invoice.substituted_by_complete` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceSubstitutedByCompleteWritable = {
+    type: 'invoice.substituted_by_complete';
+    object: InvoiceWritable;
+    substitute_invoice_id: string | null;
+    substitute_invoice_number: string | null;
+};
+
+/**
+ * EventDataInvoiceUnsent
+ *
+ * Payload (`data`) emitted with the `invoice.unsent` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceUnsentWritable = {
+    type: 'invoice.unsent';
+    object: InvoiceWritable;
+};
+
+/**
+ * EventDataInvoiceUpdated
+ *
+ * Payload (`data`) emitted with the `invoice.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceUpdatedWritable = {
+    type: 'invoice.updated';
+    object: InvoiceWritable;
+};
+
+/**
+ * EventDataInvoiceVerifactuFailed
+ *
+ * Payload (`data`) emitted with the `invoice.verifactu_failed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceVerifactuFailedWritable = {
+    type: 'invoice.verifactu_failed';
+    object: InvoiceWritable;
+    verifactu_record_id: string | null;
+    error_code: string | null;
+    error_message: string | null;
+};
+
+/**
+ * EventDataInvoiceVerifactuSubmitted
+ *
+ * Payload (`data`) emitted with the `invoice.verifactu_submitted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataInvoiceVerifactuSubmittedWritable = {
+    type: 'invoice.verifactu_submitted';
+    object: InvoiceWritable;
+    verifactu_record_id: string | null;
+    huella: string | null;
+};
+
+/**
+ * EventDataOrderInvoiced
+ *
+ * Payload (`data`) emitted with the `order.invoiced` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataOrderInvoicedWritable = {
+    type: 'order.invoiced';
+    object: InvoiceWritable;
+    store: {
+        /**
+         * Opaque identifier (UUID v7) of the connected store the order came from.
+         */
+        uuid: string;
+        /**
+         * Store platform the order was ingested from. Currently `woocommerce`, `shopify` or `prestashop`.
+         */
+        provider: string;
+    };
+    order: {
+        /**
+         * Identifier of the order in the store, as the platform reports it. This is the key to correlate the event with your own order on the store side.
+         */
+        external_id: string;
+    };
+};
+
+/**
+ * EventDataOrderRefunded
+ *
+ * Payload (`data`) emitted with the `order.refunded` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataOrderRefundedWritable = {
+    type: 'order.refunded';
+    object: InvoiceWritable;
+    store: {
+        /**
+         * Opaque identifier (UUID v7) of the connected store the refunded order came from.
+         */
+        uuid: string;
+        /**
+         * Store platform the order was ingested from. Currently `woocommerce`, `shopify` or `prestashop`.
+         */
+        provider: string;
+    };
+    order: {
+        /**
+         * Identifier of the refunded order in the store, as the platform reports it. This is the key to correlate the event with your own order on the store side.
+         */
+        external_id: string;
+    };
+    refund: {
+        /**
+         * Whether the refund covered the whole order (`total`) or part of it (`partial`), as classified when the corrective invoice was issued.
+         */
+        scope: string;
+        /**
+         * AEAT legal ground of the corrective invoice (`R1`, `R4` or `R5`), decided when the refund was resolved — never recomputed at emission time.
+         */
+        reason_code: string;
+    };
+};
+
+/**
+ * EventDataRecurringInvoiceActivated
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.activated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceActivatedWritable = {
+    type: 'recurring_invoice.activated';
+    object: RecurringInvoiceWritable;
+};
+
+/**
+ * EventDataRecurringInvoiceCancelled
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.cancelled` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceCancelledWritable = {
+    type: 'recurring_invoice.cancelled';
+    object: RecurringInvoiceWritable;
+};
+
+/**
+ * EventDataRecurringInvoiceCompleted
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.completed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceCompletedWritable = {
+    type: 'recurring_invoice.completed';
+    object: RecurringInvoiceWritable;
+};
+
+/**
+ * EventDataRecurringInvoiceCreated
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceCreatedWritable = {
+    type: 'recurring_invoice.created';
+    object: RecurringInvoiceWritable;
+};
+
+/**
+ * EventDataRecurringInvoiceDeleted
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceDeletedWritable = {
+    type: 'recurring_invoice.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: RecurringInvoiceWritable | EventDeletedObject;
+};
+
+/**
+ * EventDataRecurringInvoiceExecuted
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.executed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceExecutedWritable = {
+    type: 'recurring_invoice.executed';
+    object: RecurringInvoiceWritable;
+    invoice_id: string;
+    invoice_number: string | null;
+    occurrence_number: number;
+    next_run_date: string | null;
+};
+
+/**
+ * EventDataRecurringInvoiceFailed
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.failed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceFailedWritable = {
+    type: 'recurring_invoice.failed';
+    object: RecurringInvoiceWritable;
+    error_message: string | null;
+    attempt_number: number;
+};
+
+/**
+ * EventDataRecurringInvoiceMetadataChanged
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.metadata_changed` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceMetadataChangedWritable = {
+    type: 'recurring_invoice.metadata_changed';
+    object: RecurringInvoiceWritable;
+    previous_keys: Array<string>;
+    new_keys: Array<string>;
+};
+
+/**
+ * EventDataRecurringInvoicePaused
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.paused` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoicePausedWritable = {
+    type: 'recurring_invoice.paused';
+    object: RecurringInvoiceWritable;
+};
+
+/**
+ * EventDataRecurringInvoiceUpdated
+ *
+ * Payload (`data`) emitted with the `recurring_invoice.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataRecurringInvoiceUpdatedWritable = {
+    type: 'recurring_invoice.updated';
+    object: RecurringInvoiceWritable;
+};
+
+/**
+ * Invoice
+ *
+ * An invoice (compliant with Spanish AEAT VeriFactu).
+ */
+export type InvoiceWritable = {
+    id: string;
+    object: 'invoice';
+    /**
+     * Definitive invoice number, or `null` for drafts (where `is_number_assigned` is `false`).
+     */
+    number: string | null;
+    /**
+     * Whether the invoice has a definitive number assigned. `false` for drafts (where `number` is `null`); becomes `true` after `POST /v1/companies/{company}/invoices/{invoice}/assign-real-number`, or automatically when the invoice is issued.
+     */
+    is_number_assigned: boolean;
+    /**
+     * Document type: `F1` (ordinary invoice, *ordinaria*), `F2` (simplified invoice, *simplificada*), `F3` (invoice replacing simplified ones, *sustitutiva de simplificadas*) or `R5` (corrective of a simplified invoice). A corrective of an `F1`/`F3` keeps `F1` here; its AEAT corrective code (`R1`–`R5`) is `corrective.correction_aeat_type`, and `is_corrective` tells correctives apart.
+     */
+    type: string;
+    series: SeriesRef;
+    client: ClientRef;
+    /**
+     * Public invoice status. `issued` means the invoice has been ISSUED (definitive number, VeriFactu record); it says nothing about delivery, which lives in `is_sent`/`sent_at`/`sent_via`. `paid` and `partially_paid` are derived from the payment ledger. Before API version `2026-10-01` the issued status is published as `sent` (that contract called issuing "sending"), so `sent` only appears for integrations pinned to an earlier version.
+     */
+    status: 'draft' | 'scheduled' | 'issued' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled' | 'annulled' | 'sent';
+    /**
+     * UUID of the price list selected for this document.
+     */
+    price_list_id: string | null;
+    /**
+     * Price-list name snapshot frozen on the document.
+     */
+    price_list_name: string | null;
+    issued_on: string;
+    due_on: string | null;
+    /**
+     * Date the operation took place when it differs from `issued_on` (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`).
+     */
+    operation_on: string | null;
+    subtotal: string;
+    /**
+     * NET aggregate of the header taxes: `total_vat + total_surcharge − total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total (4,320.00 + 259.20 − 648.00 = 3,931.20 against a real total of 4,579.20). It is NOT the VAT figure of the Spanish Modelo 303 — read `total_vat` for that. Beware that on an expense the same field name carries a DIFFERENT meaning (VAT only), which is why the identity that holds across all five document families is the explicit one: `total === subtotal + total_vat + total_surcharge − total_retention`.
+     */
+    taxes_total: string;
+    /**
+     * Output VAT (IVA repercutido) accrued by the document: sum of the VAT of its lines. This is the figure a Spanish Modelo 303 declares, and it is NOT recoverable from `taxes_total`, which nets the withholding out.
+     */
+    total_vat: string;
+    /**
+     * Withholding (retención de IRPF) applied to the document: sum of the withholding of its lines, as a POSITIVE amount that SUBTRACTS from the total. This is the figure a Spanish Modelo 130/111 declares. It is ALREADY netted out inside `taxes_total`, so do not subtract it again.
+     */
+    total_retention: string;
+    /**
+     * Equivalence surcharge (recargo de equivalencia) of the document: sum of the surcharge of its lines. It ADDS to the total exactly like VAT does, and is ALREADY included inside `taxes_total`.
+     */
+    total_surcharge: string;
+    /**
+     * Total of the document. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the five document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice and yields a false total (4,320.00 + 259.20 - 648.00 = 3,931.20 against a real 4,579.20).
+     */
+    total: string;
+    /**
+     * Sum of the `SUPLIDO` (disbursement) lines of this invoice: amounts the issuer paid in the name and on behalf of the client and re-invoices at cost. Deliberately OUTSIDE `subtotal`, `taxes_total` and `total`, because a disbursement is not part of the issuer's taxable base (art. 78.Tres.3 LIVA) and is not declared in the AEAT VeriFactu record. `0` on an invoice without disbursements.
+     */
+    total_disbursements: string;
+    /**
+     * Amount the client actually has to pay: `total + total_disbursements`. DERIVED, never stored — one single formula computes it — and equal to `total` on an invoice without disbursements. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line yields `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00. Note that `paid_amount`/`pending_amount` are measured against `total`, not against `total_to_pay`.
+     */
+    total_to_pay: string;
+    /**
+     * ISO 4217 currency code (always "EUR" in v1).
+     */
+    currency: string;
+    notes: string | null;
+    /**
+     * External integration key (ERP/CRM/e-commerce) mapping this document to a record in a third-party system. Free-format, unique per company, filterable via `?external_id=`. `null` when not set. Persistent synchronization key, independent of the request-level `Idempotency-Key`.
+     */
+    external_id: string | null;
+    lines: Array<InvoiceLine>;
+    metadata: Metadata;
+    /**
+     * Free classification tags (lowercase slugs `[a-z0-9-]`, ≤ 40 chars each, ≤ 30 tags). Filterable via `?tags[in]=tag1,tag2` (JSON_CONTAINS, OR semantics). Empty `[]` when there are none.
+     */
+    tags: Array<string>;
+    /**
+     * Ordered list of typed custom fields `[{field, value}]` (≤ 50). Distinct from `metadata` (a free key→value map): use `custom_fields` for structured, display-oriented integration metadata. Empty `[]` when there are none.
+     */
+    custom_fields: Array<CustomField>;
+    /**
+     * AEAT VAT operation regime (`general`, `recargo_equivalencia`, `exenta`, etc.).
+     */
+    operation_regime: string;
+    /**
+     * VAT exemption cause per document (AEAT catalog E1..E6), or `null` when not exempt. Read-only: the public API derives the AEAT qualification from the regime/cause at issuance.
+     */
+    exemption_reason: string | null;
+    /**
+     * Header legal mentions (includes the mention derived from the exemption cause). Read-only.
+     */
+    legal_mentions: Array<string>;
+    /**
+     * Read-only flag: whether this invoice is excluded from the annual Modelo 347 report. The public API cannot change it; the flag is managed from the Factuarea app.
+     */
+    exclude_347: boolean;
+    /**
+     * Status of the AEAT VeriFactu submission.
+     */
+    verifactu_status: string;
+    /**
+     * Amount already collected for this invoice (derived from the payment ledger). Satisfies the invariant `paid_amount + pending_amount === total`.
+     */
+    paid_amount: string;
+    /**
+     * Outstanding balance pending collection for this invoice (derived from the payment ledger).
+     */
+    pending_amount: string;
+    /**
+     * Payment ledger summary, ALWAYS present (never `null`). `total` mirrors `paid_amount`, `pending` mirrors `pending_amount`. `detail` lists the individual payments and is materialized ONLY on the show endpoint (`GET /v1/companies/{company}/invoices/{invoice}`); in list responses `detail` is `[]` (by cost) while `total`/`pending` stay populated. The detail is also available via `GET /v1/companies/{company}/invoices/{invoice}/payments`.
+     */
+    payments: {
+        /**
+         * List of individual payments. Empty `[]` in list responses or when there are no payments yet.
+         */
+        detail: Array<InvoicePaymentDetail>;
+        /**
+         * Total amount collected (mirrors `paid_amount`).
+         */
+        total: string;
+        /**
+         * Outstanding balance pending collection (mirrors `pending_amount`).
+         */
+        pending: string;
+    };
+    /**
+     * Whether this invoice is a corrective (rectificativa) of another invoice.
+     */
+    is_corrective: boolean;
+    corrective: InvoiceCorrective | null;
+    payment: InvoicePayment | null;
+    public_link: PublicLink | null;
+    substituted_by: InvoiceSubstitutedBy | null;
+    recurring: InvoiceRecurring | null;
+    /**
+     * Instant (ISO 8601 with offset) at which the collection that settled the invoice was RECORDED in the ledger. `null` while the invoice is not collected. Not the declared date: see `paid_date`.
+     */
+    paid_recorded_at: string | null;
+    /**
+     * Declared collection date (YYYY-MM-DD). `null` while the invoice is not collected. The input field of `mark-paid` and `payments` keeps the name `paid_on`.
+     */
+    paid_date: string | null;
+    /**
+     * When the invoice was issued (ISO 8601), or `null` while it is a draft or scheduled. Not present before API version `2026-10-01`: earlier versions publish this instant in `sent_at`.
+     */
+    issued_at: string | null;
+    /**
+     * When the invoice was first delivered to the customer (ISO 8601): the moment the mail server accepted its delivery email, or the date of a manual mark. `null` while it has not been delivered. A resend never moves it. Before API version `2026-10-01` this field carries the ISSUANCE instant instead (that contract called issuing "sending").
+     */
+    sent_at: string | null;
+    /**
+     * Channel of the first delivery: `email` (the mail server accepted the delivery email) or `manual` (marked with `POST /v1/companies/{company}/invoices/{invoice}/mark-sent`). `null` while the invoice has not been delivered. Not present before API version `2026-10-01`.
+     */
+    sent_via: 'email' | 'manual' | null;
+    /**
+     * Whether the invoice has been delivered to the customer, independently of its fiscal `status`: an issued or overdue invoice can be delivered or not. Derived from the delivery mark (`sent_at` + `sent_via`), never set directly. Not present before API version `2026-10-01`.
+     */
+    is_sent: boolean;
+    voided_at: string | null;
+    void_reason: string | null;
+    /**
+     * Scheduled emission timestamp (ISO 8601), or `null` when the invoice is not scheduled. Populated only while `status` is `scheduled`.
+     */
+    scheduled_for: string | null;
+    /**
+     * Action the scheduler runs when `scheduled_for` is reached: `issue` (issue without sending) or `issue_and_send` (issue and email it). `null` when the invoice is not scheduled. Before API version `2026-10-01` the `issue` action is published as `draft`, its previous name.
+     */
+    scheduled_action: 'issue' | 'issue_and_send' | 'draft' | null;
+    /**
+     * Sales channel the invoice originated from (`woocommerce`, `shopify`, `prestashop`), or `null` when it was not created from a store order — which is the common case.
+     */
+    channel: string | null;
+    /**
+     * UUID v7 of the connected store whose order produced this invoice, or `null` when it was not created from a store order. A store order is not a resource of its own on this API, so `channel` and `source_store_id` are the traceability from the order to the invoice.
+     */
+    source_store_id: string | null;
+    /**
+     * Where the invoice comes from: `native` (issued in Factuarea) or `historical_import` (a historical invoice registered by import: literal number from the file, no series counter and no VeriFactu record).
+     */
+    origin: 'native' | 'historical_import';
+    pdf_output_state: DocumentPdfOutputState;
+    presentation: DocumentPresentationState | null;
+    created_at: string;
+    updated_at: string;
+    business_references: InvoiceHeaderReferences | null;
+    invoicing_period: InvoiceInvoicingPeriod | null;
+    legal_literals: InvoiceLegalLiterals;
+    administrative_snapshot: InvoiceAdministrativeCentres | null;
+    administrative_override: InvoiceAdministrativeCentres | null;
+    administrative_centres: InvoiceAdministrativeCentres | null;
+    administrative_version: number;
+    administrative_revision_id: string | null;
+    payment_terms: InvoicePaymentTerms;
+};
+
+/**
+ * InvoiceWithCheckoutBlocks
+ *
+ * The invoice returned by `POST /v1/companies/{company}/invoices` (an `Invoice` with every one of its keys) plus the three blocks a terminal needs, present ONLY when the request is a cashier checkout — `type: F2`, a `payment` block or `options.register_verifactu`. A request that is not a checkout returns the bare `Invoice`: the blocks are absent, not `null`. The same body is returned with `200` and the `Idempotent-Replayed: true` header when a late retry repeats the `external_id` of an invoice already issued.
+ */
+export type InvoiceWithCheckoutBlocksWritable = InvoiceWritable & {
+    /**
+     * State of the VeriFactu registration (alta) generated by the issuance, ready to print on the receipt. `null` when the alta was not requested and the invoice has no record (an `F2` or a payment without `options.register_verifactu`): the terminal tells "no alta" apart from "alta failed". The alta is generated BEFORE responding; its transmission to AEAT follows its course in batches afterwards.
+     */
+    verifactu?: {
+        /**
+         * `registered`: the alta exists. `failed`: the invoice is issued but the alta could not be generated — `error_code` says why and a retry with the same `external_id` completes it.
+         */
+        status: 'registered' | 'failed';
+        /**
+         * Why the alta failed. `null` unless `status` is `failed`.
+         */
+        error_code: 'certificate_missing' | 'certificate_expired' | 'certificate_revoked' | 'certificate_nif_mismatch' | 'clock_drift_exceeded' | 'representation_required' | 'system_certificate_unavailable' | 'verifactu_not_enabled' | null;
+        /**
+         * Status of the record before AEAT (`pending`, `submitted`, `accepted`, `rejected` or `error`), or `null` when there is no record.
+         */
+        aeat_status: string | null;
+        /**
+         * SHA-256 fingerprint of the record (64 hexadecimal characters), or `null` while it does not exist.
+         */
+        huella: string | null;
+        /**
+         * AEAT verification URL carried by the QR, with its four parameters (`nif`, `numserie`, `fecha`, `importe`), or `null`.
+         */
+        qr_url: string | null;
+        /**
+         * The QR as a PNG image, base64-encoded without a data-URI prefix (error-correction level M), ready to print, or `null`.
+         */
+        qr_png_base64: string | null;
+        /**
+         * Legend to print next to the QR, with the wording AEAT requires: `VERI*FACTU` when the platform operates in VERI*FACTU mode (the usual case) or `Factura verificable en la sede electrónica de la AEAT` in NO VERI*FACTU mode. `null` when there is no QR to print (for example when the alta could not be generated).
+         */
+        legend: string | null;
+        /**
+         * AEAT secure verification code (CSV). `null` until AEAT accepts the submission.
+         */
+        csv: string | null;
+    } | null;
+    /**
+     * The PDF of the invoice. `null` while the invoice is still a draft (it has no PDF yet). Without revisioned document templates it is the A4 PDF; for another paper — 80 or 58 mm tickets — call `GET /v1/companies/{company}/invoices/{invoice}/pdf?format=ticket_80|ticket_58`, which renders in the request. With revisioned document templates it is the output retained for the presentation captured at issuance, in that presentation's paper (a simplified invoice may be retained as an 80 mm ticket), and `url` serves that paper.
+     */
+    pdf?: {
+        /**
+         * `ready`: the PDF is already rendered and `url` serves it at once (only with `options.wait_for_pdf`, which enqueues the render and waits up to about 15 s). `pending`: the render was enqueued and `url` does not serve it yet — 404, or 503 `pdf_artifact_not_ready` with `Retry-After` for a retained output — until the worker renders it (seconds); it is also the state of a `wait_for_pdf` whose wait expired and of a retained output that could not be enqueued yet, which `GET /v1/companies/{company}/invoices/{invoice}/pdf-link` enqueues. It is never an error.
+         */
+        status: 'ready' | 'pending';
+        /**
+         * Signed, temporary URL to the PDF. It needs no API key, only opens this invoice and stops working at `expires_at`.
+         */
+        url: string;
+        /**
+         * Instant after which the signed `url` stops working.
+         */
+        expires_at: string;
+    } | null;
+    /**
+     * Public link of the invoice (`/d/{id}`) from which the end customer downloads it — the same as `public_link.url`. `null` while the invoice is a draft or when its public link is disabled.
+     */
+    public_url?: string | null;
+};
+
+/**
+ * PdfTemplateDefaults
+ */
+export type PdfTemplateDefaultsWritable = {
+    id: string;
+    version: number;
+    company_template_id: string | null;
+    company_commercial_identity_id: string | null;
+    type_defaults: Array<{
+        document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note' | 'transport-document';
+        purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+        template_id: string | null;
+    }>;
+};
+
+/**
+ * RecurringInvoice
+ *
+ * A recurring invoice template that auto-generates invoices on a fixed cadence.
+ */
+export type RecurringInvoiceWritable = {
+    id: string;
+    object: 'recurring_invoice';
+    client: ClientRef;
+    series: SeriesRef;
+    /**
+     * Recurring schedule status (active, paused, completed, cancelled).
+     */
+    status: string;
+    /**
+     * UUID of the price list selected for generated invoices.
+     */
+    price_list_id: string | null;
+    /**
+     * Price-list name snapshot stored by the recurrence.
+     */
+    price_list_name: string | null;
+    /**
+     * Cadence (weekly, monthly, quarterly, yearly, etc.).
+     */
+    frequency: string;
+    /**
+     * Descriptive name of the recurrence.
+     */
+    name: string;
+    /**
+     * Free-text description of the recurrence.
+     */
+    description: string | null;
+    /**
+     * Internal notes carried over to the generated invoices.
+     */
+    notes: string | null;
+    /**
+     * Recipient of the automatic dispatch of generated invoices. `null` if not configured.
+     */
+    email_to: string | null;
+    /**
+     * Compatibility field DERIVED from `generation_mode`: `true` if and only if `generation_mode` is `issue_and_send` (each generated invoice is issued and emailed to `email_to`). On write, without an explicit `generation_mode`, `true` still means `issue_and_send` and `false` means `draft`; when both are sent and contradict each other the request is rejected with 422.
+     */
+    send_automatically: boolean;
+    /**
+     * What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft (no definitive number); `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it, so it stays `is_sent = false`; `issue_and_send` issues it and emails it to the configured recipients, and it is marked as sent once the mail server accepts the email (if the delivery fails the invoice stays issued and not sent). Available in every API version. `send_automatically` is derived from it.
+     */
+    generation_mode: 'draft' | 'issue' | 'issue_and_send';
+    /**
+     * Payment term days (Net X) applied to the due date of each generated invoice.
+     */
+    days_before_due: number;
+    /**
+     * Maximum number of invoices to generate before completing the recurrence. `null` = no limit.
+     */
+    max_occurrences: number | null;
+    /**
+     * Number of invoices already generated by this recurrence.
+     */
+    occurrences_count: number;
+    /**
+     * Invoices remaining until `max_occurrences` is reached. `null` when there is no limit.
+     */
+    remaining_occurrences: number | null;
+    /**
+     * Adjustment policy when the run date falls on a holiday/weekend (e.g. `none`, `next_business_day`, `previous_business_day`).
+     */
+    holiday_handling: string;
+    start_on: string;
+    end_on: string | null;
+    /**
+     * When the next invoice will be generated.
+     */
+    next_run_at: string;
+    /**
+     * When the last invoice was generated, if any.
+     */
+    last_run_at: string | null;
+    /**
+     * When the recurrence was cancelled (irreversible terminal state). `null` if not cancelled.
+     */
+    cancelled_at: string | null;
+    subtotal: string;
+    /**
+     * NET aggregate of the header taxes: `total_vat + total_surcharge - total_retention`. It is the amount that, added to `subtotal`, yields `total` (`total === subtotal + taxes_total`), so it must NOT be combined with `total_retention`: subtracting the withholding again on top of the aggregate produces a false total. It is NOT the VAT figure of the Spanish Modelo 303 - read `total_vat` for that. These amounts are a PREVIEW aggregated from the template lines (the recurrence persists no header totals), rounded per line exactly as the invoice it will issue stores them.
+     */
+    taxes_total: string;
+    /**
+     * Output VAT (IVA repercutido) the recurrence will accrue: sum of the VAT of its template lines. This is the figure a Spanish Modelo 303 declares, and it is NOT recoverable from `taxes_total`, which nets the withholding out.
+     */
+    total_vat: string;
+    /**
+     * Withholding (retencion de IRPF) the recurrence will apply: sum of the withholding of its template lines, as a POSITIVE amount that SUBTRACTS from the total. This is the figure a Spanish Modelo 130/111 declares. It is ALREADY netted out inside `taxes_total`, so do not subtract it again.
+     */
+    total_retention: string;
+    /**
+     * Equivalence surcharge (recargo de equivalencia) of the template lines. It ADDS to the total exactly like VAT does, and is ALREADY included inside `taxes_total`.
+     */
+    total_surcharge: string;
+    /**
+     * Total the recurrence will invoice. Two equivalent ways to reconstruct it from the published amounts, and only these two: the EXPLICIT one, identical in the six document families - `total = subtotal + total_vat + total_surcharge - total_retention` - or the AGGREGATE one, specific to the sales-side families - `total = subtotal + taxes_total`. NEVER reconstruct it as `subtotal + taxes_total - total_retention`: `taxes_total` ALREADY has the withholding netted out, so that combination subtracts it twice.
+     */
+    total: string;
+    currency: string;
+    lines: Array<RecurringInvoiceLine>;
+    metadata: Metadata;
+    /**
+     * External integration key (ERP/CRM/e-commerce) mapping this document to a record in a third-party system. Free-format, unique per company, filterable via `?external_id=`. `null` when not set. Persistent synchronization key, independent of the request-level `Idempotency-Key`.
+     */
+    external_id: string | null;
+    /**
+     * Free classification tags (lowercase slugs `[a-z0-9-]`, ≤ 40 chars each, ≤ 30 tags). Filterable via `?tags[in]=tag1,tag2` (JSON_CONTAINS, OR semantics). Empty `[]` when there are none.
+     */
+    tags: Array<string>;
+    /**
+     * Ordered list of typed custom fields `[{field, value}]` (≤ 50). Distinct from `metadata` (a free key→value map): use `custom_fields` for structured, display-oriented integration metadata. Empty `[]` when there are none.
+     */
+    custom_fields: Array<CustomField>;
+    /**
+     * Rich auto-delivery configuration (superset of the scalar `email_to`): the generated invoices are emailed to `recipients` (with optional `cc`) using `subject`/`body`. `recipients`/`cc` are empty lists and `subject`/`body` are `null` when nothing is configured.
+     */
+    auto_delivery: {
+        /**
+         * Compatibility field DERIVED from `generation_mode`: `true` if and only if `generation_mode` is `issue_and_send`, in which case each generated invoice is emailed to `recipients`.
+         */
+        send_automatically: boolean;
+        /**
+         * Primary recipients of the automatic dispatch. Empty list if not configured.
+         */
+        recipients: Array<string>;
+        /**
+         * Carbon-copy recipients. Empty list if not configured.
+         */
+        cc: Array<string>;
+        /**
+         * Custom email subject. `null` to use the default.
+         */
+        subject: string | null;
+        /**
+         * Custom email body. `null` to use the default.
+         */
+        body: string | null;
+    };
+    created_at: string;
+    updated_at: string;
+    presentation_policy: RecurringPresentationPolicy;
+    payment_terms_template: RecurringPaymentTermsTemplate;
+};
+
+/**
+ * WebhookDelivery
+ *
+ * A single attempt to deliver an event to a webhook endpoint.
+ */
+export type WebhookDeliveryWritable = {
+    id: string;
+    object: 'webhook_delivery';
+    webhook_endpoint_id: string;
+    event_id: string;
+    event_name: string;
+    /**
+     * Delivery status. `pending` (queued / in-flight), `delivered` (2xx received), `failed` (recoverable failure, will retry), `failed_permanently` (all attempts exhausted), `cancelled` (delivery aborted, terminal).
+     */
+    status: 'pending' | 'delivered' | 'failed' | 'failed_permanently' | 'cancelled';
+    attempt: number;
+    next_retry_at: string | null;
+    /**
+     * HTTP status from the endpoint.
+     */
+    response_status: number | null;
+    response_body_truncated: string | null;
+    duration_ms: number | null;
+    /**
+     * HMAC SHA-256 signature header value (`t=...,v1=...`) sent with this delivery, for debugging signature verification. `null` for deliveries created before signing or not yet attempted.
+     */
+    signature: string | null;
+    /**
+     * HTTP headers sent with this delivery attempt (debug). Empty object when no headers were captured.
+     */
+    request_headers: {
+        [key: string]: string;
+    };
+    completed_at: string | null;
+    created_at: string;
+    payload: WebhookEventPayloadWritable;
+};
+
+/**
+ * WebhookEventPayload
+ *
+ * The event envelope delivered to a webhook endpoint, discriminated by `type`. Each variant carries the typed `data` payload for its event type.
+ */
+export type WebhookEventPayloadWritable = ({
+    type: 'invoice.created';
+} & WebhookEventPayloadInvoiceCreatedWritable) | ({
+    type: 'invoice.auto_created';
+} & WebhookEventPayloadInvoiceAutoCreatedWritable) | ({
+    type: 'invoice.corrective_auto_created';
+} & WebhookEventPayloadInvoiceCorrectiveAutoCreatedWritable) | ({
+    type: 'invoice.subscription_auto_created';
+} & WebhookEventPayloadInvoiceSubscriptionAutoCreatedWritable) | ({
+    type: 'invoice.updated';
+} & WebhookEventPayloadInvoiceUpdatedWritable) | ({
+    type: 'invoice.issued';
+} & WebhookEventPayloadInvoiceIssuedWritable) | ({
+    type: 'invoice.sent';
+} & WebhookEventPayloadInvoiceSentWritable) | ({
+    type: 'invoice.marked_sent';
+} & WebhookEventPayloadInvoiceMarkedSentWritable) | ({
+    type: 'invoice.unsent';
+} & WebhookEventPayloadInvoiceUnsentWritable) | ({
+    type: 'invoice.paid';
+} & WebhookEventPayloadInvoicePaidWritable) | ({
+    type: 'invoice.cancelled';
+} & WebhookEventPayloadInvoiceCancelledWritable) | ({
+    type: 'invoice.annulled';
+} & WebhookEventPayloadInvoiceAnnulledWritable) | ({
+    type: 'invoice.overdue';
+} & WebhookEventPayloadInvoiceOverdueWritable) | ({
+    type: 'invoice.deleted';
+} & WebhookEventPayloadInvoiceDeletedWritable) | ({
+    type: 'invoice.number_assigned';
+} & WebhookEventPayloadInvoiceNumberAssignedWritable) | ({
+    type: 'invoice.rectified';
+} & WebhookEventPayloadInvoiceRectifiedWritable) | ({
+    type: 'invoice.email_sent';
+} & WebhookEventPayloadInvoiceEmailSentWritable) | ({
+    type: 'invoice.email_failed';
+} & WebhookEventPayloadInvoiceEmailFailedWritable) | ({
+    type: 'invoice.payment_reminder_sent';
+} & WebhookEventPayloadInvoicePaymentReminderSentWritable) | ({
+    type: 'invoice.simplified_created';
+} & WebhookEventPayloadInvoiceSimplifiedCreatedWritable) | ({
+    type: 'invoice.simplified_substituted';
+} & WebhookEventPayloadInvoiceSimplifiedSubstitutedWritable) | ({
+    type: 'invoice.substituted_by_complete';
+} & WebhookEventPayloadInvoiceSubstitutedByCompleteWritable) | ({
+    type: 'invoice.verifactu_submitted';
+} & WebhookEventPayloadInvoiceVerifactuSubmittedWritable) | ({
+    type: 'invoice.verifactu_failed';
+} & WebhookEventPayloadInvoiceVerifactuFailedWritable) | ({
+    type: 'invoice.metadata_changed';
+} & WebhookEventPayloadInvoiceMetadataChangedWritable) | ({
+    type: 'quote.created';
+} & WebhookEventPayloadQuoteCreated) | ({
+    type: 'quote.updated';
+} & WebhookEventPayloadQuoteUpdated) | ({
+    type: 'quote.deleted';
+} & WebhookEventPayloadQuoteDeleted) | ({
+    type: 'quote.approved';
+} & WebhookEventPayloadQuoteApproved) | ({
+    type: 'quote.rejected';
+} & WebhookEventPayloadQuoteRejected) | ({
+    type: 'quote.converted';
+} & WebhookEventPayloadQuoteConverted) | ({
+    type: 'quote.expired';
+} & WebhookEventPayloadQuoteExpired) | ({
+    type: 'quote.marked_as_pending';
+} & WebhookEventPayloadQuoteMarkedAsPending) | ({
+    type: 'quote.cancelled';
+} & WebhookEventPayloadQuoteCancelled) | ({
+    type: 'quote.number_assigned';
+} & WebhookEventPayloadQuoteNumberAssigned) | ({
+    type: 'quote.metadata_changed';
+} & WebhookEventPayloadQuoteMetadataChanged) | ({
+    type: 'quote.email_sent';
+} & WebhookEventPayloadQuoteEmailSent) | ({
+    type: 'quote.email_failed';
+} & WebhookEventPayloadQuoteEmailFailed) | ({
+    type: 'proforma.created';
+} & WebhookEventPayloadProformaCreated) | ({
+    type: 'proforma.updated';
+} & WebhookEventPayloadProformaUpdated) | ({
+    type: 'proforma.deleted';
+} & WebhookEventPayloadProformaDeleted) | ({
+    type: 'proforma.accepted';
+} & WebhookEventPayloadProformaAccepted) | ({
+    type: 'proforma.rejected';
+} & WebhookEventPayloadProformaRejected) | ({
+    type: 'proforma.cancelled';
+} & WebhookEventPayloadProformaCancelled) | ({
+    type: 'proforma.expired';
+} & WebhookEventPayloadProformaExpired) | ({
+    type: 'proforma.converted_to_invoice';
+} & WebhookEventPayloadProformaConvertedToInvoice) | ({
+    type: 'proforma.number_assigned';
+} & WebhookEventPayloadProformaNumberAssigned) | ({
+    type: 'proforma.metadata_changed';
+} & WebhookEventPayloadProformaMetadataChanged) | ({
+    type: 'proforma.email_sent';
+} & WebhookEventPayloadProformaEmailSent) | ({
+    type: 'proforma.email_failed';
+} & WebhookEventPayloadProformaEmailFailed) | ({
+    type: 'delivery_note.created';
+} & WebhookEventPayloadDeliveryNoteCreated) | ({
+    type: 'delivery_note.updated';
+} & WebhookEventPayloadDeliveryNoteUpdated) | ({
+    type: 'delivery_note.status_changed';
+} & WebhookEventPayloadDeliveryNoteStatusChanged) | ({
+    type: 'delivery_note.signed';
+} & WebhookEventPayloadDeliveryNoteSigned) | ({
+    type: 'delivery_note.converted';
+} & WebhookEventPayloadDeliveryNoteConverted) | ({
+    type: 'delivery_note.email_sent';
+} & WebhookEventPayloadDeliveryNoteEmailSent) | ({
+    type: 'delivery_note.email_failed';
+} & WebhookEventPayloadDeliveryNoteEmailFailed) | ({
+    type: 'transport_document.created';
+} & WebhookEventPayloadTransportDocumentCreated) | ({
+    type: 'transport_document.updated';
+} & WebhookEventPayloadTransportDocumentUpdated) | ({
+    type: 'transport_document.issued';
+} & WebhookEventPayloadTransportDocumentIssued) | ({
+    type: 'transport_document.modified';
+} & WebhookEventPayloadTransportDocumentModified) | ({
+    type: 'transport_document.closed';
+} & WebhookEventPayloadTransportDocumentClosed) | ({
+    type: 'transport_document.reopened';
+} & WebhookEventPayloadTransportDocumentReopened) | ({
+    type: 'transport_document.cancelled';
+} & WebhookEventPayloadTransportDocumentCancelled) | ({
+    type: 'transport_document.superseded';
+} & WebhookEventPayloadTransportDocumentSuperseded) | ({
+    type: 'transport_document.email_sent';
+} & WebhookEventPayloadTransportDocumentEmailSent) | ({
+    type: 'transport_document.email_failed';
+} & WebhookEventPayloadTransportDocumentEmailFailed) | ({
+    type: 'purchase_invoice.created';
+} & WebhookEventPayloadPurchaseInvoiceCreated) | ({
+    type: 'purchase_invoice.updated';
+} & WebhookEventPayloadPurchaseInvoiceUpdated) | ({
+    type: 'purchase_invoice.paid';
+} & WebhookEventPayloadPurchaseInvoicePaid) | ({
+    type: 'purchase_invoice.cancelled';
+} & WebhookEventPayloadPurchaseInvoiceCancelled) | ({
+    type: 'purchase_invoice.metadata_changed';
+} & WebhookEventPayloadPurchaseInvoiceMetadataChanged) | ({
+    type: 'purchase_invoice.payment_registered';
+} & WebhookEventPayloadPurchaseInvoicePaymentRegistered) | ({
+    type: 'recurring_invoice.created';
+} & WebhookEventPayloadRecurringInvoiceCreatedWritable) | ({
+    type: 'recurring_invoice.activated';
+} & WebhookEventPayloadRecurringInvoiceActivatedWritable) | ({
+    type: 'recurring_invoice.paused';
+} & WebhookEventPayloadRecurringInvoicePausedWritable) | ({
+    type: 'recurring_invoice.updated';
+} & WebhookEventPayloadRecurringInvoiceUpdatedWritable) | ({
+    type: 'recurring_invoice.deleted';
+} & WebhookEventPayloadRecurringInvoiceDeletedWritable) | ({
+    type: 'recurring_invoice.completed';
+} & WebhookEventPayloadRecurringInvoiceCompletedWritable) | ({
+    type: 'recurring_invoice.executed';
+} & WebhookEventPayloadRecurringInvoiceExecutedWritable) | ({
+    type: 'recurring_invoice.failed';
+} & WebhookEventPayloadRecurringInvoiceFailedWritable) | ({
+    type: 'recurring_invoice.metadata_changed';
+} & WebhookEventPayloadRecurringInvoiceMetadataChangedWritable) | ({
+    type: 'recurring_invoice.cancelled';
+} & WebhookEventPayloadRecurringInvoiceCancelledWritable) | ({
+    type: 'client.created';
+} & WebhookEventPayloadClientCreated) | ({
+    type: 'client.updated';
+} & WebhookEventPayloadClientUpdated) | ({
+    type: 'client.deleted';
+} & WebhookEventPayloadClientDeleted) | ({
+    type: 'client.metadata_changed';
+} & WebhookEventPayloadClientMetadataChanged) | ({
+    type: 'contact.created';
+} & WebhookEventPayloadContactCreated) | ({
+    type: 'contact.updated';
+} & WebhookEventPayloadContactUpdated) | ({
+    type: 'contact.archived';
+} & WebhookEventPayloadContactArchived) | ({
+    type: 'contact.restored';
+} & WebhookEventPayloadContactRestored) | ({
+    type: 'contact.deleted';
+} & WebhookEventPayloadContactDeleted) | ({
+    type: 'contact.role.assigned';
+} & WebhookEventPayloadContactRoleAssigned) | ({
+    type: 'contact.role.activated';
+} & WebhookEventPayloadContactRoleActivated) | ({
+    type: 'contact.role.deactivated';
+} & WebhookEventPayloadContactRoleDeactivated) | ({
+    type: 'contact.role.removed';
+} & WebhookEventPayloadContactRoleRemoved) | ({
+    type: 'contact.customer_profile.updated';
+} & WebhookEventPayloadContactCustomerProfileUpdated) | ({
+    type: 'contact.supplier_profile.updated';
+} & WebhookEventPayloadContactSupplierProfileUpdated) | ({
+    type: 'product.created';
+} & WebhookEventPayloadProductCreated) | ({
+    type: 'product.updated';
+} & WebhookEventPayloadProductUpdated) | ({
+    type: 'product.replaced';
+} & WebhookEventPayloadProductReplaced) | ({
+    type: 'payment.received';
+} & WebhookEventPayloadPaymentReceived) | ({
+    type: 'payment.reversed';
+} & WebhookEventPayloadPaymentReversed) | ({
+    type: 'tax.metadata_changed';
+} & WebhookEventPayloadTaxMetadataChanged) | ({
+    type: 'tax.validity_changed';
+} & WebhookEventPayloadTaxValidityChanged) | ({
+    type: 'tax.external_reference_changed';
+} & WebhookEventPayloadTaxExternalReferenceChanged) | ({
+    type: 'series.created';
+} & WebhookEventPayloadSeriesCreated) | ({
+    type: 'series.updated';
+} & WebhookEventPayloadSeriesUpdated) | ({
+    type: 'series.deleted';
+} & WebhookEventPayloadSeriesDeleted) | ({
+    type: 'series.archived';
+} & WebhookEventPayloadSeriesArchived) | ({
+    type: 'series.unarchived';
+} & WebhookEventPayloadSeriesUnarchived) | ({
+    type: 'series.marked_as_default';
+} & WebhookEventPayloadSeriesMarkedAsDefault) | ({
+    type: 'series.demoted_from_default';
+} & WebhookEventPayloadSeriesDemotedFromDefault) | ({
+    type: 'series.year_reset';
+} & WebhookEventPayloadSeriesYearReset) | ({
+    type: 'series.month_reset';
+} & WebhookEventPayloadSeriesMonthReset) | ({
+    type: 'series.number_consumed';
+} & WebhookEventPayloadSeriesNumberConsumed) | ({
+    type: 'facturae.face_submitted';
+} & WebhookEventPayloadFacturaeFaceSubmittedWritable) | ({
+    type: 'facturae.face_status_changed';
+} & WebhookEventPayloadFacturaeFaceStatusChangedWritable) | ({
+    type: 'facturae.face_cancellation_requested';
+} & WebhookEventPayloadFacturaeFaceCancellationRequestedWritable) | ({
+    type: 'payout.reconciled';
+} & WebhookEventPayloadPayoutReconciled) | ({
+    type: 'employee.created';
+} & WebhookEventPayloadEmployeeCreated) | ({
+    type: 'employee.updated';
+} & WebhookEventPayloadEmployeeUpdated) | ({
+    type: 'employee.deactivated';
+} & WebhookEventPayloadEmployeeDeactivated) | ({
+    type: 'employee.invited';
+} & WebhookEventPayloadEmployeeInvited) | ({
+    type: 'time_entry.recorded';
+} & WebhookEventPayloadTimeEntryRecorded) | ({
+    type: 'time_entry.corrected';
+} & WebhookEventPayloadTimeEntryCorrected) | ({
+    type: 'absence.requested';
+} & WebhookEventPayloadAbsenceRequested) | ({
+    type: 'absence.approved';
+} & WebhookEventPayloadAbsenceApproved) | ({
+    type: 'absence.rejected';
+} & WebhookEventPayloadAbsenceRejected) | ({
+    type: 'monthly_register.closed';
+} & WebhookEventPayloadMonthlyRegisterClosed) | ({
+    type: 'automation_rule.activated';
+} & WebhookEventPayloadAutomationRuleActivated) | ({
+    type: 'automation_rule.paused';
+} & WebhookEventPayloadAutomationRulePaused) | ({
+    type: 'automation_rule.auto_paused';
+} & WebhookEventPayloadAutomationRuleAutoPaused) | ({
+    type: 'automation_run.started';
+} & WebhookEventPayloadAutomationRunStarted) | ({
+    type: 'automation_run.completed';
+} & WebhookEventPayloadAutomationRunCompleted) | ({
+    type: 'automation_run.failed';
+} & WebhookEventPayloadAutomationRunFailed) | ({
+    type: 'automation_run.step_dead_lettered';
+} & WebhookEventPayloadAutomationRunStepDeadLettered) | ({
+    type: 'order.invoiced';
+} & WebhookEventPayloadOrderInvoicedWritable) | ({
+    type: 'order.refunded';
+} & WebhookEventPayloadOrderRefundedWritable) | ({
+    type: 'task.created';
+} & WebhookEventPayloadTaskCreated) | ({
+    type: 'task.updated';
+} & WebhookEventPayloadTaskUpdated) | ({
+    type: 'task.deleted';
+} & WebhookEventPayloadTaskDeleted) | ({
+    type: 'task.status_changed';
+} & WebhookEventPayloadTaskStatusChanged) | ({
+    type: 'task.completed';
+} & WebhookEventPayloadTaskCompleted) | ({
+    type: 'task.assigned';
+} & WebhookEventPayloadTaskAssigned) | ({
+    type: 'task.unassigned';
+} & WebhookEventPayloadTaskUnassigned) | ({
+    type: 'task.moved';
+} & WebhookEventPayloadTaskMoved) | ({
+    type: 'task.due_soon';
+} & WebhookEventPayloadTaskDueSoon) | ({
+    type: 'task.overdue';
+} & WebhookEventPayloadTaskOverdue) | ({
+    type: 'task_comment.created';
+} & WebhookEventPayloadTaskCommentCreated) | ({
+    type: 'task_comment.updated';
+} & WebhookEventPayloadTaskCommentUpdated) | ({
+    type: 'task_comment.deleted';
+} & WebhookEventPayloadTaskCommentDeleted) | ({
+    type: 'task_time_entry.created';
+} & WebhookEventPayloadTaskTimeEntryCreated) | ({
+    type: 'task_time_entry.updated';
+} & WebhookEventPayloadTaskTimeEntryUpdated) | ({
+    type: 'task_time_entry.deleted';
+} & WebhookEventPayloadTaskTimeEntryDeleted) | ({
+    type: 'task_time_entry.invoiced';
+} & WebhookEventPayloadTaskTimeEntryInvoiced) | ({
+    type: 'project.created';
+} & WebhookEventPayloadProjectCreated) | ({
+    type: 'project.updated';
+} & WebhookEventPayloadProjectUpdated) | ({
+    type: 'project.archived';
+} & WebhookEventPayloadProjectArchived) | ({
+    type: 'project.deleted';
+} & WebhookEventPayloadProjectDeleted);
+
+/**
+ * WebhookEventPayloadFacturaeFaceCancellationRequested
+ *
+ * Webhook delivery body for the `facturae.face_cancellation_requested` event.
+ */
+export type WebhookEventPayloadFacturaeFaceCancellationRequestedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `facturae.face_cancellation_requested`.
+     */
+    type: 'facturae.face_cancellation_requested';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataFacturaeFaceCancellationRequestedWritable;
+};
+
+/**
+ * WebhookEventPayloadFacturaeFaceStatusChanged
+ *
+ * Webhook delivery body for the `facturae.face_status_changed` event.
+ */
+export type WebhookEventPayloadFacturaeFaceStatusChangedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `facturae.face_status_changed`.
+     */
+    type: 'facturae.face_status_changed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataFacturaeFaceStatusChangedWritable;
+};
+
+/**
+ * WebhookEventPayloadFacturaeFaceSubmitted
+ *
+ * Webhook delivery body for the `facturae.face_submitted` event.
+ */
+export type WebhookEventPayloadFacturaeFaceSubmittedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `facturae.face_submitted`.
+     */
+    type: 'facturae.face_submitted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataFacturaeFaceSubmittedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceAnnulled
+ *
+ * Webhook delivery body for the `invoice.annulled` event.
+ */
+export type WebhookEventPayloadInvoiceAnnulledWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.annulled`.
+     */
+    type: 'invoice.annulled';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceAnnulledWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceAutoCreated
+ *
+ * Webhook delivery body for the `invoice.auto_created` event.
+ */
+export type WebhookEventPayloadInvoiceAutoCreatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.auto_created`.
+     */
+    type: 'invoice.auto_created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceAutoCreatedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceCancelled
+ *
+ * Webhook delivery body for the `invoice.cancelled` event.
+ */
+export type WebhookEventPayloadInvoiceCancelledWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.cancelled`.
+     */
+    type: 'invoice.cancelled';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceCancelledWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceCorrectiveAutoCreated
+ *
+ * Webhook delivery body for the `invoice.corrective_auto_created` event.
+ */
+export type WebhookEventPayloadInvoiceCorrectiveAutoCreatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.corrective_auto_created`.
+     */
+    type: 'invoice.corrective_auto_created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceCorrectiveAutoCreatedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceCreated
+ *
+ * Webhook delivery body for the `invoice.created` event.
+ */
+export type WebhookEventPayloadInvoiceCreatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.created`.
+     */
+    type: 'invoice.created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceCreatedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceDeleted
+ *
+ * Webhook delivery body for the `invoice.deleted` event.
+ */
+export type WebhookEventPayloadInvoiceDeletedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.deleted`.
+     */
+    type: 'invoice.deleted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceDeletedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceEmailFailed
+ *
+ * Webhook delivery body for the `invoice.email_failed` event.
+ */
+export type WebhookEventPayloadInvoiceEmailFailedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.email_failed`.
+     */
+    type: 'invoice.email_failed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceEmailFailedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceEmailSent
+ *
+ * Webhook delivery body for the `invoice.email_sent` event.
+ */
+export type WebhookEventPayloadInvoiceEmailSentWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.email_sent`.
+     */
+    type: 'invoice.email_sent';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceEmailSentWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceIssued
+ *
+ * Webhook delivery body for the `invoice.issued` event.
+ */
+export type WebhookEventPayloadInvoiceIssuedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.issued`.
+     */
+    type: 'invoice.issued';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceIssuedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceMarkedSent
+ *
+ * Webhook delivery body for the `invoice.marked_sent` event.
+ */
+export type WebhookEventPayloadInvoiceMarkedSentWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.marked_sent`.
+     */
+    type: 'invoice.marked_sent';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceMarkedSentWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceMetadataChanged
+ *
+ * Webhook delivery body for the `invoice.metadata_changed` event.
+ */
+export type WebhookEventPayloadInvoiceMetadataChangedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.metadata_changed`.
+     */
+    type: 'invoice.metadata_changed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceMetadataChangedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceNumberAssigned
+ *
+ * Webhook delivery body for the `invoice.number_assigned` event.
+ */
+export type WebhookEventPayloadInvoiceNumberAssignedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.number_assigned`.
+     */
+    type: 'invoice.number_assigned';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceNumberAssignedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceOverdue
+ *
+ * Webhook delivery body for the `invoice.overdue` event.
+ */
+export type WebhookEventPayloadInvoiceOverdueWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.overdue`.
+     */
+    type: 'invoice.overdue';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceOverdueWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoicePaid
+ *
+ * Webhook delivery body for the `invoice.paid` event.
+ */
+export type WebhookEventPayloadInvoicePaidWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.paid`.
+     */
+    type: 'invoice.paid';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoicePaidWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoicePaymentReminderSent
+ *
+ * Webhook delivery body for the `invoice.payment_reminder_sent` event.
+ */
+export type WebhookEventPayloadInvoicePaymentReminderSentWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.payment_reminder_sent`.
+     */
+    type: 'invoice.payment_reminder_sent';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoicePaymentReminderSentWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceRectified
+ *
+ * Webhook delivery body for the `invoice.rectified` event.
+ */
+export type WebhookEventPayloadInvoiceRectifiedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.rectified`.
+     */
+    type: 'invoice.rectified';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceRectifiedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceSent
+ *
+ * Webhook delivery body for the `invoice.sent` event. Deprecated: alias of `invoice.issued`, emitted at the same instant and with the same `data.object`. New integrations should subscribe to `invoice.issued`; its removal will be announced with a `Sunset` date.
+ *
+ * @deprecated
+ */
+export type WebhookEventPayloadInvoiceSentWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.sent`.
+     */
+    type: 'invoice.sent';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceSentWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceSimplifiedCreated
+ *
+ * Webhook delivery body for the `invoice.simplified_created` event.
+ */
+export type WebhookEventPayloadInvoiceSimplifiedCreatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.simplified_created`.
+     */
+    type: 'invoice.simplified_created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceSimplifiedCreatedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceSimplifiedSubstituted
+ *
+ * Webhook delivery body for the `invoice.simplified_substituted` event.
+ */
+export type WebhookEventPayloadInvoiceSimplifiedSubstitutedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.simplified_substituted`.
+     */
+    type: 'invoice.simplified_substituted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceSimplifiedSubstitutedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceSubscriptionAutoCreated
+ *
+ * Webhook delivery body for the `invoice.subscription_auto_created` event.
+ */
+export type WebhookEventPayloadInvoiceSubscriptionAutoCreatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.subscription_auto_created`.
+     */
+    type: 'invoice.subscription_auto_created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceSubscriptionAutoCreatedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceSubstitutedByComplete
+ *
+ * Webhook delivery body for the `invoice.substituted_by_complete` event.
+ */
+export type WebhookEventPayloadInvoiceSubstitutedByCompleteWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.substituted_by_complete`.
+     */
+    type: 'invoice.substituted_by_complete';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceSubstitutedByCompleteWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceUnsent
+ *
+ * Webhook delivery body for the `invoice.unsent` event.
+ */
+export type WebhookEventPayloadInvoiceUnsentWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.unsent`.
+     */
+    type: 'invoice.unsent';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceUnsentWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceUpdated
+ *
+ * Webhook delivery body for the `invoice.updated` event.
+ */
+export type WebhookEventPayloadInvoiceUpdatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.updated`.
+     */
+    type: 'invoice.updated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceUpdatedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceVerifactuFailed
+ *
+ * Webhook delivery body for the `invoice.verifactu_failed` event.
+ */
+export type WebhookEventPayloadInvoiceVerifactuFailedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.verifactu_failed`.
+     */
+    type: 'invoice.verifactu_failed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceVerifactuFailedWritable;
+};
+
+/**
+ * WebhookEventPayloadInvoiceVerifactuSubmitted
+ *
+ * Webhook delivery body for the `invoice.verifactu_submitted` event.
+ */
+export type WebhookEventPayloadInvoiceVerifactuSubmittedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `invoice.verifactu_submitted`.
+     */
+    type: 'invoice.verifactu_submitted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataInvoiceVerifactuSubmittedWritable;
+};
+
+/**
+ * WebhookEventPayloadOrderInvoiced
+ *
+ * Webhook delivery body for the `order.invoiced` event.
+ */
+export type WebhookEventPayloadOrderInvoicedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `order.invoiced`.
+     */
+    type: 'order.invoiced';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataOrderInvoicedWritable;
+};
+
+/**
+ * WebhookEventPayloadOrderRefunded
+ *
+ * Webhook delivery body for the `order.refunded` event.
+ */
+export type WebhookEventPayloadOrderRefundedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `order.refunded`.
+     */
+    type: 'order.refunded';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataOrderRefundedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceActivated
+ *
+ * Webhook delivery body for the `recurring_invoice.activated` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceActivatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.activated`.
+     */
+    type: 'recurring_invoice.activated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceActivatedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceCancelled
+ *
+ * Webhook delivery body for the `recurring_invoice.cancelled` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceCancelledWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.cancelled`.
+     */
+    type: 'recurring_invoice.cancelled';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceCancelledWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceCompleted
+ *
+ * Webhook delivery body for the `recurring_invoice.completed` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceCompletedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.completed`.
+     */
+    type: 'recurring_invoice.completed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceCompletedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceCreated
+ *
+ * Webhook delivery body for the `recurring_invoice.created` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceCreatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.created`.
+     */
+    type: 'recurring_invoice.created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceCreatedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceDeleted
+ *
+ * Webhook delivery body for the `recurring_invoice.deleted` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceDeletedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.deleted`.
+     */
+    type: 'recurring_invoice.deleted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceDeletedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceExecuted
+ *
+ * Webhook delivery body for the `recurring_invoice.executed` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceExecutedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.executed`.
+     */
+    type: 'recurring_invoice.executed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceExecutedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceFailed
+ *
+ * Webhook delivery body for the `recurring_invoice.failed` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceFailedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.failed`.
+     */
+    type: 'recurring_invoice.failed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceFailedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceMetadataChanged
+ *
+ * Webhook delivery body for the `recurring_invoice.metadata_changed` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceMetadataChangedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.metadata_changed`.
+     */
+    type: 'recurring_invoice.metadata_changed';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceMetadataChangedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoicePaused
+ *
+ * Webhook delivery body for the `recurring_invoice.paused` event.
+ */
+export type WebhookEventPayloadRecurringInvoicePausedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.paused`.
+     */
+    type: 'recurring_invoice.paused';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoicePausedWritable;
+};
+
+/**
+ * WebhookEventPayloadRecurringInvoiceUpdated
+ *
+ * Webhook delivery body for the `recurring_invoice.updated` event.
+ */
+export type WebhookEventPayloadRecurringInvoiceUpdatedWritable = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `recurring_invoice.updated`.
+     */
+    type: 'recurring_invoice.updated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataRecurringInvoiceUpdatedWritable;
+};
+
+/**
  * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
  */
 export type IdempotencyKey = string;
+
+/**
+ * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+ */
+export type IfNoneMatch = string;
 
 /**
  * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
@@ -29510,6 +35631,9 @@ export type PublicApiV1AccountNifTransfersAcceptResponses = {
 export type PublicApiV1AccountNifTransfersAcceptResponse = PublicApiV1AccountNifTransfersAcceptResponses[keyof PublicApiV1AccountNifTransfersAcceptResponses];
 
 export type PublicApiV1ProformasAcceptData = {
+    /**
+     * Proforma acceptance accepts the `presentation_precondition` object with exactly seven fields and the optional `expected_presentation_uuid`. With revisioned presentation enabled for the company, the object is required for the first capture: when the proforma was never shared and has no retained capture, or its draft was edited or re-templated after it was captured (a missing object returns 428 `pdf_presentation_precondition_required` before anything is written). Build it from a `persisted_draft` preview (`POST /v1/companies/{company}/pdf-template-previews`): the artifact's `selection_version`, `source_token`, `expected_preview_context_fingerprint`, `template_revision_id` and `commercial_identity_revision_id`, with `purpose` `complete` and `format` `a4`; accepting a draft numbers it and captures what was reviewed. A proforma with a retained capture (sent as a draft) is accepted without the object and its capture follows the number; `expected_presentation_uuid` cites that capture and returns 409 `pdf_presentation_conflict` if it is no longer the current one. With revisioned presentation disabled both are ignored.
+     */
     body?: AcceptProformaRequest;
     headers?: {
         /**
@@ -29553,9 +35677,17 @@ export type PublicApiV1ProformasAcceptErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.
      */
     422: Error;
+    /**
+     * The required human-reviewed seven-field precondition is missing: `pdf_presentation_precondition_required`.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -29564,6 +35696,10 @@ export type PublicApiV1ProformasAcceptErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1ProformasAcceptError = PublicApiV1ProformasAcceptErrors[keyof PublicApiV1ProformasAcceptErrors];
@@ -29577,6 +35713,9 @@ export type PublicApiV1ProformasAcceptResponses = {
 export type PublicApiV1ProformasAcceptResponse = PublicApiV1ProformasAcceptResponses[keyof PublicApiV1ProformasAcceptResponses];
 
 export type PublicApiV1QuotesAcceptData = {
+    /**
+     * Quote acceptance accepts the `presentation_precondition` object with exactly seven fields and the optional `expected_presentation_uuid`. With revisioned presentation enabled for the company, the object is required for the first capture: when the quote has no retained capture yet, or its draft was edited or re-templated after it was captured (a missing object returns 428 `pdf_presentation_precondition_required` before anything is written). Build it from a `persisted_draft` preview (`POST /v1/companies/{company}/pdf-template-previews`): the artifact's `selection_version`, `source_token`, `expected_preview_context_fingerprint`, `template_revision_id` and `commercial_identity_revision_id`, with `purpose` `complete` and `format` `a4`; accepting a draft numbers it and captures what was reviewed. A quote with a retained capture is accepted without the object and its capture follows the number; `expected_presentation_uuid` cites that capture and returns 409 `pdf_presentation_conflict` if it is no longer the current one. With revisioned presentation disabled both are ignored.
+     */
     body?: AcceptQuoteRequest;
     headers?: {
         /**
@@ -29620,9 +35759,17 @@ export type PublicApiV1QuotesAcceptErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.
      */
     422: Error;
+    /**
+     * The required human-reviewed seven-field precondition is missing: `pdf_presentation_precondition_required`.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -29631,6 +35778,10 @@ export type PublicApiV1QuotesAcceptErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1QuotesAcceptError = PublicApiV1QuotesAcceptErrors[keyof PublicApiV1QuotesAcceptErrors];
@@ -29978,11 +36129,15 @@ export type PublicApiV1RecurringInvoicesActivateErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The requested resource does not exist or belongs to another company. Unknown and foreign recurrence/reference identities are indistinguishable.
      */
     404: Error;
     /**
-     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `recurring_presentation_policy_version_conflict`: the presentation policy of the recurring invoice changed since the `expected_presentation_policy_version` you sent. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the recurring invoice again and repeat the request. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing lifecycle/business guards or recurring_presentation_unavailable with a safe finite reason. latest visual failure recovery is committed after generation rollback; restoration or editing does not automatically resume.
      */
     422: Error;
     /**
@@ -30580,7 +36735,7 @@ export type PublicApiV1InvoicesAnnulErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -31011,6 +37166,91 @@ export type PublicApiV1ContactsArchiveResponses = {
 
 export type PublicApiV1ContactsArchiveResponse = PublicApiV1ContactsArchiveResponses[keyof PublicApiV1ContactsArchiveResponses];
 
+export type PublicApiV1PdfCommercialIdentitiesArchiveData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version: number;
+        expected_impact_fingerprint: string;
+        replacements: Array<{
+            key: string;
+            expected_version: number;
+            action: 'replace' | 'clear' | 'pause';
+            replacement_id: string | null;
+            revision_id?: string;
+        }>;
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity.
+         */
+        identity: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-commercial-identities/{identity}/archive';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesArchiveErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed. `pdf_library_impact_conflict`: the impact you reviewed (`expected_impact_fingerprint`, from the impact operation) no longer matches what the change would affect: a document, series, contact or default that depends on it changed in the meantime. Read the impact again and confirm the new one. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesArchiveError = PublicApiV1PdfCommercialIdentitiesArchiveErrors[keyof PublicApiV1PdfCommercialIdentitiesArchiveErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesArchiveResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfCommercialIdentity;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesArchiveResponse = PublicApiV1PdfCommercialIdentitiesArchiveResponses[keyof PublicApiV1PdfCommercialIdentitiesArchiveResponses];
+
 export type PublicApiV1ProjectsArchiveData = {
     body?: never;
     headers?: {
@@ -31285,6 +37525,90 @@ export type PublicApiV1SeriesArchiveResponses = {
 };
 
 export type PublicApiV1SeriesArchiveResponse = PublicApiV1SeriesArchiveResponses[keyof PublicApiV1SeriesArchiveResponses];
+
+export type PublicApiV1PdfTemplatesArchiveData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version: number;
+        expected_impact_fingerprint: string;
+        replacements: Array<{
+            key: string;
+            expected_version: number;
+            action: 'replace' | 'clear' | 'pause';
+            replacement_id: string | null;
+        }>;
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/{template}/archive';
+};
+
+export type PublicApiV1PdfTemplatesArchiveErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed. `pdf_library_impact_conflict`: the impact you reviewed (`expected_impact_fingerprint`, from the impact operation) no longer matches what the change would affect: a document, series, contact or default that depends on it changed in the meantime. Read the impact again and confirm the new one. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesArchiveError = PublicApiV1PdfTemplatesArchiveErrors[keyof PublicApiV1PdfTemplatesArchiveErrors];
+
+export type PublicApiV1PdfTemplatesArchiveResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: TenantPdfTemplate;
+};
+
+export type PublicApiV1PdfTemplatesArchiveResponse = PublicApiV1PdfTemplatesArchiveResponses[keyof PublicApiV1PdfTemplatesArchiveResponses];
 
 export type PublicApiV1WorkSchedulesArchiveData = {
     body?: never;
@@ -31568,6 +37892,598 @@ export type PublicApiV1ContactsAssignContactRoleResponses = {
 
 export type PublicApiV1ContactsAssignContactRoleResponse = PublicApiV1ContactsAssignContactRoleResponses[keyof PublicApiV1ContactsAssignContactRoleResponses];
 
+export type PublicApiV1DeliveryNotesGetPresentationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note.
+         */
+        delivery_note: string;
+    };
+    query?: never;
+    url: '/companies/{company}/delivery-notes/{delivery_note}/presentation';
+};
+
+export type PublicApiV1DeliveryNotesGetPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1DeliveryNotesGetPresentationError = PublicApiV1DeliveryNotesGetPresentationErrors[keyof PublicApiV1DeliveryNotesGetPresentationErrors];
+
+export type PublicApiV1DeliveryNotesGetPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1DeliveryNotesGetPresentationResponse = PublicApiV1DeliveryNotesGetPresentationResponses[keyof PublicApiV1DeliveryNotesGetPresentationResponses];
+
+export type PublicApiV1DeliveryNotesAssignPresentationData = {
+    body: AssignDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Strong ETag returned by GET of this exact presentation URI; a list of strong validators or * is accepted. Weak/malformed syntax is rejected. If both version and tag are provided, both must hold.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note.
+         */
+        delivery_note: string;
+    };
+    query?: never;
+    url: '/companies/{company}/delivery-notes/{delivery_note}/presentation';
+};
+
+export type PublicApiV1DeliveryNotesAssignPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_presentation_etag_mismatch: the strong validator of this same complete State response no longer matches; evaluated before body-version CAS.
+     */
+    412: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1DeliveryNotesAssignPresentationError = PublicApiV1DeliveryNotesAssignPresentationErrors[keyof PublicApiV1DeliveryNotesAssignPresentationErrors];
+
+export type PublicApiV1DeliveryNotesAssignPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1DeliveryNotesAssignPresentationResponse = PublicApiV1DeliveryNotesAssignPresentationResponses[keyof PublicApiV1DeliveryNotesAssignPresentationResponses];
+
+export type PublicApiV1InvoicesGetPresentationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice.
+         */
+        invoice: string;
+    };
+    query?: never;
+    url: '/companies/{company}/invoices/{invoice}/presentation';
+};
+
+export type PublicApiV1InvoicesGetPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesGetPresentationError = PublicApiV1InvoicesGetPresentationErrors[keyof PublicApiV1InvoicesGetPresentationErrors];
+
+export type PublicApiV1InvoicesGetPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1InvoicesGetPresentationResponse = PublicApiV1InvoicesGetPresentationResponses[keyof PublicApiV1InvoicesGetPresentationResponses];
+
+export type PublicApiV1InvoicesAssignPresentationData = {
+    body: AssignDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Strong ETag returned by GET of this exact presentation URI; a list of strong validators or * is accepted. Weak/malformed syntax is rejected. If both version and tag are provided, both must hold.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice.
+         */
+        invoice: string;
+    };
+    query?: never;
+    url: '/companies/{company}/invoices/{invoice}/presentation';
+};
+
+export type PublicApiV1InvoicesAssignPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_presentation_etag_mismatch: the strong validator of this same complete State response no longer matches; evaluated before body-version CAS.
+     */
+    412: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesAssignPresentationError = PublicApiV1InvoicesAssignPresentationErrors[keyof PublicApiV1InvoicesAssignPresentationErrors];
+
+export type PublicApiV1InvoicesAssignPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1InvoicesAssignPresentationResponse = PublicApiV1InvoicesAssignPresentationResponses[keyof PublicApiV1InvoicesAssignPresentationResponses];
+
+export type PublicApiV1ProformasGetPresentationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma.
+         */
+        proforma: string;
+    };
+    query?: never;
+    url: '/companies/{company}/proformas/{proforma}/presentation';
+};
+
+export type PublicApiV1ProformasGetPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProformasGetPresentationError = PublicApiV1ProformasGetPresentationErrors[keyof PublicApiV1ProformasGetPresentationErrors];
+
+export type PublicApiV1ProformasGetPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1ProformasGetPresentationResponse = PublicApiV1ProformasGetPresentationResponses[keyof PublicApiV1ProformasGetPresentationResponses];
+
+export type PublicApiV1ProformasAssignPresentationData = {
+    body: AssignDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Strong ETag returned by GET of this exact presentation URI; a list of strong validators or * is accepted. Weak/malformed syntax is rejected. If both version and tag are provided, both must hold.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma.
+         */
+        proforma: string;
+    };
+    query?: never;
+    url: '/companies/{company}/proformas/{proforma}/presentation';
+};
+
+export type PublicApiV1ProformasAssignPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_presentation_etag_mismatch: the strong validator of this same complete State response no longer matches; evaluated before body-version CAS.
+     */
+    412: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProformasAssignPresentationError = PublicApiV1ProformasAssignPresentationErrors[keyof PublicApiV1ProformasAssignPresentationErrors];
+
+export type PublicApiV1ProformasAssignPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1ProformasAssignPresentationResponse = PublicApiV1ProformasAssignPresentationResponses[keyof PublicApiV1ProformasAssignPresentationResponses];
+
+export type PublicApiV1QuotesGetPresentationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the quote.
+         */
+        quote: string;
+    };
+    query?: never;
+    url: '/companies/{company}/quotes/{quote}/presentation';
+};
+
+export type PublicApiV1QuotesGetPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1QuotesGetPresentationError = PublicApiV1QuotesGetPresentationErrors[keyof PublicApiV1QuotesGetPresentationErrors];
+
+export type PublicApiV1QuotesGetPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1QuotesGetPresentationResponse = PublicApiV1QuotesGetPresentationResponses[keyof PublicApiV1QuotesGetPresentationResponses];
+
+export type PublicApiV1QuotesAssignPresentationData = {
+    body: AssignDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Strong ETag returned by GET of this exact presentation URI; a list of strong validators or * is accepted. Weak/malformed syntax is rejected. If both version and tag are provided, both must hold.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the quote.
+         */
+        quote: string;
+    };
+    query?: never;
+    url: '/companies/{company}/quotes/{quote}/presentation';
+};
+
+export type PublicApiV1QuotesAssignPresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_presentation_etag_mismatch: the strong validator of this same complete State response no longer matches; evaluated before body-version CAS.
+     */
+    412: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1QuotesAssignPresentationError = PublicApiV1QuotesAssignPresentationErrors[keyof PublicApiV1QuotesAssignPresentationErrors];
+
+export type PublicApiV1QuotesAssignPresentationResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationStateEnvelope;
+};
+
+export type PublicApiV1QuotesAssignPresentationResponse = PublicApiV1QuotesAssignPresentationResponses[keyof PublicApiV1QuotesAssignPresentationResponses];
+
 export type PublicApiV1InvoicesAssignRealNumberData = {
     body?: never;
     headers: {
@@ -31709,6 +38625,166 @@ export type PublicApiV1WorkSchedulesAssignResponses = {
 };
 
 export type PublicApiV1WorkSchedulesAssignResponse = PublicApiV1WorkSchedulesAssignResponses[keyof PublicApiV1WorkSchedulesAssignResponses];
+
+export type PublicApiV1SeriesGetPdfTemplateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the document series.
+         */
+        series: string;
+    };
+    query?: never;
+    url: '/companies/{company}/series/{series}/pdf-template';
+};
+
+export type PublicApiV1SeriesGetPdfTemplateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). series_template_access_denied: current actor authority denies this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. series_not_found: unknown and foreign series are indistinguishable.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1SeriesGetPdfTemplateError = PublicApiV1SeriesGetPdfTemplateErrors[keyof PublicApiV1SeriesGetPdfTemplateErrors];
+
+export type PublicApiV1SeriesGetPdfTemplateResponses = {
+    /**
+     * Complete visual preference of the authorized series.
+     */
+    200: {
+        data: SeriesPdfTemplate;
+    };
+};
+
+export type PublicApiV1SeriesGetPdfTemplateResponse = PublicApiV1SeriesGetPdfTemplateResponses[keyof PublicApiV1SeriesGetPdfTemplateResponses];
+
+export type PublicApiV1SeriesAssignPdfTemplateData = {
+    /**
+     * Omitted pdf_template_id preserves, null inherits and UUID assigns. Supply expected_version and/or If-Match from this exact visual URI. Empty strings, foreign selectors and fiscal fields return 422.
+     */
+    body?: {
+        /**
+         * Optional saved preference: omitted preserves; null inherits. Invoice templates may support ticket only.
+         */
+        pdf_template_id?: string | null;
+        /**
+         * Visual association CAS. Missing body CAS is valid only with If-Match of this exact visual resource.
+         */
+        expected_version?: number;
+    };
+    headers?: {
+        /**
+         * Strong tag from GET of this exact visual URI. Independent of expected_version: a mismatched tag yields 412 before stale CAS 409; neither yields 428. Replay after fresh actor authority precedes target lookup, body validation and CAS.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the document series.
+         */
+        series: string;
+    };
+    query?: never;
+    url: '/companies/{company}/series/{series}/pdf-template';
+};
+
+export type PublicApiV1SeriesAssignPdfTemplateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). series_template_access_denied: current actor authority denies this operation.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. series_not_found or pdf_template_not_found: unknown and foreign identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `series_template_version_conflict`: the PDF template assignment of the series changed since the `expected_version` you sent. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the series again, or keep your local copy and repeat the request with the current version. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * series_template_precondition_failed: strong If-Match does not match this complete current visual representation; recovery reload_or_keep_local.
+     */
+    412: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. invalid_series_template_assignment, series_template_incompatible or series_template_unavailable: correct the field or choose another template/inherit; no fiscal or visual mutation.
+     */
+    422: Error;
+    /**
+     * series_template_precondition_required: supply expected_version and/or If-Match from GET of this same visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1SeriesAssignPdfTemplateError = PublicApiV1SeriesAssignPdfTemplateErrors[keyof PublicApiV1SeriesAssignPdfTemplateErrors];
+
+export type PublicApiV1SeriesAssignPdfTemplateResponses = {
+    /**
+     * Complete visual preference of the authorized series.
+     */
+    200: {
+        data: SeriesPdfTemplate;
+    };
+};
+
+export type PublicApiV1SeriesAssignPdfTemplateResponse = PublicApiV1SeriesAssignPdfTemplateResponses[keyof PublicApiV1SeriesAssignPdfTemplateResponses];
 
 export type PublicApiV1TasksLabelsAssignData = {
     body: AssignTaskLabelV1Request;
@@ -32308,6 +39384,9 @@ export type PublicApiV1InvoicesBulkCreateErrors = {
 export type PublicApiV1InvoicesBulkCreateError = PublicApiV1InvoicesBulkCreateErrors[keyof PublicApiV1InvoicesBulkCreateErrors];
 
 export type PublicApiV1InvoicesBulkCreateResponses = {
+    /**
+     * Invoice rows are classified independently. A row whose line chooses a catalog tax by id and contradicts it (`tax_rate_mismatch`) is created by none: with `dry_run=false` it is returned in failures[] with `error_code` `parameter_invalid_value` and the Spanish `error_message` of the line (the subcode, `param` and `line_index` of the single-invoice 422 are not repeated per row), while `dry_run=true` does not run that check. invalid_invoice_payment_terms is returned as a row error: results[].errors[] in dry-run or failures[].error_code/errors[] during creation. It does not create a top-level 422. Bulk is create-only; expected_payment_terms_version is not accepted and calendar 409/428 responses do not apply.
+     */
     200: {
         data: BulkCreateResult;
     };
@@ -32925,11 +40004,11 @@ export type PublicApiV1DeliveryNotesBulkPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * No requested document has a generable PDF; unknown and foreign ids remain indistinguishable.
      */
     404: Error;
     /**
-     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     * The export exceeds the configured per-company document or byte cap. Reduce the requested volume and retry.
      */
     413: Error;
     /**
@@ -32949,6 +40028,9 @@ export type PublicApiV1DeliveryNotesBulkPdfErrors = {
 export type PublicApiV1DeliveryNotesBulkPdfError = PublicApiV1DeliveryNotesBulkPdfErrors[keyof PublicApiV1DeliveryNotesBulkPdfErrors];
 
 export type PublicApiV1DeliveryNotesBulkPdfResponses = {
+    /**
+     * Binary ZIP archive of the available PDFs. Aggregate partial-success counts are returned in X-Bulk-* headers; per-document failures do not expose storage paths or private artifact metadata.
+     */
     200: Blob | File;
 };
 
@@ -32990,11 +40072,11 @@ export type PublicApiV1InvoicesBulkPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * No requested document has a generable PDF; unknown and foreign ids remain indistinguishable.
      */
     404: Error;
     /**
-     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     * The export exceeds the configured per-company document or byte cap. Reduce the requested volume and retry.
      */
     413: Error;
     /**
@@ -33014,6 +40096,9 @@ export type PublicApiV1InvoicesBulkPdfErrors = {
 export type PublicApiV1InvoicesBulkPdfError = PublicApiV1InvoicesBulkPdfErrors[keyof PublicApiV1InvoicesBulkPdfErrors];
 
 export type PublicApiV1InvoicesBulkPdfResponses = {
+    /**
+     * Binary ZIP archive of the available PDFs. Aggregate partial-success counts are returned in X-Bulk-* headers; per-document failures do not expose storage paths or private artifact metadata.
+     */
     200: Blob | File;
 };
 
@@ -33055,11 +40140,11 @@ export type PublicApiV1ProformasBulkPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * No requested document has a generable PDF; unknown and foreign ids remain indistinguishable.
      */
     404: Error;
     /**
-     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     * The export exceeds the configured per-company document or byte cap. Reduce the requested volume and retry.
      */
     413: Error;
     /**
@@ -33079,6 +40164,9 @@ export type PublicApiV1ProformasBulkPdfErrors = {
 export type PublicApiV1ProformasBulkPdfError = PublicApiV1ProformasBulkPdfErrors[keyof PublicApiV1ProformasBulkPdfErrors];
 
 export type PublicApiV1ProformasBulkPdfResponses = {
+    /**
+     * Binary ZIP archive of the available PDFs. Aggregate partial-success counts are returned in X-Bulk-* headers; per-document failures do not expose storage paths or private artifact metadata.
+     */
     200: Blob | File;
 };
 
@@ -33120,11 +40208,11 @@ export type PublicApiV1QuotesBulkPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * No requested document has a generable PDF; unknown and foreign ids remain indistinguishable.
      */
     404: Error;
     /**
-     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     * The export exceeds the configured per-company document or byte cap. Reduce the requested volume and retry.
      */
     413: Error;
     /**
@@ -33144,12 +40232,18 @@ export type PublicApiV1QuotesBulkPdfErrors = {
 export type PublicApiV1QuotesBulkPdfError = PublicApiV1QuotesBulkPdfErrors[keyof PublicApiV1QuotesBulkPdfErrors];
 
 export type PublicApiV1QuotesBulkPdfResponses = {
+    /**
+     * Binary ZIP archive of the available PDFs. Aggregate partial-success counts are returned in X-Bulk-* headers; per-document failures do not expose storage paths or private artifact metadata.
+     */
     200: Blob | File;
 };
 
 export type PublicApiV1QuotesBulkPdfResponse = PublicApiV1QuotesBulkPdfResponses[keyof PublicApiV1QuotesBulkPdfResponses];
 
 export type PublicApiV1DeliveryNotesBulkSendData = {
+    /**
+     * Bulk delivery-note send accepts an optional UUID-keyed map of complete seven-field presentation preconditions. The presentation precondition fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: BulkSendDeliveryNotesV1Request;
     headers: {
         /**
@@ -33205,6 +40299,9 @@ export type PublicApiV1DeliveryNotesBulkSendErrors = {
 export type PublicApiV1DeliveryNotesBulkSendError = PublicApiV1DeliveryNotesBulkSendErrors[keyof PublicApiV1DeliveryNotesBulkSendErrors];
 
 export type PublicApiV1DeliveryNotesBulkSendResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -33213,6 +40310,9 @@ export type PublicApiV1DeliveryNotesBulkSendResponses = {
 export type PublicApiV1DeliveryNotesBulkSendResponse = PublicApiV1DeliveryNotesBulkSendResponses[keyof PublicApiV1DeliveryNotesBulkSendResponses];
 
 export type PublicApiV1InvoicesBulkSendData = {
+    /**
+     * Bulk invoice send accepts an optional UUID-keyed map of complete seven-field presentation preconditions. When revisioned presentation is enabled for the company, every DRAFT row must carry its precondition because sending issues it: a draft row without one is not issued or sent and is reported in `failures[]` with 428 `pdf_presentation_precondition_required`, while the other rows continue. Rows that are not drafts are re-sent as they are. With revisioned presentation disabled the precondition fields are ignored.
+     */
     body: BulkSendInvoicesV1Request;
     headers: {
         /**
@@ -33272,6 +40372,9 @@ export type PublicApiV1InvoicesBulkSendErrors = {
 export type PublicApiV1InvoicesBulkSendError = PublicApiV1InvoicesBulkSendErrors[keyof PublicApiV1InvoicesBulkSendErrors];
 
 export type PublicApiV1InvoicesBulkSendResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -33280,6 +40383,9 @@ export type PublicApiV1InvoicesBulkSendResponses = {
 export type PublicApiV1InvoicesBulkSendResponse = PublicApiV1InvoicesBulkSendResponses[keyof PublicApiV1InvoicesBulkSendResponses];
 
 export type PublicApiV1ProformasBulkSendData = {
+    /**
+     * Bulk proforma send accepts an optional UUID-keyed map of complete seven-field presentation preconditions. The presentation precondition fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: BulkSendProformasV1Request;
     headers: {
         /**
@@ -33335,6 +40441,9 @@ export type PublicApiV1ProformasBulkSendErrors = {
 export type PublicApiV1ProformasBulkSendError = PublicApiV1ProformasBulkSendErrors[keyof PublicApiV1ProformasBulkSendErrors];
 
 export type PublicApiV1ProformasBulkSendResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -33343,6 +40452,9 @@ export type PublicApiV1ProformasBulkSendResponses = {
 export type PublicApiV1ProformasBulkSendResponse = PublicApiV1ProformasBulkSendResponses[keyof PublicApiV1ProformasBulkSendResponses];
 
 export type PublicApiV1QuotesBulkSendData = {
+    /**
+     * Bulk quote send accepts an optional UUID-keyed map of complete seven-field presentation preconditions. The presentation precondition fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: BulkSendQuotesV1Request;
     headers: {
         /**
@@ -33398,6 +40510,9 @@ export type PublicApiV1QuotesBulkSendErrors = {
 export type PublicApiV1QuotesBulkSendError = PublicApiV1QuotesBulkSendErrors[keyof PublicApiV1QuotesBulkSendErrors];
 
 export type PublicApiV1QuotesBulkSendResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -33406,6 +40521,9 @@ export type PublicApiV1QuotesBulkSendResponses = {
 export type PublicApiV1QuotesBulkSendResponse = PublicApiV1QuotesBulkSendResponses[keyof PublicApiV1QuotesBulkSendResponses];
 
 export type PublicApiV1DeliveryNotesBulkStatusData = {
+    /**
+     * Bulk delivery-note status changes accept an optional UUID-keyed map of complete seven-field presentation preconditions. The presentation precondition fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: BulkStatusDeliveryNotesV1Request;
     headers: {
         /**
@@ -33465,6 +40583,9 @@ export type PublicApiV1DeliveryNotesBulkStatusErrors = {
 export type PublicApiV1DeliveryNotesBulkStatusError = PublicApiV1DeliveryNotesBulkStatusErrors[keyof PublicApiV1DeliveryNotesBulkStatusErrors];
 
 export type PublicApiV1DeliveryNotesBulkStatusResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -33473,6 +40594,9 @@ export type PublicApiV1DeliveryNotesBulkStatusResponses = {
 export type PublicApiV1DeliveryNotesBulkStatusResponse = PublicApiV1DeliveryNotesBulkStatusResponses[keyof PublicApiV1DeliveryNotesBulkStatusResponses];
 
 export type PublicApiV1InvoicesBulkStatusData = {
+    /**
+     * Bulk invoice status changes accept an optional UUID-keyed map of complete seven-field presentation preconditions. When revisioned presentation is enabled for the company and the change issues invoices (`issued` or the legacy `sent`), every draft row must carry its precondition: a draft row without one is not issued and is reported in `failures[]` with 428 `pdf_presentation_precondition_required`, while the other rows continue. With revisioned presentation disabled the precondition fields are ignored.
+     */
     body: BulkStatusInvoicesV1Request;
     headers: {
         /**
@@ -33532,6 +40656,9 @@ export type PublicApiV1InvoicesBulkStatusErrors = {
 export type PublicApiV1InvoicesBulkStatusError = PublicApiV1InvoicesBulkStatusErrors[keyof PublicApiV1InvoicesBulkStatusErrors];
 
 export type PublicApiV1InvoicesBulkStatusResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -33603,6 +40730,9 @@ export type PublicApiV1ProductsBulkStatusResponses = {
 export type PublicApiV1ProductsBulkStatusResponse = PublicApiV1ProductsBulkStatusResponses[keyof PublicApiV1ProductsBulkStatusResponses];
 
 export type PublicApiV1ProformasBulkStatusData = {
+    /**
+     * Bulk proforma status changes accept an optional UUID-keyed map of complete seven-field presentation preconditions. The presentation precondition fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: BulkStatusProformasV1Request;
     headers: {
         /**
@@ -33658,6 +40788,9 @@ export type PublicApiV1ProformasBulkStatusErrors = {
 export type PublicApiV1ProformasBulkStatusError = PublicApiV1ProformasBulkStatusErrors[keyof PublicApiV1ProformasBulkStatusErrors];
 
 export type PublicApiV1ProformasBulkStatusResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -33729,6 +40862,9 @@ export type PublicApiV1PurchaseInvoicesBulkStatusResponses = {
 export type PublicApiV1PurchaseInvoicesBulkStatusResponse = PublicApiV1PurchaseInvoicesBulkStatusResponses[keyof PublicApiV1PurchaseInvoicesBulkStatusResponses];
 
 export type PublicApiV1QuotesBulkStatusData = {
+    /**
+     * Bulk quote status changes accept an optional UUID-keyed map of complete seven-field presentation preconditions. The presentation precondition fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: BulkStatusQuotesV1Request;
     headers: {
         /**
@@ -33784,6 +40920,9 @@ export type PublicApiV1QuotesBulkStatusErrors = {
 export type PublicApiV1QuotesBulkStatusError = PublicApiV1QuotesBulkStatusErrors[keyof PublicApiV1QuotesBulkStatusErrors];
 
 export type PublicApiV1QuotesBulkStatusResponses = {
+    /**
+     * With revisioned presentation enabled, a row that carries its `presentation_preconditions` entry needs the measured identity of the PDF engine. If the engine does not answer (down, restarting or in the middle of a deployment) that row is NOT applied and is returned in `failures[]` with `error_code` `pdf_engine_unreachable` (transient); the batch goes on with the other rows and the request does not fail. Repeat only the ids listed in `failures[]` with that code, after a short delay, so documents that already went out are not processed again. `pdf_engine_profile_unavailable` in a row is a terminal failure of the engine.
+     */
     200: {
         data: BulkPartialSuccessResult;
     };
@@ -34398,7 +41537,7 @@ export type PublicApiV1DeliveryNotesCancelErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -34676,15 +41815,19 @@ export type PublicApiV1FaceSubmissionsCancelErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * facturae_operation_forbidden: the current actor or issuer is not authorized for the operation, before any lookup. `error.details.operation` names the denied operation and `error.details.reason` is `actor` (the user has no valid role in the company), `issuer` (the issuer company or its plan cannot be resolved) or `access` (the Facturae module is not available to the actor); `access` is also returned when the actor lacks the edit capability of the Facturae module.
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * resource_not_found: unknown, foreign and mismatched invoice/submission identities are indistinguishable.
      */
     404: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * The request conflicts with data that already exists or with a request running at the same time. `face_submission_attempt_conflict`: the FACe submission attempt changed while this request was running, or it is not in a state that allows this action. `details.attempt_id` is the attempt and `details.reason` says why (`attempt`, `claim`, `reconciliation` or `write_once`). Read the attempt before continuing.
+     */
+    409: Error;
+    /**
+     * face_submission_not_cancellable, invalid_status_transition or invalid reason: prepared/uncertain cannot be cancelled.
      */
     422: Error;
     /**
@@ -34695,6 +41838,10 @@ export type PublicApiV1FaceSubmissionsCancelErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * face_transmission_failed: remote cancellation could not be confirmed.
+     */
+    502: Error;
 };
 
 export type PublicApiV1FaceSubmissionsCancelError = PublicApiV1FaceSubmissionsCancelErrors[keyof PublicApiV1FaceSubmissionsCancelErrors];
@@ -36519,7 +43666,7 @@ export type PublicApiV1DeliveryNotesConvertErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -36602,7 +43749,7 @@ export type PublicApiV1ProformasConvertErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -36763,7 +43910,7 @@ export type PublicApiV1QuotesConvertErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -37890,7 +45037,7 @@ export type PublicApiV1ContactsCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `tax_id_already_exists`: another contact of the company already has that fiscal identity; `details.existing_resource_id` is its identifier. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `tax_id_already_exists`: another contact of the company already has that fiscal identity; `details.existing_resource_id` is its identifier. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -38058,6 +45205,179 @@ export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses = {
 
 export type PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponse = PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses[keyof PublicApiV1StripeAutoinvoicingAccountsChargeRulesCreateResponses];
 
+export type PublicApiV1PdfCommercialIdentitiesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Search by name. Results have a stable order: name, then id, ascending.
+         */
+        q?: string;
+        /**
+         * Lifecycle filter: `active` (default), `archived` or `all`.
+         */
+        state?: 'active' | 'archived' | 'all';
+        /**
+         * Page number, starting at 1.
+         */
+        page?: number;
+        /**
+         * Page size, alias of `limit` (1 to 100, default 25).
+         */
+        per_page?: number;
+    };
+    url: '/companies/{company}/pdf-commercial-identities';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesListErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesListError = PublicApiV1PdfCommercialIdentitiesListErrors[keyof PublicApiV1PdfCommercialIdentitiesListErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesListResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfCommercialIdentityList;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesListResponse = PublicApiV1PdfCommercialIdentitiesListResponses[keyof PublicApiV1PdfCommercialIdentitiesListResponses];
+
+export type PublicApiV1PdfCommercialIdentitiesCreateData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        id?: string;
+        revision_id?: string;
+        name: string;
+        description?: string | null;
+        configuration?: {
+            commercial_name?: string | null;
+            logo_asset_id?: string | null;
+            brand_image_asset_id?: string | null;
+            brand_mode?: 'logo' | 'imago' | 'none' | null;
+            /**
+             * Logo version for dark backgrounds (asset of kind `logo`); requires `logo_asset_id`. When clearing `logo_asset_id`, send `null` for this field too.
+             */
+            logo_dark_asset_id?: string | null;
+            /**
+             * Brand image version for dark backgrounds (asset of kind `imago`); requires `brand_image_asset_id`.
+             */
+            brand_image_dark_asset_id?: string | null;
+            /**
+             * Default `silhouette`; `null` is not allowed.
+             */
+            dark_background_fallback?: 'silhouette' | 'plate';
+            /**
+             * Default `medium`; `null` is not allowed.
+             */
+            brand_size?: 'small' | 'medium' | 'large';
+            contact_email?: string | null;
+            contact_phone?: string | null;
+        };
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-commercial-identities';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesCreateError = PublicApiV1PdfCommercialIdentitiesCreateErrors[keyof PublicApiV1PdfCommercialIdentitiesCreateErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesCreateResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    201: PdfCommercialIdentity;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesCreateResponse = PublicApiV1PdfCommercialIdentitiesCreateResponses[keyof PublicApiV1PdfCommercialIdentitiesCreateResponses];
+
 export type PublicApiV1InvoicesCorrectiveData = {
     body: CreateCorrectiveInvoiceRequest;
     headers: {
@@ -38106,11 +45426,11 @@ export type PublicApiV1InvoicesCorrectiveErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics.
      */
     422: Error;
     /**
@@ -38395,11 +45715,11 @@ export type PublicApiV1DeliveryNotesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
     /**
@@ -38853,13 +46173,17 @@ export type PublicApiV1InvoicesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_locked`: another request with the same `external_id` is still being processed (up to 20 seconds). Nothing was written by this request; send the same request again, which will return the invoice already issued. `unattended_replay_mismatch`: the `external_id` already belongs to an issued invoice with a different type or total. It identifies ONE operation: use a new `external_id` for a new operation. Nothing was changed. `resource_locked` with `subcode` `chain_position_conflict`: another process was generating VeriFactu billing records for the company at the same time and this one could not take its place in the chain after several attempts. Nothing was written; send the request again. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_locked`: another request with the same `external_id` is still being processed (up to 20 seconds). Nothing was written by this request; send the same request again, which will return the invoice already issued. `unattended_replay_mismatch`: the `external_id` already belongs to an issued invoice with a different type or total. It identifies ONE operation: use a new `external_id` for a new operation. Nothing was changed. `resource_locked` with `subcode` `chain_position_conflict`: another process was generating VeriFactu billing records for the company at the same time and this one could not take its place in the chain after several attempts. Nothing was written; send the request again. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `invoice_payment_terms_version_conflict`: the payment schedule of the invoice changed since the version you read. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the invoice again and repeat the request. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued.
      */
     422: Error;
+    /**
+     * A required write precondition is missing. invoice_payment_terms_precondition_required has param expected_payment_terms_version. Required on every existing-calendar payload, including null/[]/no-op, or an update of total_to_pay with a nonempty calendar. The body version is independent of administrative/visual versions and If-Match. Idempotent replay precedes CAS.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -39153,6 +46477,93 @@ export type PublicApiV1AccountNifTransfersCreateResponses = {
 };
 
 export type PublicApiV1AccountNifTransfersCreateResponse = PublicApiV1AccountNifTransfersCreateResponses[keyof PublicApiV1AccountNifTransfersCreateResponses];
+
+export type PublicApiV1PdfTemplatePreviewsCreateData = {
+    /**
+     * Internal reversible preparation/rendering uses the existing idempotency policy; the same key and raw body replay, another body with that key is rejected with `422 idempotency_key_reused` before admission.
+     */
+    body: CreatePdfTemplatePreviewRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-template-previews';
+};
+
+export type PublicApiV1PdfTemplatePreviewsCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * Current issuer/role/scope denied; this authority is checked again before any idempotent replay. Keep input data; no artifact was created by a denial.
+     */
+    403: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Personal data was forgotten; terminal and retryable=false.
+     */
+    410: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict, and an `If-Match` header is not accepted. `pdf_presentation_not_ready`: the revisioned presentation is not available for the company (flag off, dependencies or authorized initialization pending); nothing is created, and it is a 422, not a 403.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * The retained original is missing (`pdf_original_unavailable`) or cannot be verified (`pdf_original_corrupt`), or rendering failed terminally; no implicit regeneration occurs. A `presentation_revision` preview with `source_policy` `current_legal` verifies the retained original of the invoice presentation it derives from and keeps its layout: it answers `pdf_original_unavailable` or `pdf_original_corrupt` when that original is missing or cannot be verified, and `pdf_original_layout_unavailable` when this release no longer serves its layout (the original is intact); nothing is created.
+     */
+    500: Error;
+    /**
+     * Another request is still preparing or rendering this same artifact and did not finish within the wait window (`pdf_artifact_not_ready`); this request created and rendered nothing. Retry the same request after the Retry-After delay. If the PDF engine does not answer (down, restarting or in the middle of a deployment) while the plan of the PDF is prepared, the code is `pdf_engine_unreachable` instead: it is transient and nothing is created, so repeat the same request after the same delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery. Terminal engine failures are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PdfTemplatePreviewsCreateError = PublicApiV1PdfTemplatePreviewsCreateErrors[keyof PublicApiV1PdfTemplatePreviewsCreateErrors];
+
+export type PublicApiV1PdfTemplatePreviewsCreateResponses = {
+    /**
+     * Ready artifact metadata. An artifact that no render can complete (failed terminally, or its original missing or corrupt) is not reported here: it answers 500 with its code and nothing is enqueued. A historical READY artifact reflects its retained bytes rather than current defaults.
+     */
+    200: {
+        data: PdfArtifact;
+    };
+    /**
+     * Exact artifact metadata while prepared, queued or processing.
+     */
+    202: {
+        data: PdfArtifact;
+    };
+};
+
+export type PublicApiV1PdfTemplatePreviewsCreateResponse = PublicApiV1PdfTemplatePreviewsCreateResponses[keyof PublicApiV1PdfTemplatePreviewsCreateResponses];
 
 export type PublicApiV1PriceListsListData = {
     body?: never;
@@ -40014,11 +47425,11 @@ export type PublicApiV1ProformasCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
     /**
@@ -40774,11 +48185,11 @@ export type PublicApiV1QuotesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
     /**
@@ -40805,6 +48216,9 @@ export type PublicApiV1QuotesCreateResponses = {
 export type PublicApiV1QuotesCreateResponse = PublicApiV1QuotesCreateResponses[keyof PublicApiV1QuotesCreateResponses];
 
 export type PublicApiV1InvoicesCreateRecurringData = {
+    /**
+     * Presentation policy and relative payment terms preserve omitted/null/empty distinctions. New creation starts at configuration version 1. Creating from an invoice does not copy its overdue calendar or private visual intent. An existing external_id upsert uses update CAS. Saving configuration never resumes a paused recurrence. `presentation_policy`, `payment_terms_template` and `expected_presentation_policy_version` only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: CreateRecurringFromInvoiceRequest;
     headers?: {
         /**
@@ -40840,19 +48254,19 @@ export type PublicApiV1InvoicesCreateRecurringErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). Current actor/module/template capability denies provided presentation fields. Omitted legacy fields retain the existing route behavior.
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The requested resource does not exist or belongs to another company. Unknown and foreign template/revision/contact/series identities are indistinguishable.
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. Existing validation or invalid_recurring_presentation_policy / invalid_recurring_payment_terms_template: exact error.param identifies the field. Correct the complete policy or relative terms; no partial write.
      */
     422: Error;
     /**
@@ -41021,6 +48435,9 @@ export type PublicApiV1RecurringInvoicesListResponses = {
 export type PublicApiV1RecurringInvoicesListResponse = PublicApiV1RecurringInvoicesListResponses[keyof PublicApiV1RecurringInvoicesListResponses];
 
 export type PublicApiV1RecurringInvoicesCreateData = {
+    /**
+     * Presentation policy and relative payment terms preserve omitted/null/empty distinctions. New creation starts at configuration version 1. Creating from an invoice does not copy its overdue calendar or private visual intent. An existing external_id upsert uses update CAS. Saving configuration never resumes a paused recurrence. `presentation_policy`, `payment_terms_template` and `expected_presentation_policy_version` only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body: CreateRecurringInvoiceRequest;
     headers?: {
         /**
@@ -41052,21 +48469,25 @@ export type PublicApiV1RecurringInvoicesCreateErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). Current actor/module/template capability denies provided presentation fields. Omitted legacy fields retain the existing route behavior.
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     * The requested resource does not exist or belongs to another company. Unknown and foreign template/revision/contact/series identities are indistinguishable.
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `recurring_presentation_policy_version_conflict`: the presentation policy of the recurring invoice changed since the `expected_presentation_policy_version` you sent. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the recurring invoice again and repeat the request. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing validation or invalid_recurring_presentation_policy / invalid_recurring_payment_terms_template: exact error.param identifies the field. Correct the complete policy or relative terms; no partial write. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
+    /**
+     * recurring_presentation_policy_precondition_required: supply expected_presentation_policy_version for a configuration or governing-context edit on an existing recurrence. Parent ETag does not replace this body CAS.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -41179,6 +48600,9 @@ export type PublicApiV1SeriesListResponses = {
 export type PublicApiV1SeriesListResponse = PublicApiV1SeriesListResponses[keyof PublicApiV1SeriesListResponses];
 
 export type PublicApiV1SeriesCreateData = {
+    /**
+     * The visual preference is optional and independent of fiscal numbering. An update requires `pdf_template_expected_version` in the body when a selector is provided or the purpose changes with a saved preference; the parent ETag is not sufficient. Fresh actor authority precedes any idempotent replay, resource lookup and CAS.
+     */
     body: CreateSeriesRequest;
     headers?: {
         /**
@@ -41210,11 +48634,11 @@ export type PublicApiV1SeriesCreateErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). series_template_access_denied: current actor authority denies this operation.
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     * The requested resource does not exist or belongs to another company. pdf_template_not_found: unknown and foreign templates are indistinguishable.
      */
     404: Error;
     /**
@@ -41222,7 +48646,7 @@ export type PublicApiV1SeriesCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * Validation failed. The `error.param` field identifies which input is invalid. Existing fiscal validation or invalid_series_template_assignment, series_template_incompatible or series_template_unavailable; creation rolls back completely.
      */
     422: Error;
     /**
@@ -42247,6 +49671,190 @@ export type PublicApiV1TaxesCreateResponses = {
 };
 
 export type PublicApiV1TaxesCreateResponse = PublicApiV1TaxesCreateResponses[keyof PublicApiV1TaxesCreateResponses];
+
+export type PublicApiV1PdfTemplatesListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Search by name. Results have a stable order: name, then id, ascending.
+         */
+        q?: string;
+        /**
+         * Lifecycle filter: `active` (default), `archived` or `all`.
+         */
+        state?: 'active' | 'archived' | 'all';
+        /**
+         * Only templates of this kind: `commercial` or `transport-document`. Omitted lists every kind.
+         */
+        document_kind?: 'commercial' | 'transport-document';
+        /**
+         * Only templates compatible with this document type: `invoice`, `quote`, `proforma` or `delivery-note`.
+         */
+        document_type?: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+        /**
+         * Only templates compatible with this purpose: `complete`, `simplified`, `corrective` or `simplified_corrective`.
+         */
+        purpose?: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+        /**
+         * Only templates compatible with this paper format: `a4`, `ticket_80` or `ticket_58`.
+         */
+        format?: 'a4' | 'ticket_80' | 'ticket_58';
+        /**
+         * Page number, starting at 1.
+         */
+        page?: number;
+        /**
+         * Page size, alias of `limit` (1 to 100, default 25).
+         */
+        per_page?: number;
+    };
+    url: '/companies/{company}/pdf-templates';
+};
+
+export type PublicApiV1PdfTemplatesListErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesListError = PublicApiV1PdfTemplatesListErrors[keyof PublicApiV1PdfTemplatesListErrors];
+
+export type PublicApiV1PdfTemplatesListResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: TenantPdfTemplateList;
+};
+
+export type PublicApiV1PdfTemplatesListResponse = PublicApiV1PdfTemplatesListResponses[keyof PublicApiV1PdfTemplatesListResponses];
+
+export type PublicApiV1PdfTemplatesCreateData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        id?: string;
+        revision_id?: string;
+        name: string;
+        /**
+         * Template kind: `commercial` (invoice, quote, pro forma and delivery note) or `transport-document` (transport control document, DeCA). It is fixed at creation and never changes. Defaults to `commercial` when omitted on create and returned on every template and revision.
+         */
+        document_kind?: 'commercial' | 'transport-document';
+        description?: string | null;
+        base_preset?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+        configuration?: PdfTemplateConfigurationChanges;
+        supported_types?: Array<'invoice' | 'quote' | 'proforma' | 'delivery-note'>;
+        supported_purposes?: {
+            invoice?: Array<'complete' | 'simplified' | 'corrective' | 'simplified_corrective'>;
+            quote?: Array<'complete'>;
+            proforma?: Array<'complete'>;
+            'delivery-note'?: Array<'complete'>;
+        };
+        supported_formats?: Array<'a4' | 'ticket_80' | 'ticket_58'>;
+        commercial_identity_id?: string | null;
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates';
+};
+
+export type PublicApiV1PdfTemplatesCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesCreateError = PublicApiV1PdfTemplatesCreateErrors[keyof PublicApiV1PdfTemplatesCreateErrors];
+
+export type PublicApiV1PdfTemplatesCreateResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    201: TenantPdfTemplate;
+};
+
+export type PublicApiV1PdfTemplatesCreateResponse = PublicApiV1PdfTemplatesCreateResponses[keyof PublicApiV1PdfTemplatesCreateResponses];
 
 export type PublicApiV1TransportDocumentsIndexData = {
     body?: never;
@@ -43982,11 +51590,11 @@ export type PublicApiV1DeliveryNotesUpdateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another delivery note of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another delivery note of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
      */
     409: Error;
     /**
-     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
     /**
@@ -44180,13 +51788,17 @@ export type PublicApiV1InvoicesUpdateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another invoice of the company already uses that `external_id`; `details.existing_resource_id` is its identifier.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another invoice of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `invoice_payment_terms_version_conflict`: the payment schedule of the invoice changed since the version you read. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the invoice again and repeat the request. Nothing was changed.
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
+    /**
+     * A required write precondition is missing. invoice_payment_terms_precondition_required has param expected_payment_terms_version. Required on every existing-calendar payload, including null/[]/no-op, or an update of total_to_pay with a nonempty calendar. The body version is independent of administrative/visual versions and If-Match. Idempotent replay precedes CAS.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -45344,11 +52956,11 @@ export type PublicApiV1ProformasUpdateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another proforma of the company already uses that `external_id`; `details.existing_resource_id` is its identifier.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another proforma of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
      */
     409: Error;
     /**
-     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
     /**
@@ -46229,7 +53841,7 @@ export type PublicApiV1QuotesUpdateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
     /**
@@ -46380,6 +53992,9 @@ export type PublicApiV1RecurringInvoicesShowResponses = {
 export type PublicApiV1RecurringInvoicesShowResponse = PublicApiV1RecurringInvoicesShowResponses[keyof PublicApiV1RecurringInvoicesShowResponses];
 
 export type PublicApiV1RecurringInvoicesUpdateData = {
+    /**
+     * Presentation policy and relative payment terms preserve omitted/null/empty distinctions. New creation starts at configuration version 1. Creating from an invoice does not copy its overdue calendar or private visual intent. An existing external_id upsert uses update CAS. Saving configuration never resumes a paused recurrence. `presentation_policy`, `payment_terms_template` and `expected_presentation_policy_version` only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
+     */
     body?: UpdateRecurringInvoiceRequest;
     headers?: {
         /**
@@ -46415,21 +54030,25 @@ export type PublicApiV1RecurringInvoicesUpdateErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). Current actor/module/template capability denies provided presentation fields. Omitted legacy fields retain the existing route behavior.
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The requested resource does not exist or belongs to another company. Unknown and foreign template/revision/contact/series identities are indistinguishable.
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another recurring invoice of the company already uses that `external_id`; `details.existing_resource_id` is its identifier.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another recurring invoice of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `recurring_presentation_policy_version_conflict`: the presentation policy of the recurring invoice changed since the `expected_presentation_policy_version` you sent. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the recurring invoice again and repeat the request. Nothing was changed.
      */
     409: Error;
     /**
-     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing validation or invalid_recurring_presentation_policy / invalid_recurring_payment_terms_template: exact error.param identifies the field. Correct the complete policy or relative terms; no partial write. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax.
      */
     422: Error;
+    /**
+     * recurring_presentation_policy_precondition_required: supply expected_presentation_policy_version for a configuration or governing-context edit on an existing recurrence. Parent ETag does not replace this body CAS.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -48454,7 +56073,7 @@ export type PublicApiV1StripeAutoinvoicingAccountsUpdateData = {
 
 export type PublicApiV1StripeAutoinvoicingAccountsUpdateErrors = {
     /**
-     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range.
      */
     400: Error;
     /**
@@ -48882,6 +56501,10 @@ export type PublicApiV1DeliveryNotesPdfData = {
     body?: never;
     headers?: {
         /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
         'Factuarea-Version'?: string;
@@ -48919,17 +56542,33 @@ export type PublicApiV1DeliveryNotesPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The document does not exist or belongs to another company, or no retained PDF artifact matching its current presentation, purpose and format can be resolved: `pdf_artifact_not_found`. A PDF that does not exist yet is prepared on request (202), not reported as 404. A retained PDF that failed to render or cannot be verified answers 500, and one erased for privacy answers 410.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * The retained PDF is unavailable after an irreversible privacy erasure: `pdf_signature_personal_data_forgotten`.
+     */
+    410: Error;
+    /**
+     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
+     */
+    422: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
     /**
-     * Unexpected server error.
+     * The retained PDF, or the draft preview of a draft delivery note, cannot be rendered or served: `pdf_engine_profile_unavailable` or `pdf_payload_resource_unavailable` (its render failed terminally), `pdf_image_resource_unavailable`, `pdf_original_unavailable` or `pdf_original_corrupt`. Preparing the PDF of a presentation derived from the original to add the signature answers `pdf_original_layout_unavailable` when this release no longer serves the original's layout, which that presentation keeps: the original is intact and nothing is prepared. Nothing is enqueued by this answer. A render that failed but can be retried is never answered with that earlier failure: the request claims it again, so retrying makes progress. Any other internal error also returns 500; the response never exposes internal artifact data.
      */
     500: Error;
+    /**
+     * Another request is still preparing this same PDF and did not finish within the wait window: `pdf_artifact_not_ready`. Retry this request after the Retry-After delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery.
+     */
+    503: Error;
 };
 
 export type PublicApiV1DeliveryNotesPdfError = PublicApiV1DeliveryNotesPdfErrors[keyof PublicApiV1DeliveryNotesPdfErrors];
@@ -48939,6 +56578,23 @@ export type PublicApiV1DeliveryNotesPdfResponses = {
      * Binary PDF stream of the delivery note (`application/pdf`). Use `?download=1` to receive `Content-Disposition: attachment` (forces a file download); otherwise the disposition is `inline`. The response carries an `ETag`; send it back via `If-None-Match` to get a `304 Not Modified` when the PDF has not changed.
      */
     200: Blob | File;
+    /**
+     * PDF preparation is still in progress, including a render that failed but can be retried: this request claimed it again. Retry this URL after the Retry-After delay.
+     */
+    202: {
+        data: {
+            id: string;
+            object: 'delivery_note_pdf';
+            status: 'pending';
+            pdf_url: string;
+            pdf_output_state: {
+                state: 'prepared' | 'queued' | 'processing';
+                format: 'a4' | 'ticket_80' | 'ticket_58';
+                variant: 'official' | 'alternative';
+                retry_after: number | null;
+            };
+        };
+    };
 };
 
 export type PublicApiV1DeliveryNotesPdfResponse = PublicApiV1DeliveryNotesPdfResponses[keyof PublicApiV1DeliveryNotesPdfResponses];
@@ -48961,7 +56617,12 @@ export type PublicApiV1InvoicesFacturaeData = {
          */
         invoice: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Own FACe attempt to export. Omitted or null exports the current legal source; a UUID returns the exact retained bytes of that attempt, never regenerated or re-signed.
+         */
+        submission_id?: string | null;
+    };
     url: '/companies/{company}/invoices/{invoice}/facturae';
 };
 
@@ -48975,15 +56636,19 @@ export type PublicApiV1InvoicesFacturaeErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * facturae_operation_forbidden: the current actor or issuer is not authorized for the operation, before any lookup. `error.details.operation` names the denied operation and `error.details.reason` is `actor` (the user has no valid role in the company), `issuer` (the issuer company or its plan cannot be resolved) or `access` (the Facturae module is not available to the actor).
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * resource_not_found: unknown, foreign and mismatched invoice/submission identities are indistinguishable.
      */
     404: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * The request conflicts with data that already exists or with a request running at the same time. `invoice_payment_terms_version_conflict`: the payment schedule of the invoice changed since the version you read. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the invoice again and repeat the request. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * invalid_facturae_structured_data or invoice_not_emittable_for_facturae: safe field_errors, diagnostic and optional node-only xpath. When the Facturae schema rejects a data of the issuer or of the recipient, `invalid_facturae_structured_data` names it in `error.param`: `seller.{tax_id,name,address,postal_code,city,province,country}` (the record of the company) or `buyer.{tax_id,name,address,postal_code,city,province,country}` (the record of the client), or just `seller` / `buyer` when the field cannot be told; `error.details.diagnostic` is `schema_invalid`, `error.details.xpath` is the node-only path and the message says which record to correct (for example `buyer.postal_code`: the postal code of the client). No XML is produced; correct that record and export again.
      */
     422: Error;
     /**
@@ -48991,7 +56656,7 @@ export type PublicApiV1InvoicesFacturaeErrors = {
      */
     429: Error;
     /**
-     * Unexpected server error.
+     * facturae_artifact_unavailable or facturae_signing_failed: selected artifacts are never regenerated; attempt_id identifies an authorized retained attempt when available.
      */
     500: Error;
 };
@@ -48999,6 +56664,9 @@ export type PublicApiV1InvoicesFacturaeErrors = {
 export type PublicApiV1InvoicesFacturaeError = PublicApiV1InvoicesFacturaeErrors[keyof PublicApiV1InvoicesFacturaeErrors];
 
 export type PublicApiV1InvoicesFacturaeResponses = {
+    /**
+     * Current Facturae 3.2.2 XML (.xml or .xsig), or the exact retained selected artifact. Does not promise a conditional 304 response.
+     */
     200: Blob | File;
 };
 
@@ -49007,6 +56675,10 @@ export type PublicApiV1InvoicesFacturaeResponse = PublicApiV1InvoicesFacturaeRes
 export type PublicApiV1InvoicesPdfData = {
     body?: never;
     headers?: {
+        /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
         /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
@@ -49049,9 +56721,17 @@ export type PublicApiV1InvoicesPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The document does not exist or belongs to another company, or no retained PDF artifact matching its current presentation, purpose and format can be resolved: `pdf_artifact_not_found`. A PDF that does not exist yet is prepared on request (202), not reported as 404. A retained PDF that failed to render or cannot be verified answers 500, and one erased for privacy answers 410.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered.
+     */
+    409: Error;
+    /**
+     * The retained PDF is unavailable after an irreversible privacy erasure: `pdf_signature_personal_data_forgotten`.
+     */
+    410: Error;
     /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
@@ -49061,18 +56741,39 @@ export type PublicApiV1InvoicesPdfErrors = {
      */
     429: Error;
     /**
-     * Unexpected server error.
+     * The retained PDF, or the draft preview of a draft invoice, cannot be rendered or served: `pdf_engine_profile_unavailable` or `pdf_payload_resource_unavailable` (its render failed terminally), `pdf_image_resource_unavailable`, `pdf_original_unavailable` or `pdf_original_corrupt`. Preparing the PDF of a presentation derived from the original to add the legal QR or to refresh the legal data answers `pdf_original_layout_unavailable` when this release no longer serves the original's layout, which that presentation keeps: the original is intact and nothing is prepared. Nothing is enqueued by this answer. A render that failed but can be retried is never answered with that earlier failure: the request claims it again, so retrying makes progress. Any other internal error also returns 500; the response never exposes internal artifact data.
      */
     500: Error;
+    /**
+     * Another request is still preparing this same PDF and did not finish within the wait window: `pdf_artifact_not_ready`. Retry this request after the Retry-After delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery.
+     */
+    503: Error;
 };
 
 export type PublicApiV1InvoicesPdfError = PublicApiV1InvoicesPdfErrors[keyof PublicApiV1InvoicesPdfErrors];
 
 export type PublicApiV1InvoicesPdfResponses = {
     /**
-     * Binary PDF stream of the invoice (`application/pdf`) in the paper chosen with `format` (`a4` by default, `ticket_80` or `ticket_58`). Use `?download=1` to receive `Content-Disposition: attachment`; otherwise the disposition is `inline`. The response carries an `ETag`; send it back via `If-None-Match` to get a `304 Not Modified` when nothing changed.
+     * Binary PDF bytes for the owner document. No storage path, snapshot, rendering plan, or internal proof is returned.
      */
     200: Blob | File;
+    /**
+     * PDF preparation is still in progress, including a render that failed but can be retried: this request claimed it again. Retry this URL after the Retry-After delay.
+     */
+    202: {
+        data: {
+            id: string;
+            object: 'invoice_pdf';
+            status: 'pending';
+            pdf_url: string;
+            pdf_output_state: {
+                state: 'prepared' | 'queued' | 'processing';
+                format: 'a4' | 'ticket_80' | 'ticket_58';
+                variant: 'official' | 'alternative';
+                retry_after: number | null;
+            };
+        };
+    };
 };
 
 export type PublicApiV1InvoicesPdfResponse = PublicApiV1InvoicesPdfResponses[keyof PublicApiV1InvoicesPdfResponses];
@@ -49189,6 +56890,82 @@ export type PublicApiV1MonthlyTimeRecordClosesPayrollExportResponses = {
 };
 
 export type PublicApiV1MonthlyTimeRecordClosesPayrollExportResponse = PublicApiV1MonthlyTimeRecordClosesPayrollExportResponses[keyof PublicApiV1MonthlyTimeRecordClosesPayrollExportResponses];
+
+export type PublicApiV1PdfArtifactsDownloadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF artifact.
+         */
+        artifact: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-artifacts/{artifact}/download';
+};
+
+export type PublicApiV1PdfArtifactsDownloadErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * Current issuer/role/scope denied; this authority is checked again before any idempotent replay. Keep input data; no artifact was created by a denial.
+     */
+    403: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict.
+     */
+    404: Error;
+    /**
+     * Personal data was forgotten; terminal and retryable=false.
+     */
+    410: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict, and an `If-Match` header is not accepted.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * The retained original is missing (`pdf_original_unavailable`) or cannot be verified (`pdf_original_corrupt`), or rendering failed terminally; no implicit regeneration occurs.
+     */
+    500: Error;
+    /**
+     * The exact retained artifact is still pending; Retry-After controls when to retry this download.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PdfArtifactsDownloadError = PublicApiV1PdfArtifactsDownloadErrors[keyof PublicApiV1PdfArtifactsDownloadErrors];
+
+export type PublicApiV1PdfArtifactsDownloadResponses = {
+    /**
+     * Authorized, integrity-verified retained PDF; a 304 is verified before returning no body. A historical READY artifact is served from its retained bytes, never from current defaults, and a download never initializes, captures, publishes or renders a document.
+     */
+    200: Blob | File;
+};
+
+export type PublicApiV1PdfArtifactsDownloadResponse = PublicApiV1PdfArtifactsDownloadResponses[keyof PublicApiV1PdfArtifactsDownloadResponses];
 
 export type PublicApiV1ProductsGalleryDownloadData = {
     body?: never;
@@ -49312,6 +57089,10 @@ export type PublicApiV1ProformasPdfData = {
     body?: never;
     headers?: {
         /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
         'Factuarea-Version'?: string;
@@ -49349,9 +57130,17 @@ export type PublicApiV1ProformasPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The document does not exist or belongs to another company, or no retained PDF artifact matching its current presentation, purpose and format can be resolved: `pdf_artifact_not_found`. A PDF that does not exist yet is prepared on request (202), not reported as 404. A retained PDF that failed to render or cannot be verified answers 500, and one erased for privacy answers 410.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * The retained PDF is unavailable after an irreversible privacy erasure: `pdf_signature_personal_data_forgotten`.
+     */
+    410: Error;
     /**
      * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
      */
@@ -49361,15 +57150,39 @@ export type PublicApiV1ProformasPdfErrors = {
      */
     429: Error;
     /**
-     * Unexpected server error.
+     * The retained PDF, or the draft preview of a draft proforma, cannot be rendered or served: `pdf_engine_profile_unavailable` or `pdf_payload_resource_unavailable` (its render failed terminally), `pdf_image_resource_unavailable`, `pdf_original_unavailable` or `pdf_original_corrupt`. Nothing is enqueued by this answer. A render that failed but can be retried is never answered with that earlier failure: the request claims it again, so retrying makes progress. Any other internal error also returns 500; the response never exposes internal artifact data.
      */
     500: Error;
+    /**
+     * Another request is still preparing this same PDF and did not finish within the wait window: `pdf_artifact_not_ready`. Retry this request after the Retry-After delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery.
+     */
+    503: Error;
 };
 
 export type PublicApiV1ProformasPdfError = PublicApiV1ProformasPdfErrors[keyof PublicApiV1ProformasPdfErrors];
 
 export type PublicApiV1ProformasPdfResponses = {
+    /**
+     * Binary PDF bytes for the owner document. No storage path, snapshot, rendering plan, or internal proof is returned.
+     */
     200: Blob | File;
+    /**
+     * PDF preparation is still in progress, including a render that failed but can be retried: this request claimed it again. Retry this URL after the Retry-After delay.
+     */
+    202: {
+        data: {
+            id: string;
+            object: 'proforma_pdf';
+            status: 'pending';
+            pdf_url: string;
+            pdf_output_state: {
+                state: 'prepared' | 'queued' | 'processing';
+                format: 'a4' | 'ticket_80' | 'ticket_58';
+                variant: 'official' | 'alternative';
+                retry_after: number | null;
+            };
+        };
+    };
 };
 
 export type PublicApiV1ProformasPdfResponse = PublicApiV1ProformasPdfResponses[keyof PublicApiV1ProformasPdfResponses];
@@ -49505,6 +57318,10 @@ export type PublicApiV1QuotesPdfData = {
     body?: never;
     headers?: {
         /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
         'Factuarea-Version'?: string;
@@ -49542,9 +57359,17 @@ export type PublicApiV1QuotesPdfErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The document does not exist or belongs to another company, or no retained PDF artifact matching its current presentation, purpose and format can be resolved: `pdf_artifact_not_found`. A PDF that does not exist yet is prepared on request (202), not reported as 404. A retained PDF that failed to render or cannot be verified answers 500, and one erased for privacy answers 410.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * The retained PDF is unavailable after an irreversible privacy erasure: `pdf_signature_personal_data_forgotten`.
+     */
+    410: Error;
     /**
      * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any.
      */
@@ -49554,15 +57379,39 @@ export type PublicApiV1QuotesPdfErrors = {
      */
     429: Error;
     /**
-     * Unexpected server error.
+     * The retained PDF, or the draft preview of a draft quote, cannot be rendered or served: `pdf_engine_profile_unavailable` or `pdf_payload_resource_unavailable` (its render failed terminally), `pdf_image_resource_unavailable`, `pdf_original_unavailable` or `pdf_original_corrupt`. Nothing is enqueued by this answer. A render that failed but can be retried is never answered with that earlier failure: the request claims it again, so retrying makes progress. Any other internal error also returns 500; the response never exposes internal artifact data.
      */
     500: Error;
+    /**
+     * Another request is still preparing this same PDF and did not finish within the wait window: `pdf_artifact_not_ready`. Retry this request after the Retry-After delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery.
+     */
+    503: Error;
 };
 
 export type PublicApiV1QuotesPdfError = PublicApiV1QuotesPdfErrors[keyof PublicApiV1QuotesPdfErrors];
 
 export type PublicApiV1QuotesPdfResponses = {
+    /**
+     * Binary PDF bytes for the owner document. No storage path, snapshot, rendering plan, or internal proof is returned.
+     */
     200: Blob | File;
+    /**
+     * PDF preparation is still in progress, including a render that failed but can be retried: this request claimed it again. Retry this URL after the Retry-After delay.
+     */
+    202: {
+        data: {
+            id: string;
+            object: 'quote_pdf';
+            status: 'pending';
+            pdf_url: string;
+            pdf_output_state: {
+                state: 'prepared' | 'queued' | 'processing';
+                format: 'a4' | 'ticket_80' | 'ticket_58';
+                variant: 'official' | 'alternative';
+                retry_after: number | null;
+            };
+        };
+    };
 };
 
 export type PublicApiV1QuotesPdfResponse = PublicApiV1QuotesPdfResponses[keyof PublicApiV1QuotesPdfResponses];
@@ -49889,7 +57738,7 @@ export type PublicApiV1AutomationsRulesDryRunResponses = {
 export type PublicApiV1AutomationsRulesDryRunResponse = PublicApiV1AutomationsRulesDryRunResponses[keyof PublicApiV1AutomationsRulesDryRunResponses];
 
 export type PublicApiV1DeliveryNotesDuplicateData = {
-    body?: never;
+    body?: DuplicateDeliveryNoteRequest;
     headers?: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
@@ -49936,11 +57785,11 @@ export type PublicApiV1DeliveryNotesDuplicateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
     /**
@@ -49964,7 +57813,7 @@ export type PublicApiV1DeliveryNotesDuplicateResponses = {
 export type PublicApiV1DeliveryNotesDuplicateResponse = PublicApiV1DeliveryNotesDuplicateResponses[keyof PublicApiV1DeliveryNotesDuplicateResponses];
 
 export type PublicApiV1InvoicesDuplicateData = {
-    body?: never;
+    body?: DuplicateInvoiceRequest;
     headers?: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
@@ -50011,6 +57860,10 @@ export type PublicApiV1InvoicesDuplicateErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
@@ -50038,7 +57891,7 @@ export type PublicApiV1InvoicesDuplicateResponses = {
 export type PublicApiV1InvoicesDuplicateResponse = PublicApiV1InvoicesDuplicateResponses[keyof PublicApiV1InvoicesDuplicateResponses];
 
 export type PublicApiV1ProformasDuplicateData = {
-    body?: never;
+    body?: DuplicateProformaRequest;
     headers?: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
@@ -50085,11 +57938,11 @@ export type PublicApiV1ProformasDuplicateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
     /**
@@ -50113,7 +57966,7 @@ export type PublicApiV1ProformasDuplicateResponses = {
 export type PublicApiV1ProformasDuplicateResponse = PublicApiV1ProformasDuplicateResponses[keyof PublicApiV1ProformasDuplicateResponses];
 
 export type PublicApiV1QuotesDuplicateData = {
-    body?: never;
+    body?: DuplicateQuoteRequest;
     headers?: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
@@ -50160,11 +58013,11 @@ export type PublicApiV1QuotesDuplicateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
     /**
@@ -50264,6 +58117,91 @@ export type PublicApiV1TasksDuplicateResponses = {
 };
 
 export type PublicApiV1TasksDuplicateResponse = PublicApiV1TasksDuplicateResponses[keyof PublicApiV1TasksDuplicateResponses];
+
+export type PublicApiV1PdfTemplatesDuplicateData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        id?: string;
+        revision_id?: string;
+        expected_version: number;
+        name: string;
+        /**
+         * Template kind: `commercial` (invoice, quote, pro forma and delivery note) or `transport-document` (transport control document, DeCA). A template never changes kind. Omitted, the copy keeps the kind of the source; `transport-document` on a commercial source creates a new control template that copies only the design (preset, branding, typography and colors). A control template cannot be duplicated as `commercial`.
+         */
+        document_kind?: 'commercial' | 'transport-document';
+        description?: string | null;
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/{template}/duplicate';
+};
+
+export type PublicApiV1PdfTemplatesDuplicateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesDuplicateError = PublicApiV1PdfTemplatesDuplicateErrors[keyof PublicApiV1PdfTemplatesDuplicateErrors];
+
+export type PublicApiV1PdfTemplatesDuplicateResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    201: TenantPdfTemplate;
+};
+
+export type PublicApiV1PdfTemplatesDuplicateResponse = PublicApiV1PdfTemplatesDuplicateResponses[keyof PublicApiV1PdfTemplatesDuplicateResponses];
 
 export type PublicApiV1ManagedAccountsManagementEndData = {
     body?: never;
@@ -50573,6 +58511,157 @@ export type PublicApiV1ContactsFindByTaxIdResponses = {
 };
 
 export type PublicApiV1ContactsFindByTaxIdResponse = PublicApiV1ContactsFindByTaxIdResponses[keyof PublicApiV1ContactsFindByTaxIdResponses];
+
+export type PublicApiV1PdfCommercialIdentitiesFindData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity.
+         */
+        identity: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-commercial-identities/{identity}';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesFindErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesFindError = PublicApiV1PdfCommercialIdentitiesFindErrors[keyof PublicApiV1PdfCommercialIdentitiesFindErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesFindResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfCommercialIdentity;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesFindResponse = PublicApiV1PdfCommercialIdentitiesFindResponses[keyof PublicApiV1PdfCommercialIdentitiesFindResponses];
+
+export type PublicApiV1PdfCommercialIdentitiesUpdateData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version?: number;
+        name?: string;
+        description?: string | null;
+    };
+    headers?: {
+        /**
+         * Alternative precondition from GET of this exact URI. Strong comparison (RFC 9110); independently validated alongside expected_version: mismatched tag 412, stale version 409, neither 428. POST actions require expected_version in the body.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity.
+         */
+        identity: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-commercial-identities/{identity}';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Strong If-Match does not match the complete current representation (`pdf_template_precondition_failed`). Fetch this same URI again before retrying. This check is independent of expected_version; a stale body version remains 409.
+     */
+    412: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Neither expected_version in the request body nor If-Match from GET of this same URI was supplied (`pdf_template_precondition_required`). Supply at least one precondition before retrying.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesUpdateError = PublicApiV1PdfCommercialIdentitiesUpdateErrors[keyof PublicApiV1PdfCommercialIdentitiesUpdateErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesUpdateResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfCommercialIdentity;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesUpdateResponse = PublicApiV1PdfCommercialIdentitiesUpdateResponses[keyof PublicApiV1PdfCommercialIdentitiesUpdateResponses];
 
 export type PublicApiV1DeliveryNotesFindByExternalIdData = {
     body: FindDeliveryNoteByExternalIdRequest;
@@ -51584,6 +59673,157 @@ export type PublicApiV1TaxReportsFindByPeriodResponses = {
 
 export type PublicApiV1TaxReportsFindByPeriodResponse = PublicApiV1TaxReportsFindByPeriodResponses[keyof PublicApiV1TaxReportsFindByPeriodResponses];
 
+export type PublicApiV1PdfTemplatesFindData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/{template}';
+};
+
+export type PublicApiV1PdfTemplatesFindErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesFindError = PublicApiV1PdfTemplatesFindErrors[keyof PublicApiV1PdfTemplatesFindErrors];
+
+export type PublicApiV1PdfTemplatesFindResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: TenantPdfTemplate;
+};
+
+export type PublicApiV1PdfTemplatesFindResponse = PublicApiV1PdfTemplatesFindResponses[keyof PublicApiV1PdfTemplatesFindResponses];
+
+export type PublicApiV1PdfTemplatesUpdateData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version?: number;
+        name?: string;
+        description?: string | null;
+    };
+    headers?: {
+        /**
+         * Alternative precondition from GET of this exact URI. Strong comparison (RFC 9110); independently validated alongside expected_version: mismatched tag 412, stale version 409, neither 428. POST actions require expected_version in the body.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/{template}';
+};
+
+export type PublicApiV1PdfTemplatesUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Strong If-Match does not match the complete current representation (`pdf_template_precondition_failed`). Fetch this same URI again before retrying. This check is independent of expected_version; a stale body version remains 409.
+     */
+    412: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Neither expected_version in the request body nor If-Match from GET of this same URI was supplied (`pdf_template_precondition_required`). Supply at least one precondition before retrying.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesUpdateError = PublicApiV1PdfTemplatesUpdateErrors[keyof PublicApiV1PdfTemplatesUpdateErrors];
+
+export type PublicApiV1PdfTemplatesUpdateResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: TenantPdfTemplate;
+};
+
+export type PublicApiV1PdfTemplatesUpdateResponse = PublicApiV1PdfTemplatesUpdateResponses[keyof PublicApiV1PdfTemplatesUpdateResponses];
+
 export type PublicApiV1DeliveryNotesSignatureAuditsForgetData = {
     body?: never;
     headers: {
@@ -51627,6 +59867,10 @@ export type PublicApiV1DeliveryNotesSignatureAuditsForgetErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed.
+     */
+    409: Error;
     /**
      * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
      */
@@ -51896,15 +60140,15 @@ export type PublicApiV1RecurringInvoicesGenerateErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The requested resource does not exist or belongs to another company. Unknown and foreign recurrence/reference identities are indistinguishable.
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `recurring_presentation_activation_changed`: the company switched its presentation system on or off twice in a row while the recurring invoice was being generated. It is a retryable conflict, not a business-rule violation: nothing was written, no invoice was created and no occurrence was consumed. Repeat the request; with the same `Idempotency-Key` it does not duplicate the invoice. This response is not cached for replay. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing lifecycle/business guards or recurring_presentation_unavailable with a safe finite reason. latest visual failure recovery is committed after generation rollback; restoration or editing does not automatically resume.
      */
     422: Error;
     /**
@@ -51920,12 +60164,11 @@ export type PublicApiV1RecurringInvoicesGenerateErrors = {
 export type PublicApiV1RecurringInvoicesGenerateError = PublicApiV1RecurringInvoicesGenerateErrors[keyof PublicApiV1RecurringInvoicesGenerateErrors];
 
 export type PublicApiV1RecurringInvoicesGenerateResponses = {
+    /**
+     * Invoice for the business day fixed by this authorized request. Same-day replay returns the existing invoice without another counter, email or instalment set.
+     */
     200: {
-        data: {
-            object: 'recurring_invoice.generate_result';
-            invoice_id: string | null;
-            invoice_number: string | null;
-        };
+        data: RecurringInvoiceGenerateResult;
     };
 };
 
@@ -52930,6 +61173,135 @@ export type PublicApiV1ContactsStatsResponses = {
 };
 
 export type PublicApiV1ContactsStatsResponse = PublicApiV1ContactsStatsResponses[keyof PublicApiV1ContactsStatsResponses];
+
+export type PublicApiV1PdfCommercialIdentitiesImpactData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity.
+         */
+        identity: string;
+    };
+    query: {
+        /**
+         * Change to preview: `publish` (a new revision) or `archive`. Any other value, or none, returns 422.
+         */
+        action: 'publish' | 'archive';
+    };
+    url: '/companies/{company}/pdf-commercial-identities/{identity}/impact';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesImpactErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesImpactError = PublicApiV1PdfCommercialIdentitiesImpactErrors[keyof PublicApiV1PdfCommercialIdentitiesImpactErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesImpactResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfLibraryImpact;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesImpactResponse = PublicApiV1PdfCommercialIdentitiesImpactResponses[keyof PublicApiV1PdfCommercialIdentitiesImpactResponses];
+
+export type PublicApiV1PdfCommercialIdentitiesRevisionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity.
+         */
+        identity: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity revision.
+         */
+        revision: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-commercial-identities/{identity}/revisions/{revision}';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesRevisionErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesRevisionError = PublicApiV1PdfCommercialIdentitiesRevisionErrors[keyof PublicApiV1PdfCommercialIdentitiesRevisionErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesRevisionResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfCommercialIdentityRevision;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesRevisionResponse = PublicApiV1PdfCommercialIdentitiesRevisionResponses[keyof PublicApiV1PdfCommercialIdentitiesRevisionResponses];
 
 export type PublicApiV1CompaniesCreationStatusData = {
     body?: never;
@@ -54213,11 +62585,11 @@ export type PublicApiV1FaceSubmissionsShowErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * facturae_operation_forbidden: the current actor or issuer is not authorized for the operation, before any lookup. `error.details.operation` names the denied operation and `error.details.reason` is `actor` (the user has no valid role in the company), `issuer` (the issuer company or its plan cannot be resolved) or `access` (the Facturae module is not available to the actor).
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * resource_not_found: unknown, foreign and mismatched invoice/submission identities are indistinguishable.
      */
     404: Error;
     /**
@@ -54281,9 +62653,17 @@ export type PublicApiV1InvoicesPdfLinkErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The document does not exist or belongs to another company, or no retained PDF artifact matching its current presentation, purpose and format can be resolved: `pdf_artifact_not_found`. A PDF that does not exist yet is prepared on request (202), not reported as 404. A retained PDF that failed to render or cannot be verified answers 500, and one erased for privacy answers 410.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered.
+     */
+    409: Error;
+    /**
+     * The retained PDF is unavailable after an irreversible privacy erasure: `pdf_signature_personal_data_forgotten`.
+     */
+    410: Error;
     /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
@@ -54293,9 +62673,13 @@ export type PublicApiV1InvoicesPdfLinkErrors = {
      */
     429: Error;
     /**
-     * Unexpected server error.
+     * The retained PDF cannot be rendered or served, so there is no link to wait for (it is never answered as a pending 202): `pdf_engine_profile_unavailable` or `pdf_payload_resource_unavailable` (its render failed terminally), `pdf_image_resource_unavailable`, `pdf_original_unavailable` or `pdf_original_corrupt`. Preparing the PDF of a presentation derived from the original to add the legal QR or to refresh the legal data answers `pdf_original_layout_unavailable` when this release no longer serves the original's layout, which that presentation keeps: the original is intact and nothing is prepared. Nothing is enqueued by this answer. A render that failed but can be retried is never answered with that earlier failure: the request claims it again, so retrying makes progress. Any other internal error also returns 500; the response never exposes internal artifact data.
      */
     500: Error;
+    /**
+     * Another request is still preparing this same PDF and did not finish within the wait window: `pdf_artifact_not_ready`. Retry this request after the Retry-After delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery.
+     */
+    503: Error;
 };
 
 export type PublicApiV1InvoicesPdfLinkError = PublicApiV1InvoicesPdfLinkErrors[keyof PublicApiV1InvoicesPdfLinkErrors];
@@ -54319,6 +62703,13 @@ export type PublicApiV1InvoicesPdfLinkResponses = {
             status: 'pendiente';
             document_uuid: string;
             pdf_path: string;
+            pdf_url: string;
+        };
+        message: 'La generación del PDF está en curso. El enlace estará disponible en unos segundos.';
+    } | {
+        data: {
+            status: 'pendiente';
+            document_uuid: string;
             pdf_url: string;
         };
         message: 'La generación del PDF está en curso. El enlace estará disponible en unos segundos.';
@@ -54925,6 +63316,451 @@ export type PublicApiV1PayoutsShowResponses = {
 };
 
 export type PublicApiV1PayoutsShowResponse = PublicApiV1PayoutsShowResponses[keyof PublicApiV1PayoutsShowResponses];
+
+export type PublicApiV1PdfArtifactsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF artifact.
+         */
+        artifact: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-artifacts/{artifact}';
+};
+
+export type PublicApiV1PdfArtifactsShowErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * Current issuer/role/scope denied; this authority is checked again before any idempotent replay. Keep input data; no artifact was created by a denial.
+     */
+    403: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict.
+     */
+    404: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict, and an `If-Match` header is not accepted.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfArtifactsShowError = PublicApiV1PdfArtifactsShowErrors[keyof PublicApiV1PdfArtifactsShowErrors];
+
+export type PublicApiV1PdfArtifactsShowResponses = {
+    /**
+     * Retained artifact metadata, including safe unavailable/failed/corrupt states. A metadata read never initializes, captures, publishes or renders a document, and a historical READY artifact reflects its retained bytes rather than current defaults.
+     */
+    200: {
+        data: PdfArtifact;
+    };
+};
+
+export type PublicApiV1PdfArtifactsShowResponse = PublicApiV1PdfArtifactsShowResponses[keyof PublicApiV1PdfArtifactsShowResponses];
+
+export type PublicApiV1PdfTemplatesContactDefaultGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the contact.
+         */
+        contact: string;
+        /**
+         * Document type of the preference: `invoice`, `quote`, `proforma` or `delivery-note`.
+         */
+        document_type: string;
+        /**
+         * Document purpose: `complete`, `simplified`, `corrective` or `simplified_corrective`.
+         */
+        purpose: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/contact-defaults/{contact}/{document_type}/{purpose}';
+};
+
+export type PublicApiV1PdfTemplatesContactDefaultGetErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesContactDefaultGetError = PublicApiV1PdfTemplatesContactDefaultGetErrors[keyof PublicApiV1PdfTemplatesContactDefaultGetErrors];
+
+export type PublicApiV1PdfTemplatesContactDefaultGetResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfTemplateContactPreference;
+};
+
+export type PublicApiV1PdfTemplatesContactDefaultGetResponse = PublicApiV1PdfTemplatesContactDefaultGetResponses[keyof PublicApiV1PdfTemplatesContactDefaultGetResponses];
+
+export type PublicApiV1PdfTemplatesContactDefaultSetData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version?: number;
+        template_id?: string | null;
+    };
+    headers?: {
+        /**
+         * Alternative precondition from GET of this exact URI. Strong comparison (RFC 9110); independently validated alongside expected_version: mismatched tag 412, stale version 409, neither 428. POST actions require expected_version in the body.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the contact.
+         */
+        contact: string;
+        /**
+         * Document type of the preference: `invoice`, `quote`, `proforma` or `delivery-note`.
+         */
+        document_type: string;
+        /**
+         * Document purpose: `complete`, `simplified`, `corrective` or `simplified_corrective`.
+         */
+        purpose: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/contact-defaults/{contact}/{document_type}/{purpose}';
+};
+
+export type PublicApiV1PdfTemplatesContactDefaultSetErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Strong If-Match does not match the complete current representation (`pdf_template_precondition_failed`). Fetch this same URI again before retrying. This check is independent of expected_version; a stale body version remains 409.
+     */
+    412: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Neither expected_version in the request body nor If-Match from GET of this same URI was supplied (`pdf_template_precondition_required`). Supply at least one precondition before retrying.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesContactDefaultSetError = PublicApiV1PdfTemplatesContactDefaultSetErrors[keyof PublicApiV1PdfTemplatesContactDefaultSetErrors];
+
+export type PublicApiV1PdfTemplatesContactDefaultSetResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfTemplateContactPreference;
+};
+
+export type PublicApiV1PdfTemplatesContactDefaultSetResponse = PublicApiV1PdfTemplatesContactDefaultSetResponses[keyof PublicApiV1PdfTemplatesContactDefaultSetResponses];
+
+export type PublicApiV1PdfTemplatesDefaultsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/defaults';
+};
+
+export type PublicApiV1PdfTemplatesDefaultsGetErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesDefaultsGetError = PublicApiV1PdfTemplatesDefaultsGetErrors[keyof PublicApiV1PdfTemplatesDefaultsGetErrors];
+
+export type PublicApiV1PdfTemplatesDefaultsGetResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfTemplateDefaults;
+};
+
+export type PublicApiV1PdfTemplatesDefaultsGetResponse = PublicApiV1PdfTemplatesDefaultsGetResponses[keyof PublicApiV1PdfTemplatesDefaultsGetResponses];
+
+export type PublicApiV1PdfTemplatesDefaultsSetData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version?: number;
+        company_template_id?: string | null;
+        company_commercial_identity_id?: string | null;
+        type_defaults?: Array<{
+            document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note' | 'transport-document';
+            purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+            template_id: string | null;
+        }> | null;
+    };
+    headers?: {
+        /**
+         * Alternative precondition from GET of this exact URI. Strong comparison (RFC 9110); independently validated alongside expected_version: mismatched tag 412, stale version 409, neither 428. POST actions require expected_version in the body.
+         */
+        'If-Match'?: string;
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/defaults';
+};
+
+export type PublicApiV1PdfTemplatesDefaultsSetErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Strong If-Match does not match the complete current representation (`pdf_template_precondition_failed`). Fetch this same URI again before retrying. This check is independent of expected_version; a stale body version remains 409.
+     */
+    412: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Neither expected_version in the request body nor If-Match from GET of this same URI was supplied (`pdf_template_precondition_required`). Supply at least one precondition before retrying.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesDefaultsSetError = PublicApiV1PdfTemplatesDefaultsSetErrors[keyof PublicApiV1PdfTemplatesDefaultsSetErrors];
+
+export type PublicApiV1PdfTemplatesDefaultsSetResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfTemplateDefaults;
+};
+
+export type PublicApiV1PdfTemplatesDefaultsSetResponse = PublicApiV1PdfTemplatesDefaultsSetResponses[keyof PublicApiV1PdfTemplatesDefaultsSetResponses];
+
+export type PublicApiV1PdfTemplatesImpactData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+    };
+    query: {
+        /**
+         * Change to preview: `publish` (a new revision) or `archive`. Any other value, or none, returns 422.
+         */
+        action: 'publish' | 'archive';
+    };
+    url: '/companies/{company}/pdf-templates/{template}/impact';
+};
+
+export type PublicApiV1PdfTemplatesImpactErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesImpactError = PublicApiV1PdfTemplatesImpactErrors[keyof PublicApiV1PdfTemplatesImpactErrors];
+
+export type PublicApiV1PdfTemplatesImpactResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfLibraryImpact;
+};
+
+export type PublicApiV1PdfTemplatesImpactResponse = PublicApiV1PdfTemplatesImpactResponses[keyof PublicApiV1PdfTemplatesImpactResponses];
 
 export type PublicApiV1ProductsActivitiesData = {
     body?: never;
@@ -56268,6 +65104,10 @@ export type PublicApiV1TaxCatalogShowData = {
     body?: never;
     headers?: {
         /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
         'Factuarea-Version'?: string;
@@ -56860,6 +65700,130 @@ export type PublicApiV1TimeBalancesTeamSummaryResponses = {
 };
 
 export type PublicApiV1TimeBalancesTeamSummaryResponse = PublicApiV1TimeBalancesTeamSummaryResponses[keyof PublicApiV1TimeBalancesTeamSummaryResponses];
+
+export type PublicApiV1PdfTemplatesAssetGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template image.
+         */
+        asset: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/assets/{asset}';
+};
+
+export type PublicApiV1PdfTemplatesAssetGetErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesAssetGetError = PublicApiV1PdfTemplatesAssetGetErrors[keyof PublicApiV1PdfTemplatesAssetGetErrors];
+
+export type PublicApiV1PdfTemplatesAssetGetResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfTemplateAsset;
+};
+
+export type PublicApiV1PdfTemplatesAssetGetResponse = PublicApiV1PdfTemplatesAssetGetResponses[keyof PublicApiV1PdfTemplatesAssetGetResponses];
+
+export type PublicApiV1PdfTemplatesRevisionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template revision.
+         */
+        revision: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/{template}/revisions/{revision}';
+};
+
+export type PublicApiV1PdfTemplatesRevisionErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesRevisionError = PublicApiV1PdfTemplatesRevisionErrors[keyof PublicApiV1PdfTemplatesRevisionErrors];
+
+export type PublicApiV1PdfTemplatesRevisionResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfTemplateRevision;
+};
+
+export type PublicApiV1PdfTemplatesRevisionResponse = PublicApiV1PdfTemplatesRevisionResponses[keyof PublicApiV1PdfTemplatesRevisionResponses];
 
 export type PublicApiV1TimeTrackingSettingsShowData = {
     body?: never;
@@ -57835,7 +66799,7 @@ export type PublicApiV1ProjectsTimeInvoicesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `batch_id` is still running. Nothing was written by this one; retry after a few seconds with the same `batch_id`. `task_timer_already_running`: the person who owns the credential already has a running timer in this company. Stop it first. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `batch_id` is still running. Nothing was written by this one; retry after a few seconds with the same `batch_id`. `task_timer_already_running`: the person who owns the credential already has a running timer in this company. Stop it first. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -57863,7 +66827,7 @@ export type PublicApiV1ProjectsTimeInvoicesCreateResponses = {
 export type PublicApiV1ProjectsTimeInvoicesCreateResponse = PublicApiV1ProjectsTimeInvoicesCreateResponses[keyof PublicApiV1ProjectsTimeInvoicesCreateResponses];
 
 export type PublicApiV1InvoicesIssueData = {
-    body?: never;
+    body?: IssueInvoiceRequest;
     headers: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
@@ -57906,13 +66870,17 @@ export type PublicApiV1InvoicesIssueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued.
      */
     422: Error;
+    /**
+     * The required human-reviewed seven-field precondition is missing: `pdf_presentation_precondition_required`.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -57921,6 +66889,10 @@ export type PublicApiV1InvoicesIssueErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1InvoicesIssueError = PublicApiV1InvoicesIssueErrors[keyof PublicApiV1InvoicesIssueErrors];
@@ -59558,6 +68530,298 @@ export type PublicApiV1DeliveryNotesStatusesResponses = {
 
 export type PublicApiV1DeliveryNotesStatusesResponse = PublicApiV1DeliveryNotesStatusesResponses[keyof PublicApiV1DeliveryNotesStatusesResponses];
 
+export type PublicApiV1DeliveryNotesListPresentationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note.
+         */
+        delivery_note: string;
+    };
+    query?: {
+        /**
+         * Page number, starting at 1.
+         */
+        page?: number;
+        /**
+         * Page size, alias of `limit` (1 to 100, default 25).
+         */
+        per_page?: number;
+    };
+    url: '/companies/{company}/delivery-notes/{delivery_note}/presentation-history';
+};
+
+export type PublicApiV1DeliveryNotesListPresentationsErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1DeliveryNotesListPresentationsError = PublicApiV1DeliveryNotesListPresentationsErrors[keyof PublicApiV1DeliveryNotesListPresentationsErrors];
+
+export type PublicApiV1DeliveryNotesListPresentationsResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationHistoryEnvelope;
+};
+
+export type PublicApiV1DeliveryNotesListPresentationsResponse = PublicApiV1DeliveryNotesListPresentationsResponses[keyof PublicApiV1DeliveryNotesListPresentationsResponses];
+
+export type PublicApiV1InvoicesListPresentationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice.
+         */
+        invoice: string;
+    };
+    query?: {
+        /**
+         * Page number, starting at 1.
+         */
+        page?: number;
+        /**
+         * Page size, alias of `limit` (1 to 100, default 25).
+         */
+        per_page?: number;
+    };
+    url: '/companies/{company}/invoices/{invoice}/presentation-history';
+};
+
+export type PublicApiV1InvoicesListPresentationsErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesListPresentationsError = PublicApiV1InvoicesListPresentationsErrors[keyof PublicApiV1InvoicesListPresentationsErrors];
+
+export type PublicApiV1InvoicesListPresentationsResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationHistoryEnvelope;
+};
+
+export type PublicApiV1InvoicesListPresentationsResponse = PublicApiV1InvoicesListPresentationsResponses[keyof PublicApiV1InvoicesListPresentationsResponses];
+
+export type PublicApiV1ProformasListPresentationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma.
+         */
+        proforma: string;
+    };
+    query?: {
+        /**
+         * Page number, starting at 1.
+         */
+        page?: number;
+        /**
+         * Page size, alias of `limit` (1 to 100, default 25).
+         */
+        per_page?: number;
+    };
+    url: '/companies/{company}/proformas/{proforma}/presentation-history';
+};
+
+export type PublicApiV1ProformasListPresentationsErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProformasListPresentationsError = PublicApiV1ProformasListPresentationsErrors[keyof PublicApiV1ProformasListPresentationsErrors];
+
+export type PublicApiV1ProformasListPresentationsResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationHistoryEnvelope;
+};
+
+export type PublicApiV1ProformasListPresentationsResponse = PublicApiV1ProformasListPresentationsResponses[keyof PublicApiV1ProformasListPresentationsResponses];
+
+export type PublicApiV1QuotesListPresentationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the quote.
+         */
+        quote: string;
+    };
+    query?: {
+        /**
+         * Page number, starting at 1.
+         */
+        page?: number;
+        /**
+         * Page size, alias of `limit` (1 to 100, default 25).
+         */
+        per_page?: number;
+    };
+    url: '/companies/{company}/quotes/{quote}/presentation-history';
+};
+
+export type PublicApiV1QuotesListPresentationsErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1QuotesListPresentationsError = PublicApiV1QuotesListPresentationsErrors[keyof PublicApiV1QuotesListPresentationsErrors];
+
+export type PublicApiV1QuotesListPresentationsResponses = {
+    /**
+     * Exact public presentation metadata.
+     */
+    200: DocumentPresentationHistoryEnvelope;
+};
+
+export type PublicApiV1QuotesListPresentationsResponse = PublicApiV1QuotesListPresentationsResponses[keyof PublicApiV1QuotesListPresentationsResponses];
+
 export type PublicApiV1EmailsListData = {
     body?: never;
     headers?: {
@@ -60380,6 +69644,163 @@ export type PublicApiV1InvoicesActivitiesResponses = {
 
 export type PublicApiV1InvoicesActivitiesResponse = PublicApiV1InvoicesActivitiesResponses[keyof PublicApiV1InvoicesActivitiesResponses];
 
+export type PublicApiV1InvoicesAdministrativeRevisionsIndexData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice.
+         */
+        invoice: string;
+    };
+    query?: never;
+    url: '/companies/{company}/invoices/{invoice}/administrative-revisions';
+};
+
+export type PublicApiV1InvoicesAdministrativeRevisionsIndexErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * The actor, company, module or invoice scope does not authorize this operation. Authorization precedes invoice lookup.
+     */
+    403: Error;
+    /**
+     * invoice_not_found: the invoice is not accessible in the authorized company.
+     */
+    404: Error;
+    /**
+     * Rate limit or document-write admission budget exceeded; honor Retry-After.
+     */
+    429: Error;
+    /**
+     * A sanitized internal error; use request_id when contacting support.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesAdministrativeRevisionsIndexError = PublicApiV1InvoicesAdministrativeRevisionsIndexErrors[keyof PublicApiV1InvoicesAdministrativeRevisionsIndexErrors];
+
+export type PublicApiV1InvoicesAdministrativeRevisionsIndexResponses = {
+    /**
+     * Administrative history, ordered by version. Null snapshot is unknown; [] is known empty.
+     */
+    200: {
+        data: InvoiceAdministrativeHistory;
+    };
+};
+
+export type PublicApiV1InvoicesAdministrativeRevisionsIndexResponse = PublicApiV1InvoicesAdministrativeRevisionsIndexResponses[keyof PublicApiV1InvoicesAdministrativeRevisionsIndexResponses];
+
+export type PublicApiV1InvoicesAdministrativeRevisionsStoreData = {
+    body: ReviseInvoiceAdministrativeRoutingRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice.
+         */
+        invoice: string;
+    };
+    query?: never;
+    url: '/companies/{company}/invoices/{invoice}/administrative-revisions';
+};
+
+export type PublicApiV1InvoicesAdministrativeRevisionsStoreErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * The actor, company, module or invoice scope does not authorize this operation. Authorization precedes invoice lookup.
+     */
+    403: Error;
+    /**
+     * invoice_not_found: the invoice is not accessible in the authorized company.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `invoice_administrative_version_conflict`: the administrative routing of the invoice changed since the `expected_version` you sent. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the administrative revisions again and repeat the request. Nothing was changed.
+     */
+    409: {
+        error: {
+            type: 'conflict_error';
+            code: 'invoice_administrative_version_conflict';
+            message: string;
+            param: 'expected_version';
+            details: {
+                /**
+                 * Disclosed only after actor and tenant authorization.
+                 */
+                current_version: number;
+                recovery: 'reload_or_keep_local';
+            };
+            doc_url: string;
+            request_id: string;
+        };
+    } | Error;
+    /**
+     * invalid_invoice_business_data with a precise param such as reason, expected_version or administrative_centres.N.role_code/code/name; malformed input may return parameter_invalid_value. A draft, scheduled, cancelled or annulled invoice returns business_rule_violation with subcode invoice_not_editable_in_current_state. No partial append is persisted.
+     */
+    422: Error;
+    /**
+     * invoice_administrative_precondition_required with param expected_version. The body version is missing; the parent invoice If-Match does not satisfy it.
+     */
+    428: Error;
+    /**
+     * Rate limit or document-write admission budget exceeded; honor Retry-After.
+     */
+    429: Error;
+    /**
+     * A sanitized internal error; use request_id when contacting support.
+     */
+    500: Error;
+};
+
+export type PublicApiV1InvoicesAdministrativeRevisionsStoreError = PublicApiV1InvoicesAdministrativeRevisionsStoreErrors[keyof PublicApiV1InvoicesAdministrativeRevisionsStoreErrors];
+
+export type PublicApiV1InvoicesAdministrativeRevisionsStoreResponses = {
+    /**
+     * The committed append. administrative_version belongs to this revision even if another append commits before the history reread.
+     */
+    201: {
+        data: InvoiceAdministrativeRevision;
+        administrative_version: number;
+    };
+};
+
+export type PublicApiV1InvoicesAdministrativeRevisionsStoreResponse = PublicApiV1InvoicesAdministrativeRevisionsStoreResponses[keyof PublicApiV1InvoicesAdministrativeRevisionsStoreResponses];
+
 export type PublicApiV1InvoicesCorrectivesData = {
     body?: never;
     headers?: {
@@ -60471,11 +69892,11 @@ export type PublicApiV1InvoicesFaceSubmissionsListErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * facturae_operation_forbidden: the current actor or issuer is not authorized for the operation, before any lookup. `error.details.operation` names the denied operation and `error.details.reason` is `actor` (the user has no valid role in the company), `issuer` (the issuer company or its plan cannot be resolved) or `access` (the Facturae module is not available to the actor).
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * resource_not_found: unknown, foreign and mismatched invoice/submission identities are indistinguishable.
      */
     404: Error;
     /**
@@ -60499,7 +69920,12 @@ export type PublicApiV1InvoicesFaceSubmissionsListResponses = {
 export type PublicApiV1InvoicesFaceSubmissionsListResponse = PublicApiV1InvoicesFaceSubmissionsListResponses[keyof PublicApiV1InvoicesFaceSubmissionsListResponses];
 
 export type PublicApiV1InvoicesFaceSubmissionsSubmitData = {
-    body?: never;
+    body?: {
+        /**
+         * Omit for a backend-generated fresh attempt, or supply a new UUIDv7 for an explicitly identified fresh attempt. An existing prepared identity continues its retained XML, source and certificate. Null, foreign or other-invoice identities are invalid.
+         */
+        submission_id?: string;
+    };
     headers: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
@@ -60534,19 +69960,19 @@ export type PublicApiV1InvoicesFaceSubmissionsSubmitErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * facturae_operation_forbidden: the current actor or issuer is not authorized for the operation, before any lookup. `error.details.operation` names the denied operation and `error.details.reason` is `actor` (the user has no valid role in the company), `issuer` (the issuer company or its plan cannot be resolved) or `access` (the Facturae module is not available to the actor), or `send` (the actor lacks the send capability of the Facturae module; `submit` only).
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * resource_not_found: unknown, foreign and mismatched invoice/submission identities are indistinguishable.
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `face_submission_already_exists`: the invoice already has an active FACe submission. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `face_submission_already_exists`: the invoice already has an active FACe submission. `face_submission_attempt_conflict`: the FACe submission attempt changed while this request was running, or it is not in a state that allows this action. `details.attempt_id` is the attempt and `details.reason` says why (`attempt`, `claim`, `reconciliation` or `write_once`). Read the attempt before continuing. `face_transmission_uncertain`: an earlier transmission of this attempt did not confirm whether FACe received the invoice, so it cannot be transmitted again until it is reconciled. `details.attempt_id` is the attempt. Do not submit the invoice again; read the attempt and wait for its reconciliation. `invoice_payment_terms_version_conflict`: the payment schedule of the invoice changed since the version you read. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the invoice again and repeat the request. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Invalid selector, structured source, required DIR3 roles, issuer email/certificate or invoice status. Correct indicated fields; null submission_id is invalid. The Facturae XML is generated as in `GET /companies/{company}/invoices/{invoice}/facturae`, so `invalid_facturae_structured_data` can also name in `error.param` the party field the schema rejects: `seller.{tax_id,name,address,postal_code,city,province,country}` (the record of the company) or `buyer.{tax_id,name,address,postal_code,city,province,country}` (the record of the client), or just `seller` / `buyer`; `error.details.diagnostic` is then `schema_invalid` and the message says which record to correct. Nothing is submitted.
      */
     422: Error;
     /**
@@ -60554,14 +69980,27 @@ export type PublicApiV1InvoicesFaceSubmissionsSubmitErrors = {
      */
     429: Error;
     /**
-     * Unexpected server error.
+     * face_submission_completion_failed, facturae_artifact_unavailable or facturae_signing_failed. A completion failure preserves safe attempt_id; query it before retrying.
      */
     500: Error;
+    /**
+     * face_transmission_failed: safe attempt_id may identify an uncertain durable transmission; never create a new attempt automatically.
+     */
+    502: Error;
 };
 
 export type PublicApiV1InvoicesFaceSubmissionsSubmitError = PublicApiV1InvoicesFaceSubmissionsSubmitErrors[keyof PublicApiV1InvoicesFaceSubmissionsSubmitErrors];
 
 export type PublicApiV1InvoicesFaceSubmissionsSubmitResponses = {
+    /**
+     * Continued the same prepared attempt, or returned its already durable result without a second transmission.
+     */
+    200: {
+        data: FaceSubmission;
+    };
+    /**
+     * Created a fresh durable attempt and returned its current result.
+     */
     201: {
         data: FaceSubmission;
     };
@@ -60672,7 +70111,7 @@ export type PublicApiV1InvoicesPaymentsCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -63965,7 +73404,7 @@ export type PublicApiV1DeliveryNotesMarkDeliveredErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -64036,7 +73475,7 @@ export type PublicApiV1InvoicesMarkPaidErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -64107,7 +73546,7 @@ export type PublicApiV1InvoicesMarkSentErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -64396,6 +73835,9 @@ export type PublicApiV1SeriesShowResponses = {
 export type PublicApiV1SeriesShowResponse = PublicApiV1SeriesShowResponses[keyof PublicApiV1SeriesShowResponses];
 
 export type PublicApiV1SeriesUpdateData = {
+    /**
+     * The visual preference is optional and independent of fiscal numbering. An update requires `pdf_template_expected_version` in the body when a selector is provided or the purpose changes with a saved preference; the parent ETag is not sufficient. Fresh actor authority precedes any idempotent replay, resource lookup and CAS.
+     */
     body?: UpdateSeriesRequest;
     headers?: {
         /**
@@ -64431,17 +73873,25 @@ export type PublicApiV1SeriesUpdateErrors = {
      */
     401: Error;
     /**
-     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). series_template_access_denied: current actor authority denies this operation.
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The requested resource does not exist or belongs to another company. series_not_found or pdf_template_not_found: unknown and foreign identities are indistinguishable.
      */
     404: Error;
     /**
-     * Validation failed. The `error.param` field identifies which input is invalid.
+     * series_template_version_conflict: current_version is authorized; recovery reload_or_keep_local. A different payload under the same Idempotency-Key is not this conflict: it is 422 idempotency_key_reused.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. Existing fiscal guards or invalid_series_template_assignment, series_template_incompatible or series_template_unavailable; the combined edit rolls back completely.
      */
     422: Error;
+    /**
+     * series_template_precondition_required: supply pdf_template_expected_version for the provided selector or associated purpose change. Parent ETag is insufficient.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -64948,6 +74398,93 @@ export type PublicApiV1WebhookEndpointsPingResponses = {
 
 export type PublicApiV1WebhookEndpointsPingResponse = PublicApiV1WebhookEndpointsPingResponses[keyof PublicApiV1WebhookEndpointsPingResponses];
 
+export type PublicApiV1PdfArtifactsPrepareData = {
+    /**
+     * Internal reversible preparation/rendering uses the existing idempotency policy; the same key and raw body replay, another body with that key is rejected with `422 idempotency_key_reused` before admission.
+     */
+    body: PreparePdfArtifactRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-artifacts';
+};
+
+export type PublicApiV1PdfArtifactsPrepareErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * Current issuer/role/scope denied; this authority is checked again before any idempotent replay. Keep input data; no artifact was created by a denial.
+     */
+    403: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Personal data was forgotten; terminal and retryable=false.
+     */
+    410: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict, and an `If-Match` header is not accepted. `pdf_presentation_not_ready`: the revisioned presentation is not available for the company (flag off, dependencies or authorized initialization pending); nothing is created, and it is a 422, not a 403.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * The retained original is missing (`pdf_original_unavailable`) or cannot be verified (`pdf_original_corrupt`), or rendering failed terminally; no implicit regeneration occurs. Preparing the PDF of a derived presentation (the signature of a delivery note, or the legal QR or legal data refresh of an invoice) answers `pdf_original_layout_unavailable` when this release no longer serves the original's layout, which that presentation keeps: the original is intact and nothing is created.
+     */
+    500: Error;
+    /**
+     * Another request is still preparing or rendering this same artifact and did not finish within the wait window (`pdf_artifact_not_ready`); this request created and rendered nothing. Retry the same request after the Retry-After delay. If the PDF engine does not answer (down, restarting or in the middle of a deployment) while the plan of the PDF is prepared, the code is `pdf_engine_unreachable` instead: it is transient and nothing is created, so repeat the same request after the same delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery. Terminal engine failures are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PdfArtifactsPrepareError = PublicApiV1PdfArtifactsPrepareErrors[keyof PublicApiV1PdfArtifactsPrepareErrors];
+
+export type PublicApiV1PdfArtifactsPrepareResponses = {
+    /**
+     * Retained artifact metadata, including safe unavailable/failed/corrupt states. A metadata read never initializes, captures, publishes or renders a document, and a historical READY artifact reflects its retained bytes rather than current defaults.
+     */
+    200: {
+        data: PdfArtifact;
+    };
+    /**
+     * Exact artifact metadata while prepared, queued or processing.
+     */
+    202: {
+        data: PdfArtifact;
+    };
+};
+
+export type PublicApiV1PdfArtifactsPrepareResponse = PublicApiV1PdfArtifactsPrepareResponses[keyof PublicApiV1PdfArtifactsPrepareResponses];
+
 export type PublicApiV1ContactsPreviewImportData = {
     body: PreviewBusinessContactImportV1Request;
     headers: {
@@ -65117,6 +74654,10 @@ export type PublicApiV1InvoicesPdfPreviewErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
     429: Error;
@@ -65124,6 +74665,10 @@ export type PublicApiV1InvoicesPdfPreviewErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The draft preview needs the PDF engine. If it does not answer (down, restarting or in the middle of a deployment) while the plan of the preview is prepared, the code is `pdf_engine_unreachable`; if it stops answering later, while the PDF is rendered, the same condition is reported as `pdf_artifact_not_ready` (the preview is not ready yet), and another request preparing the same preview gives that code too. Both are transient, nothing is persisted and the draft is untouched: repeat the same request after the `Retry-After` delay.
+     */
+    503: Error;
 };
 
 export type PublicApiV1InvoicesPdfPreviewError = PublicApiV1InvoicesPdfPreviewErrors[keyof PublicApiV1InvoicesPdfPreviewErrors];
@@ -65697,6 +75242,199 @@ export type PublicApiV1TaxReportsPreviewResponses = {
 
 export type PublicApiV1TaxReportsPreviewResponse = PublicApiV1TaxReportsPreviewResponses[keyof PublicApiV1TaxReportsPreviewResponses];
 
+export type PublicApiV1PdfCommercialIdentitiesPublishRevisionData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        revision_id?: string;
+        expected_version: number;
+        expected_impact_fingerprint: string;
+        configuration: {
+            commercial_name?: string | null;
+            logo_asset_id?: string | null;
+            brand_image_asset_id?: string | null;
+            brand_mode?: 'logo' | 'imago' | 'none' | null;
+            /**
+             * Logo version for dark backgrounds (asset of kind `logo`); requires `logo_asset_id`. When clearing `logo_asset_id`, send `null` for this field too.
+             */
+            logo_dark_asset_id?: string | null;
+            /**
+             * Brand image version for dark backgrounds (asset of kind `imago`); requires `brand_image_asset_id`.
+             */
+            brand_image_dark_asset_id?: string | null;
+            /**
+             * Default `silhouette`; `null` is not allowed.
+             */
+            dark_background_fallback?: 'silhouette' | 'plate';
+            /**
+             * Default `medium`; `null` is not allowed.
+             */
+            brand_size?: 'small' | 'medium' | 'large';
+            contact_email?: string | null;
+            contact_phone?: string | null;
+        };
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity.
+         */
+        identity: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-commercial-identities/{identity}/revisions';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesPublishRevisionErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed. `pdf_library_impact_conflict`: the impact you reviewed (`expected_impact_fingerprint`, from the impact operation) no longer matches what the change would affect: a document, series, contact or default that depends on it changed in the meantime. Read the impact again and confirm the new one. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesPublishRevisionError = PublicApiV1PdfCommercialIdentitiesPublishRevisionErrors[keyof PublicApiV1PdfCommercialIdentitiesPublishRevisionErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesPublishRevisionResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    201: PdfCommercialIdentityRevision;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesPublishRevisionResponse = PublicApiV1PdfCommercialIdentitiesPublishRevisionResponses[keyof PublicApiV1PdfCommercialIdentitiesPublishRevisionResponses];
+
+export type PublicApiV1PdfTemplatesPublishRevisionData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        revision_id?: string;
+        expected_version: number;
+        expected_impact_fingerprint: string;
+        base_preset?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+        configuration?: PdfTemplateConfigurationChanges;
+        supported_types?: Array<'invoice' | 'quote' | 'proforma' | 'delivery-note'>;
+        supported_purposes?: {
+            invoice?: Array<'complete' | 'simplified' | 'corrective' | 'simplified_corrective'>;
+            quote?: Array<'complete'>;
+            proforma?: Array<'complete'>;
+            'delivery-note'?: Array<'complete'>;
+        };
+        supported_formats?: Array<'a4' | 'ticket_80' | 'ticket_58'>;
+        commercial_identity_id?: string | null;
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/{template}/revisions';
+};
+
+export type PublicApiV1PdfTemplatesPublishRevisionErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed. `pdf_library_impact_conflict`: the impact you reviewed (`expected_impact_fingerprint`, from the impact operation) no longer matches what the change would affect: a document, series, contact or default that depends on it changed in the meantime. Read the impact again and confirm the new one. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesPublishRevisionError = PublicApiV1PdfTemplatesPublishRevisionErrors[keyof PublicApiV1PdfTemplatesPublishRevisionErrors];
+
+export type PublicApiV1PdfTemplatesPublishRevisionResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    201: PdfTemplateRevision;
+};
+
+export type PublicApiV1PdfTemplatesPublishRevisionResponse = PublicApiV1PdfTemplatesPublishRevisionResponses[keyof PublicApiV1PdfTemplatesPublishRevisionResponses];
+
 export type PublicApiV1PriceListsItemsPurgeRetiredData = {
     body: PurgeRetiredPriceListItemRequest;
     headers: {
@@ -65805,11 +75543,15 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The requested quarter archive is unavailable for this tenant.
      */
     404: Error;
     /**
-     * The packaged download you asked for is too large to build, so nothing was generated and no file was left on the server. Two catalog codes carry this status, both with `error.type: invalid_request_error`: `export_document_cap_exceeded` (the request covers more documents than the cap for that artifact allows — narrow the date range or export in batches) and `export_byte_cap_exceeded` (the artifact would weigh more than the byte cap; `error.subcode` says whether it was rejected up front from the size estimate, `before_writing`, or aborted mid-packaging, `while_writing`, in which case the partial file was deleted and nothing is served). Retrying the same request unchanged returns the same error — ask for less, do not wait. A third, unrelated code shares this status on every write operation: `payload_too_large`, raised when the REQUEST body exceeds the 1 MB limit, which is about what you send and not about the size of what you asked to build.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered.
+     */
+    409: Error;
+    /**
+     * The export exceeds the configured per-company document or byte cap. Reduce the requested volume and retry.
      */
     413: Error;
     /**
@@ -65829,6 +75571,9 @@ export type PublicApiV1InvoicesQuarterlyDownloadZipErrors = {
 export type PublicApiV1InvoicesQuarterlyDownloadZipError = PublicApiV1InvoicesQuarterlyDownloadZipErrors[keyof PublicApiV1InvoicesQuarterlyDownloadZipErrors];
 
 export type PublicApiV1InvoicesQuarterlyDownloadZipResponses = {
+    /**
+     * Binary ZIP archive for the requested invoice quarter. Aggregate processing counts are returned in X-Quarterly-* headers; no storage path or JSON manifest is exposed.
+     */
     200: Blob | File;
 };
 
@@ -65873,6 +75618,10 @@ export type PublicApiV1InvoicesQuarterlySendEmailErrors = {
      * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered.
+     */
+    409: Error;
     /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
@@ -66534,6 +76283,10 @@ export type PublicApiV1ProformasRejectErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
      * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -66841,6 +76594,93 @@ export type PublicApiV1TasksExternalLinksDeleteResponses = {
 };
 
 export type PublicApiV1TasksExternalLinksDeleteResponse = PublicApiV1TasksExternalLinksDeleteResponses[keyof PublicApiV1TasksExternalLinksDeleteResponses];
+
+export type PublicApiV1PdfArtifactsRenderData = {
+    /**
+     * Internal reversible preparation/rendering uses the existing idempotency policy; the same key and raw body replay, another body with that key is rejected with `422 idempotency_key_reused` before admission.
+     */
+    body: RenderPdfArtifactRequest;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF artifact.
+         */
+        artifact: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-artifacts/{artifact}/render';
+};
+
+export type PublicApiV1PdfArtifactsRenderErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * Current issuer/role/scope denied; this authority is checked again before any idempotent replay. Keep input data; no artifact was created by a denial.
+     */
+    403: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict.
+     */
+    404: Error;
+    /**
+     * Personal data was forgotten; terminal and retryable=false.
+     */
+    410: Error;
+    /**
+     * Safe canonical error; original-loss and profile/image/payload failure never use CAS conflict, and an `If-Match` header is not accepted.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * The retained original is missing (`pdf_original_unavailable`) or cannot be verified (`pdf_original_corrupt`), or rendering failed terminally; no implicit regeneration occurs. Preparing again, for the current PDF engine, the plan of a derived presentation (the signature of a delivery note, or the legal QR or legal data refresh of an invoice) answers `pdf_original_layout_unavailable` when this release no longer serves the original's layout, which that presentation keeps: the original is intact and nothing is enqueued.
+     */
+    500: Error;
+    /**
+     * Another request is still preparing or rendering this same artifact and did not finish within the wait window (`pdf_artifact_not_ready`); this request created and rendered nothing. Retry the same request after the Retry-After delay. If the PDF engine does not answer while the PDF is being rendered (down, restarting or in the middle of a deployment) the answer is also `pdf_artifact_not_ready`: the artifact is not ready yet, and repeating the request after the `Retry-After` delay is the right recovery.
+     */
+    503: Error;
+};
+
+export type PublicApiV1PdfArtifactsRenderError = PublicApiV1PdfArtifactsRenderErrors[keyof PublicApiV1PdfArtifactsRenderErrors];
+
+export type PublicApiV1PdfArtifactsRenderResponses = {
+    /**
+     * Ready artifact metadata. An artifact that no render can complete (failed terminally, or its original missing or corrupt) is not reported here: it answers 500 with its code and nothing is enqueued. A historical READY artifact reflects its retained bytes rather than current defaults.
+     */
+    200: {
+        data: PdfArtifact;
+    };
+    /**
+     * Exact artifact metadata while prepared, queued or processing.
+     */
+    202: {
+        data: PdfArtifact;
+    };
+};
+
+export type PublicApiV1PdfArtifactsRenderResponse = PublicApiV1PdfArtifactsRenderResponses[keyof PublicApiV1PdfArtifactsRenderResponses];
 
 export type PublicApiV1MonthlyTimeRecordClosesReopenData = {
     body?: never;
@@ -67527,7 +77367,7 @@ export type PublicApiV1InvoicesRescheduleErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so scheduling or rescheduling it with a missing or different due_on is rejected and the invoice keeps its status and date.
      */
     422: Error;
     /**
@@ -68077,6 +77917,83 @@ export type PublicApiV1ContactsRestoreResponses = {
 
 export type PublicApiV1ContactsRestoreResponse = PublicApiV1ContactsRestoreResponses[keyof PublicApiV1ContactsRestoreResponses];
 
+export type PublicApiV1PdfCommercialIdentitiesRestoreData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version: number;
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF commercial identity.
+         */
+        identity: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-commercial-identities/{identity}/restore';
+};
+
+export type PublicApiV1PdfCommercialIdentitiesRestoreErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesRestoreError = PublicApiV1PdfCommercialIdentitiesRestoreErrors[keyof PublicApiV1PdfCommercialIdentitiesRestoreErrors];
+
+export type PublicApiV1PdfCommercialIdentitiesRestoreResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: PdfCommercialIdentity;
+};
+
+export type PublicApiV1PdfCommercialIdentitiesRestoreResponse = PublicApiV1PdfCommercialIdentitiesRestoreResponses[keyof PublicApiV1PdfCommercialIdentitiesRestoreResponses];
+
 export type PublicApiV1PurchaseScansRestoreData = {
     body: VersionedPurchaseScanRequest;
     headers: {
@@ -68151,6 +78068,83 @@ export type PublicApiV1PurchaseScansRestoreResponses = {
 
 export type PublicApiV1PurchaseScansRestoreResponse = PublicApiV1PurchaseScansRestoreResponses[keyof PublicApiV1PurchaseScansRestoreResponses];
 
+export type PublicApiV1PdfTemplatesRestoreData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        expected_version: number;
+    };
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the PDF template.
+         */
+        template: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/{template}/restore';
+};
+
+export type PublicApiV1PdfTemplatesRestoreErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_version_conflict`: the `expected_version` you sent is no longer the current version of the template or commercial identity, because another change was saved in the meantime. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read it again, or keep your local copy and repeat the request with the current version. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesRestoreError = PublicApiV1PdfTemplatesRestoreErrors[keyof PublicApiV1PdfTemplatesRestoreErrors];
+
+export type PublicApiV1PdfTemplatesRestoreResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    200: TenantPdfTemplate;
+};
+
+export type PublicApiV1PdfTemplatesRestoreResponse = PublicApiV1PdfTemplatesRestoreResponses[keyof PublicApiV1PdfTemplatesRestoreResponses];
+
 export type PublicApiV1RecurringInvoicesResumeData = {
     body?: never;
     headers?: {
@@ -68191,11 +78185,15 @@ export type PublicApiV1RecurringInvoicesResumeErrors = {
      */
     403: Error;
     /**
-     * The requested resource does not exist or belongs to another company.
+     * The requested resource does not exist or belongs to another company. Unknown and foreign recurrence/reference identities are indistinguishable.
      */
     404: Error;
     /**
-     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `recurring_presentation_policy_version_conflict`: the presentation policy of the recurring invoice changed since the `expected_presentation_policy_version` you sent. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the recurring invoice again and repeat the request. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing lifecycle/business guards or recurring_presentation_unavailable with a safe finite reason. latest visual failure recovery is committed after generation rollback; restoration or editing does not automatically resume.
      */
     422: Error;
     /**
@@ -68711,7 +78709,7 @@ export type PublicApiV1InvoicesPaymentsRevertErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -68737,6 +78735,342 @@ export type PublicApiV1InvoicesPaymentsRevertResponses = {
 };
 
 export type PublicApiV1InvoicesPaymentsRevertResponse = PublicApiV1InvoicesPaymentsRevertResponses[keyof PublicApiV1InvoicesPaymentsRevertResponses];
+
+export type PublicApiV1DeliveryNotesRevisePresentationData = {
+    body: ReviseDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the delivery note.
+         */
+        delivery_note: string;
+    };
+    query?: never;
+    url: '/companies/{company}/delivery-notes/{delivery_note}/presentation-revisions';
+};
+
+export type PublicApiV1DeliveryNotesRevisePresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_signature_personal_data_forgotten: personal signature data was erased. Terminal; no retry, reconstruction or recovery of the erased payload. Metadata remains available.
+     */
+    410: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and building the context of the revision needs its measured identity. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
+};
+
+export type PublicApiV1DeliveryNotesRevisePresentationError = PublicApiV1DeliveryNotesRevisePresentationErrors[keyof PublicApiV1DeliveryNotesRevisePresentationErrors];
+
+export type PublicApiV1DeliveryNotesRevisePresentationResponses = {
+    /**
+     * Retained derived capture and current visual state.
+     */
+    201: DocumentPresentationRevisionEnvelope;
+};
+
+export type PublicApiV1DeliveryNotesRevisePresentationResponse = PublicApiV1DeliveryNotesRevisePresentationResponses[keyof PublicApiV1DeliveryNotesRevisePresentationResponses];
+
+export type PublicApiV1InvoicesRevisePresentationData = {
+    body: ReviseDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the invoice.
+         */
+        invoice: string;
+    };
+    query?: never;
+    url: '/companies/{company}/invoices/{invoice}/presentation-revisions';
+};
+
+export type PublicApiV1InvoicesRevisePresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_signature_personal_data_forgotten: personal signature data was erased. Terminal; no retry, reconstruction or recovery of the erased payload. Metadata remains available.
+     */
+    410: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error. A revision with `source_policy` `current_legal` verifies the retained original PDF of the invoice presentation it derives from and keeps its layout: it answers `pdf_original_unavailable` or `pdf_original_corrupt` when that original is missing or cannot be verified, and `pdf_original_layout_unavailable` when this release no longer serves its layout (the original is intact); nothing is captured.
+     */
+    500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and building the context of the revision needs its measured identity. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
+};
+
+export type PublicApiV1InvoicesRevisePresentationError = PublicApiV1InvoicesRevisePresentationErrors[keyof PublicApiV1InvoicesRevisePresentationErrors];
+
+export type PublicApiV1InvoicesRevisePresentationResponses = {
+    /**
+     * Retained derived capture and current visual state.
+     */
+    201: DocumentPresentationRevisionEnvelope;
+};
+
+export type PublicApiV1InvoicesRevisePresentationResponse = PublicApiV1InvoicesRevisePresentationResponses[keyof PublicApiV1InvoicesRevisePresentationResponses];
+
+export type PublicApiV1ProformasRevisePresentationData = {
+    body: ReviseDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the proforma.
+         */
+        proforma: string;
+    };
+    query?: never;
+    url: '/companies/{company}/proformas/{proforma}/presentation-revisions';
+};
+
+export type PublicApiV1ProformasRevisePresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_signature_personal_data_forgotten: personal signature data was erased. Terminal; no retry, reconstruction or recovery of the erased payload. Metadata remains available.
+     */
+    410: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and building the context of the revision needs its measured identity. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
+};
+
+export type PublicApiV1ProformasRevisePresentationError = PublicApiV1ProformasRevisePresentationErrors[keyof PublicApiV1ProformasRevisePresentationErrors];
+
+export type PublicApiV1ProformasRevisePresentationResponses = {
+    /**
+     * Retained derived capture and current visual state.
+     */
+    201: DocumentPresentationRevisionEnvelope;
+};
+
+export type PublicApiV1ProformasRevisePresentationResponse = PublicApiV1ProformasRevisePresentationResponses[keyof PublicApiV1ProformasRevisePresentationResponses];
+
+export type PublicApiV1QuotesRevisePresentationData = {
+    body: ReviseDocumentPresentationRequest;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the quote.
+         */
+        quote: string;
+    };
+    query?: never;
+    url: '/companies/{company}/quotes/{quote}/presentation-revisions';
+};
+
+export type PublicApiV1QuotesRevisePresentationErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Authentication is required.
+     */
+    401: Error;
+    /**
+     * Current family scope, actor or plan denies access.
+     */
+    403: Error;
+    /**
+     * Unknown and foreign owner, template or presentation identities are indistinguishable.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * pdf_signature_personal_data_forgotten: personal signature data was erased. Terminal; no retry, reconstruction or recovery of the erased payload. Metadata remains available.
+     */
+    410: Error;
+    /**
+     * pdf_presentation_invalid or existing template validation: malformed context, unknown fields, blank selectors, query overrides or incompatible template. No mutation. New visual actions also return pdf_presentation_not_ready while tenant initialization or global activation is unavailable; retained reads do not initialize it.
+     */
+    422: Error;
+    /**
+     * pdf_presentation_precondition_required: supply the expected selection version. PATCH also accepts strong If-Match from this exact visual URI.
+     */
+    428: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and building the context of the revision needs its measured identity. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
+};
+
+export type PublicApiV1QuotesRevisePresentationError = PublicApiV1QuotesRevisePresentationErrors[keyof PublicApiV1QuotesRevisePresentationErrors];
+
+export type PublicApiV1QuotesRevisePresentationResponses = {
+    /**
+     * Retained derived capture and current visual state.
+     */
+    201: DocumentPresentationRevisionEnvelope;
+};
+
+export type PublicApiV1QuotesRevisePresentationResponse = PublicApiV1QuotesRevisePresentationResponses[keyof PublicApiV1QuotesRevisePresentationResponses];
 
 export type PublicApiV1AccountMembersGrantsDeleteData = {
     body?: never;
@@ -69470,7 +79804,7 @@ export type PublicApiV1InvoicesScheduleErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so scheduling or rescheduling it with a missing or different due_on is rejected and the invoice keeps its status and date.
      */
     422: Error;
     /**
@@ -70194,6 +80528,9 @@ export type PublicApiV1AccountWebhooksTestResponses = {
 export type PublicApiV1AccountWebhooksTestResponse = PublicApiV1AccountWebhooksTestResponses[keyof PublicApiV1AccountWebhooksTestResponses];
 
 export type PublicApiV1DeliveryNotesSendData = {
+    /**
+     * Delivery-note send accepts the `presentation_precondition` object with exactly seven fields and the optional `expected_presentation_uuid` and `expected_publication_id`. The object is required when revisioned presentation is enabled for the company and the delivery note has no retained capture yet (a missing object returns 428 `pdf_presentation_precondition_required`); an already captured delivery note is re-sent as captured without it and without creating a new version; otherwise it is ignored, as are the optional identities.
+     */
     body: SendDeliveryNoteRequest;
     headers: {
         /**
@@ -70237,9 +80574,17 @@ export type PublicApiV1DeliveryNotesSendErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.
      */
     422: Error;
+    /**
+     * The required human-reviewed seven-field precondition is missing: `pdf_presentation_precondition_required`.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -70248,6 +80593,10 @@ export type PublicApiV1DeliveryNotesSendErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1DeliveryNotesSendError = PublicApiV1DeliveryNotesSendErrors[keyof PublicApiV1DeliveryNotesSendErrors];
@@ -70265,6 +80614,9 @@ export type PublicApiV1DeliveryNotesSendResponses = {
 export type PublicApiV1DeliveryNotesSendResponse = PublicApiV1DeliveryNotesSendResponses[keyof PublicApiV1DeliveryNotesSendResponses];
 
 export type PublicApiV1InvoicesSendData = {
+    /**
+     * Invoice send accepts the seven precondition fields at the request top level; they are all-or-none, and the optional `expected_presentation_uuid`. A draft is issued and sent in one step: the precondition is checked by the issue and the email carries the capture the issue left. The seven fields are required when revisioned presentation is enabled for the company and the invoice has no retained capture yet (missing fields return 428 `pdf_presentation_precondition_required`); an already captured invoice is re-sent as captured without them and without creating a new version; otherwise they are ignored.
+     */
     body?: SendInvoiceRequest;
     headers: {
         /**
@@ -70308,13 +80660,17 @@ export type PublicApiV1InvoicesSendErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `invoice_payment_terms_version_conflict`: the payment schedule of the invoice changed since the version you read. `details.current_version` is the current one and `details.recovery` is `reload_or_keep_local`: read the invoice again and repeat the request. Nothing was changed. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.
      */
     422: Error;
+    /**
+     * The required human-reviewed seven-field precondition is missing: `pdf_presentation_precondition_required`.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -70323,6 +80679,10 @@ export type PublicApiV1InvoicesSendErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1InvoicesSendError = PublicApiV1InvoicesSendErrors[keyof PublicApiV1InvoicesSendErrors];
@@ -70379,6 +80739,10 @@ export type PublicApiV1InvoicesSendReminderErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered.
+     */
+    409: Error;
+    /**
      * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
      */
     422: Error;
@@ -70403,6 +80767,9 @@ export type PublicApiV1InvoicesSendReminderResponses = {
 export type PublicApiV1InvoicesSendReminderResponse = PublicApiV1InvoicesSendReminderResponses[keyof PublicApiV1InvoicesSendReminderResponses];
 
 export type PublicApiV1ProformasSendData = {
+    /**
+     * Proforma send accepts the `presentation_precondition` object with exactly seven fields and the optional `expected_presentation_uuid`. The object is required when revisioned presentation is enabled for the company and the document has no retained capture yet (a missing precondition returns 428 `pdf_presentation_precondition_required`); an already captured document is re-sent as captured without it and without creating a new version; otherwise it is ignored.
+     */
     body?: SendProformaRequest;
     headers: {
         /**
@@ -70446,9 +80813,17 @@ export type PublicApiV1ProformasSendErrors = {
      */
     404: Error;
     /**
-     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
+     * Validation failed, or the proforma cannot undergo the requested state transition (e.g. editing an already-sent proforma). The `error.param` field identifies which input is invalid, if any. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.
      */
     422: Error;
+    /**
+     * The required human-reviewed seven-field precondition is missing: `pdf_presentation_precondition_required`.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -70457,6 +80832,10 @@ export type PublicApiV1ProformasSendErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1ProformasSendError = PublicApiV1ProformasSendErrors[keyof PublicApiV1ProformasSendErrors];
@@ -70470,6 +80849,9 @@ export type PublicApiV1ProformasSendResponses = {
 export type PublicApiV1ProformasSendResponse = PublicApiV1ProformasSendResponses[keyof PublicApiV1ProformasSendResponses];
 
 export type PublicApiV1QuotesSendData = {
+    /**
+     * Quote send accepts the `presentation_precondition` object with exactly seven fields and the optional `expected_presentation_uuid`. A draft quote is numbered and sent in one step: the precondition is checked by the numbering (the first write of the document), which captures what was reviewed, and the email carries that capture; a draft whose retained capture is stale (edited or re-templated after it was captured) and that comes without the precondition returns 428 `pdf_presentation_precondition_required` before anything is written. The object is required when revisioned presentation is enabled for the company and the document has no retained capture yet (a missing precondition returns 428 `pdf_presentation_precondition_required`); an already captured document is re-sent as captured without it and without creating a new version; otherwise it is ignored.
+     */
     body?: SendQuoteRequest;
     headers: {
         /**
@@ -70513,13 +80895,17 @@ export type PublicApiV1QuotesSendErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: the document is in a state that does not allow this operation and no more specific error code applies. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
      */
     409: Error;
     /**
-     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the quote cannot undergo the requested state transition (e.g. accepting an already-accepted quote, or converting a non-accepted quote). The `error.param` field identifies which input is invalid, if any. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.
      */
     422: Error;
+    /**
+     * The required human-reviewed seven-field precondition is missing: `pdf_presentation_precondition_required`.
+     */
+    428: Error;
     /**
      * Rate limit exceeded. Retry after the duration in `Retry-After`.
      */
@@ -70528,6 +80914,10 @@ export type PublicApiV1QuotesSendErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1QuotesSendError = PublicApiV1QuotesSendErrors[keyof PublicApiV1QuotesSendErrors];
@@ -72904,6 +83294,10 @@ export type PublicApiV1DeliveryNotesSignErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed.
+     */
+    409: Error;
+    /**
      * Validation failed, or the delivery note cannot undergo the requested state transition (e.g. signing a non-delivered note). Also covers a signature image exceeding the 2 MB limit. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -73390,7 +83784,7 @@ export type PublicApiV1InvoicesSubstituteSimplifiedErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -73405,6 +83799,10 @@ export type PublicApiV1InvoicesSubstituteSimplifiedErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * The PDF engine did not answer (`pdf_engine_unreachable`: it is down, restarting or in the middle of a deployment), and this operation needs it to check the presentation you reviewed. It is transient and nothing was written: repeat the same request after the `Retry-After` delay. The terminal failures of the engine (a drifted build or an invalid configuration) are the 500 `pdf_engine_profile_unavailable`.
+     */
+    503: Error;
 };
 
 export type PublicApiV1InvoicesSubstituteSimplifiedError = PublicApiV1InvoicesSubstituteSimplifiedErrors[keyof PublicApiV1InvoicesSubstituteSimplifiedErrors];
@@ -74685,6 +85083,10 @@ export type PublicApiV1AccountPersonalizationUpdateErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_main_template_required`: the company already works with the PDF template library, where the design (`pdf_template`) and the accent colour (`accent_color`) are applied to the main template, and it has none. Choose a main template in the library and repeat the request. Nothing was changed, the invoice language included.
+     */
+    409: Error;
+    /**
      * Validation failed — e.g. the API key plan limit was reached, or an invoice language outside the allowed catalog (`es`, `en`, `ca`). The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
@@ -74888,6 +85290,10 @@ export type PublicApiV1ContactsUpdateCustomerProfileErrors = {
      * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
@@ -75199,6 +85605,84 @@ export type PublicApiV1ProductsGalleryUploadResponses = {
 };
 
 export type PublicApiV1ProductsGalleryUploadResponse = PublicApiV1ProductsGalleryUploadResponses[keyof PublicApiV1ProductsGalleryUploadResponses];
+
+export type PublicApiV1PdfTemplatesAssetUploadData = {
+    /**
+     * Internal reversible write: idempotency follows the current policy; a supplied key is replayed before CAS. Unknown fields are rejected. Until the company is prepared for revisioned templates (tenant initialization pending or revisioned rendering off) every library write returns 422 `pdf_presentation_not_ready` before any precondition or effect; reads stay available and no `Retry-After` applies.
+     */
+    body: {
+        id?: string;
+        kind: 'logo' | 'imago';
+        /**
+         * JPEG, PNG or WebP, maximum 2 MiB; observed MIME and physical bytes are validated.
+         */
+        file: Blob | File;
+    };
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/pdf-templates/assets';
+};
+
+export type PublicApiV1PdfTemplatesAssetUploadErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_template_asset_conflict`: the `id` you chose for the asset already belongs to another asset of the company. Generate a new UUID, or read the existing asset if it is yours. Nothing was uploaded.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters. `idempotency_key_required`: this operation requires the `Idempotency-Key` header; the message names the rejected operation.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PdfTemplatesAssetUploadError = PublicApiV1PdfTemplatesAssetUploadErrors[keyof PublicApiV1PdfTemplatesAssetUploadErrors];
+
+export type PublicApiV1PdfTemplatesAssetUploadResponses = {
+    /**
+     * Canonical representation of the issuer PDF library resource.
+     */
+    201: PdfTemplateAsset;
+};
+
+export type PublicApiV1PdfTemplatesAssetUploadResponse = PublicApiV1PdfTemplatesAssetUploadResponses[keyof PublicApiV1PdfTemplatesAssetUploadResponses];
 
 export type PublicApiV1TimeEntriesChainValidateData = {
     body?: never;
@@ -75551,7 +86035,7 @@ export type PublicApiV1InvoicesVoidErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `pdf_presentation_conflict`: the presentation of the document changed since you read it. The selection version or the presentation you referenced is no longer the current one, or another request captured it at the same time. Read the presentation again, review it and repeat the request: the server never substitutes a newer version for you. Nothing was changed. `pdf_presentation_context_changed`: what you reviewed no longer matches the document. Its content, the reviewed preview, the expected presentation or the requested format differ from the current ones. Refresh the preview, review it again and repeat the request with the new values. Nothing was changed. `pdf_legal_source_changed`: the legal data of the invoice changed after its presentation was captured, so that presentation can no longer be delivered as it is. Create an explicit legal presentation revision and repeat the request. Nothing was sent or delivered. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -75578,7 +86062,7 @@ export type PublicApiV1InvoicesVoidResponses = {
 
 export type PublicApiV1InvoicesVoidResponse = PublicApiV1InvoicesVoidResponses[keyof PublicApiV1InvoicesVoidResponses];
 
-export type WebhooksEventWebhookPayload = WebhookEventPayload;
+export type WebhooksEventWebhookPayload = WebhookEventPayloadWritable;
 
 export type WebhooksEventWebhookRequest = {
     body: WebhooksEventWebhookPayload;

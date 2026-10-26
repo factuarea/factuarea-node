@@ -24,8 +24,8 @@ async function main(): Promise<void> {
       tax_id: "B12345674",
     })) as { data: BusinessContact };
 
-    // create/show/update return the API envelope `{ data, ... }`. Operation
-    // bodies/results are typed `unknown` in 0.x, so cast to the shape you expect.
+    // create/show/update return the API envelope `{ data, ... }`, typed from the
+    // contract; the cast keeps only the fields this example reads.
     const created = (await factuarea.invoices.create(company, {
       // The invoice contract keeps client_id; pass the canonical contact UUID.
       client_id: contact.id,
