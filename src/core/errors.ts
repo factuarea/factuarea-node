@@ -20,6 +20,15 @@ export type FactuareaErrorType =
   | "rate_limit_error"
   | "service_unavailable_error";
 
+/** One failed field of a 422 (`error.errors[]`): all of them are listed, not only the first. */
+export interface FieldError {
+  param: string;
+  code: string;
+  message: string;
+  expected_format?: string;
+  allowed_values?: string[];
+}
+
 /** The parsed `error` object from the response body. */
 export interface ErrorEnvelope {
   type?: FactuareaErrorType | string;
@@ -29,6 +38,8 @@ export interface ErrorEnvelope {
   param?: string | null;
   /** Zero-based position of the document line that raised the error. */
   line_index?: number | null;
+  errors?: FieldError[];
+  details?: Record<string, unknown>;
   doc_url?: string | null;
   request_id?: string | null;
 }
@@ -40,6 +51,8 @@ export interface FactuareaErrorOptions {
   subcode?: string | null;
   param?: string | null;
   lineIndex?: number | null;
+  errors?: FieldError[];
+  details?: Record<string, unknown>;
   docUrl?: string | null;
   requestId?: string | null;
   status?: number;
@@ -67,11 +80,19 @@ export class FactuareaError extends Error {
    * specific line.
    */
   readonly lineIndex?: number | null;
+  /** Every failed field of a 422 (`error.errors[]`), verbatim: `param`, `code`, `message` and hints. */
+  readonly errors?: FieldError[];
+  /** Case-specific data of the error (`error.details`), verbatim: `existing_resource_id`, `allowed_values`, ... */
+  readonly details?: Record<string, unknown>;
   /** Link to the docs reference (`error.doc_url`). */
   readonly docUrl?: string | null;
   /** Request id for support (`error.request_id` / `X-Request-Id` header). */
   readonly requestId?: string | null;
   readonly data?: unknown;
+  /** Response headers (`ETag`, `Retry-After`, ...), when the error came from a response. */
+  readonly headers?: Headers;
+  /** `Retry-After` in seconds, when the response carried one (429, 503, ...). */
+  readonly retryAfter?: number;
 
   constructor(options: FactuareaErrorOptions) {
     super(options.message, options.cause === undefined ? undefined : { cause: options.cause });
@@ -82,9 +103,13 @@ export class FactuareaError extends Error {
     this.subcode = options.subcode ?? null;
     this.param = options.param ?? null;
     this.lineIndex = options.lineIndex ?? null;
+    this.errors = options.errors;
+    this.details = options.details;
     this.docUrl = options.docUrl ?? null;
     this.requestId = options.requestId ?? null;
     this.data = options.data;
+    this.headers = options.headers;
+    this.retryAfter = parseRetryAfter(options.headers);
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -112,7 +137,7 @@ export class ConflictError extends FactuareaError {}
 /** 429 rate limited. `.retryAfter` is seconds to wait (from `Retry-After`). */
 export class RateLimitError extends FactuareaError {
   /** Seconds to wait before retrying, parsed from `Retry-After`. */
-  readonly retryAfter?: number;
+  override readonly retryAfter?: number;
 
   constructor(options: FactuareaErrorOptions & { retryAfter?: number }) {
     super(options);
@@ -179,6 +204,13 @@ function extractFields(envelope: ErrorEnvelope, body: unknown): Record<string, s
     }
   }
 
+  // `error.errors[]`: every failed field with its own message.
+  for (const item of Array.isArray(envelope.errors) ? envelope.errors : []) {
+    if (isRecord(item) && typeof item.param === "string" && typeof item.message === "string") {
+      (fields[item.param] ??= []).push(item.message);
+    }
+  }
+
   // Single-field shape via `param` + `message`.
   if (Object.keys(fields).length === 0 && envelope.param && envelope.message) {
     fields[envelope.param] = [envelope.message];
@@ -216,6 +248,8 @@ export function errorFromResponse(
     subcode: envelope.subcode ?? null,
     param: envelope.param ?? null,
     lineIndex: typeof envelope.line_index === "number" ? envelope.line_index : null,
+    errors: Array.isArray(envelope.errors) ? envelope.errors : undefined,
+    details: isRecord(envelope.details) ? envelope.details : undefined,
     docUrl: envelope.doc_url ?? null,
     requestId,
     status,

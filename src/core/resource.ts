@@ -1,4 +1,4 @@
-import type { HttpClient, BinaryResponse, HttpMethod } from "./http-client.js";
+import type { HttpClient, BinaryOrJsonResponse, BinaryResponse, HttpMethod, ResponseMeta } from "./http-client.js";
 import { type CursorParam, fetchPage, Page } from "./pagination.js";
 
 /**
@@ -14,6 +14,16 @@ export interface RequestConfig {
   maxRetries?: number;
   /** Extra headers for this request. */
   headers?: Record<string, string>;
+  /** Never retry this request, whatever the client's `maxRetries` (the shared client is not changed). */
+  noRetry?: boolean;
+  /** Aborts the request without further attempts; it does not undo a mutation the server already accepted. */
+  signal?: AbortSignal;
+  /** `If-Match` value, verbatim: the `ETag` of the last read of the resource being changed. */
+  ifMatch?: string;
+  /** `If-None-Match` value, verbatim: the `ETag` of a copy already held, to get a `304`. */
+  ifNoneMatch?: string;
+  /** Receives status, headers, `etag`, `retryAfter` and `idempotentReplayed` of the response. */
+  onResponse?: (meta: ResponseMeta) => void;
 }
 
 /**
@@ -48,7 +58,7 @@ export function flattenQuery(
 }
 
 /** Keys of `RequestConfig`: what tells a legacy `(…, config?)` call apart from a query-params object. */
-const REQUEST_CONFIG_KEYS: ReadonlySet<string> = new Set(["idempotencyKey", "timeout", "maxRetries", "headers"]);
+const REQUEST_CONFIG_KEYS: ReadonlySet<string> = new Set(["idempotencyKey", "timeout", "maxRetries", "noRetry", "headers", "signal", "ifMatch", "ifNoneMatch", "onResponse"]);
 
 /**
  * Splits the second and third arguments of an operation that shipped as
@@ -72,6 +82,22 @@ export function splitQueryAndConfig(
     }
   }
   return { params: paramsOrConfig as Record<string, unknown> | undefined, config };
+}
+
+/** Per-operation decisions the generator takes from the spec, not from the caller. */
+export interface SendOptions {
+  /** The spec requires `Idempotency-Key` on this non-`POST` mutation. */
+  idempotent?: boolean;
+  /** The operation must never be retried automatically (a third party is reached). */
+  noRetry?: boolean;
+}
+
+/** Only the flags that are set, so a caller's `config` is never overwritten by `undefined`. */
+function sendOptions(opts: SendOptions | undefined): SendOptions {
+  const out: SendOptions = {};
+  if (opts?.idempotent !== undefined) out.idempotent = opts.idempotent;
+  if (opts?.noRetry) out.noRetry = true;
+  return out;
 }
 
 /** Base class shared by every resource namespace. */
@@ -112,14 +138,14 @@ export abstract class BaseResource {
     path: string,
     body?: unknown,
     config?: RequestConfig,
-    opts?: { idempotent?: boolean },
+    opts?: SendOptions,
   ): Promise<T> {
     const response = await this.client.request<T>({
       method,
       path,
       body,
       ...config,
-      idempotent: opts?.idempotent,
+      ...sendOptions(opts),
     });
     return response.data;
   }
@@ -128,14 +154,14 @@ export abstract class BaseResource {
     path: string,
     query?: Record<string, unknown>,
     config?: RequestConfig,
-    opts?: { idempotent?: boolean },
+    opts?: SendOptions,
   ): Promise<T> {
     const response = await this.client.request<T>({
       method: "DELETE",
       path,
       query: flattenQuery(query),
       ...config,
-      idempotent: opts?.idempotent,
+      ...sendOptions(opts),
     });
     return response.data;
   }
@@ -144,12 +170,14 @@ export abstract class BaseResource {
     path: string,
     formData: FormData,
     config?: RequestConfig,
+    opts?: SendOptions,
   ): Promise<T> {
     const response = await this.client.request<T>({
       method: "POST",
       path,
       formData,
       ...config,
+      ...sendOptions(opts),
     });
     return response.data;
   }
@@ -171,6 +199,22 @@ export abstract class BaseResource {
     config?: RequestConfig,
   ): Promise<BinaryResponse> {
     return this.client.requestBinary({
+      method,
+      path,
+      query: flattenQuery(query),
+      body,
+      ...config,
+    });
+  }
+
+  protected async _binaryOrJson<T>(
+    path: string,
+    method: HttpMethod = "GET",
+    query?: Record<string, unknown>,
+    body?: unknown,
+    config?: RequestConfig,
+  ): Promise<BinaryOrJsonResponse<T>> {
+    return this.client.requestBinaryOrJson<T>({
       method,
       path,
       query: flattenQuery(query),

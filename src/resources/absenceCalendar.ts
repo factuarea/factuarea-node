@@ -7,12 +7,13 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1AbsenceCalendarShowResponses } from "../generated/types.gen.js";
 
 
 export class AbsenceCalendarResource extends BaseResource {
   /** Get the team absence calendar */
-  async show(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<PublicApiV1AbsenceCalendarShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/absence-calendar", { "company": company });
-    return this._get<unknown>(path, params, config);
+    return this._get<PublicApiV1AbsenceCalendarShowResponses[200]>(path, params, config);
   }
 }

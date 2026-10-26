@@ -7,6 +7,7 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1DevelopersRequestLogsShowResponses } from "../generated/types.gen.js";
 
 
 export class DevelopersRequestLogsResource extends BaseResource {
@@ -17,9 +18,9 @@ export class DevelopersRequestLogsResource extends BaseResource {
   }
 
   /** Retrieve an API request log */
-  async show(company: string, requestId: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, requestId: string, config?: RequestConfig): Promise<PublicApiV1DevelopersRequestLogsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/request-logs/{request_id}", { "company": company, "request_id": requestId });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1DevelopersRequestLogsShowResponses[200]>(path, undefined, config);
   }
 }
 

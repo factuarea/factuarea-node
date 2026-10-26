@@ -7,12 +7,13 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1TaxCatalogShowResponses } from "../generated/types.gen.js";
 
 
 export class TaxCatalogResource extends BaseResource {
   /** Retrieve the tax catalog */
-  async show(config?: RequestConfig): Promise<unknown> {
+  async show(config?: RequestConfig): Promise<PublicApiV1TaxCatalogShowResponses[200]> {
     const path = "/tax-catalog";
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1TaxCatalogShowResponses[200]>(path, undefined, config);
   }
 }

@@ -105,6 +105,31 @@ two months without a spec update.
 No secret is required on the **receiver** (this repo): the workflow uses the
 built-in `GITHUB_TOKEN` to open the PR.
 
+## Pinned spec
+
+`spec/openapi.json` is the document exported by the private repo, copied byte
+for byte (`cp`, no reserialisation: the sync compares canonically, so the exact
+copy does not read as a change). Currently pinned:
+
+| Export                                                  | SHA256                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
+| document templates on the company axis (714 operations) | `0219a93b32c6a223dd6c75b1b97371fa1ec3272ecca1f2da2c9d50b2ca55bf14` |
+
+Its canonical digest (`canonicalize` in `scripts/spec-sync.mjs`) is
+`6ec087d0d39bb4cc62d2051c3a960f9d5d7c641c3ad3a4d0db9f28d75c40a44b`.
+
+Check it with `sha256sum spec/openapi.json`. To pin a newer export by hand:
+
+```sh
+cp <export>/openapi.json spec/openapi.json   # byte for byte
+sha256sum spec/openapi.json                  # update the table above
+npm run generate                             # src/generated + src/resources
+npm run typecheck && npm test && npm run version:check
+```
+
+Fix the generator (`scripts/build-resources.mjs`), never the generated files,
+when a wrapper comes out wrong.
+
 ## Auditing the sync state
 
 **When was the spec last checked?** The date of the most recent

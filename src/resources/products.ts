@@ -7,13 +7,14 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1ProductsActivitiesResponses, PublicApiV1ProductsBaseUnitReplacementCreateData, PublicApiV1ProductsBaseUnitReplacementCreateResponses, PublicApiV1ProductsBaseUnitReplacementPreviewData, PublicApiV1ProductsBaseUnitReplacementPreviewResponses, PublicApiV1ProductsBulkDeleteData, PublicApiV1ProductsBulkDeleteResponses, PublicApiV1ProductsBulkStatusData, PublicApiV1ProductsBulkStatusResponses, PublicApiV1ProductsBulkUpdateStockData, PublicApiV1ProductsBulkUpdateStockResponses, PublicApiV1ProductsConfigurationsImpactPreviewData, PublicApiV1ProductsConfigurationsImpactPreviewResponses, PublicApiV1ProductsCreateData, PublicApiV1ProductsCreateResponses, PublicApiV1ProductsFindByExternalIdData, PublicApiV1ProductsFindByExternalIdResponses, PublicApiV1ProductsFindBySkuData, PublicApiV1ProductsFindBySkuResponses, PublicApiV1ProductsGalleryUploadResponses, PublicApiV1ProductsLowStockReportResponses, PublicApiV1ProductsPresentationsCreateData, PublicApiV1ProductsPresentationsCreateResponses, PublicApiV1ProductsPresentationsUpdateData, PublicApiV1ProductsPresentationsUpdateResponses, PublicApiV1ProductsResolveSelectionData, PublicApiV1ProductsResolveSelectionResponses, PublicApiV1ProductsSalesAnalyticsResponses, PublicApiV1ProductsSearchResponses, PublicApiV1ProductsShowResponses, PublicApiV1ProductsStatsResponses, PublicApiV1ProductsSupplierOffersCreateData, PublicApiV1ProductsSupplierOffersCreateResponses, PublicApiV1ProductsSupplierOffersPreferredResponses, PublicApiV1ProductsSupplierOffersUpdateData, PublicApiV1ProductsSupplierOffersUpdateResponses, PublicApiV1ProductsToggleActiveResponses, PublicApiV1ProductsUpdateData, PublicApiV1ProductsUpdateResponses, PublicApiV1ProductsUpdateStockData, PublicApiV1ProductsUpdateStockResponses, PublicApiV1ProductsVariantsCreateData, PublicApiV1ProductsVariantsCreateResponses, PublicApiV1ProductsVariantsUpdateData, PublicApiV1ProductsVariantsUpdateResponses, PublicApiV1ProductsVideoUploadResponses } from "../generated/types.gen.js";
 
 
 export class ProductsPresentationsResource extends BaseResource {
   /** Create a product presentation */
-  async create(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, product: string, body?: PublicApiV1ProductsPresentationsCreateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsPresentationsCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/products/{product}/presentations", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsPresentationsCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List product presentations */
@@ -29,17 +30,17 @@ export class ProductsPresentationsResource extends BaseResource {
   }
 
   /** Update a product presentation */
-  async update(company: string, product: string, presentation: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, product: string, presentation: string, body?: PublicApiV1ProductsPresentationsUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsPresentationsUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/presentations/{presentation}", { "company": company, "product": product, "presentation": presentation });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1ProductsPresentationsUpdateResponses[200]>("PATCH", path, body, config);
   }
 }
 
 export class ProductsVariantsResource extends BaseResource {
   /** Create a product variant */
-  async create(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, product: string, body?: PublicApiV1ProductsVariantsCreateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsVariantsCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/products/{product}/variants", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsVariantsCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List product variants */
@@ -55,17 +56,17 @@ export class ProductsVariantsResource extends BaseResource {
   }
 
   /** Update a product variant */
-  async update(company: string, product: string, variant: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, product: string, variant: string, body?: PublicApiV1ProductsVariantsUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsVariantsUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/variants/{variant}", { "company": company, "product": product, "variant": variant });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1ProductsVariantsUpdateResponses[200]>("PATCH", path, body, config);
   }
 }
 
 export class ProductsSupplierOffersResource extends BaseResource {
   /** Create a supplier offer */
-  async create(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, product: string, body?: PublicApiV1ProductsSupplierOffersCreateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsSupplierOffersCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/products/{product}/supplier-offers", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsSupplierOffersCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List supplier offers */
@@ -81,15 +82,15 @@ export class ProductsSupplierOffersResource extends BaseResource {
   }
 
   /** Update a supplier offer */
-  async update(company: string, product: string, offer: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, product: string, offer: string, body?: PublicApiV1ProductsSupplierOffersUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsSupplierOffersUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/supplier-offers/{offer}", { "company": company, "product": product, "offer": offer });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1ProductsSupplierOffersUpdateResponses[200]>("PATCH", path, body, config);
   }
 
   /** Set the preferred supplier offer */
-  async preferred(company: string, product: string, offer: string, config?: RequestConfig): Promise<unknown> {
+  async preferred(company: string, product: string, offer: string, config?: RequestConfig): Promise<PublicApiV1ProductsSupplierOffersPreferredResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/supplier-offers/{offer}/preferred", { "company": company, "product": product, "offer": offer });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1ProductsSupplierOffersPreferredResponses[200]>("POST", path, undefined, config);
   }
 }
 
@@ -107,9 +108,9 @@ export class ProductsGalleryResource extends BaseResource {
   }
 
   /** Upload a gallery image to a product */
-  async upload(company: string, product: string, formData: FormData, config?: RequestConfig): Promise<unknown> {
+  async upload(company: string, product: string, formData: FormData, config?: RequestConfig): Promise<PublicApiV1ProductsGalleryUploadResponses[201]> {
     const path = this.buildPath("/companies/{company}/products/{product}/gallery", { "company": company, "product": product });
-    return this._sendForm<unknown>(path, formData, config);
+    return this._sendForm<PublicApiV1ProductsGalleryUploadResponses[201]>(path, formData, config);
   }
 }
 
@@ -121,9 +122,9 @@ export class ProductsVideoResource extends BaseResource {
   }
 
   /** Upload a video to a product */
-  async upload(company: string, product: string, formData: FormData, config?: RequestConfig): Promise<unknown> {
+  async upload(company: string, product: string, formData: FormData, config?: RequestConfig): Promise<PublicApiV1ProductsVideoUploadResponses[201]> {
     const path = this.buildPath("/companies/{company}/products/{product}/video", { "company": company, "product": product });
-    return this._sendForm<unknown>(path, formData, config);
+    return this._sendForm<PublicApiV1ProductsVideoUploadResponses[201]>(path, formData, config);
   }
 
   /** Download the product video binary */
@@ -141,9 +142,9 @@ export class ProductsConfigurationsResource extends BaseResource {
   }
 
   /** Preview the impact of restricting a catalog */
-  async impactPreview(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async impactPreview(company: string, product: string, body?: PublicApiV1ProductsConfigurationsImpactPreviewData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsConfigurationsImpactPreviewResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/configurations/impact-preview", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsConfigurationsImpactPreviewResponses[200]>("POST", path, body, config);
   }
 }
 
@@ -165,15 +166,15 @@ export class ProductsStockMovementsResource extends BaseResource {
 
 export class ProductsBaseUnitReplacementResource extends BaseResource {
   /** Preview a base unit replacement */
-  async preview(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async preview(company: string, product: string, body?: PublicApiV1ProductsBaseUnitReplacementPreviewData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsBaseUnitReplacementPreviewResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/base-unit-replacement/preview", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsBaseUnitReplacementPreviewResponses[200]>("POST", path, body, config);
   }
 
   /** Replace a product by changing its base unit */
-  async create(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, product: string, body?: PublicApiV1ProductsBaseUnitReplacementCreateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsBaseUnitReplacementCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/products/{product}/base-unit-replacement", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsBaseUnitReplacementCreateResponses[201]>("POST", path, body, config);
   }
 }
 
@@ -202,27 +203,27 @@ export class ProductsResource extends BaseResource {
   }
 
   /** Delete multiple products in bulk */
-  async bulkDelete(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async bulkDelete(company: string, body?: PublicApiV1ProductsBulkDeleteData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsBulkDeleteResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/bulk-delete", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsBulkDeleteResponses[200]>("POST", path, body, config);
   }
 
   /** Bulk change product active state */
-  async bulkStatus(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async bulkStatus(company: string, body?: PublicApiV1ProductsBulkStatusData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsBulkStatusResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/bulk-status", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsBulkStatusResponses[200]>("POST", path, body, config);
   }
 
   /** Update stock for many products */
-  async bulkUpdateStock(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async bulkUpdateStock(company: string, body?: PublicApiV1ProductsBulkUpdateStockData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsBulkUpdateStockResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/bulk-update-stock", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsBulkUpdateStockResponses[200]>("POST", path, body, config);
   }
 
   /** Create a product */
-  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, body?: PublicApiV1ProductsCreateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/products", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List all products */
@@ -238,74 +239,74 @@ export class ProductsResource extends BaseResource {
   }
 
   /** Retrieve a product */
-  async show(company: string, product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<PublicApiV1ProductsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}", { "company": company, "product": product });
-    return this._get<unknown>(path, params, config);
+    return this._get<PublicApiV1ProductsShowResponses[200]>(path, params, config);
   }
 
   /** Update a product */
-  async update(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, product: string, body?: PublicApiV1ProductsUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}", { "company": company, "product": product });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1ProductsUpdateResponses[200]>("PATCH", path, body, config);
   }
 
   /** Find a product by external ID */
-  async findByExternalId(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async findByExternalId(company: string, body?: PublicApiV1ProductsFindByExternalIdData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsFindByExternalIdResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/find-by-external-id", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsFindByExternalIdResponses[200]>("POST", path, body, config);
   }
 
   /** Find a product by SKU */
-  async findBySku(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async findBySku(company: string, body?: PublicApiV1ProductsFindBySkuData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsFindBySkuResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/find-by-sku", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsFindBySkuResponses[200]>("POST", path, body, config);
   }
 
   /** List products below the stock threshold */
-  async lowStockReport(company: string, config?: RequestConfig): Promise<unknown> {
+  async lowStockReport(company: string, config?: RequestConfig): Promise<PublicApiV1ProductsLowStockReportResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/low-stock-report", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1ProductsLowStockReportResponses[200]>(path, undefined, config);
   }
 
   /** List product activity timeline */
-  async activities(company: string, product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async activities(company: string, product: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<PublicApiV1ProductsActivitiesResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/activities", { "company": company, "product": product });
-    return this._get<unknown>(path, params, config);
+    return this._get<PublicApiV1ProductsActivitiesResponses[200]>(path, params, config);
   }
 
   /** Get product sales analytics */
-  async salesAnalytics(company: string, product: string, config?: RequestConfig): Promise<unknown> {
+  async salesAnalytics(company: string, product: string, config?: RequestConfig): Promise<PublicApiV1ProductsSalesAnalyticsResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/sales-analytics", { "company": company, "product": product });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1ProductsSalesAnalyticsResponses[200]>(path, undefined, config);
   }
 
   /** Get product stats */
-  async stats(company: string, config?: RequestConfig): Promise<unknown> {
+  async stats(company: string, config?: RequestConfig): Promise<PublicApiV1ProductsStatsResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/stats", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1ProductsStatsResponses[200]>(path, undefined, config);
   }
 
   /** Resolve a catalog selection */
-  async resolveSelection(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async resolveSelection(company: string, product: string, body?: PublicApiV1ProductsResolveSelectionData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsResolveSelectionResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/resolve-selection", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1ProductsResolveSelectionResponses[200]>("POST", path, body, config);
   }
 
   /** Search products */
-  async search(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<unknown> {
+  async search(company: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<PublicApiV1ProductsSearchResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/search", { "company": company });
-    return this._get<unknown>(path, params, config);
+    return this._get<PublicApiV1ProductsSearchResponses[200]>(path, params, config);
   }
 
   /** Toggle product active state */
-  async toggleActive(company: string, product: string, config?: RequestConfig): Promise<unknown> {
+  async toggleActive(company: string, product: string, config?: RequestConfig): Promise<PublicApiV1ProductsToggleActiveResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/toggle-active", { "company": company, "product": product });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1ProductsToggleActiveResponses[200]>("POST", path, undefined, config);
   }
 
   /** Update product stock */
-  async updateStock(company: string, product: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async updateStock(company: string, product: string, body?: PublicApiV1ProductsUpdateStockData["body"], config?: RequestConfig): Promise<PublicApiV1ProductsUpdateStockResponses[200]> {
     const path = this.buildPath("/companies/{company}/products/{product}/stock", { "company": company, "product": product });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1ProductsUpdateStockResponses[200]>("PATCH", path, body, config);
   }
 }

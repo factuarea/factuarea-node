@@ -7,13 +7,14 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1WoocommerceStoresConnectionTestResponses } from "../generated/types.gen.js";
 
 
 export class WoocommerceStoresResource extends BaseResource {
   /** Test a WooCommerce store connection */
-  async connectionTest(company: string, store: string, config?: RequestConfig): Promise<unknown> {
+  async connectionTest(company: string, store: string, config?: RequestConfig): Promise<PublicApiV1WoocommerceStoresConnectionTestResponses[200]> {
     const path = this.buildPath("/companies/{company}/woocommerce/stores/{store}/connection-test", { "company": company, "store": store });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1WoocommerceStoresConnectionTestResponses[200]>("POST", path, undefined, config);
   }
 }
 

@@ -7,19 +7,20 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1EmployeeBatchesCancelData, PublicApiV1EmployeeBatchesCancelResponses, PublicApiV1EmployeeBatchesConfirmData, PublicApiV1EmployeeBatchesConfirmResponses, PublicApiV1EmployeeBatchesPrepareData, PublicApiV1EmployeeBatchesPrepareResponses, PublicApiV1EmployeeBatchesRefreshQuoteData, PublicApiV1EmployeeBatchesRefreshQuoteResponses, PublicApiV1EmployeeBatchesShowResponses } from "../generated/types.gen.js";
 
 
 export class EmployeeBatchesResource extends BaseResource {
   /** Cancel an employee batch */
-  async cancel(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async cancel(company: string, id: string, body?: PublicApiV1EmployeeBatchesCancelData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeBatchesCancelResponses[200 | 202]> {
     const path = this.buildPath("/companies/{company}/employee-batches/{id}/cancel", { "company": company, "id": id });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeBatchesCancelResponses[200 | 202]>("POST", path, body, config);
   }
 
   /** Confirm an employee batch */
-  async confirm(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async confirm(company: string, id: string, body?: PublicApiV1EmployeeBatchesConfirmData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeBatchesConfirmResponses[200 | 202]> {
     const path = this.buildPath("/companies/{company}/employee-batches/{id}/confirm", { "company": company, "id": id });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeBatchesConfirmResponses[200 | 202]>("POST", path, body, config);
   }
 
   /** List an employee batch */
@@ -29,20 +30,20 @@ export class EmployeeBatchesResource extends BaseResource {
   }
 
   /** Prepare an employee batch */
-  async prepare(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async prepare(company: string, body?: PublicApiV1EmployeeBatchesPrepareData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeBatchesPrepareResponses[201]> {
     const path = this.buildPath("/companies/{company}/employee-batches", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeBatchesPrepareResponses[201]>("POST", path, body, config);
   }
 
   /** Refresh the quote for an employee batch */
-  async refreshQuote(company: string, id: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async refreshQuote(company: string, id: string, body?: PublicApiV1EmployeeBatchesRefreshQuoteData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeBatchesRefreshQuoteResponses[200]> {
     const path = this.buildPath("/companies/{company}/employee-batches/{id}/quote", { "company": company, "id": id });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1EmployeeBatchesRefreshQuoteResponses[200]>("POST", path, body, config);
   }
 
   /** Retrieve an employee batch */
-  async show(company: string, id: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, id: string, config?: RequestConfig): Promise<PublicApiV1EmployeeBatchesShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/employee-batches/{id}", { "company": company, "id": id });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1EmployeeBatchesShowResponses[200]>(path, undefined, config);
   }
 }

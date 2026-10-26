@@ -40,18 +40,18 @@ function form(): FormData {
 
 const OPERATIONS: OperationCase[] = [
   // NIF transfer (4)
-  { operationId: "public-api.v1.account.nif_transfers.accept", method: "POST", path: `/accounts/${ACCOUNT}/nif-transfers/accept`, call: (c) => c.account.nifTransfers.accept(ACCOUNT, {}) },
-  { operationId: "public-api.v1.account.nif_transfers.create", method: "POST", path: `/accounts/${ACCOUNT}/nif-transfers`, call: (c) => c.account.nifTransfers.create(ACCOUNT, {}) },
+  { operationId: "public-api.v1.account.nif_transfers.accept", method: "POST", path: `/accounts/${ACCOUNT}/nif-transfers/accept`, call: (c) => c.account.nifTransfers.accept(ACCOUNT, {} as never) },
+  { operationId: "public-api.v1.account.nif_transfers.create", method: "POST", path: `/accounts/${ACCOUNT}/nif-transfers`, call: (c) => c.account.nifTransfers.create(ACCOUNT, {} as never) },
   { operationId: "public-api.v1.account.nif_transfers.list", method: "GET", path: `/accounts/${ACCOUNT}/nif-transfers`, call: (c) => c.account.nifTransfers.list(ACCOUNT) },
   { operationId: "public-api.v1.account.nif_transfers.revoke", method: "POST", path: `/accounts/${ACCOUNT}/nif-transfers/${TRANSFER}/revoke`, call: (c) => c.account.nifTransfers.revoke(ACCOUNT, TRANSFER, {}) },
   // Managed accounts provisioning (9)
-  { operationId: "public-api.v1.managed_accounts.access_level.update", method: "PATCH", path: `/accounts/${MANAGED}/access-level`, call: (c) => c.managedAccounts.accessLevel.update(MANAGED, {}) },
+  { operationId: "public-api.v1.managed_accounts.access_level.update", method: "PATCH", path: `/accounts/${MANAGED}/access-level`, call: (c) => c.managedAccounts.accessLevel.update(MANAGED, {} as never) },
   { operationId: "public-api.v1.managed_accounts.claim_tokens.create", method: "POST", path: `/accounts/${MANAGED}/claim-tokens`, call: (c) => c.managedAccounts.claimTokens.create(MANAGED, {}) },
-  { operationId: "public-api.v1.managed_accounts.create", method: "POST", path: "/accounts", call: (c) => c.managedAccounts.create({}) },
+  { operationId: "public-api.v1.managed_accounts.create", method: "POST", path: "/accounts", call: (c) => c.managedAccounts.create({} as never) },
   { operationId: "public-api.v1.managed_accounts.list", method: "GET", path: "/accounts", call: (c) => c.managedAccounts.list() },
   { operationId: "public-api.v1.managed_accounts.management.end", method: "DELETE", path: `/accounts/${MANAGED}/management`, call: (c) => c.managedAccounts.management.end(MANAGED) },
   { operationId: "public-api.v1.managed_accounts.plan.preview", method: "GET", path: `/accounts/${MANAGED}/plan/preview`, call: (c) => c.managedAccounts.plan.preview(MANAGED) },
-  { operationId: "public-api.v1.managed_accounts.plan.update", method: "PATCH", path: `/accounts/${MANAGED}/plan`, call: (c) => c.managedAccounts.plan.update(MANAGED, {}) },
+  { operationId: "public-api.v1.managed_accounts.plan.update", method: "PATCH", path: `/accounts/${MANAGED}/plan`, call: (c) => c.managedAccounts.plan.update(MANAGED, {} as never) },
   { operationId: "public-api.v1.managed_accounts.show", method: "GET", path: `/accounts/${MANAGED}`, call: (c) => c.managedAccounts.show(MANAGED) },
   { operationId: "public-api.v1.account.provisioning_usage", method: "GET", path: `/accounts/${ACCOUNT}/provisioning-usage`, call: (c) => c.account.provisioningUsage(ACCOUNT) },
   // Bulk import (3)
@@ -59,7 +59,7 @@ const OPERATIONS: OperationCase[] = [
   { operationId: "public-api.v1.managed_accounts.imports.preview", method: "POST", path: "/accounts/imports/preview", call: (c) => c.managedAccounts.imports.preview(form()) },
   { operationId: "public-api.v1.managed_accounts.imports.template", method: "GET", path: "/accounts/imports/template", call: (c) => c.managedAccounts.imports.template() },
   // Account webhooks (10)
-  { operationId: "public-api.v1.account.webhooks.create", method: "POST", path: `/accounts/${ACCOUNT}/webhooks`, call: (c) => c.account.webhooks.create(ACCOUNT, {}) },
+  { operationId: "public-api.v1.account.webhooks.create", method: "POST", path: `/accounts/${ACCOUNT}/webhooks`, call: (c) => c.account.webhooks.create(ACCOUNT, {} as never) },
   { operationId: "public-api.v1.account.webhooks.delete", method: "DELETE", path: `/accounts/${ACCOUNT}/webhooks/${WEBHOOK}`, call: (c) => c.account.webhooks.delete(ACCOUNT, WEBHOOK) },
   { operationId: "public-api.v1.account.webhooks.deliveries.list", method: "GET", path: `/accounts/${ACCOUNT}/webhooks/${WEBHOOK}/deliveries`, call: (c) => c.account.webhooks.deliveries.list(ACCOUNT, WEBHOOK) },
   { operationId: "public-api.v1.account.webhooks.deliveries.retry", method: "POST", path: `/accounts/${ACCOUNT}/webhooks/${WEBHOOK}/deliveries/${DELIVERY}/retry`, call: (c) => c.account.webhooks.deliveries.retry(ACCOUNT, WEBHOOK, DELIVERY) },

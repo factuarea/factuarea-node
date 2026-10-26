@@ -7,13 +7,14 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1UsersMeResponses } from "../generated/types.gen.js";
 
 
 export class UsersResource extends BaseResource {
   /** Retrieve the current user */
-  async me(company: string, config?: RequestConfig): Promise<unknown> {
+  async me(company: string, config?: RequestConfig): Promise<PublicApiV1UsersMeResponses[200]> {
     const path = this.buildPath("/companies/{company}/users/me", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1UsersMeResponses[200]>(path, undefined, config);
   }
 
   /** List users */

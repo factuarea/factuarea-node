@@ -33,6 +33,10 @@ import { NotificationsResource } from "./notifications.js";
 import { PaymentMethodsResource } from "./paymentMethods.js";
 import { PayoutsResource } from "./payouts.js";
 import { PayrollExportFormatsResource } from "./payrollExportFormats.js";
+import { PdfArtifactsResource } from "./pdfArtifacts.js";
+import { PdfCommercialIdentitiesResource } from "./pdfCommercialIdentities.js";
+import { PdfTemplatePreviewsResource } from "./pdfTemplatePreviews.js";
+import { PdfTemplatesResource } from "./pdfTemplates.js";
 import { PresenceResource } from "./presence.js";
 import { PriceListsResource } from "./priceLists.js";
 import { ProductsResource } from "./products.js";
@@ -96,6 +100,10 @@ export { NotificationsResource } from "./notifications.js";
 export { PaymentMethodsResource } from "./paymentMethods.js";
 export { PayoutsResource } from "./payouts.js";
 export { PayrollExportFormatsResource } from "./payrollExportFormats.js";
+export { PdfArtifactsResource } from "./pdfArtifacts.js";
+export { PdfCommercialIdentitiesResource } from "./pdfCommercialIdentities.js";
+export { PdfTemplatePreviewsResource } from "./pdfTemplatePreviews.js";
+export { PdfTemplatesResource } from "./pdfTemplates.js";
 export { PresenceResource } from "./presence.js";
 export { PriceListsResource } from "./priceLists.js";
 export { ProductsResource } from "./products.js";
@@ -160,6 +168,10 @@ export interface ResourceNamespaces {
   paymentMethods: PaymentMethodsResource;
   payouts: PayoutsResource;
   payrollExportFormats: PayrollExportFormatsResource;
+  pdfArtifacts: PdfArtifactsResource;
+  pdfCommercialIdentities: PdfCommercialIdentitiesResource;
+  pdfTemplatePreviews: PdfTemplatePreviewsResource;
+  pdfTemplates: PdfTemplatesResource;
   presence: PresenceResource;
   priceLists: PriceListsResource;
   products: ProductsResource;
@@ -226,6 +238,10 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     paymentMethods: new PaymentMethodsResource(client),
     payouts: new PayoutsResource(client),
     payrollExportFormats: new PayrollExportFormatsResource(client),
+    pdfArtifacts: new PdfArtifactsResource(client),
+    pdfCommercialIdentities: new PdfCommercialIdentitiesResource(client),
+    pdfTemplatePreviews: new PdfTemplatePreviewsResource(client),
+    pdfTemplates: new PdfTemplatesResource(client),
     presence: new PresenceResource(client),
     priceLists: new PriceListsResource(client),
     products: new ProductsResource(client),

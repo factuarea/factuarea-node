@@ -7,6 +7,7 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1WebhookEndpointsCreateData, PublicApiV1WebhookEndpointsCreateResponses, PublicApiV1WebhookEndpointsDeliveriesReplayResponses, PublicApiV1WebhookEndpointsDeliveriesShowResponses, PublicApiV1WebhookEndpointsPingResponses, PublicApiV1WebhookEndpointsRotateSecretResponses, PublicApiV1WebhookEndpointsShowResponses, PublicApiV1WebhookEndpointsTestEventData, PublicApiV1WebhookEndpointsTestEventResponses, PublicApiV1WebhookEndpointsUpdateData, PublicApiV1WebhookEndpointsUpdateResponses } from "../generated/types.gen.js";
 
 
 export class WebhookEndpointsDeliveriesResource extends BaseResource {
@@ -17,15 +18,15 @@ export class WebhookEndpointsDeliveriesResource extends BaseResource {
   }
 
   /** Replay webhook delivery */
-  async replay(company: string, webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<unknown> {
+  async replay(company: string, webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsDeliveriesReplayResponses[202]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/deliveries/{delivery}/replay", { "company": company, "webhook_endpoint": webhookEndpoint, "delivery": delivery });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1WebhookEndpointsDeliveriesReplayResponses[202]>("POST", path, undefined, config);
   }
 
   /** Retrieve webhook delivery */
-  async show(company: string, webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, webhookEndpoint: string, delivery: string, config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsDeliveriesShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/deliveries/{delivery}", { "company": company, "webhook_endpoint": webhookEndpoint, "delivery": delivery });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1WebhookEndpointsDeliveriesShowResponses[200]>(path, undefined, config);
   }
 }
 
@@ -38,9 +39,9 @@ export class WebhookEndpointsResource extends BaseResource {
   }
 
   /** Create a webhook endpoint */
-  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, body?: PublicApiV1WebhookEndpointsCreateData["body"], config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1WebhookEndpointsCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List all webhook endpoints */
@@ -56,32 +57,32 @@ export class WebhookEndpointsResource extends BaseResource {
   }
 
   /** Retrieve a webhook endpoint */
-  async show(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}", { "company": company, "webhook_endpoint": webhookEndpoint });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1WebhookEndpointsShowResponses[200]>(path, undefined, config);
   }
 
   /** Update a webhook endpoint */
-  async update(company: string, webhookEndpoint: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, webhookEndpoint: string, body?: PublicApiV1WebhookEndpointsUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}", { "company": company, "webhook_endpoint": webhookEndpoint });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1WebhookEndpointsUpdateResponses[200]>("PATCH", path, body, config);
   }
 
   /** Ping webhook endpoint */
-  async ping(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
+  async ping(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsPingResponses[200]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/ping", { "company": company, "webhook_endpoint": webhookEndpoint });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1WebhookEndpointsPingResponses[200]>("POST", path, undefined, config);
   }
 
   /** Rotate webhook secret */
-  async rotateSecret(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<unknown> {
+  async rotateSecret(company: string, webhookEndpoint: string, config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsRotateSecretResponses[200]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/rotate-secret", { "company": company, "webhook_endpoint": webhookEndpoint });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1WebhookEndpointsRotateSecretResponses[200]>("POST", path, undefined, config);
   }
 
   /** Send a test event */
-  async testEvent(company: string, webhookEndpoint: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async testEvent(company: string, webhookEndpoint: string, body?: PublicApiV1WebhookEndpointsTestEventData["body"], config?: RequestConfig): Promise<PublicApiV1WebhookEndpointsTestEventResponses[202]> {
     const path = this.buildPath("/companies/{company}/webhook-endpoints/{webhook_endpoint}/test-event", { "company": company, "webhook_endpoint": webhookEndpoint });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1WebhookEndpointsTestEventResponses[202]>("POST", path, body, config);
   }
 }

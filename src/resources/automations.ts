@@ -7,6 +7,7 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
+import type { PublicApiV1AutomationsCatalogShowResponses, PublicApiV1AutomationsCatalogTriggerFieldsResponses, PublicApiV1AutomationsRulesActivateResponses, PublicApiV1AutomationsRulesCreateData, PublicApiV1AutomationsRulesCreateResponses, PublicApiV1AutomationsRulesDryRunData, PublicApiV1AutomationsRulesDryRunResponses, PublicApiV1AutomationsRulesPauseResponses, PublicApiV1AutomationsRulesShowResponses, PublicApiV1AutomationsRulesUpdateData, PublicApiV1AutomationsRulesUpdateResponses, PublicApiV1AutomationsRulesVersionsShowResponses, PublicApiV1AutomationsRunsReplayResponses, PublicApiV1AutomationsRunsShowResponses, PublicApiV1AutomationsRunsStepsReplayResponses, PublicApiV1AutomationsUsageShowResponses } from "../generated/types.gen.js";
 
 
 export class AutomationsRulesVersionsResource extends BaseResource {
@@ -17,9 +18,9 @@ export class AutomationsRulesVersionsResource extends BaseResource {
   }
 
   /** Retrieve a version of an automation rule */
-  async show(company: string, rule: string, version: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, rule: string, version: string, config?: RequestConfig): Promise<PublicApiV1AutomationsRulesVersionsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/rules/{rule}/versions/{version}", { "company": company, "rule": rule, "version": version });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1AutomationsRulesVersionsShowResponses[200]>(path, undefined, config);
   }
 }
 
@@ -32,15 +33,15 @@ export class AutomationsRulesResource extends BaseResource {
   }
 
   /** Activate an automation rule */
-  async activate(company: string, rule: string, config?: RequestConfig): Promise<unknown> {
+  async activate(company: string, rule: string, config?: RequestConfig): Promise<PublicApiV1AutomationsRulesActivateResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/rules/{rule}/activate", { "company": company, "rule": rule });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1AutomationsRulesActivateResponses[200]>("POST", path, undefined, config);
   }
 
   /** Create an automation rule */
-  async create(company: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async create(company: string, body?: PublicApiV1AutomationsRulesCreateData["body"], config?: RequestConfig): Promise<PublicApiV1AutomationsRulesCreateResponses[201]> {
     const path = this.buildPath("/companies/{company}/automations/rules", { "company": company });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1AutomationsRulesCreateResponses[201]>("POST", path, body, config);
   }
 
   /** List your automation rules */
@@ -56,49 +57,49 @@ export class AutomationsRulesResource extends BaseResource {
   }
 
   /** Retrieve an automation rule */
-  async show(company: string, rule: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, rule: string, config?: RequestConfig): Promise<PublicApiV1AutomationsRulesShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/rules/{rule}", { "company": company, "rule": rule });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1AutomationsRulesShowResponses[200]>(path, undefined, config);
   }
 
   /** Update an automation rule */
-  async update(company: string, rule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async update(company: string, rule: string, body?: PublicApiV1AutomationsRulesUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1AutomationsRulesUpdateResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/rules/{rule}", { "company": company, "rule": rule });
-    return this._send<unknown>("PATCH", path, body, config);
+    return this._send<PublicApiV1AutomationsRulesUpdateResponses[200]>("PATCH", path, body, config);
   }
 
   /** Dry-run an automation rule */
-  async dryRun(company: string, rule: string, body?: unknown, config?: RequestConfig): Promise<unknown> {
+  async dryRun(company: string, rule: string, body?: PublicApiV1AutomationsRulesDryRunData["body"], config?: RequestConfig): Promise<PublicApiV1AutomationsRulesDryRunResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/rules/{rule}/dry-run", { "company": company, "rule": rule });
-    return this._send<unknown>("POST", path, body, config);
+    return this._send<PublicApiV1AutomationsRulesDryRunResponses[200]>("POST", path, body, config);
   }
 
   /** Pause an automation rule */
-  async pause(company: string, rule: string, config?: RequestConfig): Promise<unknown> {
+  async pause(company: string, rule: string, config?: RequestConfig): Promise<PublicApiV1AutomationsRulesPauseResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/rules/{rule}/pause", { "company": company, "rule": rule });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1AutomationsRulesPauseResponses[200]>("POST", path, undefined, config);
   }
 }
 
 export class AutomationsCatalogResource extends BaseResource {
   /** Retrieve the automation catalog */
-  async show(company: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, config?: RequestConfig): Promise<PublicApiV1AutomationsCatalogShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/catalog", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1AutomationsCatalogShowResponses[200]>(path, undefined, config);
   }
 
   /** Retrieve the evaluable fields of a trigger */
-  async triggerFields(company: string, trigger: string, config?: RequestConfig): Promise<unknown> {
+  async triggerFields(company: string, trigger: string, config?: RequestConfig): Promise<PublicApiV1AutomationsCatalogTriggerFieldsResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/catalog/triggers/{trigger}/fields", { "company": company, "trigger": trigger });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1AutomationsCatalogTriggerFieldsResponses[200]>(path, undefined, config);
   }
 }
 
 export class AutomationsUsageResource extends BaseResource {
   /** Retrieve automation usage */
-  async show(company: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, config?: RequestConfig): Promise<PublicApiV1AutomationsUsageShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/usage", { "company": company });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1AutomationsUsageShowResponses[200]>(path, undefined, config);
   }
 }
 
@@ -110,9 +111,9 @@ export class AutomationsRunsStepsResource extends BaseResource {
   }
 
   /** Replay one step of an automation run */
-  async replay(company: string, run: string, stepIndex: string, config?: RequestConfig): Promise<unknown> {
+  async replay(company: string, run: string, stepIndex: string, config?: RequestConfig): Promise<PublicApiV1AutomationsRunsStepsReplayResponses[202]> {
     const path = this.buildPath("/companies/{company}/automations/runs/{run}/steps/{step_index}/replay", { "company": company, "run": run, "step_index": stepIndex });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1AutomationsRunsStepsReplayResponses[202]>("POST", path, undefined, config);
   }
 }
 
@@ -131,15 +132,15 @@ export class AutomationsRunsResource extends BaseResource {
   }
 
   /** Replay the parked steps of an automation run */
-  async replay(company: string, run: string, config?: RequestConfig): Promise<unknown> {
+  async replay(company: string, run: string, config?: RequestConfig): Promise<PublicApiV1AutomationsRunsReplayResponses[202]> {
     const path = this.buildPath("/companies/{company}/automations/runs/{run}/replay", { "company": company, "run": run });
-    return this._send<unknown>("POST", path, undefined, config);
+    return this._send<PublicApiV1AutomationsRunsReplayResponses[202]>("POST", path, undefined, config);
   }
 
   /** Retrieve an automation run */
-  async show(company: string, run: string, config?: RequestConfig): Promise<unknown> {
+  async show(company: string, run: string, config?: RequestConfig): Promise<PublicApiV1AutomationsRunsShowResponses[200]> {
     const path = this.buildPath("/companies/{company}/automations/runs/{run}", { "company": company, "run": run });
-    return this._get<unknown>(path, undefined, config);
+    return this._get<PublicApiV1AutomationsRunsShowResponses[200]>(path, undefined, config);
   }
 }
 

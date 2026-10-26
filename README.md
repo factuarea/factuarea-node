@@ -38,8 +38,7 @@ const { data: contact } = (await factuarea.contacts.create(company, {
 })) as { data: BusinessContact };
 
 // Create an invoice. Single-resource calls (create/show/update) return the API
-// envelope `{ data, ... }`; read `.data` to get the resource. Operation
-// results are typed `unknown` in 0.x, so cast to the shape you expect.
+// envelope `{ data, ... }`, typed from the contract; read `.data` to get the resource.
 const created = (await factuarea.invoices.create(company, {
   // client_id is the invoice field; its value is the canonical contact UUID.
   client_id: contact.id,
@@ -58,9 +57,11 @@ for await (const inv of await factuarea.invoices.list(company, { status: "paid" 
   console.log((inv as { id: string }).id);
 }
 
-// Download a PDF
+// Download a PDF: bytes when it is ready, a JSON status (`202`) while it renders.
 const pdf = await factuarea.invoices.pdf(company, invoice.id);
-await require("node:fs/promises").writeFile("invoice.pdf", pdf.toBuffer());
+if (pdf.kind === "binary") {
+  await require("node:fs/promises").writeFile("invoice.pdf", pdf.toBuffer());
+}
 ```
 
 > **Server‑side only.** Your API key is a secret. Never ship it to a browser or a public client — use this SDK from your backend.
@@ -101,7 +102,7 @@ The SDK pins the [`Factuarea-Version`](https://docs.factuarea.com/guides/version
 
 Use `factuarea.contacts` for customer, supplier and lead identities. A contact can hold multiple roles, so creating a supplier relationship does not require duplicating an existing customer's identity. Sales documents still name their reference `client_id`, and purchases use `supplier_id`; both accept the canonical contact UUID with the corresponding active role.
 
-Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications`, `agenda` and `transportDocuments`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
+Operations follow the [SDK method-naming contract](https://docs.factuarea.com). Other resources include `account`, `companies`, `managedAccounts`, `products`, `invoices`, `quotes`, `proformas`, `deliveryNotes`, `purchaseInvoices`, `purchaseScans`, `purchaseScanEmails`, `recurringInvoices`, `series`, `taxes`, `taxReports`, `verifactu`, `events`, `eventCatalog`, `webhookEndpoints`, `projects`, `tasks`, `taskLabels`, `taskTimers`, `users`, `notifications`, `agenda`, `pdfTemplates`, `pdfCommercialIdentities`, `pdfTemplatePreviews`, `pdfArtifacts`, `faceSubmissions` and `transportDocuments`. Nested groups are available too, such as `factuarea.products.gallery.upload(...)`.
 
 ### Contacts
 
@@ -118,21 +119,21 @@ Operations follow the [SDK method-naming contract](https://docs.factuarea.com). 
 
 ```ts
 // Reuse the same contact when it also becomes a supplier.
-await factuarea.contacts.assignContactRole(contact.id, "supplier");
-await factuarea.contacts.updateSupplierProfile(contact.id, { payment_terms_days: 30 });
+await factuarea.contacts.assignContactRole(company, contact.id, "supplier");
+await factuarea.contacts.updateSupplierProfile(company, contact.id, { payment_terms_days: 30 });
 
 // This only deactivates its customer role; its supplier role remains unchanged.
-await factuarea.contacts.changeContactRoleStatus(contact.id, "customer", { status: "inactive" });
+await factuarea.contacts.changeContactRoleStatus(company, contact.id, "customer", { status: "inactive" });
 
 // delete archives the whole identity and preserves history. The API rejects
 // archiving when blocking documents/contracts exist. Restore is reversible.
-await factuarea.contacts.delete(contact.id);
-await factuarea.contacts.restore(contact.id);
+await factuarea.contacts.delete(company, contact.id);
+await factuarea.contacts.restore(company, contact.id);
 ```
 
 Filter `list` and `search` with `roles`, `tags`, `search` or `is_archived`. Arrays are serialized as `roles[]` / `tags[]` and kept across cursor pages. Use `roles: ["customer"]`, `roles: ["supplier"]`, `roles: ["lead"]` or `roles: ["none"]` for unassigned contacts. The public [Contact migration guide](https://docs.factuarea.com/guides/contact-migration) covers request fields, scopes and historical IDs.
 
-`BusinessContact`, the contact list/import response types and contact request types are exported from `@factuarea/sdk`. The resource wrappers return `unknown` in 0.x, so use the exported types for request validation and response casts.
+`BusinessContact`, the contact list/import response types and contact request types are exported from `@factuarea/sdk`. Request bodies and single-resource results are typed from the contract; list items arrive as `unknown`, so cast them with the exported types.
 
 ### Account model
 
@@ -217,26 +218,26 @@ const form = new FormData();
 form.append("files[]", new Blob([await readFile("invoice.pdf")], {
   type: "application/pdf",
 }), "invoice.pdf");
-const { data: batch } = await factuarea.purchaseScans.create(form, {
+const { data: batch } = await factuarea.purchaseScans.create(company, form, {
   idempotencyKey: "purchase-upload-batch-001",
 }) as { data: PurchaseScanUploadBatch };
 console.log(batch.accepted, batch.rejected);
 
 // Processing is asynchronous. Read the current state before editing.
 const id = batch.accepted[0].id;
-const { data: scan } = await factuarea.purchaseScans.show(id) as { data: PurchaseScan };
+const { data: scan } = await factuarea.purchaseScans.show(company, id) as { data: PurchaseScan };
 console.log(scan.status, scan.available_actions, scan.extraction, scan.issues);
-const original = await factuarea.purchaseScans.source(id);
+const original = await factuarea.purchaseScans.source(company, id);
 await writeFile("original.pdf", original.toBuffer());
 ```
 
 An upload accepts up to 20 PDF/JPEG/PNG originals (20 MiB each, 100 MiB total). A partial rejection still returns `202`; if all files are rejected, `ValidationError.data` retains the batch result. Preserve the same idempotency key and file order when retrying that batch.
 
-Use `purchaseInvoices.expenseCategories()` to discover company category IDs for the review field `expense_category`; category names are not accepted as identifiers.
+Use `purchaseInvoices.expenseCategories(company)` to discover company category IDs for the review field `expense_category`; category names are not accepted as identifiers.
 
-Only edit when `can_save_review` is true. `review(id, { expected_version, fields, lines })` accepts partial field patches (`{ value: "..." }`), explicit `null` to clear, and line operations `update`, `add` (without `line_id`) or `remove`. Omitted values remain unchanged. Use the new returned version for the next mutation; a stale version returns `409`. On conversion failure, `ValidationError.fields` exposes the review fields that need correction.
+Only edit when `can_save_review` is true. `review(company, id, { expected_version, fields, lines })` accepts partial field patches (`{ value: "..." }`), explicit `null` to clear, and line operations `update`, `add` (without `line_id`) or `remove`. Omitted values remain unchanged. Use the new returned version for the next mutation; a stale version returns `409`. On conversion failure, `ValidationError.fields` exposes the review fields that need correction.
 
-`convert(id, { expected_version }, { idempotencyKey })` creates a **draft expense**, including its original attachment; it does not issue an invoice or mark the expense paid. Follow `purchase_invoice_id` to the created expense. EUR and resolved fiscal data are required. `retry` also starts a received document when automatic scanning is disabled. Respect `available_actions`; duplicate override and supplier creation are reserved for an interactive administrator. The public duplicate resolutions are `link_existing` (with `purchase_invoice_id`) and `archive`.
+`convert(company, id, { expected_version }, { idempotencyKey })` creates a **draft expense**, including its original attachment; it does not issue an invoice or mark the expense paid. Follow `purchase_invoice_id` to the created expense. EUR and resolved fiscal data are required. `retry` also starts a received document when automatic scanning is disabled. Respect `available_actions`; duplicate override and supplier creation are reserved for an interactive administrator. The public duplicate resolutions are `link_existing` (with `purchase_invoice_id`) and `archive`.
 
 ## Tasks and projects
 
@@ -247,8 +248,9 @@ import type { Project, Task, TaskTimeEntry } from "@factuarea/sdk";
 
 // Create a project and a task in it. `entity_link` links the task to an invoice,
 // quote, contact… in the same call; `custom_fields` maps a field id to its value.
-const { data: project } = (await factuarea.projects.create({ name: "Website", key: "WEB" })) as { data: Project };
+const { data: project } = (await factuarea.projects.create(company, { name: "Website", key: "WEB" })) as { data: Project };
 const { data: task } = (await factuarea.tasks.create(
+  company,
   {
     project_id: project.id,
     title: "Chase the unpaid invoice",
@@ -260,18 +262,18 @@ const { data: task } = (await factuarea.tasks.create(
 )) as { data: Task };
 
 // Log time on it: a closed period, or a live timer that you stop later.
-await factuarea.tasks.timeEntries.create(task.id, {
+await factuarea.tasks.timeEntries.create(company, task.id, {
   started_at: "2026-10-01T09:00:00+02:00",
   ended_at: "2026-10-01T10:30:00+02:00",
   description: "Called the customer",
   billable: true,
 });
-await factuarea.tasks.timer.start(task.id);
-const { data: entry } = (await factuarea.taskTimers.stop()) as { data: TaskTimeEntry };
+await factuarea.tasks.timer.start(company, task.id);
+const { data: entry } = (await factuarea.taskTimers.stop(company)) as { data: TaskTimeEntry };
 console.log(entry.duration_seconds);
 ```
 
-`tasks.search` filters by `q`, `project_id`, `status`, `column_id`, `priority`, `assignee_id` (a member id or `me`), `label_id`, `due_before`, `due_after`, `completed` and `sort`, and follows the cursor across pages. `taskTimers.current()` resolves to `{ data: null }` when no timer is running. Deleting a board column that still holds tasks needs a destination: `projects.columns.delete(project.id, column.id, { move_to_column_id })`, otherwise the API answers `409 column_has_tasks`. `agenda.list({ from, to, sources: "tasks,invoice_due" })` takes its layers as a comma-separated string.
+`tasks.search` filters by `q`, `project_id`, `status`, `column_id`, `priority`, `assignee_id` (a member id or `me`), `label_id`, `due_before`, `due_after`, `completed` and `sort`, and follows the cursor across pages. `taskTimers.current(company)` resolves to `{ data: null }` when no timer is running. Deleting a board column that still holds tasks needs a destination: `projects.columns.delete(company, project.id, column.id, { move_to_column_id })`, otherwise the API answers `409 column_has_tasks`. `agenda.list(company, { from, to, sources: "tasks,invoice_due" })` takes its layers as a comma-separated string.
 
 ## Transport control documents (DeCA)
 
@@ -306,7 +308,7 @@ const qr = await factuarea.transportDocuments.qr(company, draft.id, { format: "p
 List methods return a `Page`, which is itself an async iterable. Iterate everything, or walk page by page:
 
 ```ts
-const page = await factuarea.contacts.list({ roles: ["customer"], limit: 50 });
+const page = await factuarea.contacts.list(company, { roles: ["customer"], limit: 50 });
 
 // (a) iterate all items across all pages
 for await (const contact of page) {
@@ -399,15 +401,66 @@ Verification uses HMAC‑SHA256 with a constant‑time comparison and a configur
 
 ## Binary downloads
 
-PDF and other binary endpoints return a `BinaryResponse` (not JSON):
+Endpoints that only ever answer with bytes (a ZIP, a Facturae XML) return a `BinaryResponse`:
 
 ```ts
-const pdf = await factuarea.invoices.pdf(company, invoiceId);
-pdf.contentType;     // "application/pdf"
-pdf.toBuffer();      // Node Buffer
-pdf.toBlob();        // Blob (type preserved)
-pdf.body;            // raw ArrayBuffer
+const xml = await factuarea.invoices.facturae(company, invoiceId);
+xml.contentType;     // "application/xml"
+xml.toBuffer();      // Node Buffer
+xml.toBlob();        // Blob (type preserved)
+xml.body;            // raw ArrayBuffer
 ```
+
+Endpoints that can answer with bytes, a JSON status document or no body (`invoices.pdf`, `quotes.pdf`, `proformas.pdf`, `deliveryNotes.pdf`, `pdfArtifacts.download`, `pdfTemplates.assetGet`) return a `BinaryOrJsonResponse`. Narrow on `kind` before touching the result:
+
+```ts
+const pdf = await factuarea.invoices.pdf(company, invoiceId, undefined, { ifNoneMatch: cachedEtag });
+switch (pdf.kind) {
+  case "binary":       // 200: pdf.toBuffer(), pdf.contentType, pdf.etag
+  case "json":         // 202: pdf.data, pdf.retryAfter (seconds), pdf.status
+  case "not_modified": // 304: no bytes, keep your copy
+}
+```
+
+`pdfTemplates.assetGet` answers with JSON metadata by default; ask for the stored bytes with `{ headers: { Accept: "image/png" } }`.
+
+## Document templates
+
+`pdfTemplates` (library, revisions, defaults, per-contact preferences, private images), `pdfCommercialIdentities` (shared brand), `pdfTemplatePreviews` and `pdfArtifacts` (prepare, read and download an exact PDF) are the library. Each sales document (`invoices`, `quotes`, `proformas`, `deliveryNotes`) adds `getPresentation`, `listPresentations`, `assignPresentation` and `revisePresentation`; `series` adds `getPdfTemplate` and `assignPdfTemplate`; `invoices.administrativeRevisions` revises the administrative centres. They live on the company axis like every company resource (`/v1/companies/{company}/pdf-templates`, `/v1/companies/{company}/invoices/{invoice}/presentation`…), so each method takes the company id first. See [`examples/document-templates.ts`](./examples/document-templates.ts).
+
+```ts
+const template = await factuarea.pdfTemplates.create(company, { name: "Clásica", description: null });
+const impact = await factuarea.pdfTemplates.impact(company, template.id, { action: "publish" });
+await factuarea.pdfTemplates.publishRevision(company, template.id, {
+  expected_version: template.version,
+  expected_impact_fingerprint: impact.impact_fingerprint,
+});
+
+// Pin it on one invoice: read the presentation, then write it back with its ETag.
+let etag: string | null = null;
+const state = await factuarea.invoices.getPresentation(company, invoiceId, { onResponse: (meta) => (etag = meta.etag) });
+await factuarea.invoices.assignPresentation(
+  company,
+  invoiceId,
+  { template_id: template.id, expected_version: state.data.selection_version },
+  { ifMatch: etag ?? undefined },
+);
+```
+
+`invoices.duplicate`, `quotes.duplicate`, `proformas.duplicate`, `deliveryNotes.duplicate`, `invoices.issue` and `invoices.faceSubmissions.submit` take an optional body before the request options (the template of the copy, or the version checks of the issue), and `invoices.facturae` takes an optional query (`submission_id`) in the same place.
+
+- **Conditional requests.** Read the `ETag` with `onResponse: (meta) => meta.etag` and send it back verbatim as `ifMatch` on the write (`412` if stale, `428` if missing; the `expected_version` in the body is a separate check that answers `409`). `ifNoneMatch` asks for a `304` on the reads that support it.
+- **Presence of fields.** What you write is what is sent: `null`, `""`, `[]`, `false` and `0` reach the wire as given; only `undefined` is omitted. Required-nullable fields (for example `template_id` in `assignPresentation`) must be present, `null` meaning "inherit" or "clear".
+- **Accepting quotes and proformas.** With revisioned presentation enabled, the first acceptance sends the reviewed preview in `presentation_precondition`; once the document has a retained capture, the acceptance follows it, and `expected_presentation_uuid` (optional) cites the capture you reviewed: if it is no longer the current one the call throws `ConflictError` (`pdf_presentation_conflict` or `pdf_presentation_context_changed`) and nothing is written.
+  ```ts
+  await factuarea.quotes.accept(company, quoteId, { notes: "Accepted by phone", expected_presentation_uuid: reviewedPresentationId });
+  ```
+- **PDF failures.** A render that failed and can be retried is claimed again and comes back as another `202` (`kind: "json"`), so keep waiting `retryAfter`. A terminal failure throws `ServerError` with its `code`, such as `pdf_original_unavailable`, `pdf_original_corrupt`, `pdf_original_layout_unavailable` or `pdf_engine_profile_unavailable`.
+- **Amounts** are strings (`"100.00"`); a number is a compile error.
+- **Pagination.** The document-template lists use `page` / `per_page` and return the response as is; cursor pagination (`Page`) applies to the lists that declare a cursor.
+- **No retries where a third party is reached.** `invoices.faceSubmissions.submit` and `faceSubmissions.cancel` are never retried, whatever `maxRetries` says; after a connection failure read the attempts instead of repeating.
+- **Errors** keep `error.errors[]` (every failed field) in `.errors` and `error.details` in `.details`, besides `.code`, `.status`, `.requestId`, `.headers` and `.retryAfter`.
+- **Cancelling.** Pass `signal` (an `AbortSignal`) in the request options: no further attempt is made and a `ConnectionError` is thrown. An abort after the server accepted a write does not undo it.
 
 ## Examples
 
@@ -418,6 +471,7 @@ Runnable examples live in [`examples/`](./examples):
 - [`create-task.ts`](./examples/create-task.ts) — create a project if it is missing and add a task to it
 - [`list-invoices.ts`](./examples/list-invoices.ts)
 - [`download-pdf.ts`](./examples/download-pdf.ts)
+- [`document-templates.ts`](./examples/document-templates.ts) — template library, presentation with `ifMatch`, PDF `202`/`304`, FACe without retries
 - [`verify-webhook.ts`](./examples/verify-webhook.ts)
 
 ## Supported runtimes & deprecation policy
@@ -456,7 +510,7 @@ for the date of the latest run.
 
 ## Contributing & spec
 
-The typed surface in [`src/generated/`](./src/generated) is generated from the OpenAPI spec; the hand‑written runtime lives in [`src/core/`](./src/core). The pinned spec is committed at [`spec/openapi.json`](./spec/openapi.json) (frozen against the private spec at commit `e822661bc`). Do not edit `src/generated/` by hand — run `npm run generate`.
+The typed surface in [`src/generated/`](./src/generated) is generated from the OpenAPI spec; the hand‑written runtime lives in [`src/core/`](./src/core). The pinned spec is committed at [`spec/openapi.json`](./spec/openapi.json), copied byte for byte from the private export (provenance and SHA256 in [`docs/SPEC_SYNC.md`](./docs/SPEC_SYNC.md#pinned-spec)). Do not edit `src/generated/` or `src/resources/` by hand: copy the spec and run `npm run generate` (types with `openapi-ts`, then the wrappers with `scripts/build-resources.mjs`); fix the generator when a wrapper comes out wrong.
 
 ## License
 

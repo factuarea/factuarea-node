@@ -2,7 +2,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { BASE_URL, COMPANY, COMPANY_URL, server, testClient, useMockServer } from "./helpers.js";
 import { computeDelayMs, DEFAULT_RETRY_OPTIONS, isRetryableStatus } from "../src/core/retry.js";
-import { RateLimitError, ValidationError } from "../src/index.js";
+import { ConflictError, ConnectionError, RateLimitError, ServerError, ValidationError } from "../src/index.js";
 
 useMockServer();
 
@@ -76,7 +76,7 @@ describe("retry behaviour (integration via MSW)", () => {
       }),
     );
 
-    await expect(testClient({ maxRetries: 3 }).contacts.create(COMPANY, {})).rejects.toBeInstanceOf(ValidationError);
+    await expect(testClient({ maxRetries: 3 }).contacts.create(COMPANY, {} as never)).rejects.toBeInstanceOf(ValidationError);
     expect(calls).toBe(1);
   });
 
@@ -93,5 +93,91 @@ describe("retry behaviour (integration via MSW)", () => {
     const error = await testClient({ maxRetries: 0 }).account.show().catch((e) => e);
     expect(error).toBeInstanceOf(RateLimitError);
     expect((error as RateLimitError).retryAfter).toBe(7);
+  });
+});
+
+describe("operations that reach a third party", () => {
+  it("does not retry a FACe submission on 502 even with retries enabled", async () => {
+    let calls = 0;
+    server.use(
+      http.post(`${COMPANY_URL}/invoices/inv-1/face-submissions`, () => {
+        calls += 1;
+        return HttpResponse.json({ error: { type: "api_error", code: "face_unavailable" } }, { status: 502 });
+      }),
+    );
+    await expect(testClient({ maxRetries: 3 }).invoices.faceSubmissions.submit(COMPANY, "inv-1")).rejects.toBeInstanceOf(ServerError);
+    expect(calls).toBe(1);
+  });
+
+  it("does not retry a FACe submission after a connection failure", async () => {
+    let calls = 0;
+    server.use(
+      http.post(`${COMPANY_URL}/invoices/inv-1/face-submissions`, () => {
+        calls += 1;
+        return HttpResponse.error();
+      }),
+    );
+    await expect(testClient({ maxRetries: 3 }).invoices.faceSubmissions.submit(COMPANY, "inv-1")).rejects.toBeInstanceOf(ConnectionError);
+    expect(calls).toBe(1);
+  });
+
+  it("does not retry the cancellation of a FACe submission", async () => {
+    let calls = 0;
+    server.use(
+      http.post(`${COMPANY_URL}/face-submissions/sub-1/cancel`, () => {
+        calls += 1;
+        return HttpResponse.json({ error: { type: "api_error", code: "face_unavailable" } }, { status: 503 });
+      }),
+    );
+    await expect(testClient({ maxRetries: 3 }).faceSubmissions.cancel(COMPANY, "sub-1")).rejects.toBeInstanceOf(ServerError);
+    expect(calls).toBe(1);
+  });
+
+  it("still retries a read on 502 (the opt-out is per operation)", async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${COMPANY_URL}/face-submissions/sub-1`, () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ error: { type: "api_error" } }, { status: 502, headers: { "Retry-After": "0" } })
+          : HttpResponse.json({ data: { id: "sub-1" } });
+      }),
+    );
+    await testClient({ maxRetries: 1 }).faceSubmissions.show(COMPANY, "sub-1");
+    expect(calls).toBe(2);
+  });
+
+  it("does not retry an uncertain 409", async () => {
+    let calls = 0;
+    server.use(
+      http.post(`${COMPANY_URL}/invoices/inv-1/send`, () => {
+        calls += 1;
+        return HttpResponse.json({ error: { type: "conflict_error", code: "send_outcome_uncertain" } }, { status: 409 });
+      }),
+    );
+    await expect(testClient({ maxRetries: 3 }).invoices.send(COMPANY, "inv-1", {})).rejects.toBeInstanceOf(ConflictError);
+    expect(calls).toBe(1);
+  });
+});
+
+describe("Retry-After", () => {
+  it("is honoured for 429 and 503 but capped at four times the maximum backoff", () => {
+    expect(computeDelayMs(0, DEFAULT_RETRY_OPTIONS, 2)).toBe(2000);
+    expect(computeDelayMs(0, DEFAULT_RETRY_OPTIONS, 60)).toBe(DEFAULT_RETRY_OPTIONS.maxDelayMs * 4);
+    expect(isRetryableStatus(503)).toBe(true);
+  });
+
+  it("retries a 503 once after its Retry-After and replays the same Idempotency-Key", async () => {
+    const keys: Array<string | null> = [];
+    server.use(
+      http.post(`${COMPANY_URL}/invoices/inv-1/send`, ({ request }) => {
+        keys.push(request.headers.get("idempotency-key"));
+        return keys.length === 1
+          ? HttpResponse.json({ error: { type: "service_unavailable_error" } }, { status: 503, headers: { "Retry-After": "0" } })
+          : HttpResponse.json({ data: {} });
+      }),
+    );
+    await testClient({ maxRetries: 1 }).invoices.send(COMPANY, "inv-1", {}, { idempotencyKey: "mail-1" });
+    expect(keys).toEqual(["mail-1", "mail-1"]);
   });
 });

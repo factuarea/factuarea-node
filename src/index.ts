@@ -10,9 +10,14 @@ export { Factuarea } from "./client.js";
 export type { FactuareaConfig } from "./core/http-client.js";
 export type {
   ApiResponse,
+  BinaryOrJsonResponse,
+  BinaryOutputResponse,
   BinaryResponse,
   HttpMethod,
+  JsonOutputResponse,
+  NotModifiedResponse,
   RequestOptions,
+  ResponseMeta,
 } from "./core/http-client.js";
 
 export type { RequestConfig } from "./core/resource.js";
@@ -36,7 +41,7 @@ export {
   ConnectionError,
   WebhookSignatureError,
 } from "./core/errors.js";
-export type { FactuareaErrorType, ErrorEnvelope } from "./core/errors.js";
+export type { FactuareaErrorType, ErrorEnvelope, FieldError } from "./core/errors.js";
 
 // Webhooks
 export { verifyWebhook, Webhooks, SIGNATURE_HEADER, DEFAULT_TOLERANCE_SECONDS } from "./core/webhooks.js";
@@ -184,6 +189,38 @@ export type {
   VeriFactuConfig,
   VeriFactuRecord,
   VeriFactuStats,
+} from "./generated/types.gen.js";
+
+// Document templates and presentation: library, per-document presentation,
+// PDF artifacts and administrative revisions.
+export type {
+  AssignDocumentPresentationRequest,
+  DocumentPdfOutputState,
+  DocumentPresentationHistoryEnvelope,
+  DocumentPresentationRevisionEnvelope,
+  DocumentPresentationState,
+  DocumentPresentationStateEnvelope,
+  FaceSubmission,
+  InvoiceAdministrativeHistory,
+  InvoiceAdministrativeRevision,
+  PdfArtifact,
+  PdfCommercialIdentity,
+  PdfCommercialIdentityList,
+  PdfCommercialIdentityRevision,
+  PdfLibraryImpact,
+  PdfPreviewExampleSource,
+  PdfPreviewForm,
+  PdfPreviewPersistedDraftSource,
+  PdfPreviewPresentationRevisionSource,
+  PdfPreviewUnsavedFormSource,
+  PdfTemplateAsset,
+  PdfTemplateConfiguration,
+  PdfTemplateConfigurationChanges,
+  PdfTemplateContactPreference,
+  PdfTemplateDefaults,
+  PdfTemplateRevision,
+  ReviseDocumentPresentationRequest,
+  ReviseInvoiceAdministrativeRoutingRequest,
 } from "./generated/types.gen.js";
 
 // Transport control documents (DeCA): the resource, its parts, its evidence and

@@ -10,9 +10,14 @@ import type {
   DeliveryNotesResource,
   EventCatalogResource,
   EventsResource,
+  FaceSubmissionsResource,
   InvoicesResource,
   ManagedAccountsResource,
   NotificationsResource,
+  PdfArtifactsResource,
+  PdfCommercialIdentitiesResource,
+  PdfTemplatePreviewsResource,
+  PdfTemplatesResource,
   ProductsResource,
   ProformasResource,
   ProjectsResource,
@@ -60,11 +65,21 @@ export class Factuarea {
   readonly deliveryNotes: DeliveryNotesResource;
   readonly eventCatalog: EventCatalogResource;
   readonly events: EventsResource;
+  /** FACe attempts: read one and ask for its cancellation (never retried automatically). */
+  readonly faceSubmissions: FaceSubmissionsResource;
   readonly invoices: InvoicesResource;
   /** Accounts the caller provisions and manages, with their bulk import. */
   readonly managedAccounts: ManagedAccountsResource;
   /** Notifications of the API key owner. */
   readonly notifications: NotificationsResource;
+  /** Prepare, read and download exact presentation PDFs. */
+  readonly pdfArtifacts: PdfArtifactsResource;
+  /** Commercial identities (shared brand) of the PDF library: revisions, impact, archive and restore. */
+  readonly pdfCommercialIdentities: PdfCommercialIdentitiesResource;
+  /** Previews of PDF templates and identities, from an example, a draft or an unsaved form. */
+  readonly pdfTemplatePreviews: PdfTemplatePreviewsResource;
+  /** PDF template library: revisions, defaults, per-contact preferences and private images. */
+  readonly pdfTemplates: PdfTemplatesResource;
   readonly products: ProductsResource;
   readonly proformas: ProformasResource;
   /** Projects with their board columns, custom fields, time summary and time invoices. */
@@ -109,9 +124,14 @@ export class Factuarea {
     this.deliveryNotes = resources.deliveryNotes;
     this.eventCatalog = resources.eventCatalog;
     this.events = resources.events;
+    this.faceSubmissions = resources.faceSubmissions;
     this.invoices = resources.invoices;
     this.managedAccounts = resources.managedAccounts;
     this.notifications = resources.notifications;
+    this.pdfArtifacts = resources.pdfArtifacts;
+    this.pdfCommercialIdentities = resources.pdfCommercialIdentities;
+    this.pdfTemplatePreviews = resources.pdfTemplatePreviews;
+    this.pdfTemplates = resources.pdfTemplates;
     this.products = resources.products;
     this.proformas = resources.proformas;
     this.projects = resources.projects;
