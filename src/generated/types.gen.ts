@@ -4914,6 +4914,10 @@ export type ConnectedAccount = {
      * First month recorded as a fee expense, as `YYYY-MM`, or `null` until it is configured.
      */
     fee_expenses_since: string | null;
+    /**
+     * Whether each invoice auto-created from this account is emailed to the address that comes with the Stripe charge (the person who paid). A charge without an email sends nothing. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    email_invoice_to_payer: boolean;
 };
 
 /**
@@ -5483,28 +5487,28 @@ export type CreateCorrectiveInvoiceRequest = {
         id?: string;
         uuid?: string;
         business_references?: {
-            issuer_contract_reference: string | null;
-            issuer_transaction_reference: string | null;
-            receiver_contract_reference: string | null;
-            receiver_transaction_reference: string | null;
-            file_reference: string | null;
-            issuer_contract_date: string | null;
-            issuer_transaction_date: string | null;
-            receiver_contract_date: string | null;
-            receiver_transaction_date: string | null;
-            file_date: string | null;
+            issuer_contract_reference?: string | null;
+            issuer_transaction_reference?: string | null;
+            receiver_contract_reference?: string | null;
+            receiver_transaction_reference?: string | null;
+            file_reference?: string | null;
+            issuer_contract_date?: string | null;
+            issuer_transaction_date?: string | null;
+            receiver_contract_date?: string | null;
+            receiver_transaction_date?: string | null;
+            file_date?: string | null;
         };
         delivery_notes_references?: Array<{
             number: string;
-            date: string | null;
+            date?: string | null;
         }> | null;
         sequence_number?: number | null;
         source_line_uuid?: string;
         source_line_id?: string;
-        description?: string;
+        description: string;
         additional_description?: string | null;
-        quantity?: number;
-        unit_price?: number;
+        quantity: number;
+        unit_price: number;
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
@@ -5739,20 +5743,20 @@ export type CreateInvoiceRequest = {
         id?: string;
         uuid?: string;
         business_references?: {
-            issuer_contract_reference: string | null;
-            issuer_transaction_reference: string | null;
-            receiver_contract_reference: string | null;
-            receiver_transaction_reference: string | null;
-            file_reference: string | null;
-            issuer_contract_date: string | null;
-            issuer_transaction_date: string | null;
-            receiver_contract_date: string | null;
-            receiver_transaction_date: string | null;
-            file_date: string | null;
+            issuer_contract_reference?: string | null;
+            issuer_transaction_reference?: string | null;
+            receiver_contract_reference?: string | null;
+            receiver_transaction_reference?: string | null;
+            file_reference?: string | null;
+            issuer_contract_date?: string | null;
+            issuer_transaction_date?: string | null;
+            receiver_contract_date?: string | null;
+            receiver_transaction_date?: string | null;
+            file_date?: string | null;
         };
         delivery_notes_references?: Array<{
             number: string;
-            date: string | null;
+            date?: string | null;
         }> | null;
         sequence_number?: number | null;
         source_line_uuid?: string;
@@ -6366,7 +6370,7 @@ export type CreatePurchaseInvoiceRequest = {
         source_line_index?: number | null;
         configuration_uuid?: string | null;
         purchase_measurement?: {
-            package_quantity: string | null;
+            package_quantity?: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
         counted_quantity?: number | null;
@@ -6853,7 +6857,7 @@ export type CreateTransportDocumentRequest = {
             gross_weight_kg?: number | null;
         }> | null;
         declared_measure?: {
-            type?: string;
+            type: string;
             weight_kg?: number | null;
             value?: number | null;
             unit?: string | null;
@@ -14037,7 +14041,7 @@ export type ModifyTransportDocumentRequest = {
             gross_weight_kg?: number | null;
         }> | null;
         declared_measure?: {
-            type?: string;
+            type: string;
             weight_kg?: number | null;
             value?: number | null;
             unit?: string | null;
@@ -15980,10 +15984,10 @@ export type PreviewBusinessContactImportV1Request = {
 export type PreviewCatalogConfigurationImpactRequest = {
     catalog_availability_mode?: 'open' | 'closed';
     configurations: Array<{
-        variant_id: string | null;
-        presentation_id: string | null;
-        option_value_ids: Array<string> | null;
-        restricts_availability: boolean;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        option_value_ids?: Array<string> | null;
+        restricts_availability?: boolean;
     }>;
     presentation_ids?: Array<string>;
     variant_ids?: Array<string>;
@@ -19384,12 +19388,12 @@ export type ResolveManyCatalogPricesRequest = {
     price_list_id?: string | null;
     targets: Array<{
         product_id: string;
-        variant_id: string | null;
-        presentation_id: string | null;
-        current_unit_price: number | null;
-        configuration_id: string | null;
-        selection_signature: string | null;
-        option_value_ids: Array<string> | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        current_unit_price?: number | null;
+        configuration_id?: string | null;
+        selection_signature?: string | null;
+        option_value_ids?: Array<string> | null;
     }>;
 };
 
@@ -23852,7 +23856,7 @@ export type UpdateCompanyV1Request = {
 /**
  * UpdateConnectedAccountRequest
  *
- * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it) and the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`. Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
+ * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it), the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`, and `email_invoice_to_payer` (emails each auto-created invoice to the address that comes with the charge). Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
  */
 export type UpdateConnectedAccountRequest = {
     name?: string;
@@ -23862,6 +23866,10 @@ export type UpdateConnectedAccountRequest = {
     require_nif?: boolean;
     refunds_enabled?: boolean;
     subscription_autoinvoicing_enabled?: boolean;
+    /**
+     * Emails each invoice auto-created from this account to the address that comes with the Stripe charge (the person who paid). A charge without an email sends nothing. Defaults to `false`.
+     */
+    email_invoice_to_payer?: boolean;
     default_line_concept?: string | null;
     invoice_note?: string | null;
     /**
@@ -23920,8 +23928,8 @@ export type UpdateDeliveryNotePublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -23974,7 +23982,7 @@ export type UpdateDeliveryNoteRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24085,8 +24093,8 @@ export type UpdateInvoicePublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -24104,27 +24112,27 @@ export type UpdateInvoiceRequest = {
         id?: string;
         uuid?: string;
         business_references?: {
-            issuer_contract_reference: string | null;
-            issuer_transaction_reference: string | null;
-            receiver_contract_reference: string | null;
-            receiver_transaction_reference: string | null;
-            file_reference: string | null;
-            issuer_contract_date: string | null;
-            issuer_transaction_date: string | null;
-            receiver_contract_date: string | null;
-            receiver_transaction_date: string | null;
-            file_date: string | null;
+            issuer_contract_reference?: string | null;
+            issuer_transaction_reference?: string | null;
+            receiver_contract_reference?: string | null;
+            receiver_transaction_reference?: string | null;
+            file_reference?: string | null;
+            issuer_contract_date?: string | null;
+            issuer_transaction_date?: string | null;
+            receiver_contract_date?: string | null;
+            receiver_transaction_date?: string | null;
+            file_date?: string | null;
         };
         delivery_notes_references?: Array<{
             number: string;
-            date: string | null;
+            date?: string | null;
         }> | null;
         sequence_number?: number | null;
         source_line_uuid?: string;
         source_line_id?: string;
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24431,8 +24439,8 @@ export type UpdateProformaPublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -24476,7 +24484,7 @@ export type UpdateProformaRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24621,7 +24629,7 @@ export type UpdatePurchaseInvoiceRequest = {
         description?: string | null;
         discount_percent?: number | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24635,7 +24643,7 @@ export type UpdatePurchaseInvoiceRequest = {
         /**
          * Per-line VAT rate (0–100). REQUIRED whenever `lines` is sent: sending `lines` replaces the whole set of lines, so omitting it would wipe the VAT the invoice already had. A purchase with no VAT is declared explicitly as `tax_rate: 0`.
          */
-        tax_rate?: number;
+        tax_rate: number;
         /**
          * Per-line IRPF retention and deductible VAT. Same shape rules as create.
          */
@@ -24654,7 +24662,7 @@ export type UpdatePurchaseInvoiceRequest = {
         source_line_index?: number | null;
         configuration_uuid?: string | null;
         purchase_measurement?: {
-            package_quantity: string | null;
+            package_quantity?: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
         counted_quantity?: number | null;
@@ -24683,8 +24691,8 @@ export type UpdateQuotePublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -24720,7 +24728,7 @@ export type UpdateQuoteRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24832,7 +24840,7 @@ export type UpdateRecurringInvoiceRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -25224,7 +25232,7 @@ export type UpdateTransportDocumentRequest = {
             gross_weight_kg?: number | null;
         }> | null;
         declared_measure?: {
-            type?: string;
+            type: string;
             weight_kg?: number | null;
             value?: number | null;
             unit?: string | null;
