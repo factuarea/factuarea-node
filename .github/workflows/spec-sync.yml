@@ -9,9 +9,10 @@ name: Spec Sync
 #   • repository_dispatch (event_type: spec-updated) — pushed by the `factuarea`
 #     CI when the public spec is republished. The emitter is the `SDK Spec
 #     Dispatch` workflow in that repo (wired 2026-08-06); see docs/SPEC_SYNC.md.
-#     This trigger stays ACTIVE here, but the emitter's own tag trigger is
-#     PAUSED (see the note below), so a dispatch now only arrives when someone
-#     runs that workflow by hand.
+#     This trigger stays ACTIVE here. The emitter's tag trigger, paused from
+#     2026-09-21, was restored on 2026-10-17 (factuarea commit 3fcc433ed1), so
+#     a dispatch arrives on every `v*` release tag of that repo, and whenever
+#     someone runs the emitter by hand.
 #   • workflow_dispatch — manual trigger.
 #   • schedule (daily) — fallback if the dispatch never arrives. PAUSED on
 #     2026-09-22; the note below states the checkable condition to restore it.
@@ -39,9 +40,9 @@ name: Spec Sync
 # x-codeSamples, serialize without whitespace (scripts/spec-sync.mjs `canonicalize`) and compare the two
 # sha256 digests; equal ⇒ restore the block verbatim, different ⇒ it stays paused.
 # The same pause, with this same condition word for word, is in force in factuarea-node (this
-# file) and in factuarea-php; the emitter in the private `factuarea` repo
-# (.github/workflows/sdk-spec-dispatch.yml) is paused too. All three are
-# restored together, and only against this condition.
+# file) and in factuarea-php; both are restored together, and only against this condition.
+# The emitter in the private `factuarea` repo (.github/workflows/sdk-spec-dispatch.yml) was
+# paused with them and is no longer paused: see the three places listed below.
 #
 # Anyone can check that with no context, because this repo ships the procedure:
 #
@@ -53,20 +54,24 @@ name: Spec Sync
 # json.dumps(sort_keys=True) does — is not comparable, and reads as drift on a
 # document that is in fact identical.
 #
-# The pause is in force in THREE places, because pausing only the two receivers
-# would not have been enough:
-#   • factuarea-node — this file: `schedule`.
+# The pause was put in force in THREE places, because pausing only the two
+# receivers would not have been enough:
+#   • factuarea-node — this file: `schedule`. Still paused.
 #   • factuarea-php — .github/workflows/spec-sync.yml: the same `schedule`,
-#     carrying this same condition word for word.
+#     carrying this same condition word for word. Still paused.
 #   • factuarea (the private backend repo) — .github/workflows/sdk-spec-dispatch.yml:
 #     its `push: tags: v*` trigger. That emitter dispatches `spec-updated` to
 #     factuarea-node AND factuarea-php on every release tag, and a release
-#     unrelated to this work would be enough for both receivers to download the
-#     PRODUCTION document with their own `schedule` already off.
+#     unrelated to this work would have been enough for both receivers to
+#     download the PRODUCTION document with their own `schedule` already off.
+#     RESTORED on 2026-10-17 (factuarea commit 3fcc433ed1), against its own
+#     condition: production serves the company axis since v1.17.0, so a
+#     dispatch can only re-pin the axis, never undo it.
 # `repository_dispatch` here stays ACTIVE on purpose: with `schedule` paused it
 # is the only unattended trigger left, and test/spec-sync.test.ts ("keeps at
-# least one unattended trigger active") fails if it goes too. With the emitter
-# paused, it can now only be fired by hand.
+# least one unattended trigger active") fails if it goes too. It fires on every
+# release tag of the `factuarea` repo; a spec published after that tag's run
+# waits for the next tag or a manual run.
 #
 # Condition met ⇒ put the block back under `on:`, exactly as it was:
 #
