@@ -2,6 +2,8 @@
 
 ## 0.13.0
 
+> The new resources of this release (`packs`, `promotions`, `additionalNifSeats`) are not properties of the client until `0.14.0`.
+
 ### Minor Changes
 
 - [#35](https://github.com/factuarea/factuarea-node/pull/35) [`3c9c6bd`](https://github.com/factuarea/factuarea-node/commit/3c9c6bd1e59c43ce24a5f9f42631b4f15ab1ff9d) Thanks [@Chelu97](https://github.com/Chelu97)! - Packs, promotions, products on the web and account seats. The pinned contract grows from 714 to 736 operations (+22, none removed); it is the same document the PHP SDK pins since `0.9.0`.
