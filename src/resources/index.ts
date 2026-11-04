@@ -7,6 +7,7 @@ import { AbsencePoliciesResource } from "./absencePolicies.js";
 import { AbsenceRequestsResource } from "./absenceRequests.js";
 import { AbsenceTypesResource } from "./absenceTypes.js";
 import { AccountResource } from "./account.js";
+import { AdditionalNifSeatsResource } from "./additionalNifSeats.js";
 import { AgendaResource } from "./agenda.js";
 import { AutomationsResource } from "./automations.js";
 import { CompaniesResource } from "./companies.js";
@@ -30,6 +31,7 @@ import { InvoicesResource } from "./invoices.js";
 import { ManagedAccountsResource } from "./managedAccounts.js";
 import { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 import { NotificationsResource } from "./notifications.js";
+import { PacksResource } from "./packs.js";
 import { PaymentMethodsResource } from "./paymentMethods.js";
 import { PayoutsResource } from "./payouts.js";
 import { PayrollExportFormatsResource } from "./payrollExportFormats.js";
@@ -42,6 +44,7 @@ import { PriceListsResource } from "./priceLists.js";
 import { ProductsResource } from "./products.js";
 import { ProformasResource } from "./proformas.js";
 import { ProjectsResource } from "./projects.js";
+import { PromotionsResource } from "./promotions.js";
 import { PurchaseInvoicesResource } from "./purchaseInvoices.js";
 import { PurchaseScanEmailsResource } from "./purchaseScanEmails.js";
 import { PurchaseScansResource } from "./purchaseScans.js";
@@ -74,6 +77,7 @@ export { AbsencePoliciesResource } from "./absencePolicies.js";
 export { AbsenceRequestsResource } from "./absenceRequests.js";
 export { AbsenceTypesResource } from "./absenceTypes.js";
 export { AccountResource } from "./account.js";
+export { AdditionalNifSeatsResource } from "./additionalNifSeats.js";
 export { AgendaResource } from "./agenda.js";
 export { AutomationsResource } from "./automations.js";
 export { CompaniesResource } from "./companies.js";
@@ -97,6 +101,7 @@ export { InvoicesResource } from "./invoices.js";
 export { ManagedAccountsResource } from "./managedAccounts.js";
 export { MonthlyTimeRecordClosesResource } from "./monthlyTimeRecordCloses.js";
 export { NotificationsResource } from "./notifications.js";
+export { PacksResource } from "./packs.js";
 export { PaymentMethodsResource } from "./paymentMethods.js";
 export { PayoutsResource } from "./payouts.js";
 export { PayrollExportFormatsResource } from "./payrollExportFormats.js";
@@ -109,6 +114,7 @@ export { PriceListsResource } from "./priceLists.js";
 export { ProductsResource } from "./products.js";
 export { ProformasResource } from "./proformas.js";
 export { ProjectsResource } from "./projects.js";
+export { PromotionsResource } from "./promotions.js";
 export { PurchaseInvoicesResource } from "./purchaseInvoices.js";
 export { PurchaseScanEmailsResource } from "./purchaseScanEmails.js";
 export { PurchaseScansResource } from "./purchaseScans.js";
@@ -142,6 +148,7 @@ export interface ResourceNamespaces {
   absenceRequests: AbsenceRequestsResource;
   absenceTypes: AbsenceTypesResource;
   account: AccountResource;
+  additionalNifSeats: AdditionalNifSeatsResource;
   agenda: AgendaResource;
   automations: AutomationsResource;
   companies: CompaniesResource;
@@ -165,6 +172,7 @@ export interface ResourceNamespaces {
   managedAccounts: ManagedAccountsResource;
   monthlyTimeRecordCloses: MonthlyTimeRecordClosesResource;
   notifications: NotificationsResource;
+  packs: PacksResource;
   paymentMethods: PaymentMethodsResource;
   payouts: PayoutsResource;
   payrollExportFormats: PayrollExportFormatsResource;
@@ -177,6 +185,7 @@ export interface ResourceNamespaces {
   products: ProductsResource;
   proformas: ProformasResource;
   projects: ProjectsResource;
+  promotions: PromotionsResource;
   purchaseInvoices: PurchaseInvoicesResource;
   purchaseScanEmails: PurchaseScanEmailsResource;
   purchaseScans: PurchaseScansResource;
@@ -212,6 +221,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     absenceRequests: new AbsenceRequestsResource(client),
     absenceTypes: new AbsenceTypesResource(client),
     account: new AccountResource(client),
+    additionalNifSeats: new AdditionalNifSeatsResource(client),
     agenda: new AgendaResource(client),
     automations: new AutomationsResource(client),
     companies: new CompaniesResource(client),
@@ -235,6 +245,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     managedAccounts: new ManagedAccountsResource(client),
     monthlyTimeRecordCloses: new MonthlyTimeRecordClosesResource(client),
     notifications: new NotificationsResource(client),
+    packs: new PacksResource(client),
     paymentMethods: new PaymentMethodsResource(client),
     payouts: new PayoutsResource(client),
     payrollExportFormats: new PayrollExportFormatsResource(client),
@@ -247,6 +258,7 @@ export function createResources(client: HttpClient): ResourceNamespaces {
     products: new ProductsResource(client),
     proformas: new ProformasResource(client),
     projects: new ProjectsResource(client),
+    promotions: new PromotionsResource(client),
     purchaseInvoices: new PurchaseInvoicesResource(client),
     purchaseScanEmails: new PurchaseScanEmailsResource(client),
     purchaseScans: new PurchaseScansResource(client),

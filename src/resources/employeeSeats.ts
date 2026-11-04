@@ -7,14 +7,14 @@
 import { BaseResource, type RequestConfig } from "../core/resource.js";
 import type { HttpClient, BinaryResponse } from "../core/http-client.js";
 import type { Page } from "../core/pagination.js";
-import type { PublicApiV1EmployeeSeatsCancelResponses, PublicApiV1EmployeeSeatsChangeQuantityResponses, PublicApiV1EmployeeSeatsPreviewResponses, PublicApiV1EmployeeSeatsStatusResponses, PublicApiV1EmployeeSeatsSubscribeResponses } from "../generated/types.gen.js";
+import type { PublicApiV1EmployeeSeatsCancelData, PublicApiV1EmployeeSeatsCancelResponses, PublicApiV1EmployeeSeatsChangeQuantityResponses, PublicApiV1EmployeeSeatsPreviewResponses, PublicApiV1EmployeeSeatsStatusResponses, PublicApiV1EmployeeSeatsSubscribeResponses, PublicApiV1EmployeeSeatsUpdateData, PublicApiV1EmployeeSeatsUpdateResponses } from "../generated/types.gen.js";
 
 
 export class EmployeeSeatsResource extends BaseResource {
   /** Cancel the employee seat add-on */
-  async cancel(account: string, config?: RequestConfig): Promise<PublicApiV1EmployeeSeatsCancelResponses[200]> {
+  async cancel(account: string, body?: PublicApiV1EmployeeSeatsCancelData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeSeatsCancelResponses[200]> {
     const path = this.buildPath("/accounts/{account}/employee-seats/cancel", { "account": account });
-    return this._send<PublicApiV1EmployeeSeatsCancelResponses[200]>("POST", path, undefined, config);
+    return this._send<PublicApiV1EmployeeSeatsCancelResponses[200]>("POST", path, body, config);
   }
 
   /** Sync the employee seat quantity */
@@ -27,6 +27,12 @@ export class EmployeeSeatsResource extends BaseResource {
   async status(account: string, config?: RequestConfig): Promise<PublicApiV1EmployeeSeatsStatusResponses[200]> {
     const path = this.buildPath("/accounts/{account}/employee-seats", { "account": account });
     return this._get<PublicApiV1EmployeeSeatsStatusResponses[200]>(path, undefined, config);
+  }
+
+  /** Set the contracted employee seats */
+  async update(account: string, body?: PublicApiV1EmployeeSeatsUpdateData["body"], config?: RequestConfig): Promise<PublicApiV1EmployeeSeatsUpdateResponses[200]> {
+    const path = this.buildPath("/accounts/{account}/employee-seats", { "account": account });
+    return this._send<PublicApiV1EmployeeSeatsUpdateResponses[200]>("PATCH", path, body, config, { idempotent: true });
   }
 
   /** Preview the employee seat charge */
