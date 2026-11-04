@@ -515,7 +515,7 @@ export type AccountBilling = {
          */
         total_per_seat: string | null;
         /**
-         * Projected recurring total (`total_per_seat` × `quantity`), in euros as a 2-decimal string. Null when VAT is not resolved.
+         * Projected recurring total of the seat line: `unit_amount` × `quantity` plus the VAT on that amount, as Stripe charges it (not `total_per_seat` × `quantity`, which rounds VAT per seat). In euros as a 2-decimal string. Null when VAT is not resolved.
          */
         recurring_total: string | null;
         /**
@@ -623,7 +623,7 @@ export type AccountEventEnvelope = {
  *
  * Type of an account-level event (the `account.*` catalog). Only account webhook endpoints can subscribe to them: they are not part of the company event catalog (`GET /v1/event-catalog`). Members: `account.member_added`, `account.member_removed`, `account.member_role_changed`, `account.owner_transferred` and `account.member_grant_changed`. Relations between accounts: `account.access_granted`, `account.access_revoked` and `account.access_level_changed`. Managed accounts: `account.managed_account_provisioned`, `account.managed_account_claimed` and `account.management_ended`. Tax IDs of the account: `account.nif_added`, `account.nif_transferred` and `account.nif_archived`. Bulk imports: `account.import_completed`.
  */
-export type AccountEventType = 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed';
+export type AccountEventType = 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed' | 'account.seats_updated' | 'account.offer_package_ended';
 
 /**
  * AccountInvitation
@@ -1417,6 +1417,134 @@ export type AddTaskExternalLinkV1Request = {
      * Optional title of the link, at most 200 characters.
      */
     title?: string | null;
+};
+
+/**
+ * AdditionalNifSeatChangePreview
+ *
+ * Preview, without charging or writing, of setting the contracted seats of additional tax IDs to `contracted_seats`: the amount charged today when it is a purchase; for a reduction the amount is 0, the pending reduction it would schedule (without selection), how many tax IDs would have to be chosen and the offer package it would lose. `amount`, `tax_amount` and `total` are euro 2-decimal strings; `recurring_total_cents` stays in cents, as its name states.
+ */
+export type AdditionalNifSeatChangePreview = {
+    /**
+     * Stripe-like discriminator. Always `additional_nif_seat_change_preview` for this resource.
+     */
+    object: 'additional_nif_seat_change_preview';
+    /**
+     * Taxable base charged today (without VAT), in euros as a 2-decimal string. 0.00 for a reduction.
+     */
+    amount: string;
+    /**
+     * VAT of the amount charged today, in euros as a 2-decimal string.
+     */
+    tax_amount: string;
+    /**
+     * Total charged today (`amount + tax_amount`), in euros as a 2-decimal string.
+     */
+    total: string;
+    /**
+     * Product the preview refers to.
+     */
+    product: 'additional-nifs';
+    /**
+     * Seats contracted today.
+     */
+    current_contracted: number;
+    /**
+     * Seats requested in `contracted_seats`.
+     */
+    target_contracted: number;
+    /**
+     * Seats that would be bought and charged today.
+     */
+    seats_to_buy: number;
+    /**
+     * ISO 4217 currency code (uppercase).
+     */
+    currency: string;
+    /**
+     * Seats the next invoice will bill.
+     */
+    recurring_quantity: number;
+    /**
+     * Projected recurring total with VAT, in cents; null when VAT is not calculable.
+     */
+    recurring_total_cents: number | null;
+    /**
+     * Next renewal (ISO 8601 UTC), or null when not resolvable.
+     */
+    next_invoice_at: string | null;
+    /**
+     * The reduction the change would leave pending (without selection: `deactivations` is empty), or null.
+     */
+    pending_reduction: PendingSeatReduction | null;
+    /**
+     * How many tax IDs would have to be chosen in `deactivate`; 0 when no choice is needed.
+     */
+    deactivations_required: number;
+    /**
+     * true when the change would cancel a pending reduction.
+     */
+    cancels_pending_reduction: boolean;
+    /**
+     * What the applied offer package would lose, or null.
+     */
+    offer_package_loss: SeatOfferPackageLoss | null;
+    /**
+     * true when the change charges today.
+     */
+    charges_now: boolean;
+    /**
+     * true when a purchase is needed and no payment method is on file.
+     */
+    requires_payment_method: boolean;
+    /**
+     * true when the account has no active paid plan, so the seats cannot be priced.
+     */
+    requires_active_plan: boolean;
+    /**
+     * true when the account is in trial: the seats cost nothing until the trial converts.
+     */
+    included_in_trial: boolean;
+    /**
+     * When the change takes effect: `now` (purchase), `renewal` (reduction) or `trial_conversion`.
+     */
+    applies_when: 'now' | 'renewal' | 'trial_conversion';
+    /**
+     * Contracted-seats block AFTER the change.
+     */
+    seats: ContractedSeats;
+};
+
+/**
+ * AdditionalNifSeats
+ *
+ * Contracted seats of additional tax IDs (NIF) of the account. Computed value without identity. The first tax ID of the account is not additional; every other active tax ID occupies one seat. When no seat is free, registering or activating a tax ID buys the missing seat automatically (use `Idempotency-Key` on the write). Reading needs the `companies:read` scope.
+ */
+export type AdditionalNifSeats = {
+    /**
+     * Stripe-like discriminator. Always `additional_nif_seats` for this resource.
+     */
+    object: 'additional_nif_seats';
+    /**
+     * true when the account has the additional tax ID seat subscription alive (active, trialing or past due).
+     */
+    subscribed: boolean;
+    /**
+     * Seats billed by the subscription (`seats.contracted` while subscribed); 0 when not subscribed.
+     */
+    quantity: number;
+    /**
+     * true when the account is billed by seats; false in trial and exempt accounts.
+     */
+    seats_billable: boolean;
+    /**
+     * Contractual cap of active additional tax IDs of the account, or null without cap.
+     */
+    max_additional_nifs: number | null;
+    /**
+     * Contracted-seats block for additional tax IDs.
+     */
+    seats: ContractedSeats;
 };
 
 /**
@@ -3058,6 +3186,18 @@ export type BulkChangeTaskStatusV1Request = {
 };
 
 /**
+ * BulkChannelsProductsV1Request
+ *
+ * Publish or withdraw several products on the web in one request, up to 50 per batch. `ids` is an array of product UUIDs and `channels.web` the target state. Publishing generates the missing slug; the change is idempotent. Products that do not exist or belong to another company are returned under `failures[]`.
+ */
+export type BulkChannelsProductsV1Request = {
+    ids: Array<string>;
+    channels: {
+        web: boolean;
+    };
+};
+
+/**
  * BulkCreateBusinessContactsV1Request
  *
  * Create canonical contacts in bulk. `contacts[]` holds up to 500 payloads with cumulative roles and directional profiles. `dry_run=true` validates every row without persisting; row errors do not abort the remaining contacts.
@@ -3948,6 +4088,22 @@ export type CancelDurableOperationBody = {
 };
 
 /**
+ * CancelEmployeeSeatAddonV1Request
+ *
+ * Optional body. Cancelling reduces the contracted employee seats to 0 at the renewal without refund. Without `deactivate` every occupied seat is released; if you send it, it must list every active employee.
+ */
+export type CancelEmployeeSeatAddonV1Request = {
+    /**
+     * IDs (UUID v7) of the employees to deactivate at the renewal. Empty or absent: all the occupied seats. A list that does not match every occupied seat returns 422 `contracted_seats_selection_required`.
+     */
+    deactivate?: Array<string> | null;
+    /**
+     * Confirms losing the applied offer package that cancelling breaks (default false). Without it 422 `offer_package_loss_unconfirmed`.
+     */
+    accept_offer_package_loss?: boolean | null;
+};
+
+/**
  * CancelFaceSubmissionV1Request
  *
  * Cancel a FACe submission. `reason` is required: it travels to the FACe web service alongside the cancellation request (code 4200).
@@ -4005,6 +4161,76 @@ export type CatalogConfigurationImpact = {
     retired_price_count: number;
     affected_price_list_count: number;
     affected_price_list_names: Array<string>;
+};
+
+/**
+ * CatalogPromotion
+ *
+ * The promotion that applies to a product, a variant, a presentation, a configuration or a pack on the web channel today, or on the day of the `date` parameter. The `promotion` key is always there: `null` when nothing applies, so the shape of the resource never changes, and `null` for a promotion that only covers documents. `price` is the price with the promotion and `regular_price` the regular price, which is what the resource publishes as `sale_price` (product) or `price` (pack) and keeps its meaning. To announce the reduction, show `previous_price` as the previous price, and only when `announce_reduction` is `true`. Map it to schema.org like this: `Offer.price` is `price.gross`, `Offer.priceCurrency` is `EUR` and `Offer.priceValidUntil` is `ends_at`.
+ */
+export type CatalogPromotion = {
+    /**
+     * Public identifier (UUID v7) of the promotion. Read it with `GET /v1/companies/{company}/promotions/{promotion}`.
+     */
+    id: string;
+    /**
+     * Internal name of the promotion.
+     */
+    name: string;
+    /**
+     * Text the web shows next to the price ("Offer", "Black Friday"). Spanish law reserves those words for a real reduction, so the company chooses them.
+     */
+    label: string | null;
+    price: PromotionPrice;
+    regular_price: PromotionPrice;
+    /**
+     * Legal previous price: the lowest price with VAT of the last 30 days before the promotion, kept during the whole promotion and its extensions. `null` when the item was never on sale before. It can be set while `announce_reduction` is `false` (a promotional price that is not lower).
+     */
+    previous_price: PromotionPrice | null;
+    /**
+     * Reduction from `previous_price.gross` to `price.gross`, with 2 decimals. `null` when `announce_reduction` is `false`. Round it down if your web shows a whole number, so that it never announces more reduction than the real one.
+     */
+    reduction_percent: number | null;
+    /**
+     * `false` when `previous_price` is `null` or is not greater than `price.gross`: then the web must not show a "before" price nor a strikethrough, although the promotional price is real.
+     */
+    announce_reduction: boolean;
+    /**
+     * First instant of the promotion, ISO 8601 with the offset of the company time zone.
+     */
+    starts_at: string;
+    /**
+     * Last included instant of the promotion, ISO 8601 with the offset of the company time zone. Use it as `priceValidUntil` of schema.org.
+     */
+    ends_at: string;
+    /**
+     * `true` when the promotion was extended after it started.
+     */
+    is_extension: boolean;
+    /**
+     * `false` when the price history does not cover 30 days back yet (the first 30 days after the feature was enabled): the previous price may not account for earlier reductions.
+     */
+    history_complete: boolean;
+};
+
+/**
+ * CatalogSalePrice
+ *
+ * A sale price in euros split into net, VAT and gross. `net` keeps the scale of the catalog price (two to four decimals); `tax` and `gross` have two decimals and `net` + `tax` = `gross`.
+ */
+export type CatalogSalePrice = {
+    /**
+     * Price without VAT, with the scale of the catalog price.
+     */
+    net: string;
+    /**
+     * VAT of the price.
+     */
+    tax: string;
+    /**
+     * Price with VAT.
+     */
+    gross: string;
 };
 
 /**
@@ -4366,11 +4592,11 @@ export type Company = {
      */
     object: 'company';
     /**
-     * Commercial name of the tax ID.
+     * Name the tax ID is known by: its trade name or, when `business_name` is `null`, its legal name.
      */
     name: string;
     /**
-     * Legal/registered business name (razón social), or `null` if not set.
+     * Legal/registered business name (razón social) when it differs from `name`; `null` when `name` is the legal name.
      */
     business_name: string | null;
     /**
@@ -4628,9 +4854,33 @@ export type CompanySeatChargePreview = {
     recurring_base_cents: number | null;
     recurring_total_cents: number | null;
     /**
-     * Explicit reason for no immediate charge. A null reason never implies an Enterprise contract; negotiated_free_price preserves the acquired private seat price.
+     * Explicit reason for no immediate charge. A null reason never implies an Enterprise contract; negotiated_free_price preserves the acquired private seat price; included_in_seats means the free contracted seats cover the whole operation.
      */
-    zero_reason: 'negotiated_free_price' | 'enterprise_contract' | 'trial' | 'covered' | 'no_immediate_charge' | null;
+    zero_reason: 'negotiated_free_price' | 'enterprise_contract' | 'trial' | 'covered' | 'no_immediate_charge' | 'included_in_seats' | null;
+    /**
+     * Free contracted seats that the registration or activation would occupy.
+     */
+    free_seats_used: number;
+    /**
+     * Seats that would have to be bought (and charged) for the operation. 0 when the free seats cover it.
+     */
+    seats_to_buy: number;
+    /**
+     * true when the free contracted seats cover the whole operation: the amount is 0, `zero_reason` is `included_in_seats` and no payment method is needed.
+     */
+    included_in_seats: boolean;
+    /**
+     * Contracted-seats block of additional tax IDs AFTER the operation, or null when the account has no seats to show.
+     */
+    seats: ContractedSeats | null;
+    /**
+     * true when the operation would cancel a pending seat reduction (the occupied seats would exceed its target).
+     */
+    cancels_pending_reduction: boolean;
+    /**
+     * What the applied offer package would lose, or null.
+     */
+    offer_package_loss: SeatOfferPackageLoss | null;
 };
 
 /**
@@ -4914,6 +5164,10 @@ export type ConnectedAccount = {
      * First month recorded as a fee expense, as `YYYY-MM`, or `null` until it is configured.
      */
     fee_expenses_since: string | null;
+    /**
+     * Whether each invoice auto-created from this account is emailed to the address that comes with the Stripe charge (the person who paid). A charge without an email sends nothing. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    email_invoice_to_payer: boolean;
 };
 
 /**
@@ -5019,6 +5273,46 @@ export type ConsolidatedWorkforce = {
      * Level you hold on the tax ID: `view` (read-only) or `operate`. For a credential, the level of its portfolio.
      */
     access_level: 'view' | 'operate';
+};
+
+/**
+ * ContractedSeats
+ *
+ * Contracted seats of the paying account for one product (employees or additional tax IDs): how many it pays for, how many are occupied, how many are free and the reduction that is pending, if any. A seat is bought when the account has no free seat for a new employee or tax ID, and a reduction takes effect at the renewal without refund.
+ */
+export type ContractedSeats = {
+    /**
+     * Seats the account has contracted and is billed for.
+     */
+    contracted: number;
+    /**
+     * Seats occupied by active employees (or active additional tax IDs).
+     */
+    occupied: number;
+    /**
+     * Free seats: `max(0, contracted - occupied)`. The next hire or tax ID uses one without a new charge.
+     */
+    free: number;
+    /**
+     * Minimum seats agreed by the applied offer package in force; 0 without a package. It is not a lock: a reduction below it is allowed and loses the package after confirmation.
+     */
+    agreed_minimum: number;
+    /**
+     * End of the agreed minimum (ISO 8601 UTC), or null.
+     */
+    agreed_minimum_ends_at: string | null;
+    /**
+     * Lowest number of seats a reduction can reach. Always 0: reducing is free.
+     */
+    reducible_to: 0;
+    /**
+     * The scheduled reduction, or null.
+     */
+    pending_reduction: PendingSeatReduction | null;
+    /**
+     * true when the account is billed by seats and new hires or tax IDs consume them; false in trial, sandbox and exempt accounts.
+     */
+    enforced: boolean;
 };
 
 /**
@@ -5250,7 +5544,7 @@ export type CreateAccountWebhookV1Request = {
     /**
      * Event types to subscribe to, at least one: the company events of the public catalog and the `account.*` events (`AccountEventType`). Duplicates are collapsed.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed' | 'account.seats_updated' | 'account.offer_package_ended'>;
     /**
      * Whose tax IDs the endpoint hears about: `own` (the tax IDs of your account), `managed` (the accounts your account manages) or `all`. Defaults to `all`.
      */
@@ -5278,7 +5572,7 @@ export type CreateApiKeyV1Request = {
     /**
      * List of scopes from the closed v1 catalog (at least one).
      */
-    scopes: Array<'pdf_templates:read' | 'pdf_templates:write' | 'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'transport_documents:read' | 'transport_documents:write' | 'transport_documents:delete' | 'transport_documents:transition' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'account:owner' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'members:read' | 'members:write' | 'invitations:read' | 'invitations:write' | 'nif_transfers:read' | 'nif_transfers:write' | 'accounts:read' | 'accounts:write' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
+    scopes: Array<'pdf_templates:read' | 'pdf_templates:write' | 'contacts:read' | 'contacts:write' | 'contacts:delete' | 'products:read' | 'products:write' | 'products:delete' | 'packs:read' | 'packs:write' | 'packs:delete' | 'promotions:read' | 'promotions:write' | 'promotions:delete' | 'price_lists:read' | 'price_lists:write' | 'invoices:read' | 'invoices:write' | 'invoices:delete' | 'invoices:send' | 'invoices:void' | 'quotes:read' | 'quotes:write' | 'quotes:delete' | 'quotes:send' | 'quotes:transition' | 'proformas:read' | 'proformas:write' | 'proformas:delete' | 'proformas:send' | 'proformas:transition' | 'delivery_notes:read' | 'delivery_notes:write' | 'delivery_notes:delete' | 'delivery_notes:transition' | 'delivery_notes:gdpr_forget' | 'transport_documents:read' | 'transport_documents:write' | 'transport_documents:delete' | 'transport_documents:transition' | 'purchase_invoices:read' | 'purchase_invoices:write' | 'purchase_invoices:delete' | 'purchase_invoices:transition' | 'recurring_invoices:read' | 'recurring_invoices:write' | 'recurring_invoices:delete' | 'recurring_invoices:transition' | 'taxes:read' | 'taxes:write' | 'taxes:delete' | 'series:read' | 'series:write' | 'pdfs:read' | 'webhooks:read' | 'webhooks:write' | 'webhooks:delete' | 'events:read' | 'verifactu:read' | 'verifactu:write' | 'facturae:read' | 'facturae:write' | 'tax_reports:read' | 'tax_reports:write' | 'account:read' | 'account:write' | 'account:owner' | 'companies:read' | 'companies:write' | 'companies:delete' | 'api_keys:read' | 'api_keys:write' | 'api_keys:delete' | 'stripe_autoinvoicing:read' | 'stripe_autoinvoicing:write' | 'payouts:read' | 'woocommerce_store:read' | 'woocommerce_store:write' | 'shopify_store:read' | 'shopify_store:write' | 'stores:read' | 'stores:write' | 'employees:read' | 'employees:write' | 'employees:delete' | 'time_entries:read' | 'time_entries:write' | 'absences:read' | 'absences:write' | 'absences:transition' | 'work_schedules:read' | 'work_schedules:write' | 'presence:read' | 'holidays:read' | 'payroll_exports:read' | 'payroll_exports:write' | 'developers:read' | 'emails:read' | 'integration_events:read' | 'integration_events:write' | 'automations:read' | 'automations:write' | 'automations:delete' | 'automation_runs:read' | 'members:read' | 'members:write' | 'invitations:read' | 'invitations:write' | 'nif_transfers:read' | 'nif_transfers:write' | 'accounts:read' | 'accounts:write' | 'projects:read' | 'projects:write' | 'projects:delete' | 'tasks:read' | 'tasks:write' | 'tasks:delete' | 'users:read' | 'notifications:read' | 'notifications:write' | '*'>;
     /**
      * Future ISO 8601 date after which the key stops authenticating.
      */
@@ -5432,7 +5726,7 @@ export type CreateBusinessContactV1Request = {
  */
 export type CreateCompanyV1Request = {
     /**
-     * Trade name of the company registered under this tax ID (1-255 characters).
+     * Name the company is known by (1-100 characters): its trade name or, without `business_name`, its legal name.
      */
     name: string;
     /**
@@ -5440,7 +5734,7 @@ export type CreateCompanyV1Request = {
      */
     tax_id: string;
     /**
-     * Legal/registered business name.
+     * Legal/registered business name when it differs from `name` (up to 100 characters). Omitted, `name` is the legal name.
      */
     business_name?: string | null;
     /**
@@ -5483,34 +5777,35 @@ export type CreateCorrectiveInvoiceRequest = {
         id?: string;
         uuid?: string;
         business_references?: {
-            issuer_contract_reference: string | null;
-            issuer_transaction_reference: string | null;
-            receiver_contract_reference: string | null;
-            receiver_transaction_reference: string | null;
-            file_reference: string | null;
-            issuer_contract_date: string | null;
-            issuer_transaction_date: string | null;
-            receiver_contract_date: string | null;
-            receiver_transaction_date: string | null;
-            file_date: string | null;
+            issuer_contract_reference?: string | null;
+            issuer_transaction_reference?: string | null;
+            receiver_contract_reference?: string | null;
+            receiver_transaction_reference?: string | null;
+            file_reference?: string | null;
+            issuer_contract_date?: string | null;
+            issuer_transaction_date?: string | null;
+            receiver_contract_date?: string | null;
+            receiver_transaction_date?: string | null;
+            file_date?: string | null;
         };
         delivery_notes_references?: Array<{
             number: string;
-            date: string | null;
+            date?: string | null;
         }> | null;
         sequence_number?: number | null;
         source_line_uuid?: string;
         source_line_id?: string;
-        description?: string;
+        description: string;
         additional_description?: string | null;
-        quantity?: number;
-        unit_price?: number;
+        quantity: number;
+        unit_price: number;
         tax_rate?: number | null;
         retention_rate?: number | null;
         surcharge_rate?: number | null;
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
         product_id?: string | null;
+        source_pack_group_id?: string | null;
         variant_id?: string | null;
         presentation_id?: string | null;
         confirmed_base_quantity?: number | null;
@@ -5663,6 +5958,10 @@ export type CreateDeliveryNoteRequest = {
         base_quantity?: number | null;
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -5671,10 +5970,15 @@ export type CreateDeliveryNoteRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -5739,20 +6043,20 @@ export type CreateInvoiceRequest = {
         id?: string;
         uuid?: string;
         business_references?: {
-            issuer_contract_reference: string | null;
-            issuer_transaction_reference: string | null;
-            receiver_contract_reference: string | null;
-            receiver_transaction_reference: string | null;
-            file_reference: string | null;
-            issuer_contract_date: string | null;
-            issuer_transaction_date: string | null;
-            receiver_contract_date: string | null;
-            receiver_transaction_date: string | null;
-            file_date: string | null;
+            issuer_contract_reference?: string | null;
+            issuer_transaction_reference?: string | null;
+            receiver_contract_reference?: string | null;
+            receiver_transaction_reference?: string | null;
+            file_reference?: string | null;
+            issuer_contract_date?: string | null;
+            issuer_transaction_date?: string | null;
+            receiver_contract_date?: string | null;
+            receiver_transaction_date?: string | null;
+            file_date?: string | null;
         };
         delivery_notes_references?: Array<{
             number: string;
-            date: string | null;
+            date?: string | null;
         }> | null;
         sequence_number?: number | null;
         source_line_uuid?: string;
@@ -5820,6 +6124,13 @@ export type CreateInvoiceRequest = {
          * Optional CHECKSUM of the line total. When sent, it is compared against the total this API computes and the request is rejected with 422 (`line_total_checksum_mismatch`, with the expected and received values in `error.details`) when they differ by more than one cent. Never stored and never returned: the invoiced amount is always the computed one, so this field only reports a rounding mismatch with your own ERP. Omit it and no checksum runs.
          */
         line_total?: number | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        /**
+         * When `true`, the `unit_price` of every line is the FINAL price with taxes (VAT included) and the system computes the net base to the cent, so the invoice total equals the sum of the amounts you sent. If no distribution of the cents reaches that total the request is rejected with 422 `amount_reconciliation_failed` and nothing is issued. Catalog lines (`product_id`) are not accepted in this mode. Defaults to `false`.
+         */
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -5828,10 +6139,15 @@ export type CreateInvoiceRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     } & {
         business_references?: InvoiceLineReferences | null;
         delivery_notes_references?: Array<InvoiceDeliveryNoteReference> | null;
@@ -5947,6 +6263,132 @@ export type CreateNifTransferV1Request = {
 };
 
 /**
+ * CreatePackV1Request
+ *
+ * Create a pack. Required: `name`, `pricing` and `components`. Every price is checked against the sum of the components: a price that cannot be reached is rejected with 422.
+ */
+export type CreatePackV1Request = {
+    /**
+     * Name of the pack.
+     */
+    name: string;
+    /**
+     * Short plain-text summary.
+     */
+    summary?: string | null;
+    /**
+     * Long description.
+     */
+    description?: string | null;
+    /**
+     * Your own product code, unique per company. A duplicate is rejected with 409 `sku_already_exists`.
+     */
+    sku?: string | null;
+    /**
+     * URL slug, unique per company. When omitted it is derived from the name. A duplicate is rejected with 409 `slug_already_exists`.
+     */
+    slug?: string | null;
+    /**
+     * Free classification tags.
+     */
+    tags?: Array<string> | null;
+    /**
+     * Search engine texts. Leave a field empty to use the name or the summary.
+     */
+    seo?: {
+        /**
+         * Title for search engines.
+         */
+        title?: string | null;
+        /**
+         * Description for search engines.
+         */
+        description?: string | null;
+    } | null;
+    /**
+     * Where the pack can be sold.
+     */
+    channels?: {
+        /**
+         * Can be added to documents.
+         */
+        documents?: boolean;
+        /**
+         * Is published on the web store.
+         */
+        web?: boolean;
+    };
+    /**
+     * First day the pack is on sale (`YYYY-MM-DD`).
+     */
+    available_from?: string | null;
+    /**
+     * Last day the pack is on sale (`YYYY-MM-DD`). It cannot be before `available_from`.
+     */
+    available_until?: string | null;
+    /**
+     * Whether the pack is active.
+     */
+    is_active?: boolean;
+    /**
+     * Free key-value data of your integration.
+     */
+    metadata?: {
+        [key: string]: string;
+    } | null;
+    /**
+     * How the price is set: `fixed` (exact price), `percent_off` or `amount_off` (discount over the sum of the components) or `sum` (the sum of the components, no value). Required.
+     */
+    pricing: {
+        /**
+         * Pricing mode.
+         */
+        mode: 'fixed' | 'percent_off' | 'amount_off' | 'sum';
+        /**
+         * Amount in euros or percentage, with at most 2 decimals; send it as a decimal string. Required with `fixed`, `percent_off` and `amount_off`, forbidden with `sum`.
+         */
+        value?: string | number | null;
+        /**
+         * Whether the value is without VAT (`net`) or with VAT (`gross`).
+         */
+        basis: 'net' | 'gross';
+    };
+    /**
+     * Contents of the pack, at least one. Required.
+     */
+    components: Array<{
+        /**
+         * Product of your company (UUID v7).
+         */
+        product_id: string;
+        /**
+         * Variant of the product, when it has them.
+         */
+        variant_id?: string | null;
+        /**
+         * Presentation of the product.
+         */
+        presentation_id?: string | null;
+        /**
+         * Combination of options of the product.
+         */
+        configuration_id?: string | null;
+        /**
+         * Option values chosen, as an alternative to `configuration_id`.
+         */
+        option_value_ids?: Array<string> | null;
+        /**
+         * Units of the component in one pack: greater than zero, at most 4 decimals. Send it as a decimal string.
+         */
+        quantity: string | number;
+        /**
+         * UN/ECE code of the unit. It defaults to the base unit of the product.
+         */
+        unit?: string | null;
+    }>;
+};
+
+/**
  * CreatePdfTemplatePreviewRequest
  *
  * Requires the existing `pdfs:read` and additional `pdf_templates:read` scopes. Send exactly one of `example`, `unsaved_form`, `persisted_draft`, `presentation_revision` or `invoice_substitution`, with required purpose, format and locale. A `persisted_draft` source accepts a draft document or a quote, pro-forma or delivery note that has left draft and has no retained presentation yet; with a retained presentation (or an issued invoice) it returns 403. `invoice_substitution` is only valid for `invoice` / `complete` / `a4` and must omit the visual triple. Example and unsaved form require the complete `base_preset`, `layout_version` and `configuration`; owner-bound sources accept that complete triple or omit all three. Partial or explicit-null triples return 422 with field paths. Omission resolves the exact effective root from the authoritative owner on the server, preserves null defaults and retained pins, and performs no import or live fill. A supplied full root must match that root exactly. The commercial identity selector exists only on `example`: omit it or send null/`inherit` for inheritance; `exact_revision` requires both retained identity and revision UUIDs; `draft` requires a library administrator and all six nullable keys (`commercial_name`, `logo_asset_id`, `brand_image_asset_id`, `brand_mode`, `contact_email`, `contact_phone`); `logo_dark_asset_id`, `brand_image_dark_asset_id`, `dark_background_fallback` (default `silhouette`) and `brand_size` (default `medium`) are optional. Draft assets must already be retained; preview neither reads live brand data nor saves, publishes, or asserts continuity. A revision source binds an authentic owner document and exact retained parent, nullable target template (null inherits), captured/current_legal policy and positive `expected_version` CAS. Its returned `source_token` and revision precondition authorize only a later explicit Revise action; they never authorize issue, send, accept or sign. Semantic normalization precedes admission and equivalent previews may resolve to one retained artifact; HTTP idempotency still compares the raw body, so changing the body with the same key returns 409. Missing canonical tenant initialization or disabled revisioned presentation returns a recoverable 422 `pdf_presentation_not_ready` (`invalid_request_error`) with no artifact, intent or reservation: preserve form data and complete authorized initialization. GET and preview never import or initialize; an owner CLI may be an optional initialization entry point, never a required client step. Exact retained prepared/READY reads do not require fresh initialization.
@@ -5969,25 +6411,37 @@ export type CreatePdfTemplatePreviewRequest = {
     layout_version: '1';
     configuration: PdfTemplateConfiguration;
     source: PdfPreviewUnsavedFormSource;
-} | (unknown & {
+} | {
     document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
     purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
     format: 'a4' | 'ticket_80' | 'ticket_58';
     locale: 'es' | 'en' | 'ca';
-    base_preset?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
-    layout_version?: '1';
-    configuration?: PdfTemplateConfiguration;
+    base_preset: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version: '1';
+    configuration: PdfTemplateConfiguration;
     source: PdfPreviewPersistedDraftSource;
-}) | (unknown & {
+} | {
     document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
     purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
     format: 'a4' | 'ticket_80' | 'ticket_58';
     locale: 'es' | 'en' | 'ca';
-    base_preset?: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
-    layout_version?: '1';
-    configuration?: PdfTemplateConfiguration;
+    source: PdfPreviewPersistedDraftSource;
+} | {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    locale: 'es' | 'en' | 'ca';
+    base_preset: 'classic' | 'modern' | 'minimal' | 'corporative' | 'premium';
+    layout_version: '1';
+    configuration: PdfTemplateConfiguration;
     source: PdfPreviewPresentationRevisionSource;
-}) | {
+} | {
+    document_type: 'invoice' | 'quote' | 'proforma' | 'delivery-note';
+    purpose: 'complete' | 'simplified' | 'corrective' | 'simplified_corrective';
+    format: 'a4' | 'ticket_80' | 'ticket_58';
+    locale: 'es' | 'en' | 'ca';
+    source: PdfPreviewPresentationRevisionSource;
+} | {
     document_type: 'invoice';
     purpose: 'complete';
     format: 'a4';
@@ -6036,6 +6490,15 @@ export type CreateProductPresentationRequest = {
  * Create a product in your catalog. Required: `name` and `price`. Optional: `sku` (unique per company), `description`, `tags`, `stock` (initial quantity), `low_stock_threshold`, `manage_stock`, `currency` (`EUR` only — any other code returns 422), `tax_rate_id`, `is_active`, `metadata` and `external_id`. Stock changes after creation are made through `PATCH /v1/companies/{company}/products/{product}/stock`, not through this endpoint.
  */
 export type CreateProductRequest = {
+    channels?: {
+        web?: boolean | null;
+    };
+    slug?: string | null;
+    summary?: string | null;
+    seo?: {
+        title?: string | null;
+        description?: string | null;
+    };
     name: string;
     /**
      * Stock keeping unit (your own product code), unique per company. Optional; up to 100 characters.
@@ -6226,6 +6689,10 @@ export type CreateProformaRequest = {
         confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -6234,10 +6701,15 @@ export type CreateProformaRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -6283,6 +6755,76 @@ export type CreateProjectV1Request = {
      * Optional project description (up to 5,000 characters).
      */
     description?: string | null;
+};
+
+/**
+ * CreatePromotionV1Request
+ *
+ * Schedule a promotion. Required: `name`, `starts_on`, `ends_on`, `channels` and `items`. If any item is rejected, nothing is created.
+ */
+export type CreatePromotionV1Request = {
+    /**
+     * Internal name of the promotion.
+     */
+    name: string;
+    /**
+     * Text the web shows next to the price. `null` clears it.
+     */
+    label?: string | null;
+    /**
+     * First day (`YYYY-MM-DD`, company time zone). A promotion that starts today or earlier is active at once.
+     */
+    starts_on: string;
+    /**
+     * Last day, included (`YYYY-MM-DD`). It cannot be before `starts_on`. An active promotion accepts only this field.
+     */
+    ends_on: string;
+    /**
+     * Where the promotion applies. At least one channel must be `true`.
+     */
+    channels: {
+        /**
+         * Applies to the lines of sales documents.
+         */
+        documents: boolean;
+        /**
+         * Applies to the web store.
+         */
+        web: boolean;
+    };
+    /**
+     * Whether customers with a price list also get the promotion. Defaults to `false`.
+     */
+    include_price_list_customers?: boolean;
+    /**
+     * Perishable goods never announce a reduction. Defaults to `false`.
+     */
+    perishable?: boolean;
+    /**
+     * Discounted items, at least one, never the same item twice. Required.
+     */
+    items: Array<{
+        /**
+         * What the discount applies to.
+         */
+        target_type: 'product' | 'variant' | 'presentation' | 'configuration' | 'pack';
+        /**
+         * Public identifier (UUID v7) of an item of your company. Another company or an unknown id is rejected with 422 `invalid_promotion_item`.
+         */
+        target_id: string;
+        /**
+         * `percent_off` discounts a percentage of the regular price; `fixed` sets the price.
+         */
+        mode: 'percent_off' | 'fixed';
+        /**
+         * The percentage (greater than 0 and below 100) or the price in euros (greater than 0), with at most 2 decimals. Send it as a decimal string.
+         */
+        value: string | number;
+        /**
+         * Required with `fixed`: whether the price is without VAT (`net`) or with VAT (`gross`). Omit it with `percent_off`.
+         */
+        basis?: 'net' | 'gross' | null;
+    }>;
 };
 
 /**
@@ -6366,7 +6908,7 @@ export type CreatePurchaseInvoiceRequest = {
         source_line_index?: number | null;
         configuration_uuid?: string | null;
         purchase_measurement?: {
-            package_quantity: string | null;
+            package_quantity?: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
         counted_quantity?: number | null;
@@ -6379,6 +6921,11 @@ export type CreatePurchaseInvoiceRequest = {
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -6448,6 +6995,10 @@ export type CreateQuoteRequest = {
         confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -6456,10 +7007,15 @@ export type CreateQuoteRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -6593,6 +7149,10 @@ export type CreateRecurringInvoiceRequest = {
          */
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -6601,10 +7161,15 @@ export type CreateRecurringInvoiceRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -6853,7 +7418,7 @@ export type CreateTransportDocumentRequest = {
             gross_weight_kg?: number | null;
         }> | null;
         declared_measure?: {
-            type?: string;
+            type: string;
             weight_kg?: number | null;
             value?: number | null;
             unit?: string | null;
@@ -6911,7 +7476,7 @@ export type CreateTransportDocumentRequest = {
  */
 export type CreateWebhookEndpointRequest = {
     url: string;
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -7057,6 +7622,8 @@ export type CustomerOfferQuote = {
     warnings: Array<string>;
     benefit_kind: 'discount' | 'negotiated_price' | 'trial_extension' | null;
     price_duration: 'forever' | 'billing_periods' | null;
+    minimum_quantity: number | null;
+    target_quantity: number | null;
 };
 
 /**
@@ -7066,7 +7633,7 @@ export type CustomerOfferRedemption = {
     id: string;
     offer_id: string;
     concept: 'plan' | 'employee-seats' | 'gestoria-seats';
-    purchase_kind: 'subscription_start' | 'subscription_update' | 'subscription_renewal' | 'trial_extension' | 'employee_individual' | 'employee_batch' | 'gestoria_purchase';
+    purchase_kind: 'subscription_start' | 'subscription_update' | 'subscription_renewal' | 'trial_extension' | 'employee_individual' | 'employee_batch' | 'gestoria_purchase' | 'apply_to_existing';
     status: 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
     revision: number;
     quote_version: number;
@@ -7507,6 +8074,10 @@ export type DeliveryNoteLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+    /**
+     * The pack group this line belongs to, or `null` when the line is not part of a pack. See `PackGroup`.
+     */
+    pack_group: PackGroup | null;
     /**
      * Gross transport weight of the whole line in kg (decimal string, scale 4): quantity × the weight per commercial unit frozen when the line was created or edited in draft. `null` for services, free-text lines and products without a known weight. It does not change after delivery even if the catalog weight changes.
      */
@@ -8161,6 +8732,11 @@ export type EmployeeBatchQuote = {
     transferred_paid_slots: number;
     chargeable_count: number;
     final_active_count: number;
+    seats_to_buy: number;
+    free_seats_used: number;
+    original_quantity: number | null;
+    projected_quantity: number | null;
+    cancels_pending_reduction: boolean;
     fingerprint: string;
     currency: 'EUR';
     seats_billable: boolean;
@@ -8310,7 +8886,7 @@ export type EmployeeSchedule = {
 /**
  * EmployeeSeatBillingStatus
  *
- * Billing status of the per-employee add-on for your company (Control Horario). Whether the dedicated `employee-seats` subscription is active, how many seats are billed, how many employees are active and the recurring per-seat cost. Amounts are euro 2-decimal strings and are null when the cost is not resolvable (not subscribed, no active plan, enterprise outside Stripe, sandbox) — never a misleading 0. Employees never count towards the plan `users` seat limit. Read `subscribed` together with `seats_billable` to tell a legitimate no-charge state apart from a billing anomaly.
+ * Billing status of the per-employee add-on for your company (Control Horario). Whether the dedicated `employee-seats` subscription is active, how many seats are billed, how many employees are active and the recurring per-seat cost. Amounts are euro 2-decimal strings and are null when the cost is not resolvable (not subscribed, no active plan, enterprise outside Stripe, sandbox) — never a misleading 0. Employees never count towards the plan `users` seat limit. Read `subscribed` together with `seats_billable` to tell a legitimate no-charge state apart from a billing anomaly. `seats` is the contracted-seats block of the paying account (contracted, occupied, free, pending reduction), or null when the company has no paying account of its own.
  */
 export type EmployeeSeatBillingStatus = {
     /**
@@ -8322,7 +8898,7 @@ export type EmployeeSeatBillingStatus = {
      */
     subscribed: boolean;
     /**
-     * Number of BILLED seats: while subscribed it follows the number of active employees; 0 when not subscribed.
+     * Number of BILLED seats: the contracted seats of the account (`seats.contracted`) while subscribed, whether or not employees occupy them; 0 when not subscribed.
      */
     quantity: number;
     /**
@@ -8346,7 +8922,7 @@ export type EmployeeSeatBillingStatus = {
      */
     total_per_seat: string | null;
     /**
-     * Projected recurring total (`total_per_seat` × `quantity`), in euros as a 2-decimal string. Null when VAT is not resolved.
+     * Projected recurring total of the seat line: `unit_amount` × `quantity` plus the VAT on that amount, as Stripe charges it (not `total_per_seat` × `quantity`, which rounds VAT per seat). In euros as a 2-decimal string. Null when VAT is not resolved.
      */
     recurring_total: string | null;
     /**
@@ -8369,6 +8945,10 @@ export type EmployeeSeatBillingStatus = {
      * true when your company MUST be paying per seat (live paid plan), regardless of whether the `employee-seats` subscription exists — it is independent of `subscribed`. Combine both: `subscribed: true` means seats are being billed normally; `subscribed: false` with `seats_billable: true` and `active_employees > 0` is a BILLING ANOMALY (active employees with no seat billed) that your provider must settle; `seats_billable: false` is a legitimate no-charge state (enterprise by contract, trial or sandbox).
      */
     seats_billable: boolean;
+    /**
+     * Contracted seats of the paying account for employees: contracted, occupied, free, agreed minimum, pending reduction and whether seats are enforced. Null when the company has no paying account of its own (a managed account paid by its provider).
+     */
+    seats: ContractedSeats | null;
 };
 
 /**
@@ -8441,6 +9021,38 @@ export type EmployeeSeatChargePreview = {
      * true when the seat WILL actually be billed: the very same predicate the hiring/reactivation gate uses (live paid plan, company not in sandbox) and the same field `GET /v1/accounts/{account}/employee-seats` exposes. When false the operation never charges (enterprise by contract, trial, sandbox or live mode off) even though `amount` is computed — do not present it as a payment, and do not ask for confirmation of a charge that will not happen. Independent of the 0-amount branches: it can be true together with `already_covered` (the plan does bill seats, but THIS operation is free).
      */
     seats_billable: boolean;
+    /**
+     * Free contracted seats that the activation would occupy.
+     */
+    free_seats_used: number;
+    /**
+     * Seats that would have to be bought (and charged) for the activation. 0 when the free seats cover it.
+     */
+    seats_to_buy: number;
+    /**
+     * true when the free contracted seats cover the whole operation: the amount is 0 and no payment method is needed.
+     */
+    included_in_seats: boolean;
+    /**
+     * Contracted-seats block AFTER the operation, or null when the company has no paying account of its own.
+     */
+    seats: ContractedSeats | null;
+    /**
+     * true when the operation would cancel a pending seat reduction (the new total of occupied seats exceeds its target).
+     */
+    cancels_pending_reduction: boolean;
+    /**
+     * Only with `contracted_seats` when it is a reduction: the pending reduction it would schedule (no selection, `deactivations` empty). Null otherwise.
+     */
+    pending_reduction: PendingSeatReduction | null;
+    /**
+     * How many employees would have to be chosen in `deactivate` for the reduction; 0 outside a reduction.
+     */
+    deactivations_required: number;
+    /**
+     * What the applied offer package would lose if the reduction goes ahead (confirm it with `accept_offer_package_loss`), or null.
+     */
+    offer_package_loss: SeatOfferPackageLoss | null;
 };
 
 /**
@@ -8589,7 +9201,7 @@ export type Error = {
              */
             limit?: number;
             /**
-             * Resource whose quota was reached on plan_limit_exceeded, for example documents_year or users.
+             * Resource whose quota was reached on plan_limit_exceeded, for example documents_year, users or packs.
              */
             resource?: string;
             /**
@@ -8889,6 +9501,8 @@ export type EventData = ({
 } & EventDataProductUpdated) | ({
     type: 'product.replaced';
 } & EventDataProductReplaced) | ({
+    type: 'product.deleted';
+} & EventDataProductDeleted) | ({
     type: 'payment.received';
 } & EventDataPaymentReceived) | ({
     type: 'payment.reversed';
@@ -9006,7 +9620,39 @@ export type EventData = ({
     type: 'project.archived';
 } & EventDataProjectArchived) | ({
     type: 'project.deleted';
-} & EventDataProjectDeleted);
+} & EventDataProjectDeleted) | ({
+    type: 'pack.created';
+} & EventDataPackCreated) | ({
+    type: 'pack.updated';
+} & EventDataPackUpdated) | ({
+    type: 'pack.archived';
+} & EventDataPackArchived) | ({
+    type: 'pack.restored';
+} & EventDataPackRestored) | ({
+    type: 'pack.deleted';
+} & EventDataPackDeleted) | ({
+    type: 'promotion.created';
+} & EventDataPromotionCreated) | ({
+    type: 'promotion.updated';
+} & EventDataPromotionUpdated) | ({
+    type: 'promotion.started';
+} & EventDataPromotionStarted) | ({
+    type: 'promotion.ended';
+} & EventDataPromotionEnded) | ({
+    type: 'promotion.cancelled';
+} & EventDataPromotionCancelled) | ({
+    type: 'promotion.deleted';
+} & EventDataPromotionDeleted) | ({
+    type: 'price_list.created';
+} & EventDataPriceListCreated) | ({
+    type: 'price_list.updated';
+} & EventDataPriceListUpdated) | ({
+    type: 'price_list.deleted';
+} & EventDataPriceListDeleted) | ({
+    type: 'price_list.item_updated';
+} & EventDataPriceListItemUpdated) | ({
+    type: 'price_list.item_deleted';
+} & EventDataPriceListItemDeleted);
 
 /**
  * EventDataAbsenceApproved
@@ -9834,6 +10480,59 @@ export type EventDataOrderRefunded = {
 };
 
 /**
+ * EventDataPackArchived
+ *
+ * Payload (`data`) emitted with the `pack.archived` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPackArchived = {
+    type: 'pack.archived';
+    object: Pack;
+};
+
+/**
+ * EventDataPackCreated
+ *
+ * Payload (`data`) emitted with the `pack.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPackCreated = {
+    type: 'pack.created';
+    object: Pack;
+};
+
+/**
+ * EventDataPackDeleted
+ *
+ * Payload (`data`) emitted with the `pack.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPackDeleted = {
+    type: 'pack.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: Pack | EventDeletedObject;
+};
+
+/**
+ * EventDataPackRestored
+ *
+ * Payload (`data`) emitted with the `pack.restored` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPackRestored = {
+    type: 'pack.restored';
+    object: Pack;
+};
+
+/**
+ * EventDataPackUpdated
+ *
+ * Payload (`data`) emitted with the `pack.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPackUpdated = {
+    type: 'pack.updated';
+    object: Pack;
+};
+
+/**
  * EventDataPaymentReceived
  *
  * Payload (`data`) emitted with the `payment.received` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
@@ -9884,6 +10583,62 @@ export type EventDataPayoutReconciled = {
 };
 
 /**
+ * EventDataPriceListCreated
+ *
+ * Payload (`data`) emitted with the `price_list.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPriceListCreated = {
+    type: 'price_list.created';
+    object: PriceList;
+};
+
+/**
+ * EventDataPriceListDeleted
+ *
+ * Payload (`data`) emitted with the `price_list.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPriceListDeleted = {
+    type: 'price_list.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: PriceList | EventDeletedObject;
+};
+
+/**
+ * EventDataPriceListItemDeleted
+ *
+ * Payload (`data`) emitted with the `price_list.item_deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPriceListItemDeleted = {
+    type: 'price_list.item_deleted';
+    /**
+     * The price that stopped applying (deleted, withdrawn by a catalog deletion, or purged). It can no longer be read as an active price, so the event carries `{ id, object, price_list_id, deleted: true }`; a withdrawn price that is still readable arrives as the full price entry with `status: retired` and `deleted: true`.
+     */
+    object: PriceListItem | EventPriceListItemDeletedObject;
+};
+
+/**
+ * EventDataPriceListItemUpdated
+ *
+ * Payload (`data`) emitted with the `price_list.item_updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPriceListItemUpdated = {
+    type: 'price_list.item_updated';
+    object: PriceListItem;
+};
+
+/**
+ * EventDataPriceListUpdated
+ *
+ * Payload (`data`) emitted with the `price_list.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPriceListUpdated = {
+    type: 'price_list.updated';
+    object: PriceList;
+};
+
+/**
  * EventDataProductCreated
  *
  * Payload (`data`) emitted with the `product.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
@@ -9891,6 +10646,19 @@ export type EventDataPayoutReconciled = {
 export type EventDataProductCreated = {
     type: 'product.created';
     object: Product;
+};
+
+/**
+ * EventDataProductDeleted
+ *
+ * Payload (`data`) emitted with the `product.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataProductDeleted = {
+    type: 'product.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: Product | EventDeletedObject;
 };
 
 /**
@@ -10087,6 +10855,69 @@ export type EventDataProjectDeleted = {
 export type EventDataProjectUpdated = {
     type: 'project.updated';
     object: Project;
+};
+
+/**
+ * EventDataPromotionCancelled
+ *
+ * Payload (`data`) emitted with the `promotion.cancelled` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPromotionCancelled = {
+    type: 'promotion.cancelled';
+    object: Promotion;
+};
+
+/**
+ * EventDataPromotionCreated
+ *
+ * Payload (`data`) emitted with the `promotion.created` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPromotionCreated = {
+    type: 'promotion.created';
+    object: Promotion;
+};
+
+/**
+ * EventDataPromotionDeleted
+ *
+ * Payload (`data`) emitted with the `promotion.deleted` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPromotionDeleted = {
+    type: 'promotion.deleted';
+    /**
+     * Snapshot of the resource at emission time. When the resource is still recoverable the full snapshot is emitted with an additional `deleted: true` key; otherwise it degrades to `{ id, deleted: true }`.
+     */
+    object: Promotion | EventDeletedObject;
+};
+
+/**
+ * EventDataPromotionEnded
+ *
+ * Payload (`data`) emitted with the `promotion.ended` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPromotionEnded = {
+    type: 'promotion.ended';
+    object: Promotion;
+};
+
+/**
+ * EventDataPromotionStarted
+ *
+ * Payload (`data`) emitted with the `promotion.started` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPromotionStarted = {
+    type: 'promotion.started';
+    object: Promotion;
+};
+
+/**
+ * EventDataPromotionUpdated
+ *
+ * Payload (`data`) emitted with the `promotion.updated` event: the full resource snapshot captured at emission time under `object`, plus event-specific keys.
+ */
+export type EventDataPromotionUpdated = {
+    type: 'promotion.updated';
+    object: Promotion;
 };
 
 /**
@@ -10945,6 +11776,27 @@ export type EventDeletedObject = {
 };
 
 /**
+ * EventPriceListItemDeletedObject
+ *
+ * Degraded snapshot emitted with `price_list.item_deleted`: the price entry that stopped applying and the price list it belonged to.
+ */
+export type EventPriceListItemDeletedObject = {
+    /**
+     * Opaque identifier (UUID v7) of the price entry.
+     */
+    id: string;
+    object?: 'price_list_item';
+    /**
+     * Opaque identifier (UUID v7) of the price list the entry belonged to. Absent only when the event is re-emitted by an automation.
+     */
+    price_list_id?: string;
+    /**
+     * Always `true`.
+     */
+    deleted: true;
+};
+
+/**
  * ExpenseCategory
  */
 export type ExpenseCategory = {
@@ -11170,6 +12022,11 @@ export type FindInvoiceByNumberRequest = {
  */
 export type FindProductByExternalIdRequest = {
     external_id: string;
+    /**
+     * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+     * Malformed: 400 `parameter_invalid_iso8601`.
+     */
+    date?: string | null;
 };
 
 /**
@@ -11184,6 +12041,11 @@ export type FindProductByExternalIdRequest = {
  */
 export type FindProductBySkuRequest = {
     sku: string;
+    /**
+     * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+     * Malformed: 400 `parameter_invalid_iso8601`.
+     */
+    date?: string | null;
 };
 
 /**
@@ -12138,6 +13000,10 @@ export type InvoiceLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+    /**
+     * The pack group this line belongs to, or `null` when the line is not part of a pack. See `PackGroup`.
+     */
+    pack_group: PackGroup | null;
     /**
      * VeriFactu special regime key (ClaveRegimen, AEAT L8.1) declared for this line, or null when the line inherits the regime from the invoice header.
      */
@@ -14037,7 +14903,7 @@ export type ModifyTransportDocumentRequest = {
             gross_weight_kg?: number | null;
         }> | null;
         declared_measure?: {
-            type?: string;
+            type: string;
             weight_kg?: number | null;
             value?: number | null;
             unit?: string | null;
@@ -14703,6 +15569,647 @@ export type NotificationList = {
 };
 
 /**
+ * Pack
+ *
+ * A pack: several catalog products or services sold together as one item at one price. The schema is the UNION of the two views selected with `view`. `all` (default) is the complete record and adds `status`, `channels`, `pricing`, `sellable`, `attention`, `metadata`, `created_at` and, inside `availability`, `limited_by`. `storefront` is the record for a web store: only active packs on sale on the web, within their validity dates and sellable are returned, and any other pack answers 404 `pack_not_found`, exactly like an id that does not exist. It carries `availability` according to the `web_stock_display` setting of the company and never `limited_by`, `attention`, `metadata`, costs or supplier data. All amounts are euros as decimal strings with two decimals; percentages and VAT rates are numbers; quantities are decimal strings; `currency` is on the root and is always `EUR`. `unit.label` of the components follows `Accept-Language`. Mapping to schema.org: a pack is a `Product` with a single `Offer`. `name`, `sku` and `description` map to `Product.name`, `Product.sku` and `Product.description`; `cover.url` to `Product.image`; `price.gross` to `Offer.price`; `currency` to `Offer.priceCurrency`; `available_until` to `Offer.priceValidUntil`; and `availability.status` to `Offer.availability` (`in_stock` and `untracked` to `InStock`, `low` to `LimitedAvailability`, `out_of_stock` to `OutOfStock`). A list of packs maps to an `ItemList` whose `itemListElement` is `data`. While a promotion applies, `Offer.price` is `promotion.price.gross` and `Offer.priceValidUntil` is `promotion.ends_at`; show the previous price only when `promotion.announce_reduction` is `true`. Use this API from your server, never from a browser: the API key must stay secret. Cache what you render and revalidate with the `ETag` (`If-None-Match` answers 304).
+ */
+export type Pack = {
+    /**
+     * Public identifier (UUID v7) of the pack.
+     */
+    id: string;
+    object: 'pack';
+    /**
+     * Name of the pack.
+     */
+    name: string;
+    /**
+     * URL slug, unique per company. Filter the list by it to find a pack by its current or a previous slug.
+     */
+    slug: string;
+    /**
+     * Slugs the pack had before, so that old links can be redirected.
+     */
+    previous_slugs: Array<string>;
+    /**
+     * Your own product code, unique per company.
+     */
+    sku: string | null;
+    /**
+     * Short plain-text summary.
+     */
+    summary: string | null;
+    /**
+     * Long description (up to 5,000 characters).
+     */
+    description: string | null;
+    /**
+     * Free classification tags.
+     */
+    tags: Array<string>;
+    seo: PackSeo;
+    /**
+     * Currency of every amount of the pack.
+     */
+    currency: 'EUR';
+    price: PackPrice;
+    /**
+     * The price split by VAT rate. One row per rate; two or more when the components have mixed rates.
+     */
+    tax_breakdown: Array<PackTaxBreakdownRow>;
+    separately: PackSeparately;
+    /**
+     * Saving against buying the components separately, or `null` when the pack saves nothing.
+     */
+    savings: PackSavings | null;
+    /**
+     * The promotion that applies to the pack on the web channel today, or on the day of the `date` parameter, or `null` when there is none (the key is always present). `price` is still the regular price of the pack: with a promotion, show `promotion.price` and, only when `promotion.announce_reduction` is `true`, `promotion.previous_price` as the previous price.
+     */
+    promotion: CatalogPromotion | null;
+    /**
+     * First day the pack is on sale, or `null` for no start.
+     */
+    available_from: string | null;
+    /**
+     * Last day the pack is on sale, or `null` for no end.
+     */
+    available_until: string | null;
+    /**
+     * Cover image, or `null` when neither the pack nor its components have one.
+     */
+    cover: PackCover | null;
+    /**
+     * Own images of the pack, up to 5, in order.
+     */
+    gallery: Array<PackGalleryImage>;
+    /**
+     * Contents of the pack.
+     */
+    components: Array<PackComponent>;
+    availability: PackAvailability;
+    /**
+     * Last change. Use it with the `updated[gte]` filter to synchronise.
+     */
+    updated_at: string;
+    /**
+     * Lifecycle status. Only in the `all` view.
+     */
+    status?: 'active' | 'inactive' | 'archived';
+    /**
+     * Where the pack can be sold. Only in the `all` view.
+     */
+    channels?: {
+        /**
+         * Can be added to documents.
+         */
+        documents: boolean;
+        /**
+         * Is published on the web store.
+         */
+        web: boolean;
+    };
+    pricing?: PackPricing;
+    sellable?: PackSellable;
+    /**
+     * Warnings that need the attention of the owner, such as an out-of-stock component, a validity that ends soon or a low saving. Only in the `all` view.
+     */
+    attention?: Array<{
+        /**
+         * Stable code of the warning, for example `out_of_stock`, `component_unsellable`, `savings_low`, `ends_soon` or `restore_blocked`.
+         */
+        code: string;
+        /**
+         * Readable text of the warning.
+         */
+        message: string;
+        /**
+         * Component the warning is about, or `null` when it concerns the whole pack.
+         */
+        product_id: string | null;
+    }>;
+    /**
+     * Free key-value data of your integration. Only in the `all` view.
+     */
+    metadata?: {
+        [key: string]: string;
+    };
+    /**
+     * Creation date. Only in the `all` view.
+     */
+    created_at?: string;
+};
+
+/**
+ * PackAvailability
+ *
+ * Stock availability of the pack, derived from its components: the pack is as available as its scarcest component. In the `all` view it always carries `quantity` and `limited_by`. In the `storefront` view it follows the `web_stock_display` setting of the company: `status` shows only `status`; `low_only` (default) adds `quantity` only when `status` is `low`; `exact` adds `quantity` whenever there is one. `limited_by` is never published in the `storefront` view.
+ */
+export type PackAvailability = {
+    /**
+     * Availability status. `untracked` means that no component manages stock.
+     */
+    status: 'in_stock' | 'low' | 'out_of_stock' | 'untracked';
+    /**
+     * Whole packs that can be sold with the current stock, as a decimal string. `null` when stock is not tracked. Omitted in the `storefront` view when the display setting does not show it.
+     */
+    quantity?: string | null;
+    /**
+     * The component that limits the availability, or `null` when none does. Returned only in the `all` view.
+     */
+    limited_by?: {
+        /**
+         * Product that limits the availability.
+         */
+        product_id: string;
+        /**
+         * Variant of that component, when it uses one.
+         */
+        variant_id: string | null;
+    } | null;
+};
+
+/**
+ * PackComponent
+ *
+ * A product or service inside a pack, with the exact variant, presentation or combination chosen. The `all` view adds the fields that identify the line for an integration (`variant_name`, `presentation_name`, `sku`, `configuration_signature`, `options`, `position`).
+ */
+export type PackComponent = {
+    /**
+     * Public identifier (UUID v7) of the product.
+     */
+    product_id: string;
+    /**
+     * Variant chosen, or `null`.
+     */
+    variant_id: string | null;
+    /**
+     * Presentation chosen, or `null`.
+     */
+    presentation_id: string | null;
+    /**
+     * Combination of options chosen, or `null`.
+     */
+    configuration_id: string | null;
+    /**
+     * Name of the product.
+     */
+    name: string;
+    /**
+     * Slug of the product on the web store of the company, so that a storefront can link to it. `null` when the product is not published there.
+     */
+    slug: string | null;
+    /**
+     * Units of the component in one pack, as a decimal string.
+     */
+    quantity: string;
+    /**
+     * Unit of the quantity.
+     */
+    unit: {
+        /**
+         * UN/ECE code of the unit, for example `C62`.
+         */
+        code: string;
+        /**
+         * Name of the unit in the language negotiated with `Accept-Language` (`es`, `en` or `ca`).
+         */
+        label: string;
+    };
+    /**
+     * Image of the product, or `null` when it has none.
+     */
+    image: {
+        /**
+         * Public URL of the first image of the product.
+         */
+        url: string;
+        /**
+         * Alternative text (the name of the component).
+         */
+        alt: string | null;
+    } | null;
+    /**
+     * Name of the variant chosen. Only in the `all` view.
+     */
+    variant_name?: string | null;
+    /**
+     * Name of the presentation chosen. Only in the `all` view.
+     */
+    presentation_name?: string | null;
+    /**
+     * SKU of the exact item chosen. Only in the `all` view.
+     */
+    sku?: string | null;
+    /**
+     * Canonical signature of the combination of options chosen. Only in the `all` view.
+     */
+    configuration_signature?: string | null;
+    /**
+     * Option values chosen on the product, one per group. Only in the `all` view.
+     */
+    options?: Array<{
+        /**
+         * Option group.
+         */
+        group_id: string;
+        /**
+         * Value chosen in that group.
+         */
+        value_id: string;
+    }>;
+    /**
+     * Order of the component in the pack. Only in the `all` view.
+     */
+    position?: number;
+};
+
+/**
+ * PackCover
+ *
+ * Cover image of the pack, resolved by the server: the first image of its gallery or, when it has none, the image of its first component that has one.
+ */
+export type PackCover = {
+    /**
+     * Public, permanent URL of the image.
+     */
+    url: string;
+    /**
+     * Thumbnail URL. `null` for an image inherited from a component, which has none.
+     */
+    thumb_url: string | null;
+    /**
+     * Alternative text. For an inherited image it is the name of the component.
+     */
+    alt: string | null;
+    /**
+     * `own` when it comes from the gallery of the pack, `component` when it is inherited.
+     */
+    source: 'own' | 'component';
+};
+
+/**
+ * PackGalleryImage
+ *
+ * An image of the gallery of a pack, as listed in `Pack.gallery`. The standalone resource returned by the image endpoints is `PackImage`.
+ */
+export type PackGalleryImage = {
+    /**
+     * Public identifier (UUID v7) of the image.
+     */
+    id: string;
+    /**
+     * Public, permanent URL of the image (no signature, no expiry).
+     */
+    url: string;
+    /**
+     * URL of the 480 px thumbnail.
+     */
+    thumb_url: string;
+    /**
+     * Alternative text.
+     */
+    alt: string | null;
+    /**
+     * Width in pixels.
+     */
+    width: number;
+    /**
+     * Height in pixels.
+     */
+    height: number;
+    /**
+     * 1-based position in the gallery.
+     */
+    position: number;
+    /**
+     * Every image is stored as WebP.
+     */
+    content_type: 'image/webp';
+};
+
+/**
+ * PackGroup
+ *
+ * The pack group a document sub-line belongs to. A pack added to a document is expanded into one sub-line per component; every sub-line of the same group carries the same `pack_group` header, read from the snapshot signed when the line was created, so it never changes when the live pack does. It is `null` on a line that is not part of a group. Amounts are decimal strings with two decimals.
+ */
+export type PackGroup = {
+    /**
+     * Public identifier (UUID v7) of the group in the document.
+     */
+    id: string;
+    /**
+     * Public identifier (UUID v7) of the pack it came from.
+     */
+    pack_id: string;
+    /**
+     * Name of the pack when the group was created.
+     */
+    name: string;
+    /**
+     * Number of packs in the group.
+     */
+    quantity: number;
+    /**
+     * How the group is printed in the PDF. New groups are always `full_breakdown`: every sub-line prints as a normal line with its amounts and the name of its pack under it. `pack_with_contents` and `contents_only` only appear in groups saved before every group printed the same way, and they print exactly like `full_breakdown`.
+     */
+    print_mode: 'full_breakdown' | 'pack_with_contents' | 'contents_only';
+    /**
+     * Net price of one pack.
+     */
+    unit_net: string;
+    /**
+     * Gross price of one pack.
+     */
+    unit_gross: string;
+    /**
+     * Price of the components bought separately, for one pack.
+     */
+    separately: {
+        /**
+         * Without VAT.
+         */
+        net: string;
+        /**
+         * With VAT.
+         */
+        gross: string;
+    };
+    /**
+     * Saving against the components bought separately, or `null` when the pack does not save anything.
+     */
+    savings: {
+        /**
+         * Saving without VAT.
+         */
+        net: string;
+        /**
+         * Saving with VAT.
+         */
+        gross: string;
+        /**
+         * Saving in percent, rounded to one decimal.
+         */
+        percent: number;
+    } | null;
+};
+
+/**
+ * PackImage
+ *
+ * An image of the pack gallery, as returned by uploading or editing it. It has no read endpoint of its own: the whole gallery is in `Pack.gallery`.
+ */
+export type PackImage = {
+    /**
+     * Public identifier (UUID v7) of the image.
+     */
+    id: string;
+    object: 'pack_image';
+    /**
+     * Public, permanent URL of the image.
+     */
+    url: string;
+    /**
+     * URL of the 480 px thumbnail.
+     */
+    thumb_url: string;
+    /**
+     * Alternative text.
+     */
+    alt: string | null;
+    /**
+     * Width in pixels.
+     */
+    width: number;
+    /**
+     * Height in pixels.
+     */
+    height: number;
+    /**
+     * 1-based position in the gallery.
+     */
+    position: number;
+    /**
+     * Every image is stored as WebP.
+     */
+    content_type: 'image/webp';
+};
+
+/**
+ * PackListData
+ */
+export type PackListData = {
+    data: Array<Pack>;
+};
+
+/**
+ * PackPrice
+ *
+ * A price in euros split into net, VAT and gross. The three amounts are decimal strings with two decimals and always add up: `net` + `tax` = `gross`.
+ */
+export type PackPrice = {
+    /**
+     * Price without VAT.
+     */
+    net: string;
+    /**
+     * VAT of the price.
+     */
+    tax: string;
+    /**
+     * Price with VAT.
+     */
+    gross: string;
+};
+
+/**
+ * PackPriceBreakdown
+ *
+ * How the price of a pack is made up for a given price list, customer, date and channel: the reference price of the components, the price of the pack, the saving, the VAT by rate and the share of the price that belongs to each component. It serves B2B web stores with customer price lists. When the pack has its own promotion on that date and channel, `price`, `tax_breakdown` and the shares are the promotion ones, `promotion` names it and `regular_price` is the price without it: the amounts the line of an invoice with `sold_on` on that date charges.
+ */
+export type PackPriceBreakdown = {
+    object: 'pack_price_breakdown';
+    currency: 'EUR';
+    separately: PackSeparately;
+    price: PackPrice;
+    /**
+     * Saving against the components bought separately, or `null` when there is none.
+     */
+    savings: PackSavings | null;
+    /**
+     * The price split by VAT rate.
+     */
+    tax_breakdown: Array<PackTaxBreakdownRow>;
+    /**
+     * Share of the price of the pack that belongs to each component. The shares add up to `price`.
+     */
+    components: Array<{
+        /**
+         * Product of the component.
+         */
+        product_id: string;
+        /**
+         * Name of the component.
+         */
+        name: string;
+        /**
+         * Units of the component in one pack, as a decimal string.
+         */
+        quantity: string;
+        /**
+         * What the component costs on its own.
+         */
+        separately: {
+            /**
+             * Price of the component without VAT.
+             */
+            net: string;
+        };
+        share: PackPrice;
+        /**
+         * VAT rate of the component in percent.
+         */
+        tax_rate: number;
+    }>;
+    /**
+     * Things that were not as asked, for example a price list without an entry for a component.
+     */
+    warnings: Array<{
+        /**
+         * Stable code of the warning.
+         */
+        code: string;
+        /**
+         * Parameter the warning refers to, or `null`.
+         */
+        param: string | null;
+        /**
+         * Readable text of the warning.
+         */
+        message: string;
+    }>;
+    /**
+     * Price of the pack without its own promotion, or `null` when no promotion applies. `gross` uses the company regime.
+     */
+    regular_price: PackPrice | null;
+    /**
+     * The own promotion of the pack on the requested date and channel, or `null`. The pack counts as a price list price only when the chosen price list prices at least one of its components; otherwise the promotion applies as for any customer. `won_over_price_list` is `true` when the promotion beat that price list price.
+     */
+    promotion: ResolvedPromotion | null;
+};
+
+/**
+ * PackPricing
+ *
+ * How the price of the pack is set. It is returned only in the `all` view. With `fixed` the pack costs exactly `value`; with `percent_off` it costs the sum of its components minus `value` percent; with `amount_off` it costs that sum minus `value` euros; with `sum` it costs exactly that sum and carries no value.
+ */
+export type PackPricing = {
+    /**
+     * Pricing mode.
+     */
+    mode: 'fixed' | 'percent_off' | 'amount_off' | 'sum';
+    /**
+     * Amount in euros (`fixed`, `amount_off`) or percentage (`percent_off`) as a decimal string. `null` with `sum`.
+     */
+    value: string | null;
+    /**
+     * Whether `value` refers to a price without VAT (`net`) or with VAT (`gross`).
+     */
+    basis: 'net' | 'gross';
+};
+
+/**
+ * PackSavings
+ *
+ * How much cheaper the pack is than its components bought separately. It is `null` in the parent when the pack saves nothing.
+ */
+export type PackSavings = {
+    /**
+     * Saving with VAT.
+     */
+    gross: string;
+    /**
+     * Saving in percent over the price of the components bought separately, rounded to one decimal.
+     */
+    percent: number;
+};
+
+/**
+ * PackSellable
+ *
+ * Whether the pack can be sold today in each channel. It is returned only in the `all` view.
+ */
+export type PackSellable = {
+    /**
+     * Whether the pack can be added to documents.
+     */
+    documents: boolean;
+    /**
+     * Whether the pack is on sale on the web.
+     */
+    web: boolean;
+    /**
+     * First reason that prevents the sale (status, validity dates, a component or a missing channel), in the language of the company. `null` when the pack can be sold.
+     */
+    reason: string | null;
+    /**
+     * Stable machine-readable code of `reason`, so you do not have to parse the text: `archived`, `inactive`, `out_of_window` (outside its validity dates), `no_channel` (only a sales channel is missing), `component_unsellable` (a component is inactive or gone) or `price_unreachable`. `null` when the pack can be sold.
+     */
+    code: 'archived' | 'inactive' | 'out_of_window' | 'no_channel' | 'component_unsellable' | 'price_unreachable' | null;
+};
+
+/**
+ * PackSeo
+ *
+ * Search engine texts, already resolved: when the pack has no own SEO title or description they fall back to its `name` and `summary`.
+ */
+export type PackSeo = {
+    /**
+     * Title for search engines.
+     */
+    title: string | null;
+    /**
+     * Description for search engines.
+     */
+    description: string | null;
+};
+
+/**
+ * PackSeparately
+ *
+ * What the components would cost bought one by one at their own prices, the reference to measure the saving against.
+ */
+export type PackSeparately = {
+    /**
+     * Sum of the component prices without VAT.
+     */
+    net: string;
+    /**
+     * Sum of the component prices with VAT.
+     */
+    gross: string;
+};
+
+/**
+ * PackTaxBreakdownRow
+ *
+ * One VAT rate of the pack price. A pack whose components have mixed rates carries one row per rate.
+ */
+export type PackTaxBreakdownRow = {
+    /**
+     * VAT rate in percent, for example `21` or `10`.
+     */
+    rate: number;
+    /**
+     * Taxable base at this rate.
+     */
+    base: string;
+    /**
+     * VAT at this rate.
+     */
+    tax: string;
+};
+
+/**
  * PaginatedList
  *
  * Cursor-paginated list envelope shared by every v1 listing endpoint. `data` holds the page items; `has_more` signals whether another page exists; `next_cursor` is the cursor to pass back for the following page. Treat it as strictly opaque: send it through verbatim, never parse it and never assume a format — it is not the same across listings, and each listing documents its own cursor parameter. Concrete listings narrow `data` to their resource type via `allOf`.
@@ -15149,6 +16656,68 @@ export type PdfPreviewForm = {
              * Optional. UN/ECE code of the count unit of `counted_quantity` (`H87` piece, `XPK` pack, …). Omit it or send null when `counted_quantity` is not sent.
              */
             counted_unit_code?: 'H87' | 'XPK' | 'XBX' | 'XDS' | 'XBG' | 'XBO' | 'XDJ' | 'XCA' | 'XTB' | 'XCI' | 'XJY' | 'XEN' | 'XCS' | null;
+            /**
+             * Optional. Header of the pack group the line belongs to, so that the preview prints the group exactly like the saved document. Send the same block on every sub-line of the group and omit it, or send `null`, on a line that is not part of a group. Amounts are decimal strings with two decimals and the block carries no images. It is validated like the group captured in a saved document.
+             */
+            pack_group?: {
+                /**
+                 * Public identifier (UUID v7) of the group in the document.
+                 */
+                group_uuid: string;
+                /**
+                 * Public identifier (UUID v7) of the pack, or `null` when it is not known.
+                 */
+                pack_uuid: string | null;
+                /**
+                 * Name of the pack as printed in the group header.
+                 */
+                name: string;
+                /**
+                 * Number of packs of the group. It is signed: a corrective invoice carries it negative.
+                 */
+                quantity: number;
+                /**
+                 * How the group is printed. `full_breakdown` is the only value: every sub-line prints as a normal line with its amounts and the name of its pack under it.
+                 */
+                print_mode: 'full_breakdown';
+                /**
+                 * Net price of one pack, as a decimal string with two decimals.
+                 */
+                unit_net: string;
+                /**
+                 * Gross price of one pack with the VAT of the company, as a decimal string with two decimals.
+                 */
+                unit_gross_company: string;
+                /**
+                 * Net price of the components bought separately, as a decimal string with two decimals.
+                 */
+                separately_net: string;
+                /**
+                 * Gross price of the components bought separately, as a decimal string with two decimals.
+                 */
+                separately_gross: string;
+                /**
+                 * Whether the price of the pack was fixed without VAT (`net`) or with VAT (`gross`).
+                 */
+                pricing_basis: 'net' | 'gross';
+                /**
+                 * Contents of the pack, kept with the group header. The document does not print this list: every component is already one of its sub-lines.
+                 */
+                components: Array<{
+                    /**
+                     * Name of the component.
+                     */
+                    name: string | null;
+                    /**
+                     * Whether the component is a product or a service.
+                     */
+                    kind: 'product' | 'service';
+                    /**
+                     * Quantity of the component in one pack, as a decimal string.
+                     */
+                    quantity: string | null;
+                }>;
+            } | null;
         };
         /**
          * Gross weight of the line for a delivery note; accepted only when the previewed document is a delivery note. Omit it or send null when the line carries no transport weight.
@@ -15521,6 +17090,10 @@ export type PdfTemplateConfiguration = {
          * Whether the additional description of each line (the grey line under the concept) is printed. Default `true`; `false` hides it in the PDF while the concept, variant, presentation and catalog detail stay. Part of the advanced editor: changing it requires a plan that includes it (403 `feature_not_available_in_plan` otherwise).
          */
         show_line_descriptions: boolean;
+        /**
+         * Whether the lines sold under a promotion print, under their concept, the regular price and the rebate (`PVP 39,00 · Oferta −5,85`). Optional: absent means `false`, so a template saved before the option renders as it always did.
+         */
+        show_regular_price?: boolean;
     };
     /**
      * Schema_version 2 only. Legal footer options.
@@ -15794,6 +17367,10 @@ export type PdfTemplateConfigurationChanges = {
          * Whether the additional description of each line (the grey line under the concept) is printed. Default `true`; `false` hides it in the PDF while the concept, variant, presentation and catalog detail stay. Part of the advanced editor: changing it requires a plan that includes it (403 `feature_not_available_in_plan` otherwise).
          */
         show_line_descriptions?: boolean;
+        /**
+         * Whether the lines sold under a promotion print, under their concept, the regular price and the rebate (`PVP 39,00 · Oferta −5,85`). Optional: absent means `false`, so a template saved before the option renders as it always did.
+         */
+        show_regular_price?: boolean;
     };
     /**
      * Schema_version 2 only. Legal footer options.
@@ -15871,6 +17448,39 @@ export type PdfTemplateRevision = {
 };
 
 /**
+ * PendingSeatReduction
+ *
+ * A seat reduction already scheduled: it takes effect at the renewal, deactivates the chosen employees or tax IDs that are still active and is never refunded.
+ */
+export type PendingSeatReduction = {
+    /**
+     * Contracted seats the account will have once the reduction takes effect.
+     */
+    contracted: number;
+    /**
+     * Renewal date (ISO 8601 UTC) on which the reduction is applied.
+     */
+    effective_at: string;
+    /**
+     * The chosen employees (or tax IDs) that are still active and will be deactivated at the renewal.
+     */
+    deactivations: Array<{
+        /**
+         * Opaque identifier of the employee or tax ID (UUID v7).
+         */
+        id: string;
+        /**
+         * Display name of the employee or tax ID.
+         */
+        name: string;
+    }>;
+    /**
+     * What the applied offer package loses when the reduction takes effect, or null when it loses nothing.
+     */
+    offer_package_loss: SeatOfferPackageLoss | null;
+};
+
+/**
  * PhoneString
  *
  * Permissive international phone number: optional `+`, digits, spaces, hyphens and parentheses (6..20 characters).
@@ -15911,6 +17521,8 @@ export type PrepareEmployeeSeatOfferBody = {
         kind: 'employee_batch';
         batch_id: string;
         quote_version: number;
+    } | {
+        kind: 'apply_to_existing';
     };
 };
 
@@ -15942,6 +17554,8 @@ export type PrepareGestoriaSeatOfferBody = {
         kind: 'gestoria_purchase';
         action: 'activate_batch';
         company_ids: Array<string>;
+    } | {
+        kind: 'apply_to_existing';
     };
 };
 
@@ -15980,10 +17594,10 @@ export type PreviewBusinessContactImportV1Request = {
 export type PreviewCatalogConfigurationImpactRequest = {
     catalog_availability_mode?: 'open' | 'closed';
     configurations: Array<{
-        variant_id: string | null;
-        presentation_id: string | null;
-        option_value_ids: Array<string> | null;
-        restricts_availability: boolean;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        option_value_ids?: Array<string> | null;
+        restricts_availability?: boolean;
     }>;
     presentation_ids?: Array<string>;
     variant_ids?: Array<string>;
@@ -16073,6 +17687,9 @@ export type PriceList = {
     assigned_draft_count: number;
     items: Array<PriceListItem>;
     created_at: string;
+    /**
+     * Last change of the price list, which also moves when one of its prices changes. Use it with the `updated[gte]` filter to synchronise.
+     */
     updated_at: string;
 };
 
@@ -16129,6 +17746,9 @@ export type PriceListItem = {
      */
     retired_target_snapshot: RetiredPriceListTarget | null;
     created_at: string;
+    /**
+     * Last change of the price. Use it with the `updated[gte]` filter to synchronise.
+     */
     updated_at: string;
 };
 
@@ -16146,20 +17766,49 @@ export type PriceListItemCollection = {
 /**
  * Product
  *
- * A product in your catalog.
+ * A product in your catalog. The `all` view (default) returns every field. The `storefront` view (`view=storefront`, only for active products enabled on the web) returns the common storefront contract (`id`, `object`, `name`, `slug`, `previous_slugs`, `summary`, `description`, `seo`, `tags`, `currency`, `sale_price`, `availability`, `gallery`, `updated_at`) plus `sku`, `item_kind`, `base_unit`, `tax_rate`, `specifications` and `video`; in the detail it adds the sellable graph (active `variants`, `presentations`, `option_groups` and `configurations`, each with its own `sale_price` and `availability`), and in the list only their counts and `sale_price_from`. It never returns costs, supplier offers, `metadata`, `external_id`, raw stock or the base unit change blocks.
  */
 export type Product = {
     id: string;
     object: 'product';
     name: string;
     sku: string | null;
-    price: Money;
+    price?: Money;
     currency: string;
+    /**
+     * Channels the product is offered in. `all` view only. `web` is `false` by default, also in existing products, so nothing is published without a decision.
+     */
+    channels?: {
+        web: boolean;
+    };
+    /**
+     * Web address: lowercase letters, digits and hyphens. Unique among the products and packs of the company, also against their previous slugs. Generated from the name when the product enters the web without one; `null` until then.
+     */
+    slug: string | null;
+    /**
+     * Slugs the product used before, most recent first. A web redirects them (301) to the current `slug`: `GET /v1/companies/{company}/products?slug=old` still finds the product.
+     */
+    previous_slugs: Array<string>;
+    /**
+     * Plain-text summary for the web.
+     */
+    summary: string | null;
+    seo: PackSeo;
+    sale_price: CatalogSalePrice | null;
+    /**
+     * The promotion that applies to the product on the web channel today, or on the day of the `date` parameter, or `null` when there is none. `sale_price` is still the regular price: with a promotion, show `promotion.price` and, only when `promotion.announce_reduction` is `true`, `promotion.previous_price` as the previous price. In schema.org, `Offer.price` is `promotion.price.gross` and `Offer.priceValidUntil` is `promotion.ends_at`.
+     */
+    promotion: CatalogPromotion | null;
+    /**
+     * `storefront` list only: the lowest sellable price among the product and its active variants, presentations and configurations, to show "from".
+     */
+    sale_price_from?: CatalogSalePrice | null;
+    availability: ProductAvailability;
     tax_rate: TaxRateRef | null;
     /**
      * Available stock quantity with four-decimal scale.
      */
-    stock: string;
+    stock?: string;
     /**
      * Catalog item kind.
      */
@@ -16175,7 +17824,7 @@ export type Product = {
     /**
      * Whether the product participates in document-driven stock movements (invoices, delivery notes). Requires the company `stock_management` module to be enabled. Defaults to `false`.
      */
-    manage_stock: boolean;
+    manage_stock?: boolean;
     /**
      * Product gallery images.
      */
@@ -16192,6 +17841,18 @@ export type Product = {
          * MIME type of the image (e.g. `image/jpeg`).
          */
         content_type: string;
+        /**
+         * Alternative text: the name of the product, because a product gallery has no text of its own.
+         */
+        alt: string;
+        /**
+         * Width in pixels, measured on upload. `null` only when the file is missing.
+         */
+        width: number | null;
+        /**
+         * Height in pixels, measured on upload. `null` only when the file is missing.
+         */
+        height: number | null;
     }>;
     /**
      * Product attached video, or `null` if there is none.
@@ -16206,7 +17867,7 @@ export type Product = {
          */
         content_type: string;
     } | null;
-    is_active: boolean;
+    is_active?: boolean;
     /**
      * Free-text description of the product.
      */
@@ -16218,10 +17879,10 @@ export type Product = {
     /**
      * Threshold below which stock is considered low, or `null` if not configured.
      */
-    low_stock_threshold: string | null;
+    low_stock_threshold?: string | null;
     presentation_count: number;
     variant_count: number;
-    supplier_offer_count: number;
+    supplier_offer_count?: number;
     /**
      * Number of option groups the product declares (active and inactive). Always reported, so a listing that omits `option_groups` for brevity never reads as a plain product.
      */
@@ -16233,39 +17894,39 @@ export type Product = {
     /**
      * `open` keeps the Cartesian product of active axes sellable; only configurations with `restricts_availability=true` constrain their own variant. `closed` treats all active configurations as the exact allow-list.
      */
-    catalog_availability_mode: 'open' | 'closed';
-    preferred_supplier_offer_id: string | null;
-    presentations: Array<ProductPresentation>;
-    variants: Array<ProductVariant>;
-    supplier_offers: Array<SupplierProductOffer>;
+    catalog_availability_mode?: 'open' | 'closed';
+    preferred_supplier_offer_id?: string | null;
+    presentations?: Array<ProductPresentation>;
+    variants?: Array<ProductVariant>;
+    supplier_offers?: Array<SupplierProductOffer>;
     /**
      * Sellable option groups (finish, flavour, quality) with their values. Always an array; `[]` when the product declares none. Populated only when the caller asks for the configurable catalog.
      */
-    option_groups: Array<ProductOptionGroup>;
+    option_groups?: Array<ProductOptionGroup>;
     /**
      * Commercial configurations used for exact pricing and, depending on `catalog_availability_mode`, availability. In `open`, they do not restrict unless a row explicitly opts in. In `closed`, active rows form the exact allow-list; an empty active list means nothing is sellable.
      */
-    configurations: Array<ProductConfiguration>;
+    configurations?: Array<ProductConfiguration>;
     /**
      * Indicates whether the current stock is below the configured threshold.
      */
-    is_low_stock: boolean;
+    is_low_stock?: boolean;
     /**
      * Whether there is stock available (> 0).
      */
-    is_in_stock: boolean;
+    is_in_stock?: boolean;
     /**
      * Structured technical specifications of the product (free key-value pairs). Empty object `{}` when there are no specifications.
      */
     specifications: {
         [key: string]: unknown;
     };
-    metadata: Metadata;
+    metadata?: Metadata;
     /**
      * External integration key (ERP/CRM/e-commerce) mapping this product to a record in a third-party system. Free-format, unique per company, orthogonal to the catalog `sku` (a product may have both, neither, or either).
      */
     external_id?: string | null;
-    created_at: string | null;
+    created_at?: string | null;
     updated_at: string | null;
     base_unit_change?: BaseUnitChange;
     replaces?: ProductReplacementLink | null;
@@ -16316,6 +17977,22 @@ export type ProductActivity = {
 };
 
 /**
+ * ProductAvailability
+ *
+ * Availability of a product, a variant with its own stock or a presentation. In the `all` view `quantity` is always present when stock is tracked. In the `storefront` view it follows the `web_stock_display` setting of the company: `status` shows only `status`; `low_only` (default) adds `quantity` only when `status` is `low`; `exact` adds `quantity` whenever there is one. A presentation counts in its commercial units, `floor(stock / conversion_factor)`.
+ */
+export type ProductAvailability = {
+    /**
+     * `untracked`: the product does not manage stock (`manage_stock: false` or a service). `out_of_stock`: stock of 0 or negative. `low`: stock at or below the minimum threshold. `in_stock`: the rest.
+     */
+    status: 'in_stock' | 'low' | 'out_of_stock' | 'untracked';
+    /**
+     * Available quantity as a decimal string with the scale of the stock. Omitted when stock is not tracked or when the display setting does not show it.
+     */
+    quantity?: string;
+};
+
+/**
  * ProductConfiguration
  *
  * A valid commercial combination of a product: an optional variant, an optional presentation and a canonical set of option values.
@@ -16323,6 +18000,14 @@ export type ProductActivity = {
 export type ProductConfiguration = {
     id: string;
     object: 'product_configuration';
+    /**
+     * Sale price with and without VAT, measured as a document line of quantity 1 (no customer rate, company regime, today). Returned inside the `Product` read (`all` and `storefront`), not by the standalone sub-resource endpoints. The `net` amount keeps the scale of the catalog price.
+     */
+    sale_price?: CatalogSalePrice | null;
+    /**
+     * The promotion that applies to the item on the web channel today, or on the day of the `date` parameter, or `null` when there is none. `sale_price` is still the regular price: with a promotion, show `promotion.price` and, only when `promotion.announce_reduction` is `true`, `promotion.previous_price` as the previous price. In schema.org, `Offer.price` is `promotion.price.gross` and `Offer.priceValidUntil` is `promotion.ends_at`.
+     */
+    promotion?: CatalogPromotion | null;
     product_id: string;
     /**
      * Visible label composed from variant + presentation + values. It is not a stored column: the historical name is frozen by the document line, not by the catalog. It is also the text the price-list `search` filter matches.
@@ -16360,6 +18045,13 @@ export type ProductConfigurationOption = {
     value_id: string;
     value_name: string;
     price_adjustment: string | null;
+};
+
+/**
+ * ProductListData
+ */
+export type ProductListData = {
+    data: Array<Product>;
 };
 
 /**
@@ -16414,6 +18106,18 @@ export type ProductOptionValue = {
 export type ProductPresentation = {
     id: string;
     object: 'product_presentation';
+    /**
+     * Sale price with and without VAT, measured as a document line of quantity 1 (no customer rate, company regime, today). Returned inside the `Product` read (`all` and `storefront`), not by the standalone sub-resource endpoints. The `net` amount keeps the scale of the catalog price.
+     */
+    sale_price?: CatalogSalePrice | null;
+    /**
+     * The promotion that applies to the item on the web channel today, or on the day of the `date` parameter, or `null` when there is none. `sale_price` is still the regular price: with a promotion, show `promotion.price` and, only when `promotion.announce_reduction` is `true`, `promotion.previous_price` as the previous price. In schema.org, `Offer.price` is `promotion.price.gross` and `Offer.priceValidUntil` is `promotion.ends_at`.
+     */
+    promotion?: CatalogPromotion | null;
+    /**
+     * Availability. Returned inside the `Product` read only; `null` for a variant that does not manage its own stock.
+     */
+    availability?: ProductAvailability | null;
     product_id: string;
     name: string;
     mode: 'fixed' | 'variable_measure';
@@ -16536,6 +18240,18 @@ export type ProductStats = {
 export type ProductVariant = {
     id: string;
     object: 'product_variant';
+    /**
+     * Sale price with and without VAT, measured as a document line of quantity 1 (no customer rate, company regime, today). Returned inside the `Product` read (`all` and `storefront`), not by the standalone sub-resource endpoints. The `net` amount keeps the scale of the catalog price.
+     */
+    sale_price?: CatalogSalePrice | null;
+    /**
+     * The promotion that applies to the item on the web channel today, or on the day of the `date` parameter, or `null` when there is none. `sale_price` is still the regular price: with a promotion, show `promotion.price` and, only when `promotion.announce_reduction` is `true`, `promotion.previous_price` as the previous price. In schema.org, `Offer.price` is `promotion.price.gross` and `Offer.priceValidUntil` is `promotion.ends_at`.
+     */
+    promotion?: CatalogPromotion | null;
+    /**
+     * Availability. Returned inside the `Product` read only; `null` for a variant that does not manage its own stock.
+     */
+    availability?: ProductAvailability | null;
     product_id: string;
     name: string;
     sku: string | null;
@@ -16784,6 +18500,10 @@ export type ProformaLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+    /**
+     * The pack group this line belongs to, or `null` when the line is not part of a pack. See `PackGroup`.
+     */
+    pack_group: PackGroup | null;
 };
 
 /**
@@ -17263,6 +18983,182 @@ export type ProjectTimeSummary = {
 };
 
 /**
+ * Promotion
+ *
+ * A promotion: a discount on a set of catalog items between two days of the company time zone. `starts_on` and `ends_on` are days of that zone and the last day is included; `starts_at` and `ends_at` are ISO 8601 with the offset of that zone, and `ends_at` is the last included instant. A promotion is `scheduled` until it starts, `active` while it runs, `ended` when its last day passes and `cancelled` when it was cancelled. Once it has started a promotion only admits a new `ends_on`; prices and items are frozen.
+ */
+export type Promotion = {
+    /**
+     * Public identifier (UUID v7) of the promotion.
+     */
+    id: string;
+    object: 'promotion';
+    /**
+     * Internal name of the promotion.
+     */
+    name: string;
+    /**
+     * Text the web shows next to the price ("Offer", "Black Friday"). Spanish law reserves those words for a real reduction.
+     */
+    label: string | null;
+    /**
+     * Status today, in the company time zone.
+     */
+    status: 'scheduled' | 'active' | 'ended' | 'cancelled';
+    /**
+     * Currency of every amount of the promotion.
+     */
+    currency: 'EUR';
+    /**
+     * First day of the promotion.
+     */
+    starts_on: string;
+    /**
+     * Last day of the promotion, included.
+     */
+    ends_on: string;
+    /**
+     * `ends_on` when it was scheduled. It differs from `ends_on` when the promotion was extended.
+     */
+    original_ends_on: string;
+    /**
+     * First instant of the promotion.
+     */
+    starts_at: string;
+    /**
+     * Last included instant of the promotion. Use it as `priceValidUntil` of schema.org.
+     */
+    ends_at: string;
+    /**
+     * `true` when the promotion was extended after it started.
+     */
+    is_extension: boolean;
+    /**
+     * Where the promotion applies.
+     */
+    channels: {
+        /**
+         * Applies to the lines of sales documents.
+         */
+        documents: boolean;
+        /**
+         * Applies to the web store.
+         */
+        web: boolean;
+    };
+    /**
+     * Whether customers with a price list also get the promotion. Without it, a price list wins over the promotion.
+     */
+    include_price_list_customers: boolean;
+    /**
+     * Perishable goods have no legal previous price: they never announce a reduction.
+     */
+    perishable: boolean;
+    /**
+     * `false` when the price history is not complete 30 days back, so a previous price cannot be proven.
+     */
+    history_complete: boolean;
+    /**
+     * First day from which the price history is complete, or `null`.
+     */
+    history_complete_until: string | null;
+    /**
+     * Discounted items, with their regular, promotion and previous prices.
+     */
+    items: Array<PromotionItem>;
+    /**
+     * Creation date.
+     */
+    created_at: string;
+    /**
+     * Last change. Use it with the `updated[gte]` filter to synchronise.
+     */
+    updated_at: string;
+};
+
+/**
+ * PromotionItem
+ *
+ * One discounted item of a promotion. An item has no identifier of its own: an item is never repeated inside a promotion, so `target_type` and `target_id` identify it.
+ */
+export type PromotionItem = {
+    /**
+     * What the discount applies to.
+     */
+    target_type: 'product' | 'variant' | 'presentation' | 'configuration' | 'pack';
+    /**
+     * Public identifier (UUID v7) of the product, variant, presentation, configuration or pack.
+     */
+    target_id: string;
+    /**
+     * Name of the item at the time of the request.
+     */
+    name: string;
+    /**
+     * Readable description of the variant, presentation or configuration, or `null` for a product or a pack.
+     */
+    selection_label: string | null;
+    /**
+     * Product code of the item.
+     */
+    sku: string | null;
+    /**
+     * Whether the item is a product, a service or a pack.
+     */
+    kind: 'product' | 'service' | 'pack';
+    /**
+     * VAT rate of the item, in percent.
+     */
+    tax_rate: number | null;
+    /**
+     * `percent_off` discounts a percentage of the regular price; `fixed` sets the price.
+     */
+    mode: 'percent_off' | 'fixed';
+    /**
+     * The percentage with `percent_off`, or the price in euros with `fixed`, as a decimal string with at most 2 decimals.
+     */
+    value: string;
+    /**
+     * With `fixed`, whether the price is without VAT (`net`) or with VAT (`gross`). `null` with `percent_off`.
+     */
+    basis: 'net' | 'gross' | null;
+    regular_price: PromotionPrice;
+    price: PromotionPrice;
+    /**
+     * Legal previous price: the lowest price of the last 30 days before the promotion. `null` when the reduction cannot be announced.
+     */
+    previous_price: PromotionPrice | null;
+    /**
+     * Reduction from `previous_price.gross` to `price.gross`, with 2 decimals. `null` when `announce_reduction` is `false`. Round it down if your web shows a whole number, so that it never announces more reduction than the real one.
+     */
+    reduction_percent: number | null;
+    /**
+     * `false` when `previous_price` is `null` or is not greater than `price.gross`: then the web must not show a "before" price nor a strikethrough.
+     */
+    announce_reduction: boolean;
+};
+
+/**
+ * PromotionPrice
+ *
+ * A price in euros split into net, VAT and gross. The three amounts are decimal strings with two decimals and always add up: `net` + `tax` = `gross`.
+ */
+export type PromotionPrice = {
+    /**
+     * Price without VAT.
+     */
+    net: string;
+    /**
+     * VAT of the price.
+     */
+    tax: string;
+    /**
+     * Price with VAT.
+     */
+    gross: string;
+};
+
+/**
  * ProvisionManagedAccountV1Request
  *
  * Provision a managed account for one of your clients. Required: `external_ref` (your own reference, unique per provider: repeating it returns the same account), `plan` (`emprendedor`, `empresario` or `integral`), `tax_id` (Spanish tax ID) and `legal_name`. `access_level` is the level your account keeps on it (`none` by default). `owner_email` is required with a live key and whenever `send_email` is `true`; `send_email` is `false` by default, so the claim voucher comes back ONCE in the response for you to deliver. The rest of the fiscal profile (`display_name`, address, `language`) is optional. The provider is always the account of the key and never comes from the body; the environment of the new account is the one of the key.
@@ -17285,11 +19181,11 @@ export type ProvisionManagedAccountV1Request = {
      */
     tax_id: string;
     /**
-     * Legal name of the managed account.
+     * Legal name of the managed account (up to 100 characters).
      */
     legal_name: string;
     /**
-     * Visible name of the account and of its tax ID; without it, the legal name.
+     * Visible name of the account and trade name of its tax ID (up to 100 characters); without it, the legal name.
      */
     display_name?: string | null;
     /**
@@ -18493,6 +20389,10 @@ export type QuoteLine = {
      * TRI-STATE, and `null` is NOT `false`. `true`: the resolved price already includes the option adjustments. `false`: they were added on top. `null`: it could not be determined — the assembler refuses such a line with 422 rather than risking charging the adjustments twice, so `null` only ever reaches a reader on a legacy line with no configurable options at all.
      */
     option_adjustments_absorbed: boolean | null;
+    /**
+     * The pack group this line belongs to, or `null` when the line is not part of a pack. See `PackGroup`.
+     */
+    pack_group: PackGroup | null;
 };
 
 /**
@@ -18810,6 +20710,10 @@ export type RecurringInvoiceLine = {
      * Optional secondary description rendered below the line concept on generated invoice PDFs.
      */
     additional_description?: string | null;
+    /**
+     * The pack group this line belongs to, or `null` when the line is not part of a pack. See `PackGroup`.
+     */
+    pack_group?: PackGroup | null;
     quantity: number;
     /**
      * Unit price as a decimal STRING with 4 decimals (e.g. `"100.0000"`), the scale the template accepts: reading a line and sending it back never changes its price.
@@ -19353,13 +21257,25 @@ export type RescheduleInvoiceRequest = {
  * ResolveCatalogPriceRequest
  */
 export type ResolveCatalogPriceRequest = {
+    /**
+     * Price list (UUID v7) as in a document: the one sent wins and `null` means no price list. If omitted, the default price list of the `client_id` applies. An inactive price list responds 422.
+     */
     price_list_id?: string | null;
+    /**
+     * Web customer (UUID v7 of a company contact with the customer role): the same `client_id` as a document. Without `price_list_id`, its active default price list applies.
+     */
+    client_id?: string | null;
     product_id: string;
     variant_id?: string | null;
     presentation_id?: string | null;
     configuration_id?: string | null;
     selection_signature?: string | null;
     option_value_ids?: Array<string> | null;
+    /**
+     * Offers (`catalog-promotions` 3.5): the day (in the company time zone, today if omitted) and the channel (documents if omitted).
+     */
+    date?: string | null;
+    channel?: 'documents' | 'web' | null;
 };
 
 /**
@@ -19381,15 +21297,27 @@ export type ResolveCatalogSelectionRequest = {
  * ResolveManyCatalogPricesRequest
  */
 export type ResolveManyCatalogPricesRequest = {
+    /**
+     * Price list (UUID v7) as in a document: the one sent wins and `null` means no price list. If omitted, the default price list of the `client_id` applies. An inactive price list responds 422.
+     */
     price_list_id?: string | null;
+    /**
+     * Web customer (UUID v7 of a company contact with the customer role): the same `client_id` as a document. Without `price_list_id`, its active default price list applies.
+     */
+    client_id?: string | null;
+    /**
+     * Offers (`catalog-promotions` 3.5): the day (in the company time zone, today if omitted) and the channel (documents if omitted).
+     */
+    date?: string | null;
+    channel?: 'documents' | 'web' | null;
     targets: Array<{
         product_id: string;
-        variant_id: string | null;
-        presentation_id: string | null;
-        current_unit_price: number | null;
-        configuration_id: string | null;
-        selection_signature: string | null;
-        option_value_ids: Array<string> | null;
+        variant_id?: string | null;
+        presentation_id?: string | null;
+        current_unit_price?: number | null;
+        configuration_id?: string | null;
+        selection_signature?: string | null;
+        option_value_ids?: Array<string> | null;
     }>;
 };
 
@@ -19430,7 +21358,7 @@ export type ResolvedCatalogPrice = {
     currency: string;
     price_unit: string;
     base_unit: string;
-    source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
+    source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion';
     /**
      * Semantics of the amount of the winning source. `per_base_unit` is converted once by the factor of the presentation; `per_commercial_unit` is never converted.
      */
@@ -19447,6 +21375,18 @@ export type ResolvedCatalogPrice = {
      * Whether the winning source already included the option adjustments. `null` means the resolver did not take a position, never `false`.
      */
     option_adjustments_absorbed: boolean | null;
+    /**
+     * Price WITHOUT the promotion, with four decimals like `unit_price`. Without a promotion it is the same as `unit_price`.
+     */
+    regular_unit_price: string | null;
+    /**
+     * Source of `regular_unit_price`. With a promotion, `source` is `promotion` and this is the source the promotion reduced (`price_list` when it beat the customer's price list).
+     */
+    regular_source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+    /**
+     * The promotion applied to this price, or `null`. The price list is chosen as in a document: an explicit `price_list_id` wins (`null` means no price list), otherwise the default price list of the `client_id`, ignored when inactive.
+     */
+    promotion: ResolvedPromotion | null;
 };
 
 /**
@@ -19478,7 +21418,7 @@ export type ResolvedCatalogPricePreview = {
     currency: string;
     price_unit: string;
     base_unit: string;
-    source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot';
+    source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion';
     /**
      * Semantics of the amount of the winning source. `per_base_unit` is converted once by the factor of the presentation; `per_commercial_unit` is never converted.
      */
@@ -19507,6 +21447,18 @@ export type ResolvedCatalogPricePreview = {
      * `unit_price - current_unit_price`. `null` when `current_unit_price` was not sent.
      */
     difference: string | null;
+    /**
+     * Price WITHOUT the promotion, with four decimals like `unit_price`. Without a promotion it is the same as `unit_price`.
+     */
+    regular_unit_price: string | null;
+    /**
+     * Source of `regular_unit_price`. With a promotion, `source` is `promotion` and this is the source the promotion reduced (`price_list` when it beat the customer's price list).
+     */
+    regular_source: 'price_list' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+    /**
+     * The promotion applied to this price, or `null`. The price list is chosen as in a document: an explicit `price_list_id` wins (`null` means no price list), otherwise the default price list of the `client_id`, ignored when inactive.
+     */
+    promotion: ResolvedPromotion | null;
 };
 
 /**
@@ -19544,6 +21496,14 @@ export type ResolvedCatalogSelection = {
      * Sum of the adjustments of the chosen option values. Always present, but INFORMATIONAL when `configuration_price` is set: that price already absorbs them and they are not added again.
      */
     option_adjustment_total: string;
+    /**
+     * Sale price with and without VAT of the resolved combination (`status: resolved`), measured with the same engine as a document line of quantity 1: official catalog precedence, option adjustments included, no customer rate, company regime, today. `null` while the selection is not resolved. `net` keeps the scale of the catalog price; `tax` and `gross` have two decimals.
+     */
+    sale_price: CatalogSalePrice | null;
+    /**
+     * The promotion that applies to the resolved combination on the web channel today, or `null` when there is none. `sale_price` is still the regular price: with a promotion, show `promotion.price` and, only when `promotion.announce_reduction` is `true`, `promotion.previous_price` as the previous price. In schema.org, `Offer.price` is `promotion.price.gross` and `Offer.priceValidUntil` is `promotion.ends_at`.
+     */
+    promotion: CatalogPromotion | null;
     candidate_configuration_ids: Array<string>;
     compatible_variants: Array<{
         id: string;
@@ -19581,6 +21541,56 @@ export type ResolvedCatalogSelection = {
      * Actionable Spanish message naming what is missing.
      */
     reason: string | null;
+};
+
+/**
+ * ResolvedPromotion
+ *
+ * The promotion applied to a resolved catalog price (`price-lists/resolve` and `resolve-many`). It is not the `promotion` object of the product reads: that one describes the web showcase price with a legal previous price, while a resolution for a `client_id` may beat the customer's price list or be sold in documents, so its regular price is the one this resolution reduces (the price list price when `won_over_price_list` is `true`) and there is no `previous_price`. `gross` uses the VAT of the item and the company regime: it does not apply the customer's equivalence surcharge, exemption or IGIC; for the exact amount use the document totals calculation.
+ */
+export type ResolvedPromotion = {
+    /**
+     * Public identifier (UUID v7) of the promotion.
+     */
+    id: string;
+    /**
+     * Internal name of the promotion.
+     */
+    name: string;
+    /**
+     * Text the web shows next to the price ("Offer", "Black Friday").
+     */
+    label: string | null;
+    /**
+     * How the promotion sets the price: a percentage off the regular price or a fixed price.
+     */
+    mode: 'percent_off' | 'fixed';
+    /**
+     * The discount as it was saved: a percentage with `percent_off` and an amount with `fixed`.
+     */
+    value: string;
+    /**
+     * Whether a `fixed` amount is without VAT (`net`) or with VAT (`gross`). `null` with `percent_off`.
+     */
+    basis: 'net' | 'gross' | null;
+    price: PromotionPrice;
+    regular_price: PromotionPrice;
+    /**
+     * Reduction from `regular_price.gross` to `price.gross`, with 2 decimals.
+     */
+    reduction_percent: number;
+    /**
+     * First day of the promotion, in the company time zone.
+     */
+    starts_on: string;
+    /**
+     * Last day of the promotion, included, in the company time zone.
+     */
+    ends_on: string;
+    /**
+     * `true` when the promotion allows customers with a price list and its price beat the price list price.
+     */
+    won_over_price_list: boolean;
 };
 
 /**
@@ -20115,6 +22125,47 @@ export type ScheduleInvoiceRequest = {
 };
 
 /**
+ * SeatOfferPackageLoss
+ *
+ * What an applied offer package would lose when a seat reduction takes effect: the package ends on the renewal date, so every line in force is listed, also those of products that are not being reduced. Confirm it with `accept_offer_package_loss: true`.
+ */
+export type SeatOfferPackageLoss = {
+    /**
+     * Opaque identifier of the applied offer package (UUID v7).
+     */
+    package_id: string;
+    /**
+     * Name of the offer package.
+     */
+    name: string;
+    /**
+     * Renewal date (ISO 8601 UTC) on which the package ends.
+     */
+    effective_at: string;
+    /**
+     * One entry per package line in force on the effective date.
+     */
+    lines: Array<{
+        /**
+         * Price per unit of the `interval` the package gives today, in cents without VAT, or null when there is no reliable figure (never 0 by absence).
+         */
+        from_price: number | null;
+        /**
+         * Price per unit of the `interval` that applies after the package ends, in cents without VAT, or null when there is no reliable figure.
+         */
+        to_price: number | null;
+        /**
+         * Billing interval both prices refer to.
+         */
+        interval: 'month' | 'year';
+        /**
+         * Concept the line applies to. `gestoria-seats` is the stable name of the additional tax ID seats.
+         */
+        concept: 'plan' | 'employee-seats' | 'gestoria-seats';
+    }>;
+};
+
+/**
  * SendAccountWebhookTestV1Request
  *
  * Queue a signed test delivery to the account webhook endpoint of the path. `type` is optional: when omitted the first subscribed event type is used; when set it must be an event type an account endpoint can subscribe to (a company event of the public catalog or an `account.*` event) AND one the endpoint subscribes to, otherwise 422.
@@ -20123,7 +22174,7 @@ export type SendAccountWebhookTestV1Request = {
     /**
      * Event type to simulate. It must be one the endpoint subscribes to; when omitted the first subscribed type is used.
      */
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed' | 'account.seats_updated' | 'account.offer_package_ended' | null;
 };
 
 /**
@@ -20300,7 +22351,7 @@ export type SendQuoteRequest = {
  * Trigger a test delivery to the webhook endpoint. `type` is optional: when omitted the endpoint first subscribed event is used; when set it must belong to the closed event catalog and be one of the endpoint subscribed events (otherwise 422).
  */
 export type SendTestEventRequest = {
-    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | null;
+    type?: 'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'mandate.activated' | 'mandate.cancelled' | 'mandate.expired' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted' | null;
 };
 
 /**
@@ -20350,7 +22401,7 @@ export type Series = {
      */
     prefix: string;
     /**
-     * Canonical numbering mask describing how the document number is rendered: padding (the block of zeros), year token (`{YYYY}` 4 digits / `{YY}` 2 digits / omitted for no year), optional month token (`{MM}` 2 digits) and separator. Example: `{code}-{YYYY}-{000}` (default) or `{code}-{YYYY}-{00000}` for 5-digit padding. When `counter_reset` is `monthly`, the mask must include the `{MM}` token (e.g. `F-{YYYY}-{MM}-{000}`) so the rendered number stays unique across months; otherwise two months would both start at `1`. Set on creation and editable with `PATCH /v1/companies/{company}/series/{series}` until the first document is issued; fixed afterwards (`series_format_immutable_with_documents`). Mirrors Holded's `format`.
+     * Canonical numbering mask describing how the document number is rendered: padding (the block of zeros), year token (`{YYYY}` 4 digits / `{YY}` 2 digits / omitted for no year), optional month token (`{MM}` 2 digits) and separator. Example: `{code}-{YYYY}-{0000}` (default for a series created without a mask) or `{code}-{YYYY}-{00000}` for 5-digit padding. When `counter_reset` is `monthly`, the mask must include the `{MM}` token (e.g. `F-{YYYY}-{MM}-{000}`) so the rendered number stays unique across months; otherwise two months would both start at `1`. Set on creation and editable with `PATCH /v1/companies/{company}/series/{series}` until the first document is issued; fixed afterwards (`series_format_immutable_with_documents`). Mirrors Holded's `format`.
      */
     number_format: string;
     /**
@@ -22852,7 +24903,7 @@ export type TeamAbsenceCalendar = {
 /**
  * TeamTimeBalanceRow
  *
- * A single row of the team time balance summary: the monthly totals of one active employee for the Control Horario (time tracking) module. The `total_*` fields project the whole month; `to_date` holds the accumulation of the closed days.
+ * A single row of the team time balance summary: the monthly totals of one employee employed during the month for the Control Horario (time tracking) module. The `total_*` fields project the whole month; `to_date` holds the accumulation of the closed days.
  */
 export type TeamTimeBalanceRow = {
     /**
@@ -22885,7 +24936,7 @@ export type TeamTimeBalanceRow = {
 /**
  * TeamTimeBalanceSummary
  *
- * The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per active employee with their monthly totals and their accumulation of the closed days (`to_date`). Totals are in minutes.
+ * The team time balance summary (manager view) for a month for the Control Horario (time tracking) module. A computed resource with no entity identity: it is keyed by company + month and holds one row per employee employed on any day of the month (the same employees the monthly close freezes) with their monthly totals and their accumulation of the closed days (`to_date`). Totals are in minutes.
  */
 export type TeamTimeBalanceSummary = {
     /**
@@ -22897,7 +24948,7 @@ export type TeamTimeBalanceSummary = {
      */
     month: string;
     /**
-     * One row per active employee with their monthly totals.
+     * One row per employee employed during the month, with their monthly totals.
      */
     employees: Array<TeamTimeBalanceRow>;
 };
@@ -23682,7 +25733,7 @@ export type UpdateAccountWebhookV1Request = {
     /**
      * Complete new list of event types (at least one): the company events of the public catalog and the `account.*` events (`AccountEventType`). It replaces the current list and cannot be `null`.
      */
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted' | 'account.member_added' | 'account.member_removed' | 'account.member_role_changed' | 'account.owner_transferred' | 'account.member_grant_changed' | 'account.access_granted' | 'account.access_revoked' | 'account.access_level_changed' | 'account.managed_account_provisioned' | 'account.managed_account_claimed' | 'account.management_ended' | 'account.nif_added' | 'account.nif_transferred' | 'account.nif_archived' | 'account.import_completed' | 'account.seats_updated' | 'account.offer_package_ended'>;
     /**
      * New relationship filter: `own`, `managed` or `all`. Cannot be `null`.
      */
@@ -23812,11 +25863,11 @@ export type UpdateBusinessContactV1Request = {
  */
 export type UpdateCompanyV1Request = {
     /**
-     * Trade name of the company (1-255 characters).
+     * Name the company is known by (1-100 characters): its trade name or, without a distinct legal name, its legal name.
      */
     name?: string;
     /**
-     * Legal/registered business name of the company.
+     * Legal/registered business name of the company when it differs from `name` (up to 100 characters). `""` makes `name` the legal name.
      */
     business_name?: string | null;
     /**
@@ -23852,7 +25903,7 @@ export type UpdateCompanyV1Request = {
 /**
  * UpdateConnectedAccountRequest
  *
- * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it) and the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`. Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
+ * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it), the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`, and `email_invoice_to_payer` (emails each auto-created invoice to the address that comes with the charge). Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
  */
 export type UpdateConnectedAccountRequest = {
     name?: string;
@@ -23862,6 +25913,10 @@ export type UpdateConnectedAccountRequest = {
     require_nif?: boolean;
     refunds_enabled?: boolean;
     subscription_autoinvoicing_enabled?: boolean;
+    /**
+     * Emails each invoice auto-created from this account to the address that comes with the Stripe charge (the person who paid). A charge without an email sends nothing. Defaults to `false`.
+     */
+    email_invoice_to_payer?: boolean;
     default_line_concept?: string | null;
     invoice_note?: string | null;
     /**
@@ -23876,6 +25931,26 @@ export type UpdateConnectedAccountRequest = {
      * First month to record as a fee expense, as `YYYY-MM`. It cannot be later than the current month, and only closed months are recorded. A malformed or future month is rejected with 422 `parameter_invalid_value`.
      */
     fee_expenses_since?: string;
+};
+
+/**
+ * UpdateContractedSeatsV1Request
+ *
+ * Sets the contracted seats of the account (absolute value). A higher value buys the missing seats and charges them now; a lower value schedules a reduction that takes effect at the renewal, without refund. A reduction below the occupied seats needs `deactivate` with exactly the occupied seats minus the new total; a reduction that breaks an applied offer package needs `accept_offer_package_loss: true`. `Idempotency-Key` is mandatory.
+ */
+export type UpdateContractedSeatsV1Request = {
+    /**
+     * Contracted seats wanted (absolute value, 0 or more).
+     */
+    contracted_seats: number;
+    /**
+     * IDs (UUID v7) of the employees or tax IDs to deactivate at the renewal when going below the occupied seats. Exactly occupied minus the new total, all occupying a seat of the account; otherwise 422 `contracted_seats_selection_required`.
+     */
+    deactivate?: Array<string> | null;
+    /**
+     * Confirms losing the applied offer package that the reduction breaks (default false). Without it the reduction is rejected with 422 `offer_package_loss_unconfirmed`.
+     */
+    accept_offer_package_loss?: boolean | null;
 };
 
 /**
@@ -23920,8 +25995,8 @@ export type UpdateDeliveryNotePublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -23974,7 +26049,7 @@ export type UpdateDeliveryNoteRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24010,6 +26085,10 @@ export type UpdateDeliveryNoteRequest = {
         base_quantity?: number | null;
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -24018,10 +26097,15 @@ export type UpdateDeliveryNoteRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -24085,8 +26169,8 @@ export type UpdateInvoicePublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -24104,27 +26188,27 @@ export type UpdateInvoiceRequest = {
         id?: string;
         uuid?: string;
         business_references?: {
-            issuer_contract_reference: string | null;
-            issuer_transaction_reference: string | null;
-            receiver_contract_reference: string | null;
-            receiver_transaction_reference: string | null;
-            file_reference: string | null;
-            issuer_contract_date: string | null;
-            issuer_transaction_date: string | null;
-            receiver_contract_date: string | null;
-            receiver_transaction_date: string | null;
-            file_date: string | null;
+            issuer_contract_reference?: string | null;
+            issuer_transaction_reference?: string | null;
+            receiver_contract_reference?: string | null;
+            receiver_transaction_reference?: string | null;
+            file_reference?: string | null;
+            issuer_contract_date?: string | null;
+            issuer_transaction_date?: string | null;
+            receiver_contract_date?: string | null;
+            receiver_transaction_date?: string | null;
+            file_date?: string | null;
         };
         delivery_notes_references?: Array<{
             number: string;
-            date: string | null;
+            date?: string | null;
         }> | null;
         sequence_number?: number | null;
         source_line_uuid?: string;
         source_line_id?: string;
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24185,6 +26269,10 @@ export type UpdateInvoiceRequest = {
          * Optional CHECKSUM of the line total. When sent, it is compared against the total this API computes and the request is rejected with 422 (`line_total_checksum_mismatch`, with the expected and received values in `error.details`) when they differ by more than one cent. Never stored and never returned.
          */
         line_total?: number | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -24193,10 +26281,15 @@ export type UpdateInvoiceRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     } & {
         business_references?: InvoiceLineReferences | null;
         delivery_notes_references?: Array<InvoiceDeliveryNoteReference> | null;
@@ -24247,6 +26340,148 @@ export type UpdateInvoiceRequest = {
 };
 
 /**
+ * UpdatePackImageV1Request
+ *
+ * Edit one image of the pack gallery. Send `alt`, `position` or both; what you omit does not change.
+ */
+export type UpdatePackImageV1Request = {
+    /**
+     * Alternative text of the image. `null` clears it.
+     */
+    alt?: string | null;
+    /**
+     * New 1-based position in the gallery. The other images shift to make room; the first one is the cover of the pack.
+     */
+    position?: number;
+};
+
+/**
+ * UpdatePackV1Request
+ *
+ * Partial edit of a pack. Only what you send changes; `components` and `pricing` replace the previous ones as a whole and are validated together on the final state of the pack.
+ */
+export type UpdatePackV1Request = {
+    /**
+     * Name of the pack.
+     */
+    name?: string;
+    /**
+     * Short plain-text summary.
+     */
+    summary?: string | null;
+    /**
+     * Long description.
+     */
+    description?: string | null;
+    /**
+     * Your own product code, unique per company. A duplicate is rejected with 409 `sku_already_exists`.
+     */
+    sku?: string | null;
+    /**
+     * URL slug, unique per company. When omitted it is derived from the name. A duplicate is rejected with 409 `slug_already_exists`.
+     */
+    slug?: string | null;
+    /**
+     * Free classification tags.
+     */
+    tags?: Array<string> | null;
+    /**
+     * Search engine texts. Leave a field empty to use the name or the summary.
+     */
+    seo?: {
+        /**
+         * Title for search engines.
+         */
+        title?: string | null;
+        /**
+         * Description for search engines.
+         */
+        description?: string | null;
+    } | null;
+    /**
+     * Where the pack can be sold.
+     */
+    channels?: {
+        /**
+         * Can be added to documents.
+         */
+        documents?: boolean;
+        /**
+         * Is published on the web store.
+         */
+        web?: boolean;
+    };
+    /**
+     * First day the pack is on sale (`YYYY-MM-DD`).
+     */
+    available_from?: string | null;
+    /**
+     * Last day the pack is on sale (`YYYY-MM-DD`). It cannot be before `available_from`.
+     */
+    available_until?: string | null;
+    /**
+     * Whether the pack is active.
+     */
+    is_active?: boolean;
+    /**
+     * Free key-value data of your integration.
+     */
+    metadata?: {
+        [key: string]: string;
+    } | null;
+    /**
+     * How the price is set: `fixed` (exact price), `percent_off` or `amount_off` (discount over the sum of the components) or `sum` (the sum of the components, no value). Sending `pricing` replaces it as a whole.
+     */
+    pricing?: {
+        /**
+         * Pricing mode.
+         */
+        mode: 'fixed' | 'percent_off' | 'amount_off' | 'sum';
+        /**
+         * Amount in euros or percentage, with at most 2 decimals; send it as a decimal string. Required with `fixed`, `percent_off` and `amount_off`, forbidden with `sum`.
+         */
+        value?: string | number | null;
+        /**
+         * Whether the value is without VAT (`net`) or with VAT (`gross`).
+         */
+        basis: 'net' | 'gross';
+    };
+    /**
+     * Contents of the pack, at least one. Sending `components` replaces the whole list atomically.
+     */
+    components?: Array<{
+        /**
+         * Product of your company (UUID v7).
+         */
+        product_id: string;
+        /**
+         * Variant of the product, when it has them.
+         */
+        variant_id?: string | null;
+        /**
+         * Presentation of the product.
+         */
+        presentation_id?: string | null;
+        /**
+         * Combination of options of the product.
+         */
+        configuration_id?: string | null;
+        /**
+         * Option values chosen, as an alternative to `configuration_id`.
+         */
+        option_value_ids?: Array<string> | null;
+        /**
+         * Units of the component in one pack: greater than zero, at most 4 decimals. Send it as a decimal string.
+         */
+        quantity: string | number;
+        /**
+         * UN/ECE code of the unit. It defaults to the base unit of the product.
+         */
+        unit?: string | null;
+    }>;
+};
+
+/**
  * UpdatePriceListRequest
  *
  * Public REST API v1 — update a price list.
@@ -24286,6 +26521,15 @@ export type UpdateProductPresentationRequest = {
  * UpdateProductRequest
  */
 export type UpdateProductRequest = {
+    channels?: {
+        web?: boolean | null;
+    };
+    slug?: string | null;
+    summary?: string | null;
+    seo?: {
+        title?: string | null;
+        description?: string | null;
+    };
     name?: string;
     sku?: string | null;
     price?: string;
@@ -24431,8 +26675,8 @@ export type UpdateProformaPublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -24476,7 +26720,7 @@ export type UpdateProformaRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24511,6 +26755,10 @@ export type UpdateProformaRequest = {
         confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -24519,10 +26767,15 @@ export type UpdateProformaRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -24583,6 +26836,76 @@ export type UpdateProjectV1Request = {
 };
 
 /**
+ * UpdatePromotionV1Request
+ *
+ * Partial edit of a promotion. Only what you send changes. A scheduled promotion accepts every field; an active one only `ends_on` (anything else is 422 `promotion_started`); an ended or cancelled one is read-only (422 `promotion_read_only`).
+ */
+export type UpdatePromotionV1Request = {
+    /**
+     * Internal name of the promotion.
+     */
+    name?: string;
+    /**
+     * Text the web shows next to the price. `null` clears it.
+     */
+    label?: string | null;
+    /**
+     * First day (`YYYY-MM-DD`, company time zone). A promotion that starts today or earlier is active at once.
+     */
+    starts_on?: string;
+    /**
+     * Last day, included (`YYYY-MM-DD`). It cannot be before `starts_on`. An active promotion accepts only this field.
+     */
+    ends_on?: string;
+    /**
+     * Where the promotion applies. At least one channel must be `true`.
+     */
+    channels?: {
+        /**
+         * Applies to the lines of sales documents.
+         */
+        documents: boolean;
+        /**
+         * Applies to the web store.
+         */
+        web: boolean;
+    };
+    /**
+     * Whether customers with a price list also get the promotion. Defaults to `false`.
+     */
+    include_price_list_customers?: boolean;
+    /**
+     * Perishable goods never announce a reduction. Defaults to `false`.
+     */
+    perishable?: boolean;
+    /**
+     * Discounted items, at least one, never the same item twice. Sending `items` replaces the whole list; only a scheduled promotion accepts it.
+     */
+    items?: Array<{
+        /**
+         * What the discount applies to.
+         */
+        target_type: 'product' | 'variant' | 'presentation' | 'configuration' | 'pack';
+        /**
+         * Public identifier (UUID v7) of an item of your company. Another company or an unknown id is rejected with 422 `invalid_promotion_item`.
+         */
+        target_id: string;
+        /**
+         * `percent_off` discounts a percentage of the regular price; `fixed` sets the price.
+         */
+        mode: 'percent_off' | 'fixed';
+        /**
+         * The percentage (greater than 0 and below 100) or the price in euros (greater than 0), with at most 2 decimals. Send it as a decimal string.
+         */
+        value: string | number;
+        /**
+         * Required with `fixed`: whether the price is without VAT (`net`) or with VAT (`gross`). Omit it with `percent_off`.
+         */
+        basis?: 'net' | 'gross' | null;
+    }>;
+};
+
+/**
  * UpdatePurchaseInvoiceRequest
  */
 export type UpdatePurchaseInvoiceRequest = {
@@ -24621,7 +26944,7 @@ export type UpdatePurchaseInvoiceRequest = {
         description?: string | null;
         discount_percent?: number | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24635,7 +26958,7 @@ export type UpdatePurchaseInvoiceRequest = {
         /**
          * Per-line VAT rate (0–100). REQUIRED whenever `lines` is sent: sending `lines` replaces the whole set of lines, so omitting it would wipe the VAT the invoice already had. A purchase with no VAT is declared explicitly as `tax_rate: 0`.
          */
-        tax_rate?: number;
+        tax_rate: number;
         /**
          * Per-line IRPF retention and deductible VAT. Same shape rules as create.
          */
@@ -24654,7 +26977,7 @@ export type UpdatePurchaseInvoiceRequest = {
         source_line_index?: number | null;
         configuration_uuid?: string | null;
         purchase_measurement?: {
-            package_quantity: string | null;
+            package_quantity?: string | null;
             cost_basis: 'offer_unit' | 'base_unit' | 'presentation_unit';
         };
         counted_quantity?: number | null;
@@ -24667,6 +26990,11 @@ export type UpdatePurchaseInvoiceRequest = {
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -24683,8 +27011,8 @@ export type UpdateQuotePublicLinkRequest = {
     action: 'revoke' | 'activate' | 'extend' | 'reset' | 'publish';
     extend_days?: number;
     publication_context?: {
-        presentation_id: string;
-        expected_binding_version: number;
+        presentation_id?: string;
+        expected_binding_version?: number;
     };
 };
 
@@ -24720,7 +27048,7 @@ export type UpdateQuoteRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24755,6 +27083,10 @@ export type UpdateQuoteRequest = {
         confirmed_base_quantity?: number | null;
         discount_percent?: number | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -24763,10 +27095,15 @@ export type UpdateQuoteRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -24832,7 +27169,7 @@ export type UpdateRecurringInvoiceRequest = {
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
-        quantity?: number;
+        quantity: number;
         /**
          * Unit price. Send a JSON number or a decimal string with up to 4 decimals (`"0.0125"`, `"100.0000"`): the string is the exact form the response returns, so a line read from the API can be sent back unchanged. Derived amounts are computed from it and keep 2 decimals.
          */
@@ -24858,6 +27195,10 @@ export type UpdateRecurringInvoiceRequest = {
          */
         surcharge_rate_id?: string | null;
         indirect_tax_regime?: 'iva' | 'igic' | 'ipsi' | null;
+        pack_id?: string | null;
+        pack_group_id?: string | null;
+        print_mode?: 'full_breakdown' | null;
+        prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
         options?: Array<{
@@ -24866,10 +27207,15 @@ export type UpdateRecurringInvoiceRequest = {
         }> | null;
         configuration_signature?: string | null;
         configuration_name?: string | null;
-        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | null;
+        price_source?: 'price_list' | 'configuration' | 'presentation' | 'variant' | 'product' | 'manual' | 'supplier_offer' | 'pack_snapshot' | 'promotion' | null;
         price_semantics?: 'per_base_unit' | 'per_commercial_unit' | null;
         price_adjustment_total?: number | null;
         option_adjustments_absorbed?: boolean | null;
+        promotion_uuid_snapshot?: string | null;
+        promotion_name_snapshot?: string | null;
+        regular_unit_price?: number | null;
+        sold_on?: string | null;
+        channel?: 'documents' | 'web' | null;
     }>;
 };
 
@@ -25224,7 +27570,7 @@ export type UpdateTransportDocumentRequest = {
             gross_weight_kg?: number | null;
         }> | null;
         declared_measure?: {
-            type?: string;
+            type: string;
             weight_kg?: number | null;
             value?: number | null;
             unit?: string | null;
@@ -25296,7 +27642,7 @@ export type UpdateVeriFactuSettingsV1Request = {
  */
 export type UpdateWebhookEndpointRequest = {
     url?: string | null;
-    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events?: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted'>;
     description?: string | null;
     ip_allowlist?: Array<string> | null;
     /**
@@ -25359,6 +27705,26 @@ export type UploadCompanyCertificateV1Request = {
      */
     certificate_file: Blob | File;
     certificate_password: string;
+};
+
+/**
+ * UploadPackImageV1Request
+ *
+ * Upload one image to the pack gallery as `multipart/form-data`: the `photo` field (`image` is accepted as an alias) with a jpeg, png, jpg, gif or webp file of at most 3 MB, and an optional `alt`. The gallery holds up to 5 images. The image is stored as WebP with a 480 px thumbnail and without EXIF data. Requires the `Idempotency-Key` header.
+ */
+export type UploadPackImageV1Request = {
+    /**
+     * Image file (jpeg, png, jpg, gif or webp, max 3 MB). Send either `photo` or `image`.
+     */
+    photo?: Blob | File;
+    /**
+     * Alias of `photo`.
+     */
+    image?: Blob | File;
+    /**
+     * Alternative text of the image.
+     */
+    alt?: string | null;
 };
 
 /**
@@ -25901,7 +28267,7 @@ export type WebhookEndpoint = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted'>;
     /**
      * Status of the endpoint: `active` (it receives deliveries), `degraded` (every delivery of the last 24 hours failed: deliveries are paused until a `ping` succeeds) or `disabled` (turned off by you: it receives none).
      */
@@ -25948,7 +28314,7 @@ export type WebhookEndpointWithSecret = {
     /**
      * List of event types this endpoint subscribes to. `invoice.sent` is a deprecated alias of `invoice.issued` (same instant, same `data.object`): it is still accepted so existing endpoints keep working, but new integrations should subscribe to `invoice.issued`.
      */
-    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted'>;
+    enabled_events: Array<'invoice.created' | 'invoice.auto_created' | 'invoice.corrective_auto_created' | 'invoice.subscription_auto_created' | 'invoice.updated' | 'invoice.issued' | 'invoice.sent' | 'invoice.marked_sent' | 'invoice.unsent' | 'invoice.paid' | 'invoice.cancelled' | 'invoice.annulled' | 'invoice.overdue' | 'invoice.deleted' | 'invoice.number_assigned' | 'invoice.rectified' | 'invoice.email_sent' | 'invoice.email_failed' | 'invoice.payment_reminder_sent' | 'invoice.simplified_created' | 'invoice.simplified_substituted' | 'invoice.substituted_by_complete' | 'invoice.verifactu_submitted' | 'invoice.verifactu_failed' | 'invoice.metadata_changed' | 'quote.created' | 'quote.updated' | 'quote.deleted' | 'quote.approved' | 'quote.rejected' | 'quote.converted' | 'quote.expired' | 'quote.marked_as_pending' | 'quote.cancelled' | 'quote.number_assigned' | 'quote.metadata_changed' | 'quote.email_sent' | 'quote.email_failed' | 'proforma.created' | 'proforma.updated' | 'proforma.deleted' | 'proforma.accepted' | 'proforma.rejected' | 'proforma.cancelled' | 'proforma.expired' | 'proforma.converted_to_invoice' | 'proforma.number_assigned' | 'proforma.metadata_changed' | 'proforma.email_sent' | 'proforma.email_failed' | 'delivery_note.created' | 'delivery_note.updated' | 'delivery_note.status_changed' | 'delivery_note.signed' | 'delivery_note.converted' | 'delivery_note.email_sent' | 'delivery_note.email_failed' | 'transport_document.created' | 'transport_document.updated' | 'transport_document.issued' | 'transport_document.modified' | 'transport_document.closed' | 'transport_document.reopened' | 'transport_document.cancelled' | 'transport_document.superseded' | 'transport_document.email_sent' | 'transport_document.email_failed' | 'purchase_invoice.created' | 'purchase_invoice.updated' | 'purchase_invoice.paid' | 'purchase_invoice.cancelled' | 'purchase_invoice.metadata_changed' | 'purchase_invoice.payment_registered' | 'recurring_invoice.created' | 'recurring_invoice.activated' | 'recurring_invoice.paused' | 'recurring_invoice.updated' | 'recurring_invoice.deleted' | 'recurring_invoice.completed' | 'recurring_invoice.executed' | 'recurring_invoice.failed' | 'recurring_invoice.metadata_changed' | 'recurring_invoice.cancelled' | 'client.created' | 'client.updated' | 'client.deleted' | 'client.metadata_changed' | 'contact.created' | 'contact.updated' | 'contact.archived' | 'contact.restored' | 'contact.deleted' | 'contact.role.assigned' | 'contact.role.activated' | 'contact.role.deactivated' | 'contact.role.removed' | 'contact.customer_profile.updated' | 'contact.supplier_profile.updated' | 'product.created' | 'product.updated' | 'product.replaced' | 'product.deleted' | 'payment.received' | 'payment.reversed' | 'tax.metadata_changed' | 'tax.validity_changed' | 'tax.external_reference_changed' | 'series.created' | 'series.updated' | 'series.deleted' | 'series.archived' | 'series.unarchived' | 'series.marked_as_default' | 'series.demoted_from_default' | 'series.year_reset' | 'series.month_reset' | 'series.number_consumed' | 'facturae.face_submitted' | 'facturae.face_status_changed' | 'facturae.face_cancellation_requested' | 'payout.reconciled' | 'employee.created' | 'employee.updated' | 'employee.deactivated' | 'employee.invited' | 'time_entry.recorded' | 'time_entry.corrected' | 'absence.requested' | 'absence.approved' | 'absence.rejected' | 'monthly_register.closed' | 'automation_rule.activated' | 'automation_rule.paused' | 'automation_rule.auto_paused' | 'automation_run.started' | 'automation_run.completed' | 'automation_run.failed' | 'automation_run.step_dead_lettered' | 'order.invoiced' | 'order.refunded' | 'task.created' | 'task.updated' | 'task.deleted' | 'task.status_changed' | 'task.completed' | 'task.assigned' | 'task.unassigned' | 'task.moved' | 'task.due_soon' | 'task.overdue' | 'task_comment.created' | 'task_comment.updated' | 'task_comment.deleted' | 'task_time_entry.created' | 'task_time_entry.updated' | 'task_time_entry.deleted' | 'task_time_entry.invoiced' | 'project.created' | 'project.updated' | 'project.archived' | 'project.deleted' | 'pack.created' | 'pack.updated' | 'pack.archived' | 'pack.restored' | 'pack.deleted' | 'promotion.created' | 'promotion.updated' | 'promotion.started' | 'promotion.ended' | 'promotion.cancelled' | 'promotion.deleted' | 'price_list.created' | 'price_list.updated' | 'price_list.deleted' | 'price_list.item_updated' | 'price_list.item_deleted'>;
     /**
      * Status of the endpoint: `active` (it receives deliveries), `degraded` (every delivery of the last 24 hours failed: deliveries are paused until a `ping` succeeds) or `disabled` (turned off by you: it receives none).
      */
@@ -26191,6 +28557,8 @@ export type WebhookEventPayload = ({
 } & WebhookEventPayloadProductUpdated) | ({
     type: 'product.replaced';
 } & WebhookEventPayloadProductReplaced) | ({
+    type: 'product.deleted';
+} & WebhookEventPayloadProductDeleted) | ({
     type: 'payment.received';
 } & WebhookEventPayloadPaymentReceived) | ({
     type: 'payment.reversed';
@@ -26308,7 +28676,39 @@ export type WebhookEventPayload = ({
     type: 'project.archived';
 } & WebhookEventPayloadProjectArchived) | ({
     type: 'project.deleted';
-} & WebhookEventPayloadProjectDeleted);
+} & WebhookEventPayloadProjectDeleted) | ({
+    type: 'pack.created';
+} & WebhookEventPayloadPackCreated) | ({
+    type: 'pack.updated';
+} & WebhookEventPayloadPackUpdated) | ({
+    type: 'pack.archived';
+} & WebhookEventPayloadPackArchived) | ({
+    type: 'pack.restored';
+} & WebhookEventPayloadPackRestored) | ({
+    type: 'pack.deleted';
+} & WebhookEventPayloadPackDeleted) | ({
+    type: 'promotion.created';
+} & WebhookEventPayloadPromotionCreated) | ({
+    type: 'promotion.updated';
+} & WebhookEventPayloadPromotionUpdated) | ({
+    type: 'promotion.started';
+} & WebhookEventPayloadPromotionStarted) | ({
+    type: 'promotion.ended';
+} & WebhookEventPayloadPromotionEnded) | ({
+    type: 'promotion.cancelled';
+} & WebhookEventPayloadPromotionCancelled) | ({
+    type: 'promotion.deleted';
+} & WebhookEventPayloadPromotionDeleted) | ({
+    type: 'price_list.created';
+} & WebhookEventPayloadPriceListCreated) | ({
+    type: 'price_list.updated';
+} & WebhookEventPayloadPriceListUpdated) | ({
+    type: 'price_list.deleted';
+} & WebhookEventPayloadPriceListDeleted) | ({
+    type: 'price_list.item_updated';
+} & WebhookEventPayloadPriceListItemUpdated) | ({
+    type: 'price_list.item_deleted';
+} & WebhookEventPayloadPriceListItemDeleted);
 
 /**
  * WebhookEventPayloadAbsenceApproved
@@ -28792,6 +31192,191 @@ export type WebhookEventPayloadOrderRefunded = {
 };
 
 /**
+ * WebhookEventPayloadPackArchived
+ *
+ * Webhook delivery body for the `pack.archived` event.
+ */
+export type WebhookEventPayloadPackArchived = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `pack.archived`.
+     */
+    type: 'pack.archived';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPackArchived;
+};
+
+/**
+ * WebhookEventPayloadPackCreated
+ *
+ * Webhook delivery body for the `pack.created` event.
+ */
+export type WebhookEventPayloadPackCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `pack.created`.
+     */
+    type: 'pack.created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPackCreated;
+};
+
+/**
+ * WebhookEventPayloadPackDeleted
+ *
+ * Webhook delivery body for the `pack.deleted` event.
+ */
+export type WebhookEventPayloadPackDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `pack.deleted`.
+     */
+    type: 'pack.deleted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPackDeleted;
+};
+
+/**
+ * WebhookEventPayloadPackRestored
+ *
+ * Webhook delivery body for the `pack.restored` event.
+ */
+export type WebhookEventPayloadPackRestored = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `pack.restored`.
+     */
+    type: 'pack.restored';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPackRestored;
+};
+
+/**
+ * WebhookEventPayloadPackUpdated
+ *
+ * Webhook delivery body for the `pack.updated` event.
+ */
+export type WebhookEventPayloadPackUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `pack.updated`.
+     */
+    type: 'pack.updated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPackUpdated;
+};
+
+/**
  * WebhookEventPayloadPaymentReceived
  *
  * Webhook delivery body for the `payment.received` event.
@@ -28903,6 +31488,191 @@ export type WebhookEventPayloadPayoutReconciled = {
 };
 
 /**
+ * WebhookEventPayloadPriceListCreated
+ *
+ * Webhook delivery body for the `price_list.created` event.
+ */
+export type WebhookEventPayloadPriceListCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `price_list.created`.
+     */
+    type: 'price_list.created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPriceListCreated;
+};
+
+/**
+ * WebhookEventPayloadPriceListDeleted
+ *
+ * Webhook delivery body for the `price_list.deleted` event.
+ */
+export type WebhookEventPayloadPriceListDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `price_list.deleted`.
+     */
+    type: 'price_list.deleted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPriceListDeleted;
+};
+
+/**
+ * WebhookEventPayloadPriceListItemDeleted
+ *
+ * Webhook delivery body for the `price_list.item_deleted` event.
+ */
+export type WebhookEventPayloadPriceListItemDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `price_list.item_deleted`.
+     */
+    type: 'price_list.item_deleted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPriceListItemDeleted;
+};
+
+/**
+ * WebhookEventPayloadPriceListItemUpdated
+ *
+ * Webhook delivery body for the `price_list.item_updated` event.
+ */
+export type WebhookEventPayloadPriceListItemUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `price_list.item_updated`.
+     */
+    type: 'price_list.item_updated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPriceListItemUpdated;
+};
+
+/**
+ * WebhookEventPayloadPriceListUpdated
+ *
+ * Webhook delivery body for the `price_list.updated` event.
+ */
+export type WebhookEventPayloadPriceListUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `price_list.updated`.
+     */
+    type: 'price_list.updated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPriceListUpdated;
+};
+
+/**
  * WebhookEventPayloadProductCreated
  *
  * Webhook delivery body for the `product.created` event.
@@ -28937,6 +31707,43 @@ export type WebhookEventPayloadProductCreated = {
      */
     correlation_id: string | null;
     data: EventDataProductCreated;
+};
+
+/**
+ * WebhookEventPayloadProductDeleted
+ *
+ * Webhook delivery body for the `product.deleted` event.
+ */
+export type WebhookEventPayloadProductDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `product.deleted`.
+     */
+    type: 'product.deleted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataProductDeleted;
 };
 
 /**
@@ -29603,6 +32410,228 @@ export type WebhookEventPayloadProjectUpdated = {
      */
     correlation_id: string | null;
     data: EventDataProjectUpdated;
+};
+
+/**
+ * WebhookEventPayloadPromotionCancelled
+ *
+ * Webhook delivery body for the `promotion.cancelled` event.
+ */
+export type WebhookEventPayloadPromotionCancelled = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `promotion.cancelled`.
+     */
+    type: 'promotion.cancelled';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPromotionCancelled;
+};
+
+/**
+ * WebhookEventPayloadPromotionCreated
+ *
+ * Webhook delivery body for the `promotion.created` event.
+ */
+export type WebhookEventPayloadPromotionCreated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `promotion.created`.
+     */
+    type: 'promotion.created';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPromotionCreated;
+};
+
+/**
+ * WebhookEventPayloadPromotionDeleted
+ *
+ * Webhook delivery body for the `promotion.deleted` event.
+ */
+export type WebhookEventPayloadPromotionDeleted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `promotion.deleted`.
+     */
+    type: 'promotion.deleted';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPromotionDeleted;
+};
+
+/**
+ * WebhookEventPayloadPromotionEnded
+ *
+ * Webhook delivery body for the `promotion.ended` event.
+ */
+export type WebhookEventPayloadPromotionEnded = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `promotion.ended`.
+     */
+    type: 'promotion.ended';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPromotionEnded;
+};
+
+/**
+ * WebhookEventPayloadPromotionStarted
+ *
+ * Webhook delivery body for the `promotion.started` event.
+ */
+export type WebhookEventPayloadPromotionStarted = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `promotion.started`.
+     */
+    type: 'promotion.started';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPromotionStarted;
+};
+
+/**
+ * WebhookEventPayloadPromotionUpdated
+ *
+ * Webhook delivery body for the `promotion.updated` event.
+ */
+export type WebhookEventPayloadPromotionUpdated = {
+    /**
+     * Opaque identifier of the event (UUID v7).
+     */
+    id: string;
+    /**
+     * Event type. Always `promotion.updated`.
+     */
+    type: 'promotion.updated';
+    /**
+     * API version (date-based) this delivery's payload is serialized under (e.g. `2026-10-05`): the version your endpoint is pinned to, or the latest one when it follows the latest. An event re-emitted by an automation declares the payload version its data was frozen in, which can be older than the endpoint's pinned version: a payload is never upgraded to a newer version. `null` only for legacy events emitted before versions were sealed.
+     */
+    api_version: string | null;
+    /**
+     * Unix timestamp (seconds) of when the event was created.
+     */
+    created: number;
+    /**
+     * `true` for production events (`fact_live_`); `false` for test-mode events (`fact_test_`).
+     */
+    livemode: boolean;
+    /**
+     * `true` when the event is a test delivery triggered from the dashboard; `false` for real events. Orthogonal to `livemode`: a test delivery may be sent over a live endpoint (`livemode: true, test: true`).
+     */
+    test: boolean;
+    /**
+     * UUID v7 correlating this event end-to-end with the operation that produced it. `null` for events without a correlation context. The key is always present.
+     */
+    correlation_id: string | null;
+    data: EventDataPromotionUpdated;
 };
 
 /**
@@ -32611,6 +35640,8 @@ export type EventDataWritable = ({
 } & EventDataProductUpdated) | ({
     type: 'product.replaced';
 } & EventDataProductReplaced) | ({
+    type: 'product.deleted';
+} & EventDataProductDeleted) | ({
     type: 'payment.received';
 } & EventDataPaymentReceived) | ({
     type: 'payment.reversed';
@@ -32728,7 +35759,39 @@ export type EventDataWritable = ({
     type: 'project.archived';
 } & EventDataProjectArchived) | ({
     type: 'project.deleted';
-} & EventDataProjectDeleted);
+} & EventDataProjectDeleted) | ({
+    type: 'pack.created';
+} & EventDataPackCreated) | ({
+    type: 'pack.updated';
+} & EventDataPackUpdated) | ({
+    type: 'pack.archived';
+} & EventDataPackArchived) | ({
+    type: 'pack.restored';
+} & EventDataPackRestored) | ({
+    type: 'pack.deleted';
+} & EventDataPackDeleted) | ({
+    type: 'promotion.created';
+} & EventDataPromotionCreated) | ({
+    type: 'promotion.updated';
+} & EventDataPromotionUpdated) | ({
+    type: 'promotion.started';
+} & EventDataPromotionStarted) | ({
+    type: 'promotion.ended';
+} & EventDataPromotionEnded) | ({
+    type: 'promotion.cancelled';
+} & EventDataPromotionCancelled) | ({
+    type: 'promotion.deleted';
+} & EventDataPromotionDeleted) | ({
+    type: 'price_list.created';
+} & EventDataPriceListCreated) | ({
+    type: 'price_list.updated';
+} & EventDataPriceListUpdated) | ({
+    type: 'price_list.deleted';
+} & EventDataPriceListDeleted) | ({
+    type: 'price_list.item_updated';
+} & EventDataPriceListItemUpdated) | ({
+    type: 'price_list.item_deleted';
+} & EventDataPriceListItemDeleted);
 
 /**
  * EventDataFacturaeFaceCancellationRequested
@@ -33943,6 +37006,8 @@ export type WebhookEventPayloadWritable = ({
 } & WebhookEventPayloadProductUpdated) | ({
     type: 'product.replaced';
 } & WebhookEventPayloadProductReplaced) | ({
+    type: 'product.deleted';
+} & WebhookEventPayloadProductDeleted) | ({
     type: 'payment.received';
 } & WebhookEventPayloadPaymentReceived) | ({
     type: 'payment.reversed';
@@ -34060,7 +37125,39 @@ export type WebhookEventPayloadWritable = ({
     type: 'project.archived';
 } & WebhookEventPayloadProjectArchived) | ({
     type: 'project.deleted';
-} & WebhookEventPayloadProjectDeleted);
+} & WebhookEventPayloadProjectDeleted) | ({
+    type: 'pack.created';
+} & WebhookEventPayloadPackCreated) | ({
+    type: 'pack.updated';
+} & WebhookEventPayloadPackUpdated) | ({
+    type: 'pack.archived';
+} & WebhookEventPayloadPackArchived) | ({
+    type: 'pack.restored';
+} & WebhookEventPayloadPackRestored) | ({
+    type: 'pack.deleted';
+} & WebhookEventPayloadPackDeleted) | ({
+    type: 'promotion.created';
+} & WebhookEventPayloadPromotionCreated) | ({
+    type: 'promotion.updated';
+} & WebhookEventPayloadPromotionUpdated) | ({
+    type: 'promotion.started';
+} & WebhookEventPayloadPromotionStarted) | ({
+    type: 'promotion.ended';
+} & WebhookEventPayloadPromotionEnded) | ({
+    type: 'promotion.cancelled';
+} & WebhookEventPayloadPromotionCancelled) | ({
+    type: 'promotion.deleted';
+} & WebhookEventPayloadPromotionDeleted) | ({
+    type: 'price_list.created';
+} & WebhookEventPayloadPriceListCreated) | ({
+    type: 'price_list.updated';
+} & WebhookEventPayloadPriceListUpdated) | ({
+    type: 'price_list.deleted';
+} & WebhookEventPayloadPriceListDeleted) | ({
+    type: 'price_list.item_updated';
+} & WebhookEventPayloadPriceListItemUpdated) | ({
+    type: 'price_list.item_deleted';
+} & WebhookEventPayloadPriceListItemDeleted);
 
 /**
  * WebhookEventPayloadFacturaeFaceCancellationRequested
@@ -35603,7 +38700,7 @@ export type PublicApiV1AccountNifTransfersAcceptErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
      */
     409: Error;
     /**
@@ -35909,7 +39006,7 @@ export type PublicApiV1CompaniesActivateBatchErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
      */
     409: Error;
     /**
@@ -36058,7 +39155,7 @@ export type PublicApiV1CompaniesActivateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
      */
     409: Error;
     /**
@@ -36939,7 +40036,7 @@ export type PublicApiV1TimeCorrectionsApproveErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written), `employee_inactive` (only when clocking in: the employee is terminated and read-only, even on their termination day; `error.param` is `employee_id`) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -37250,6 +40347,80 @@ export type PublicApiV1PdfCommercialIdentitiesArchiveResponses = {
 };
 
 export type PublicApiV1PdfCommercialIdentitiesArchiveResponse = PublicApiV1PdfCommercialIdentitiesArchiveResponses[keyof PublicApiV1PdfCommercialIdentitiesArchiveResponses];
+
+export type PublicApiV1PacksArchiveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs/{pack}/archive';
+};
+
+export type PublicApiV1PacksArchiveErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksArchiveError = PublicApiV1PacksArchiveErrors[keyof PublicApiV1PacksArchiveErrors];
+
+export type PublicApiV1PacksArchiveResponses = {
+    /**
+     * The pack, now `archived`.
+     */
+    200: {
+        data: Pack;
+    };
+};
+
+export type PublicApiV1PacksArchiveResponse = PublicApiV1PacksArchiveResponses[keyof PublicApiV1PacksArchiveResponses];
 
 export type PublicApiV1ProjectsArchiveData = {
     body?: never;
@@ -39256,6 +42427,73 @@ export type PublicApiV1TasksBulkStatusResponses = {
 };
 
 export type PublicApiV1TasksBulkStatusResponse = PublicApiV1TasksBulkStatusResponses[keyof PublicApiV1TasksBulkStatusResponses];
+
+export type PublicApiV1ProductsBulkChannelsData = {
+    body: BulkChannelsProductsV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/products/bulk-channels';
+};
+
+export type PublicApiV1ProductsBulkChannelsErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `slug_already_exists`: the `slug`, current or previous, is already used by another product or pack of the company; `details.existing_resource_id` is its identifier when it is known. `resource_locked`: another write to the catalog of the company holds the lock that keeps SKUs and slugs unique and did not release it in time. Nothing was written by this request; send the same request again.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1ProductsBulkChannelsError = PublicApiV1ProductsBulkChannelsErrors[keyof PublicApiV1ProductsBulkChannelsErrors];
+
+export type PublicApiV1ProductsBulkChannelsResponses = {
+    200: {
+        data: BulkPartialSuccessResult;
+    };
+};
+
+export type PublicApiV1ProductsBulkChannelsResponse = PublicApiV1ProductsBulkChannelsResponses[keyof PublicApiV1ProductsBulkChannelsResponses];
 
 export type PublicApiV1ContactsBulkCreateData = {
     body: BulkCreateBusinessContactsV1Request;
@@ -41713,7 +44951,7 @@ export type PublicApiV1EmployeeInvitationsCancelResponses = {
 export type PublicApiV1EmployeeInvitationsCancelResponse = PublicApiV1EmployeeInvitationsCancelResponses[keyof PublicApiV1EmployeeInvitationsCancelResponses];
 
 export type PublicApiV1EmployeeSeatsCancelData = {
-    body?: never;
+    body?: CancelEmployeeSeatAddonV1Request;
     headers: {
         /**
          * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
@@ -41854,6 +45092,77 @@ export type PublicApiV1FaceSubmissionsCancelResponses = {
 
 export type PublicApiV1FaceSubmissionsCancelResponse = PublicApiV1FaceSubmissionsCancelResponses[keyof PublicApiV1FaceSubmissionsCancelResponses];
 
+export type PublicApiV1PromotionsCancelData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the promotion.
+         */
+        promotion: string;
+    };
+    query?: never;
+    url: '/companies/{company}/promotions/{promotion}/cancel';
+};
+
+export type PublicApiV1PromotionsCancelErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PromotionsCancelError = PublicApiV1PromotionsCancelErrors[keyof PublicApiV1PromotionsCancelErrors];
+
+export type PublicApiV1PromotionsCancelResponses = {
+    200: {
+        data: Promotion;
+    };
+};
+
+export type PublicApiV1PromotionsCancelResponse = PublicApiV1PromotionsCancelResponses[keyof PublicApiV1PromotionsCancelResponses];
+
 export type PublicApiV1RecurringInvoicesCancelData = {
     body?: never;
     headers: {
@@ -41965,7 +45274,7 @@ export type PublicApiV1EmployeeSeatOfferRedemptionsCancelErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
      */
     409: Error;
     /**
@@ -42045,7 +45354,7 @@ export type PublicApiV1GestoriaSeatOfferRedemptionsCancelErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
      */
     409: Error;
     /**
@@ -42846,7 +46155,7 @@ export type PublicApiV1TimeEntriesClockInErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written), `employee_inactive` (only when clocking in: the employee is terminated and read-only, even on their termination day; `error.param` is `employee_id`) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -43266,7 +46575,7 @@ export type PublicApiV1EmployeeBatchesConfirmErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key.
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. `offer_requires_chargeable_seats` means the code would not buy any seat because all of them fit in the free ones; apply it to the seats the account already has with `purchase.kind` `apply_to_existing`. On an account in trial the redemption answers 422 `customer_offer_not_eligible` with `details.reason` `trial_active` instead. Nothing was charged. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key.
      */
     409: Error;
     /**
@@ -43354,7 +46663,7 @@ export type PublicApiV1EmployeeSeatOfferRedemptionsConfirmErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
      */
     409: Error;
     /**
@@ -43442,7 +46751,7 @@ export type PublicApiV1GestoriaSeatOfferRedemptionsConfirmErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state.
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_idempotency_conflict`: the idempotency key of the body already identifies a different intention of the same account. Keep the current operation or prepare a new one with a new key. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_quote_changed`: the conditions changed since the quote you accepted. Refresh the quote and confirm the new version. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
      */
     409: Error;
     /**
@@ -45889,7 +49198,7 @@ export type PublicApiV1EmployeesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another employee of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_state_conflict` with `subcode` `employee_batch_payment_outcome_unknown`: the payment of the batch is still being verified. `details.operation_id` is the operation to keep following; do not charge again. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `external_id_already_exists`: another employee of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. `offer_requires_chargeable_seats` means the code would not buy any seat because all of them fit in the free ones; apply it to the seats the account already has with `purchase.kind` `apply_to_existing`. On an account in trial the redemption answers 422 `customer_offer_not_eligible` with `details.reason` `trial_active` instead. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_state_conflict` with `subcode` `employee_batch_payment_outcome_unknown`: the payment of the batch is still being verified. `details.operation_id` is the operation to keep following; do not charge again. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
      */
     409: Error;
     /**
@@ -46478,6 +49787,206 @@ export type PublicApiV1AccountNifTransfersCreateResponses = {
 
 export type PublicApiV1AccountNifTransfersCreateResponse = PublicApiV1AccountNifTransfersCreateResponses[keyof PublicApiV1AccountNifTransfersCreateResponses];
 
+export type PublicApiV1PacksListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
+         */
+        ending_before?: string;
+        /**
+         * Pack slug. It also finds the packs that used it before. Exact match on `slug`.
+         */
+        slug?: string;
+        /**
+         * Pack SKU. Exact match on `sku`.
+         */
+        sku?: string;
+        /**
+         * Classification tag. Exact match on `tag`.
+         */
+        tag?: string;
+        /**
+         * Sales channel the pack is enabled for: `documents` or `web`. Exact match on `channel`.
+         */
+        channel?: 'documents' | 'web';
+        /**
+         * Pack status: `active`, `inactive` or `archived`. Exact match on `status`.
+         */
+        status?: 'active' | 'inactive' | 'archived';
+        /**
+         * Availability: `in_stock`, `low`, `out_of_stock` or `untracked`. Supports several values with `availability[in]`. Exact match on `availability`.
+         */
+        availability?: 'in_stock' | 'low' | 'out_of_stock' | 'untracked';
+        /**
+         * Comma-separated list of values (CSV).
+         */
+        'availability[in]'?: string;
+        /**
+         * Last update date (ISO 8601). Greater than or equal to the given value.
+         */
+        'updated[gte]'?: string;
+        /**
+         * Sort order: `created`, `name`, `price` ascending, or with a `-` prefix for descending (default `created`, oldest first).
+         */
+        sort?: 'created' | '-created' | 'name' | '-name' | 'price' | '-price';
+        /**
+         * Free-text search. Escaped `LIKE %term%` (case-insensitive, max 80 chars) across the resource's key text columns, combined with the other filters (AND) and compatible with the cursor.
+         */
+        search?: string;
+        /**
+         * Shape of the pack: `all` (default) returns the full pack, `storefront` only what a web shop may show, and only for packs on sale there; any other pack answers 404.
+         */
+        view?: 'all' | 'storefront';
+    };
+    url: '/companies/{company}/packs';
+};
+
+export type PublicApiV1PacksListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksListError = PublicApiV1PacksListErrors[keyof PublicApiV1PacksListErrors];
+
+export type PublicApiV1PacksListResponses = {
+    /**
+     * Page of packs.
+     */
+    200: PaginatedList & PackListData;
+};
+
+export type PublicApiV1PacksListResponse = PublicApiV1PacksListResponses[keyof PublicApiV1PacksListResponses];
+
+export type PublicApiV1PacksCreateData = {
+    body: CreatePackV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs';
+};
+
+export type PublicApiV1PacksCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `sku_already_exists`: another product, variant or pack of the company already uses that `sku`; `details.existing_resource_id` is its identifier. `slug_already_exists`: the `slug`, current or previous, is already used by another product or pack of the company; `details.existing_resource_id` is its identifier when it is known. `resource_locked`: another write to the catalog of the company holds the lock that keeps SKUs and slugs unique and did not release it in time. Nothing was written by this request; send the same request again. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksCreateError = PublicApiV1PacksCreateErrors[keyof PublicApiV1PacksCreateErrors];
+
+export type PublicApiV1PacksCreateResponses = {
+    /**
+     * Pack created. The `Location` header carries its URL.
+     */
+    201: {
+        data: Pack;
+    };
+};
+
+export type PublicApiV1PacksCreateResponse = PublicApiV1PacksCreateResponses[keyof PublicApiV1PacksCreateResponses];
+
 export type PublicApiV1PdfTemplatePreviewsCreateData = {
     /**
      * Internal reversible preparation/rendering uses the existing idempotency policy; the same key and raw body replay, another body with that key is rejected with `422 idempotency_key_reused` before admission.
@@ -46600,13 +50109,21 @@ export type PublicApiV1PriceListsListData = {
          * Only price lists in this status: `active` or `inactive`.
          */
         status?: 'active' | 'inactive';
+        /**
+         * Last update of the price list (ISO 8601), which also moves when one of its prices changes. Use both `updated[gte]` and `updated[lte]` for a window. Greater than or equal to the given value.
+         */
+        'updated[gte]'?: string;
+        /**
+         * Last update of the price list (ISO 8601), which also moves when one of its prices changes. Use both `updated[gte]` and `updated[lte]` for a window. Less than or equal to the given value.
+         */
+        'updated[lte]'?: string;
     };
     url: '/companies/{company}/price-lists';
 };
 
 export type PublicApiV1PriceListsListErrors = {
     /**
-     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
      */
     400: Error;
     /**
@@ -46683,7 +50200,7 @@ export type PublicApiV1PriceListsCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
      */
     409: Error;
     /**
@@ -46717,6 +50234,10 @@ export type PublicApiV1ProductsListData = {
     body?: never;
     headers?: {
         /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
         'Factuarea-Version'?: string;
@@ -46728,6 +50249,11 @@ export type PublicApiV1ProductsListData = {
         company: string;
     };
     query?: {
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
         /**
          * Number of objects to return, between 1 and 100 (default 25).
          */
@@ -46813,6 +50339,22 @@ export type PublicApiV1ProductsListData = {
          */
         'tag[in]'?: string;
         /**
+         * Product slug. It also finds the products that used it before, so a web can redirect the old address to the new `slug` that comes back. Exact match on `slug`.
+         */
+        slug?: string;
+        /**
+         * Sales channel the product is enabled for. Today only `web`. Exact match on `channel`.
+         */
+        channel?: 'web';
+        /**
+         * Last update date (ISO 8601). Use both `updated[gte]` and `updated[lte]` for a window. Greater than or equal to the given value.
+         */
+        'updated[gte]'?: string;
+        /**
+         * Last update date (ISO 8601). Use both `updated[gte]` and `updated[lte]` for a window. Less than or equal to the given value.
+         */
+        'updated[lte]'?: string;
+        /**
          * Free-text search. Escaped `LIKE %term%` (case-insensitive, max 80 chars) across the resource's key text columns, combined with the other filters (AND) and compatible with the cursor.
          */
         search?: string;
@@ -46822,6 +50364,10 @@ export type PublicApiV1ProductsListData = {
         metadata?: {
             [key: string]: string;
         };
+        /**
+         * Shape: `all` (default) is the full product; `storefront` only what a web shop may show (no costs or supplier offers) and only for products on sale there, else 404.
+         */
+        view?: 'all' | 'storefront';
     };
     url: '/companies/{company}/products';
 };
@@ -46860,9 +50406,10 @@ export type PublicApiV1ProductsListErrors = {
 export type PublicApiV1ProductsListError = PublicApiV1ProductsListErrors[keyof PublicApiV1ProductsListErrors];
 
 export type PublicApiV1ProductsListResponses = {
-    200: PaginatedList & {
-        data?: Array<Product>;
-    };
+    /**
+     * Page of products, in the requested `view`.
+     */
+    200: PaginatedList & ProductListData;
 };
 
 export type PublicApiV1ProductsListResponse = PublicApiV1ProductsListResponses[keyof PublicApiV1ProductsListResponses];
@@ -46907,7 +50454,7 @@ export type PublicApiV1ProductsCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `sku_already_exists`: another product of the company already uses that `sku`; `details.existing_resource_id` is its identifier. `resource_already_exists` with `subcode` `external_id_already_exists`: another product of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `sku_already_exists`: another product of the company already uses that `sku`; `details.existing_resource_id` is its identifier. `resource_already_exists` with `subcode` `external_id_already_exists`: another product of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `slug_already_exists`: the `slug`, current or previous, is already used by another product or pack of the company; `details.existing_resource_id` is its identifier when it is known. `resource_locked`: another write to the catalog of the company holds the lock that keeps SKUs and slugs unique and did not release it in time. Nothing was written by this request; send the same request again. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds.
      */
     409: Error;
     /**
@@ -46968,6 +50515,11 @@ export type PublicApiV1ProductsPresentationsListData = {
          * `true` returns only active items; `false` or omitted returns all of them.
          */
         active?: boolean;
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
     };
     url: '/companies/{company}/products/{product}/presentations';
 };
@@ -47111,6 +50663,11 @@ export type PublicApiV1ProductsVariantsListData = {
          * `true` returns only active items; `false` or omitted returns all of them.
          */
         active?: boolean;
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
     };
     url: '/companies/{company}/products/{product}/variants';
 };
@@ -47199,6 +50756,10 @@ export type PublicApiV1ProductsVariantsCreateErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_locked`: another write to the catalog of the company holds the lock that keeps SKUs and slugs unique and did not release it in time. Nothing was written by this request; send the same request again.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -47722,6 +51283,176 @@ export type PublicApiV1ProjectsCreateResponses = {
 };
 
 export type PublicApiV1ProjectsCreateResponse = PublicApiV1ProjectsCreateResponses[keyof PublicApiV1ProjectsCreateResponses];
+
+export type PublicApiV1PromotionsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: {
+        /**
+         * Number of objects to return, between 1 and 100 (default 25).
+         */
+        limit?: number;
+        /**
+         * Cursor for forward pagination: pass the `id` of the last object on the previous page (the `next_cursor` of the previous response).
+         */
+        starting_after?: string;
+        /**
+         * Cursor for backward pagination: pass the `id` of the first object on the current page.
+         */
+        ending_before?: string;
+        /**
+         * Promotion status today: `scheduled`, `active`, `ended` (by date) or `cancelled`. Exact match on `status`.
+         */
+        status?: 'scheduled' | 'active' | 'ended' | 'cancelled';
+        /**
+         * Sales channel the promotion applies to: `documents` or `web`. Exact match on `channel`.
+         */
+        channel?: 'documents' | 'web';
+        /**
+         * First instant of the promotion (ISO 8601). A day without time is read in the company time zone. Greater than or equal to the given value.
+         */
+        'starts_at[gte]'?: string;
+        /**
+         * First instant of the promotion (ISO 8601). A day without time is read in the company time zone. Less than or equal to the given value.
+         */
+        'starts_at[lte]'?: string;
+        /**
+         * Last included instant of the promotion (ISO 8601). A day without time is read in the company time zone. Greater than or equal to the given value.
+         */
+        'ends_at[gte]'?: string;
+        /**
+         * Last included instant of the promotion (ISO 8601). A day without time is read in the company time zone. Less than or equal to the given value.
+         */
+        'ends_at[lte]'?: string;
+        /**
+         * Last update date (ISO 8601). Greater than or equal to the given value.
+         */
+        'updated[gte]'?: string;
+    };
+    url: '/companies/{company}/promotions';
+};
+
+export type PublicApiV1PromotionsListErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PromotionsListError = PublicApiV1PromotionsListErrors[keyof PublicApiV1PromotionsListErrors];
+
+export type PublicApiV1PromotionsListResponses = {
+    200: PaginatedList & {
+        data?: Array<Promotion>;
+    };
+};
+
+export type PublicApiV1PromotionsListResponse = PublicApiV1PromotionsListResponses[keyof PublicApiV1PromotionsListResponses];
+
+export type PublicApiV1PromotionsCreateData = {
+    body: CreatePromotionV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+    };
+    query?: never;
+    url: '/companies/{company}/promotions';
+};
+
+export type PublicApiV1PromotionsCreateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PromotionsCreateError = PublicApiV1PromotionsCreateErrors[keyof PublicApiV1PromotionsCreateErrors];
+
+export type PublicApiV1PromotionsCreateResponses = {
+    /**
+     * Promotion scheduled successfully. The `Location` header contains the canonical URL of the newly created resource.
+     */
+    201: {
+        data: Promotion;
+    };
+};
+
+export type PublicApiV1PromotionsCreateResponse = PublicApiV1PromotionsCreateResponses[keyof PublicApiV1PromotionsCreateResponses];
 
 export type PublicApiV1PurchaseInvoicesListData = {
     body?: never;
@@ -50382,10 +54113,6 @@ export type PublicApiV1CompaniesDeactivateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
-     */
-    409: Error;
-    /**
      * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
@@ -51265,10 +54992,6 @@ export type PublicApiV1CompaniesDeleteErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
-     */
-    409: Error;
-    /**
      * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
      */
     422: Error;
@@ -51819,6 +55542,382 @@ export type PublicApiV1InvoicesUpdateResponses = {
 
 export type PublicApiV1InvoicesUpdateResponse = PublicApiV1InvoicesUpdateResponses[keyof PublicApiV1InvoicesUpdateResponses];
 
+export type PublicApiV1PacksDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs/{pack}';
+};
+
+export type PublicApiV1PacksDeleteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters. `idempotency_key_required`: this operation requires the `Idempotency-Key` header; the message names the rejected operation.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksDeleteError = PublicApiV1PacksDeleteErrors[keyof PublicApiV1PacksDeleteErrors];
+
+export type PublicApiV1PacksDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1PacksDeleteResponse = PublicApiV1PacksDeleteResponses[keyof PublicApiV1PacksDeleteResponses];
+
+export type PublicApiV1PacksShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+    };
+    query?: {
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
+        /**
+         * Shape of the pack: `all` (default) returns the full pack, `storefront` only what a web shop may show, and only for packs on sale there; any other pack answers 404.
+         */
+        view?: 'all' | 'storefront';
+    };
+    url: '/companies/{company}/packs/{pack}';
+};
+
+export type PublicApiV1PacksShowErrors = {
+    /**
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksShowError = PublicApiV1PacksShowErrors[keyof PublicApiV1PacksShowErrors];
+
+export type PublicApiV1PacksShowResponses = {
+    /**
+     * The pack, in the requested `view`.
+     */
+    200: {
+        data: Pack;
+    };
+};
+
+export type PublicApiV1PacksShowResponse = PublicApiV1PacksShowResponses[keyof PublicApiV1PacksShowResponses];
+
+export type PublicApiV1PacksUpdateData = {
+    body?: UpdatePackV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs/{pack}';
+};
+
+export type PublicApiV1PacksUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `sku_already_exists`: another product, variant or pack of the company already uses that `sku`; `details.existing_resource_id` is its identifier. `slug_already_exists`: the `slug`, current or previous, is already used by another product or pack of the company; `details.existing_resource_id` is its identifier when it is known. `resource_locked`: another write to the catalog of the company holds the lock that keeps SKUs and slugs unique and did not release it in time. Nothing was written by this request; send the same request again. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksUpdateError = PublicApiV1PacksUpdateErrors[keyof PublicApiV1PacksUpdateErrors];
+
+export type PublicApiV1PacksUpdateResponses = {
+    /**
+     * The pack after the edit.
+     */
+    200: {
+        data: Pack;
+    };
+};
+
+export type PublicApiV1PacksUpdateResponse = PublicApiV1PacksUpdateResponses[keyof PublicApiV1PacksUpdateResponses];
+
+export type PublicApiV1PacksImagesDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+        /**
+         * Public identifier (UUID v7) of the pack image.
+         */
+        image: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs/{pack}/images/{image}';
+};
+
+export type PublicApiV1PacksImagesDeleteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksImagesDeleteError = PublicApiV1PacksImagesDeleteErrors[keyof PublicApiV1PacksImagesDeleteErrors];
+
+export type PublicApiV1PacksImagesDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1PacksImagesDeleteResponse = PublicApiV1PacksImagesDeleteResponses[keyof PublicApiV1PacksImagesDeleteResponses];
+
+export type PublicApiV1PacksImagesUpdateData = {
+    body?: UpdatePackImageV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+        /**
+         * Public identifier (UUID v7) of the pack image.
+         */
+        image: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs/{pack}/images/{image}';
+};
+
+export type PublicApiV1PacksImagesUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksImagesUpdateError = PublicApiV1PacksImagesUpdateErrors[keyof PublicApiV1PacksImagesUpdateErrors];
+
+export type PublicApiV1PacksImagesUpdateResponses = {
+    /**
+     * The image after the edit.
+     */
+    200: {
+        data: PackImage;
+    };
+};
+
+export type PublicApiV1PacksImagesUpdateResponse = PublicApiV1PacksImagesUpdateResponses[keyof PublicApiV1PacksImagesUpdateResponses];
+
 export type PublicApiV1PriceListsDeleteData = {
     body?: never;
     headers: {
@@ -51862,6 +55961,10 @@ export type PublicApiV1PriceListsDeleteErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -51990,6 +56093,10 @@ export type PublicApiV1PriceListsUpdateErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -52060,6 +56167,10 @@ export type PublicApiV1PriceListsItemsDeleteErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -52157,6 +56268,10 @@ export type PublicApiV1ProductsShowData = {
     body?: never;
     headers?: {
         /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
          * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
          */
         'Factuarea-Version'?: string;
@@ -52176,13 +56291,22 @@ export type PublicApiV1ProductsShowData = {
          * Related data to embed; only `configurable_catalog` is supported.
          */
         include?: string | null;
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
+        /**
+         * Shape: `all` (default) is the full product; `storefront` only what a web shop may show (no costs or supplier offers) and only for products on sale there, else 404.
+         */
+        view?: 'all' | 'storefront';
     };
     url: '/companies/{company}/products/{product}';
 };
 
 export type PublicApiV1ProductsShowErrors = {
     /**
-     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
      */
     400: Error;
     /**
@@ -52214,6 +56338,9 @@ export type PublicApiV1ProductsShowErrors = {
 export type PublicApiV1ProductsShowError = PublicApiV1ProductsShowErrors[keyof PublicApiV1ProductsShowErrors];
 
 export type PublicApiV1ProductsShowResponses = {
+    /**
+     * The product, in the requested `view`.
+     */
     200: {
         data: Product;
     };
@@ -52265,7 +56392,7 @@ export type PublicApiV1ProductsUpdateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `sku_already_exists`: another product of the company already uses that `sku`; `details.existing_resource_id` is its identifier. `resource_already_exists` with `subcode` `external_id_already_exists`: another product of the company already uses that `external_id`; `details.existing_resource_id` is its identifier.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `sku_already_exists`: another product of the company already uses that `sku`; `details.existing_resource_id` is its identifier. `resource_already_exists` with `subcode` `external_id_already_exists`: another product of the company already uses that `external_id`; `details.existing_resource_id` is its identifier. `slug_already_exists`: the `slug`, current or previous, is already used by another product or pack of the company; `details.existing_resource_id` is its identifier when it is known. `resource_locked`: another write to the catalog of the company holds the lock that keeps SKUs and slugs unique and did not release it in time. Nothing was written by this request; send the same request again.
      */
     409: Error;
     /**
@@ -52626,6 +56753,10 @@ export type PublicApiV1ProductsVariantsUpdateErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_locked`: another write to the catalog of the company holds the lock that keeps SKUs and slugs unique and did not release it in time. Nothing was written by this request; send the same request again.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -53342,6 +57473,208 @@ export type PublicApiV1ProjectsUpdateResponses = {
 };
 
 export type PublicApiV1ProjectsUpdateResponse = PublicApiV1ProjectsUpdateResponses[keyof PublicApiV1ProjectsUpdateResponses];
+
+export type PublicApiV1PromotionsDeleteData = {
+    body?: never;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the promotion.
+         */
+        promotion: string;
+    };
+    query?: never;
+    url: '/companies/{company}/promotions/{promotion}';
+};
+
+export type PublicApiV1PromotionsDeleteErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters. `idempotency_key_required`: this operation requires the `Idempotency-Key` header; the message names the rejected operation.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PromotionsDeleteError = PublicApiV1PromotionsDeleteErrors[keyof PublicApiV1PromotionsDeleteErrors];
+
+export type PublicApiV1PromotionsDeleteResponses = {
+    /**
+     * No content
+     */
+    204: void;
+};
+
+export type PublicApiV1PromotionsDeleteResponse = PublicApiV1PromotionsDeleteResponses[keyof PublicApiV1PromotionsDeleteResponses];
+
+export type PublicApiV1PromotionsShowData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the promotion.
+         */
+        promotion: string;
+    };
+    query?: never;
+    url: '/companies/{company}/promotions/{promotion}';
+};
+
+export type PublicApiV1PromotionsShowErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PromotionsShowError = PublicApiV1PromotionsShowErrors[keyof PublicApiV1PromotionsShowErrors];
+
+export type PublicApiV1PromotionsShowResponses = {
+    200: {
+        data: Promotion;
+    };
+};
+
+export type PublicApiV1PromotionsShowResponse = PublicApiV1PromotionsShowResponses[keyof PublicApiV1PromotionsShowResponses];
+
+export type PublicApiV1PromotionsUpdateData = {
+    body?: UpdatePromotionV1Request;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the promotion.
+         */
+        promotion: string;
+    };
+    query?: never;
+    url: '/companies/{company}/promotions/{promotion}';
+};
+
+export type PublicApiV1PromotionsUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PromotionsUpdateError = PublicApiV1PromotionsUpdateErrors[keyof PublicApiV1PromotionsUpdateErrors];
+
+export type PublicApiV1PromotionsUpdateResponses = {
+    200: {
+        data: Promotion;
+    };
+};
+
+export type PublicApiV1PromotionsUpdateResponse = PublicApiV1PromotionsUpdateResponses[keyof PublicApiV1PromotionsUpdateResponses];
 
 export type PublicApiV1PurchaseInvoicesDeleteData = {
     body?: never;
@@ -60593,6 +64926,132 @@ export type PublicApiV1TaxesActiveResponses = {
 
 export type PublicApiV1TaxesActiveResponse = PublicApiV1TaxesActiveResponses[keyof PublicApiV1TaxesActiveResponses];
 
+export type PublicApiV1AdditionalNifSeatsStatusData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
+         */
+        account: string;
+    };
+    query?: never;
+    url: '/accounts/{account}/additional-nif-seats';
+};
+
+export type PublicApiV1AdditionalNifSeatsStatusErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `account_not_found`: the account in the path does not exist or is not the account of the API key.
+     */
+    404: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AdditionalNifSeatsStatusError = PublicApiV1AdditionalNifSeatsStatusErrors[keyof PublicApiV1AdditionalNifSeatsStatusErrors];
+
+export type PublicApiV1AdditionalNifSeatsStatusResponses = {
+    200: {
+        data: AdditionalNifSeats;
+    };
+};
+
+export type PublicApiV1AdditionalNifSeatsStatusResponse = PublicApiV1AdditionalNifSeatsStatusResponses[keyof PublicApiV1AdditionalNifSeatsStatusResponses];
+
+export type PublicApiV1AdditionalNifSeatsUpdateData = {
+    body: UpdateContractedSeatsV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
+         */
+        account: string;
+    };
+    query?: never;
+    url: '/accounts/{account}/additional-nif-seats';
+};
+
+export type PublicApiV1AdditionalNifSeatsUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `account_not_found`: the account in the path does not exist or is not the account of the API key.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1AdditionalNifSeatsUpdateError = PublicApiV1AdditionalNifSeatsUpdateErrors[keyof PublicApiV1AdditionalNifSeatsUpdateErrors];
+
+export type PublicApiV1AdditionalNifSeatsUpdateResponses = {
+    200: {
+        data: AdditionalNifSeats;
+    };
+};
+
+export type PublicApiV1AdditionalNifSeatsUpdateResponse = PublicApiV1AdditionalNifSeatsUpdateResponses[keyof PublicApiV1AdditionalNifSeatsUpdateResponses];
+
 export type PublicApiV1AgendaListData = {
     body?: never;
     headers?: {
@@ -62352,6 +66811,77 @@ export type PublicApiV1EmployeeSeatsStatusResponses = {
 
 export type PublicApiV1EmployeeSeatsStatusResponse = PublicApiV1EmployeeSeatsStatusResponses[keyof PublicApiV1EmployeeSeatsStatusResponses];
 
+export type PublicApiV1EmployeeSeatsUpdateData = {
+    body: UpdateContractedSeatsV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
+         */
+        account: string;
+    };
+    query?: never;
+    url: '/accounts/{account}/employee-seats';
+};
+
+export type PublicApiV1EmployeeSeatsUpdateErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `account_not_found`: the account in the path does not exist or is not the account of the API key.
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1EmployeeSeatsUpdateError = PublicApiV1EmployeeSeatsUpdateErrors[keyof PublicApiV1EmployeeSeatsUpdateErrors];
+
+export type PublicApiV1EmployeeSeatsUpdateResponses = {
+    200: {
+        data: EmployeeSeatBillingStatus;
+    };
+};
+
+export type PublicApiV1EmployeeSeatsUpdateResponse = PublicApiV1EmployeeSeatsUpdateResponses[keyof PublicApiV1EmployeeSeatsUpdateResponses];
+
 export type PublicApiV1EmployeeSeatsPreviewData = {
     body?: never;
     headers?: {
@@ -62375,6 +66905,10 @@ export type PublicApiV1EmployeeSeatsPreviewData = {
          * Public identifiers (UUID v7) of the employees to preview; omit it to preview `count` employees.
          */
         'employee_ids[]'?: Array<string>;
+        /**
+         * Contracted seats to preview (absolute value; mutually exclusive with `count` and `employee_ids`).
+         */
+        contracted_seats?: number | null;
     };
     url: '/accounts/{account}/employee-seats/preview';
 };
@@ -63257,6 +67791,93 @@ export type PublicApiV1TimeBalancesMonthlySheetResponses = {
 };
 
 export type PublicApiV1TimeBalancesMonthlySheetResponse = PublicApiV1TimeBalancesMonthlySheetResponses[keyof PublicApiV1TimeBalancesMonthlySheetResponses];
+
+export type PublicApiV1PacksPriceBreakdownData = {
+    body?: never;
+    headers?: {
+        /**
+         * Conditional request: send the `ETag` you stored from a previous response of this operation (quoted, as received) to get `304 Not Modified` without a body when the content has not changed. Omit it to always receive the full response.
+         */
+        'If-None-Match'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+    };
+    query?: {
+        /**
+         * Price list (UUID v7) to price the components with; `null` means none. Not sent: the default list of `client_id` applies. Inactive list: 422.
+         */
+        price_list_id?: string | null;
+        /**
+         * Public identifier (UUID v7) of a customer contact of the company, the same one a document carries: price the pack for that customer.
+         */
+        client_id?: string | null;
+        /**
+         * Day the price applies to (`YYYY-MM-DD`, company time zone; default today). It decides the own promotion of the pack.
+         */
+        date?: string | null;
+        /**
+         * Sales channel: `documents` (default) or `web`. It decides which own promotion of the pack applies.
+         */
+        channel?: 'documents' | 'web' | null;
+    };
+    url: '/companies/{company}/packs/{pack}/price-breakdown';
+};
+
+export type PublicApiV1PacksPriceBreakdownErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksPriceBreakdownError = PublicApiV1PacksPriceBreakdownErrors[keyof PublicApiV1PacksPriceBreakdownErrors];
+
+export type PublicApiV1PacksPriceBreakdownResponses = {
+    /**
+     * Price breakdown of the pack.
+     */
+    200: {
+        data: PackPriceBreakdown;
+    };
+};
+
+export type PublicApiV1PacksPriceBreakdownResponse = PublicApiV1PacksPriceBreakdownResponses[keyof PublicApiV1PacksPriceBreakdownResponses];
 
 export type PublicApiV1PayoutsShowData = {
     body?: never;
@@ -68169,7 +72790,7 @@ export type PublicApiV1CompaniesCreateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `managed_company_tax_id_already_exists`: that NIF is already registered; `details.existing_resource_id` is the company that holds it. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_already_exists` with `subcode` `managed_company_tax_id_already_exists`: that NIF is already registered; `details.existing_resource_id` is the company that holds it. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
      */
     409: Error;
     /**
@@ -69036,7 +73657,7 @@ export type PublicApiV1EmployeeBatchesPrepareErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version.
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. `offer_requires_chargeable_seats` means the code would not buy any seat because all of them fit in the free ones; apply it to the seats the account already has with `purchase.kind` `apply_to_existing`. On an account in trial the redemption answers 422 `customer_offer_not_eligible` with `details.reason` `trial_active` instead. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version.
      */
     409: Error;
     /**
@@ -70857,13 +75478,21 @@ export type PublicApiV1PriceListsItemsListData = {
          * Items to return: `active` (default), `retired` or `all`.
          */
         status?: 'active' | 'retired' | 'all' | null;
+        /**
+         * Last update of the price (ISO 8601). Use both `updated[gte]` and `updated[lte]` for a window. Greater than or equal to the given value.
+         */
+        'updated[gte]'?: string;
+        /**
+         * Last update of the price (ISO 8601). Use both `updated[gte]` and `updated[lte]` for a window. Less than or equal to the given value.
+         */
+        'updated[lte]'?: string;
     };
     url: '/companies/{company}/price-lists/{priceList}/items';
 };
 
 export type PublicApiV1PriceListsItemsListErrors = {
     /**
-     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     * The request is syntactically malformed — e.g. an unknown query parameter, an integer parameter with non-numeric value, or a value outside the documented range. `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
      */
     400: Error;
     /**
@@ -70943,6 +75572,10 @@ export type PublicApiV1PriceListsItemsUpsertErrors = {
      * The requested resource does not exist or belongs to another company.
      */
     404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
     /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
@@ -71066,6 +75699,11 @@ export type PublicApiV1ProductsConfigurationsListData = {
          * `true` returns only active items; `false` or omitted returns all of them.
          */
         active?: boolean;
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
     };
     url: '/companies/{company}/products/{product}/configurations';
 };
@@ -72895,7 +77533,7 @@ export type PublicApiV1TimeCorrectionsCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written), `employee_inactive` (only when clocking in: the employee is terminated and read-only, even on their termination day; `error.param` is `employee_id`) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -74485,6 +79123,78 @@ export type PublicApiV1PdfArtifactsPrepareResponses = {
 
 export type PublicApiV1PdfArtifactsPrepareResponse = PublicApiV1PdfArtifactsPrepareResponses[keyof PublicApiV1PdfArtifactsPrepareResponses];
 
+export type PublicApiV1AdditionalNifSeatsPreviewData = {
+    body?: never;
+    headers?: {
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of your account. Get it from `GET /v1/me` (`data.account.id`).
+         */
+        account: string;
+    };
+    query: {
+        /**
+         * Contracted seats to preview (absolute value, 0 or more).
+         */
+        contracted_seats: number;
+    };
+    url: '/accounts/{account}/additional-nif-seats/preview';
+};
+
+export type PublicApiV1AdditionalNifSeatsPreviewErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `account_not_found`: the account in the path does not exist or is not the account of the API key.
+     */
+    404: Error;
+    /**
+     * Existing acquired seat conditions cannot be preserved by this change (`customer_offer_phase_incompatible`). Review them before changing the seats; no financial intent or charge is created.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+    /**
+     * The preview of the charge could not be verified. Nothing is changed or charged. Correct billing configuration or retry the preview; never treat this failure as a zero amount.
+     */
+    503: Error;
+};
+
+export type PublicApiV1AdditionalNifSeatsPreviewError = PublicApiV1AdditionalNifSeatsPreviewErrors[keyof PublicApiV1AdditionalNifSeatsPreviewErrors];
+
+export type PublicApiV1AdditionalNifSeatsPreviewResponses = {
+    200: {
+        data: AdditionalNifSeatChangePreview;
+    };
+};
+
+export type PublicApiV1AdditionalNifSeatsPreviewResponse = PublicApiV1AdditionalNifSeatsPreviewResponses[keyof PublicApiV1AdditionalNifSeatsPreviewResponses];
+
 export type PublicApiV1ContactsPreviewImportData = {
     body: PreviewBusinessContactImportV1Request;
     headers: {
@@ -75483,6 +80193,10 @@ export type PublicApiV1PriceListsItemsPurgeRetiredErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -75699,7 +80413,7 @@ export type PublicApiV1EmployeesReactivateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_state_conflict` with `subcode` `employee_batch_payment_outcome_unknown`: the payment of the batch is still being verified. `details.operation_id` is the operation to keep following; do not charge again. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another.
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. `offer_requires_chargeable_seats` means the code would not buy any seat because all of them fit in the free ones; apply it to the seats the account already has with `purchase.kind` `apply_to_existing`. On an account in trial the redemption answers 422 `customer_offer_not_eligible` with `details.reason` `trial_active` instead. Nothing was charged. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_state_conflict` with `subcode` `employee_batch_missing_payment_proof`: the payment of this operation is not proven yet. Read its current state. `employee_batch_state_conflict` with `subcode` `employee_batch_payment_outcome_unknown`: the payment of the batch is still being verified. `details.operation_id` is the operation to keep following; do not charge again. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `resource_conflict`: another request was reserving identifiers for the same kind of record at that moment and this one could not complete its reservation. Nothing was written; send the request again after a few seconds. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_state_conflict`: the operation is in a state that does not allow this action. Read its current state. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
      */
     409: Error;
     /**
@@ -75778,6 +80492,10 @@ export type PublicApiV1PriceListsItemsReassignRetiredErrors = {
      */
     404: Error;
     /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
      * Validation failed. The `error.param` field identifies which input is invalid.
      */
     422: Error;
@@ -75845,7 +80563,7 @@ export type PublicApiV1TimeEntriesManualErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
+     * Validation failed, or the clock entry breaks a time tracking rule. Domain rejections share the code `business_rule_violation` and are told apart by `error.subcode`: `clocking_outside_employment_period` (the resulting entry falls before the employee’s `hire_date` or after their `termination_date`; `error.param` is `occurred_at` and the message names the date that is breached — nothing is written), `employee_inactive` (only when clocking in: the employee is terminated and read-only, even on their termination day; `error.param` is `employee_id`) or a workday transition that is not allowed, such as `already_clocked_in`. The `error.param` field identifies which input is invalid, if any.
      */
     422: Error;
     /**
@@ -75915,7 +80633,7 @@ export type PublicApiV1EmployeeBatchesRefreshQuoteErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. Nothing was charged. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key.
+     * The request conflicts with data that already exists or with a request running at the same time. `employee_batch_billing_state_conflict`: the current billing of the account does not allow completing the batch safely. `details.reason` is `offer_requires_chargeable_seats`, `fiscal_configuration` or `phase_incompatible`. `offer_requires_chargeable_seats` means the code would not buy any seat because all of them fit in the free ones; apply it to the seats the account already has with `purchase.kind` `apply_to_existing`. On an account in trial the redemption answers 422 `customer_offer_not_eligible` with `details.reason` `trial_active` instead. Nothing was charged. `employee_batch_quote_changed`: the quote changed since the version you accepted (`param` `quote_version`). Refresh it and accept the current version. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `resource_already_exists` with `subcode` `external_id_already_exists`: an `external_id` of the batch is already used by an employee of the company. Nothing was charged or created. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key.
      */
     409: Error;
     /**
@@ -77994,6 +82712,84 @@ export type PublicApiV1PdfCommercialIdentitiesRestoreResponses = {
 
 export type PublicApiV1PdfCommercialIdentitiesRestoreResponse = PublicApiV1PdfCommercialIdentitiesRestoreResponses[keyof PublicApiV1PdfCommercialIdentitiesRestoreResponses];
 
+export type PublicApiV1PacksRestoreData = {
+    body?: never;
+    headers?: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency).
+         */
+        'Idempotency-Key'?: string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs/{pack}/restore';
+};
+
+export type PublicApiV1PacksRestoreErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksRestoreError = PublicApiV1PacksRestoreErrors[keyof PublicApiV1PacksRestoreErrors];
+
+export type PublicApiV1PacksRestoreResponses = {
+    /**
+     * The pack, now back to `active`.
+     */
+    200: {
+        data: Pack;
+    };
+};
+
+export type PublicApiV1PacksRestoreResponse = PublicApiV1PacksRestoreResponses[keyof PublicApiV1PacksRestoreResponses];
+
 export type PublicApiV1PurchaseScansRestoreData = {
     body: VersionedPurchaseScanRequest;
     headers: {
@@ -80061,6 +84857,11 @@ export type PublicApiV1ProductsSearchData = {
          * Search term (1 to 120 characters) over `sku` and `name`, ranked by exact, prefix and partial match (up to 50 results).
          */
         q: string;
+        /**
+         * Day (`YYYY-MM-DD`, company time zone) the `promotion` is resolved for; default today. A date-time uses its day.
+         * Malformed: 400 `parameter_invalid_iso8601`.
+         */
+        date?: string | null;
     };
     url: '/companies/{company}/products/search';
 };
@@ -85521,6 +90322,84 @@ export type PublicApiV1VerifactuSettingsUpdateResponses = {
 
 export type PublicApiV1VerifactuSettingsUpdateResponse = PublicApiV1VerifactuSettingsUpdateResponses[keyof PublicApiV1VerifactuSettingsUpdateResponses];
 
+export type PublicApiV1PacksImagesUploadData = {
+    body: UploadPackImageV1Request;
+    headers: {
+        /**
+         * Client-generated opaque key (up to 255 characters; UUID v7 recommended) that makes retries safe: the first response is cached and replayed for repeats without re-executing the mutation. Reusing a key with a different body returns `422 idempotency_key_reused`; the values of secret fields (`password`, `secret`…) count as part of the body, so retrying with a corrected secret under the same key is a different request, never the replay of the earlier answer. See the [Idempotency guide](/guides/idempotency). **Required on this operation**: repeating it delivers an effect that cannot be taken back (an email sent, a file generated, a third-party call, a charge), so a request without this header is rejected with `422 idempotency_key_required` before any business logic runs.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Pin the API version (`YYYY-MM-DD`, Stripe-style date versioning) for this request; omit to use the key's pinned version, or the latest if none. Unsupported version → `400 unsupported_api_version`; malformed → `400 parameter_invalid_format`. The effective version is echoed in the `Factuarea-Version` response header. See the [Versioning guide](/guides/versioning).
+         */
+        'Factuarea-Version'?: string;
+    };
+    path: {
+        /**
+         * Public identifier (UUID v7) of the company. Get it from `GET /v1/me` (`data.scope[].id`).
+         */
+        company: string;
+        /**
+         * Public identifier (UUID v7) of the pack.
+         */
+        pack: string;
+    };
+    query?: never;
+    url: '/companies/{company}/packs/{pack}/images';
+};
+
+export type PublicApiV1PacksImagesUploadErrors = {
+    /**
+     * `parameter_unknown` with `subcode` `retired_active_profile_header`: the retired `X-Active-Profile` header was sent; the company goes in the path. `parameter_invalid_format` on `Factuarea-Version`: the header is not a `YYYY-MM-DD` date. `unsupported_api_version`: the `Factuarea-Version` date is not a supported version.
+     */
+    400: Error;
+    /**
+     * Missing or invalid API key.
+     */
+    401: Error;
+    /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
+     * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`). `company_inactive`: the company in the path is deactivated; reactivate it to operate.
+     */
+    403: Error;
+    /**
+     * The requested resource does not exist or belongs to another company. `profile_not_found`: the company in the path does not exist, is not in the API key scope or belongs to the other environment (live or test).
+     */
+    404: Error;
+    /**
+     * The request conflicts with data that already exists or with a request running at the same time. `idempotency_key_in_use`: another request with the same `Idempotency-Key` and the same API key is still running. Nothing was written by this one; retry after a few seconds with the same key and body to receive the result of the first request.
+     */
+    409: Error;
+    /**
+     * Validation failed. The `error.param` field identifies which input is invalid. `idempotency_key_reused`: the `Idempotency-Key` was already used with a different body; send a new key or the same body. `invalid_param_format` on `Idempotency-Key`: the key must be 1 to 255 printable ASCII characters. `idempotency_key_required`: this operation requires the `Idempotency-Key` header; the message names the rejected operation.
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded. Retry after the duration in `Retry-After`.
+     */
+    429: Error;
+    /**
+     * Unexpected server error.
+     */
+    500: Error;
+};
+
+export type PublicApiV1PacksImagesUploadError = PublicApiV1PacksImagesUploadErrors[keyof PublicApiV1PacksImagesUploadErrors];
+
+export type PublicApiV1PacksImagesUploadResponses = {
+    /**
+     * Image uploaded. There is no `Location` header: an image has no read endpoint of its own.
+     */
+    201: {
+        data: PackImage;
+    };
+};
+
+export type PublicApiV1PacksImagesUploadResponse = PublicApiV1PacksImagesUploadResponses[keyof PublicApiV1PacksImagesUploadResponses];
+
 export type PublicApiV1ProductsGalleryUploadData = {
     body: UploadProductGalleryImageRequest;
     headers: {
@@ -85964,7 +90843,7 @@ export type PublicApiV1CompaniesVerifyCreationErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     * The request conflicts with data that already exists or with a request running at the same time. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
      */
     409: Error;
     /**
