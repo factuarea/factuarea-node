@@ -15,9 +15,12 @@ triggers:
   below).
 - **`workflow_dispatch`** — run it manually from the Actions tab.
 - **`schedule`** — a daily cron (`17 6 * * *` UTC) as a fallback in case a
-  dispatch is missed. **Currently PAUSED**, together with the emitter in the
-  `factuarea` repo; the reactivation condition is written in the workflow
-  itself.
+  dispatch is missed. **Currently PAUSED** (since 2026-09-22); the reactivation
+  condition is written in the workflow itself. The emitter in the `factuarea`
+  repo, paused with it, is **active** again since 2026-10-17: it dispatches on
+  every `v*` release tag, so `repository_dispatch` is today the only unattended
+  trigger. While the schedule stays paused, a spec published after a tag's run
+  waits for the next tag or a manual run.
 
 What it does:
 
@@ -78,7 +81,8 @@ separate repo (`factuarea-docs`) that has no hook back into `factuarea`, so
 there is no unambiguous "the published spec just changed" event to hang the
 emitter on — hence the manual trigger being the primary one. A tag push may
 therefore land before the portal is republished; the run then reports "nothing
-to sync" and the daily `schedule` picks the change up within 24h.
+to sync" and the daily `schedule` picks the change up within 24h (while it is
+paused, the next tag or a manual run does).
 
 ### Why the emitter sends no `spec_url`
 
