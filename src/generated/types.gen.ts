@@ -6813,6 +6813,10 @@ export type CreatePromotionV1Request = {
          */
         target_id: string;
         /**
+         * Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations ("Soft · Box of 12"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own.
+         */
+        variant_id?: string | null;
+        /**
          * `percent_off` discounts a percentage of the regular price; `fixed` sets the price.
          */
         mode: 'percent_off' | 'fixed';
@@ -19091,11 +19095,15 @@ export type PromotionItem = {
      */
     target_id: string;
     /**
+     * With `target_type` `presentation`, the variant it is sold with (a product without declared configurations sells "variant + presentation" as its own item, with its own price). `null` for a presentation on its own and for every other `target_type`.
+     */
+    variant_id: string | null;
+    /**
      * Name of the item at the time of the request.
      */
     name: string;
     /**
-     * Readable description of the variant, presentation or configuration, or `null` for a product or a pack.
+     * Readable description of the variant, presentation (with its variant, "Soft · Box of 12") or configuration, or `null` for a product or a pack.
      */
     selection_label: string | null;
     /**
@@ -26891,6 +26899,10 @@ export type UpdatePromotionV1Request = {
          */
         target_id: string;
         /**
+         * Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations ("Soft · Box of 12"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own.
+         */
+        variant_id?: string | null;
+        /**
          * `percent_off` discounts a percentage of the regular price; `fixed` sets the price.
          */
         mode: 'percent_off' | 'fixed';
@@ -27628,7 +27640,17 @@ export type UpdateTransportDocumentRequest = {
 export type UpdateVeriFactuSettingsV1Request = {
     enabled?: boolean;
     mode?: 'verifactu' | 'no_verifactu';
+    /**
+     * Deprecated and ignored: records are submitted to AEAT automatically as decided by the Factuarea instance (always on the production API), and the response returns the real value in `auto_transmit`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.
+     *
+     * @deprecated
+     */
     auto_transmit?: boolean;
+    /**
+     * Deprecated and ignored: the AEAT environment is set by the Factuarea instance, not per company (`production`, the real AEAT, on the production API), and the response returns it in `environment`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.
+     *
+     * @deprecated
+     */
     environment?: 'sandbox' | 'production';
     notification_emails?: Array<string>;
     /**
@@ -27883,7 +27905,7 @@ export type VeriFactuActivity = {
 /**
  * VeriFactuConfig
  *
- * VeriFactu configuration of your company (mode, environment, enrollment). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.
+ * VeriFactu configuration of your company (mode, enrollment, the AEAT environment your records go to). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.
  */
 export type VeriFactuConfig = {
     object: 'verifactu_config';
@@ -27896,13 +27918,13 @@ export type VeriFactuConfig = {
      */
     mode: string;
     /**
-     * Indicates whether transmissions to AEAT are sent automatically.
+     * Whether records are submitted to AEAT automatically after issuing, with no further action on your side. It is set by the Factuarea instance, not per company: always `true` on the production API.
      */
     auto_transmit: boolean;
     /**
-     * AEAT environment (`sandbox` / `production`).
+     * AEAT environment your records are submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is set by the Factuarea instance, not per company: always `production` on the production API. Test mode (`fact_test_` keys) never reaches AEAT: VeriFactu operations return 403 `module_not_available_in_sandbox` there.
      */
-    environment: string;
+    environment: 'production' | 'sandbox';
     /**
      * Notification emails for VeriFactu events.
      */
@@ -28071,9 +28093,9 @@ export type VeriFactuRecord = {
      */
     aeat_csv: string | null;
     /**
-     * AEAT environment (`sandbox` / `production`).
+     * AEAT environment the record is submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is the environment of the Factuarea instance, the same as `environment` in `GET /v1/companies/{company}/verifactu/config`: always `production` on the production API.
      */
-    environment: string;
+    environment: 'production' | 'sandbox';
     /**
      * ISO 8601 date of the last transmission that reached AEAT. `null` in PENDING/REJECTED/ERROR states.
      */
@@ -70984,7 +71006,7 @@ export type PublicApiV1VerifactuStatsData = {
          */
         date_to?: string;
         /**
-         * Optional environment filter.
+         * AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.
          */
         environment?: string;
     };
@@ -77779,7 +77801,7 @@ export type PublicApiV1VerifactuRecordsListData = {
          */
         date_to?: string;
         /**
-         * Optional environment filter.
+         * AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.
          */
         environment?: string;
     };
