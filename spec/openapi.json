@@ -41492,6 +41492,7 @@
                           {
                             "target_type": "pack",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f9b01",
+                            "variant_id": null,
                             "name": "Pack Huerto urbano",
                             "selection_label": null,
                             "sku": "PACK-HUERTO",
@@ -79662,6 +79663,7 @@
                           {
                             "target_type": "product",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                            "variant_id": null,
                             "name": "Olivo en maceta",
                             "selection_label": null,
                             "sku": "OLIVO-60",
@@ -79691,6 +79693,7 @@
                           {
                             "target_type": "variant",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                            "variant_id": null,
                             "name": "Maceta de terracota",
                             "selection_label": "10,5 cm",
                             "sku": "MACETA-TER-105",
@@ -80045,6 +80048,7 @@
                             {
                               "target_type": "product",
                               "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                              "variant_id": null,
                               "name": "Olivo en maceta",
                               "selection_label": null,
                               "sku": "OLIVO-60",
@@ -80074,6 +80078,7 @@
                             {
                               "target_type": "variant",
                               "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                              "variant_id": null,
                               "name": "Maceta de terracota",
                               "selection_label": "10,5 cm",
                               "sku": "MACETA-TER-105",
@@ -80129,6 +80134,7 @@
                             {
                               "target_type": "pack",
                               "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f9b01",
+                              "variant_id": null,
                               "name": "Pack Huerto urbano",
                               "selection_label": null,
                               "sku": "PACK-HUERTO",
@@ -117316,6 +117322,7 @@
                           {
                             "target_type": "product",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                            "variant_id": null,
                             "name": "Olivo en maceta",
                             "selection_label": null,
                             "sku": "OLIVO-60",
@@ -117345,6 +117352,7 @@
                           {
                             "target_type": "variant",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                            "variant_id": null,
                             "name": "Maceta de terracota",
                             "selection_label": "10,5 cm",
                             "sku": "MACETA-TER-105",
@@ -117566,6 +117574,7 @@
                           {
                             "target_type": "product",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                            "variant_id": null,
                             "name": "Olivo en maceta",
                             "selection_label": null,
                             "sku": "OLIVO-60",
@@ -117595,6 +117604,7 @@
                           {
                             "target_type": "variant",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                            "variant_id": null,
                             "name": "Maceta de terracota",
                             "selection_label": "10,5 cm",
                             "sku": "MACETA-TER-105",
@@ -200853,7 +200863,7 @@
     "/companies/{company}/verifactu/config": {
       "get": {
         "operationId": "public-api.v1.verifactu.config",
-        "description": "Return your company's VeriFactu configuration (mode, environment, enrollment status) and how it remits to AEAT.\n- `remission_mode` is `own_certificate`, `social_collaborator` or `power_of_attorney`; `presenter_certificate_status` is `valid`, `invalid` or `not_configured`.\n- Includes active representation fields and `social_collaborator_available`. Passwords are never exposed.",
+        "description": "Return your company's VeriFactu configuration (mode, enrollment status, the AEAT environment your records go to) and how it remits to AEAT.\n- `environment` and `auto_transmit` are set by the Factuarea instance, not per company: on the production API records always go to the real AEAT (`production`), automatically.\n- `remission_mode` is `own_certificate`, `social_collaborator` or `power_of_attorney`; `presenter_certificate_status` is `valid`, `invalid` or `not_configured`.\n- Includes active representation fields and `social_collaborator_available`. Passwords are never exposed.",
         "summary": "Retrieve VeriFactu config",
         "tags": [
           "VeriFactu"
@@ -201522,7 +201532,7 @@
     "/companies/{company}/verifactu/stats": {
       "get": {
         "operationId": "public-api.v1.verifactu.stats",
-        "description": "Return aggregated KPIs of your VeriFactu records: totals, counts per status, breakdown by record and invoice type and last transmission time.\n- Optional filters: `date_from`, `date_to`, `environment`.\n- `pending_incident_count`, `blocked_incident_count` and `oldest_pending_at` report the pending-remission alert and ignore the filters.",
+        "description": "Return aggregated KPIs of your VeriFactu records: totals, counts per status, breakdown by record and invoice type and last transmission time.\n- Optional filters: `date_from`, `date_to`, `environment` (a value other than the AEAT environment of the instance counts no records).\n- `pending_incident_count`, `blocked_incident_count` and `oldest_pending_at` report the pending-remission alert and ignore the filters.",
         "summary": "Get VeriFactu stats",
         "tags": [
           "VeriFactu"
@@ -201586,7 +201596,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Optional environment filter.",
+            "description": "AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.",
             "schema": {
               "type": "string",
               "example": "production"
@@ -242003,7 +242013,7 @@
     "/companies/{company}/verifactu/records": {
       "get": {
         "operationId": "public-api.v1.verifactu.records.list",
-        "description": "List the VeriFactu (Spanish AEAT SIF) records of your company with cursor-based pagination. Each record captures the alta/anulación submitted to AEAT, its hash chain (`huella`), `aeat_csv`, and transmission status. Supports filtering by `status`, `type`, `date_from`/`date_to`, and `environment`.",
+        "description": "List the VeriFactu (Spanish AEAT SIF) records of your company with cursor-based pagination. Each record captures the alta/anulación submitted to AEAT, its hash chain (`huella`), `aeat_csv`, and transmission status. Supports filtering by `status`, `type`, `date_from`/`date_to`, and `environment`: every record goes to the AEAT environment of the instance, so a matching value returns all records and any other value none.",
         "summary": "List VeriFactu records",
         "tags": [
           "VeriFactu"
@@ -242099,7 +242109,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Optional environment filter.",
+            "description": "AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.",
             "schema": {
               "type": "string",
               "example": "production"
@@ -323638,7 +323648,7 @@
     "/companies/{company}/verifactu/settings": {
       "patch": {
         "operationId": "public-api.v1.verifactu.settings.update",
-        "description": "Update your company's VeriFactu settings (mode, environment and, with `remission_mode`, who remits to AEAT).\n- A locked transition returns 422 `business_rule_violation`; once enabled, VeriFactu mode cannot be disabled.\n- A third-party `remission_mode` needs a current representation of its kind, else 422 subcode `representation_required`.\n- Every mode change is audited.",
+        "description": "Update your company's VeriFactu settings (activation, mode, notification emails and, with `remission_mode`, who remits to AEAT).\n- `auto_transmit` and `environment` are deprecated and ignored (accepted until 2026-12-07): the AEAT environment and automatic submission are set by the instance and returned in the response.\n- A locked transition returns 422 `business_rule_violation`; once enabled, VeriFactu mode cannot be disabled.\n- A third-party `remission_mode` needs a current representation of its kind, else 422 subcode `representation_required`.\n- Every mode change is audited.",
         "summary": "Update VeriFactu settings",
         "tags": [
           "VeriFactu"
@@ -323679,8 +323689,6 @@
               "example": {
                 "enabled": true,
                 "mode": "verifactu",
-                "auto_transmit": true,
-                "environment": "production",
                 "notification_emails": [
                   "avisos@empresa.es"
                 ]
@@ -347064,6 +347072,14 @@
                   "type": "string",
                   "format": "uuid",
                   "description": "Public identifier (UUID v7) of an item of your company. Another company or an unknown id is rejected with 422 `invalid_promotion_item`."
+                },
+                "variant_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "description": "Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations (\"Soft · Box of 12\"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own."
                 },
                 "mode": {
                   "type": "string",
@@ -383521,6 +383537,14 @@
             "format": "uuid",
             "description": "Public identifier (UUID v7) of the product, variant, presentation, configuration or pack."
           },
+          "variant_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "With `target_type` `presentation`, the variant it is sold with (a product without declared configurations sells \"variant + presentation\" as its own item, with its own price). `null` for a presentation on its own and for every other `target_type`."
+          },
           "name": {
             "type": "string",
             "description": "Name of the item at the time of the request."
@@ -383530,7 +383554,7 @@
               "string",
               "null"
             ],
-            "description": "Readable description of the variant, presentation or configuration, or `null` for a product or a pack."
+            "description": "Readable description of the variant, presentation (with its variant, \"Soft · Box of 12\") or configuration, or `null` for a product or a pack."
           },
           "sku": {
             "type": [
@@ -383611,6 +383635,7 @@
         "required": [
           "target_type",
           "target_id",
+          "variant_id",
           "name",
           "selection_label",
           "sku",
@@ -409824,6 +409849,14 @@
                   "format": "uuid",
                   "description": "Public identifier (UUID v7) of an item of your company. Another company or an unknown id is rejected with 422 `invalid_promotion_item`."
                 },
+                "variant_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "description": "Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations (\"Soft · Box of 12\"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own."
+                },
                 "mode": {
                   "type": "string",
                   "enum": [
@@ -412556,10 +412589,14 @@
             ]
           },
           "auto_transmit": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Deprecated and ignored: records are submitted to AEAT automatically as decided by the Factuarea instance (always on the production API), and the response returns the real value in `auto_transmit`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.",
+            "deprecated": true
           },
           "environment": {
             "type": "string",
+            "description": "Deprecated and ignored: the AEAT environment is set by the Factuarea instance, not per company (`production`, the real AEAT, on the production API), and the response returns it in `environment`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.",
+            "deprecated": true,
             "enum": [
               "sandbox",
               "production"
@@ -413317,7 +413354,7 @@
       },
       "VeriFactuConfig": {
         "type": "object",
-        "description": "VeriFactu configuration of your company (mode, environment, enrollment). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.",
+        "description": "VeriFactu configuration of your company (mode, enrollment, the AEAT environment your records go to). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.",
         "properties": {
           "object": {
             "type": "string",
@@ -413347,7 +413384,7 @@
           },
           "auto_transmit": {
             "type": "boolean",
-            "description": "Indicates whether transmissions to AEAT are sent automatically.",
+            "description": "Whether records are submitted to AEAT automatically after issuing, with no further action on your side. It is set by the Factuarea instance, not per company: always `true` on the production API.",
             "example": true,
             "examples": [
               true
@@ -413355,7 +413392,11 @@
           },
           "environment": {
             "type": "string",
-            "description": "AEAT environment (`sandbox` / `production`).",
+            "enum": [
+              "production",
+              "sandbox"
+            ],
+            "description": "AEAT environment your records are submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is set by the Factuarea instance, not per company: always `production` on the production API. Test mode (`fact_test_` keys) never reaches AEAT: VeriFactu operations return 403 `module_not_available_in_sandbox` there.",
             "example": "production",
             "examples": [
               "production"
@@ -413817,7 +413858,11 @@
           },
           "environment": {
             "type": "string",
-            "description": "AEAT environment (`sandbox` / `production`).",
+            "enum": [
+              "production",
+              "sandbox"
+            ],
+            "description": "AEAT environment the record is submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is the environment of the Factuarea instance, the same as `environment` in `GET /v1/companies/{company}/verifactu/config`: always `production` on the production API.",
             "example": "production",
             "examples": [
               "production"
