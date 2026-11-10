@@ -5693,7 +5693,7 @@ export type CreateBusinessContactV1Request = {
          * Optional DIR3 string: 9-10 alphanumeric characters starting with a letter after trim and uppercase normalization. Lowercase and surrounding whitespace are accepted; null, empty or whitespace-only strings mean null. Omitting the field is the same as sending null: on a customer-profile update (PUT) or on an upsert that carries `customer_profile` it clears the stored code, so resend the current code to keep it; on a new contact it stays null. Proposing body (role 04).
          */
         dir3_proponent?: string | null;
-    };
+    } | null;
     supplier_profile?: {
         default_tax_uuid?: string | null;
         discount?: number | null;
@@ -5706,7 +5706,7 @@ export type CreateBusinessContactV1Request = {
          * Payment term in days (0-365). For a new contact, omitted or null means 30 days; an explicit 0 means immediate payment. For an existing contact upsert, an omitted profile is preserved and a supplied profile replaces its defaults.
          */
         payment_terms_days?: number | null;
-    };
+    } | null;
     roles: Array<'customer' | 'supplier' | 'lead'>;
     bank_accounts?: Array<{
         iban: string;
@@ -6133,6 +6133,9 @@ export type CreateInvoiceRequest = {
         prices_include_tax?: boolean | null;
         configuration_uuid?: string | null;
         counted_quantity?: number | null;
+        /**
+         * Atomic creation options. Without them the invoice is created as a draft. When an option issues the invoice, it takes the date of the day of issue (Europe/Madrid), not `issued_on`; an earlier `issued_on` is kept as `operation_on` when that is empty. If the series already has an issued invoice with a later date, the call is rejected with 422 `issue_date_before_series_last_issue_date` and no number is consumed.
+         */
         options?: Array<{
             group_uuid: string;
             value_uuid: string;
@@ -6174,7 +6177,7 @@ export type CreateInvoiceRequest = {
      */
     prices_include_tax?: boolean | null;
     /**
-     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012). It cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. It is printed on the PDF and reported in the VeriFactu record.
+     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date (arts. 6.1.i and 7.1.c of Royal Decree 1619/2012). It cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. It is printed on the PDF and reported in the VeriFactu record. When the invoice is issued with this field empty and an `issued_on` earlier than the day of issue, that earlier date is kept here.
      */
     operation_on?: string | null;
     /**
@@ -6193,7 +6196,7 @@ export type CreateInvoiceRequest = {
          * Reference of the payment, for example the transaction id of the card terminal (up to 100 characters).
          */
         reference?: string | null;
-    };
+    } | null;
     series_id?: string | null;
     price_list_id?: string | null;
     reprice_strategy?: 'existing_catalog_lines' | 'future_lines_only' | null;
@@ -6205,6 +6208,9 @@ export type CreateInvoiceRequest = {
      * Positive selection version. It applies only when POST resolves to an existing external_id, where it is the selection CAS for pdf_template_id; a new invoice rejects it with 422. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
      */
     expected_selection_version?: number;
+    /**
+     * Date of the draft (YYYY-MM-DD). It is not the date the invoice ends up with: when the invoice is issued (in this call with `options`, `payment` or `type: F2`, or later with `issue`) it takes the date of the day of issue (Europe/Madrid), whatever this value. If this date is earlier than that day and `operation_on` is empty, it is kept as `operation_on`. If the series already has an issued invoice with a later date, issuing is rejected with 422 `issue_date_before_series_last_issue_date` and no number is consumed.
+     */
     issued_on: string;
     /**
      * Due date (YYYY-MM-DD). It drives the overdue status, payment reminders and debt ageing. With a nonempty `payment_terms` schedule the invoice falls due on its last instalment, so send that date: a draft keeps a different one, but issuing it (in this call through `options`, or later) returns 422 `invoice_due_date_not_last_instalment` and nothing is issued.
@@ -6218,6 +6224,9 @@ export type CreateInvoiceRequest = {
         field: string;
         value: string;
     }> | null;
+    /**
+     * Atomic creation options. Without them the invoice is created as a draft. When an option issues the invoice, it takes the date of the day of issue (Europe/Madrid), not `issued_on`; an earlier `issued_on` is kept as `operation_on` when that is empty. If the series already has an issued invoice with a later date, the call is rejected with 422 `issue_date_before_series_last_issue_date` and no number is consumed.
+     */
     options?: {
         /**
          * When `true`, the invoice is issued right after it is created (definitive number, frozen document) instead of staying as a draft.
@@ -6239,7 +6248,7 @@ export type CreateInvoiceRequest = {
          * When `true`, the VeriFactu alta is generated synchronously, BEFORE responding, and the response carries its huella and QR in the `verifactu` block. It implies issuing. If the alta cannot be generated the invoice stays issued and the block reports `status: failed` with its `error_code`. Its transmission to AEAT follows its course in batches.
          */
         register_verifactu?: boolean | null;
-    };
+    } | null;
 };
 
 /**
@@ -6492,13 +6501,13 @@ export type CreateProductPresentationRequest = {
 export type CreateProductRequest = {
     channels?: {
         web?: boolean | null;
-    };
+    } | null;
     slug?: string | null;
     summary?: string | null;
     seo?: {
         title?: string | null;
         description?: string | null;
-    };
+    } | null;
     name: string;
     /**
      * Stock keeping unit (your own product code), unique per company. Optional; up to 100 characters.
@@ -6813,6 +6822,10 @@ export type CreatePromotionV1Request = {
          */
         target_id: string;
         /**
+         * Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations ("Soft · Box of 12"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own.
+         */
+        variant_id?: string | null;
+        /**
          * `percent_off` discounts a percentage of the regular price; `fixed` sets the price.
          */
         mode: 'percent_off' | 'fixed';
@@ -7058,7 +7071,7 @@ export type CreateRecurringFromInvoiceRequest = {
         cc?: Array<string> | null;
         subject?: string | null;
         body?: string | null;
-    };
+    } | null;
 };
 
 /**
@@ -7119,7 +7132,7 @@ export type CreateRecurringInvoiceRequest = {
         cc?: Array<string> | null;
         subject?: string | null;
         body?: string | null;
-    };
+    } | null;
     lines: Array<{
         description?: string | null;
         additional_description?: string | null;
@@ -7403,7 +7416,7 @@ export type CreateTransportDocumentRequest = {
         tractor_plate_country?: string | null;
         trailer_plate?: string | null;
         trailer_plate_country?: string | null;
-    };
+    } | null;
     shipments?: Array<{
         id?: string | null;
         transport_date?: string | null;
@@ -7453,7 +7466,7 @@ export type CreateTransportDocumentRequest = {
             country?: string | null;
             name?: string | null;
         } | null;
-    };
+    } | null;
     carrier?: {
         name?: string | null;
         tax_id?: string | null;
@@ -7467,7 +7480,7 @@ export type CreateTransportDocumentRequest = {
             country?: string | null;
             name?: string | null;
         } | null;
-    };
+    } | null;
     delivery_note_ids?: Array<string>;
 };
 
@@ -9053,6 +9066,34 @@ export type EmployeeSeatChargePreview = {
      * What the applied offer package would lose if the reduction goes ahead (confirm it with `accept_offer_package_loss`), or null.
      */
     offer_package_loss: SeatOfferPackageLoss | null;
+};
+
+/**
+ * EmployeeStats
+ *
+ * Number of employees of the authenticated company by status and by type of working day. Returned by `GET /v1/companies/{company}/employees/stats`.
+ */
+export type EmployeeStats = {
+    /**
+     * All the employees, active and inactive.
+     */
+    total: number;
+    /**
+     * Active employees.
+     */
+    active: number;
+    /**
+     * Deactivated employees.
+     */
+    inactive: number;
+    /**
+     * Employees with a full-time working day.
+     */
+    full_time: number;
+    /**
+     * Employees with a part-time working day.
+     */
+    part_time: number;
 };
 
 /**
@@ -12410,10 +12451,13 @@ export type Invoice = {
      * Price-list name snapshot frozen on the document.
      */
     price_list_name: string | null;
+    /**
+     * Issue date. A draft carries the date it was prepared with; when the invoice is issued it takes the date of the day of issue (Europe/Madrid), whatever the draft held, and it is immutable from then on. If the series already has an issued invoice with a later date, issuing is rejected with 422 `issue_date_before_series_last_issue_date`.
+     */
     issued_on: string;
     due_on: string | null;
     /**
-     * Date the operation took place when it differs from `issued_on` (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`).
+     * Date the operation took place when it differs from `issued_on` (arts. 6.1.i and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. When a draft is issued with no `operation_on` and an `issued_on` earlier than the day of issue, that earlier date becomes `operation_on` (a scheduled issue does not do it). It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`).
      */
     operation_on: string | null;
     subtotal: string;
@@ -14888,7 +14932,7 @@ export type ModifyTransportDocumentRequest = {
         tractor_plate_country?: string | null;
         trailer_plate?: string | null;
         trailer_plate_country?: string | null;
-    };
+    } | null;
     shipments?: Array<{
         id?: string | null;
         transport_date?: string | null;
@@ -14938,7 +14982,7 @@ export type ModifyTransportDocumentRequest = {
             country?: string | null;
             name?: string | null;
         } | null;
-    };
+    } | null;
     carrier?: {
         name?: string | null;
         tax_id?: string | null;
@@ -14952,7 +14996,7 @@ export type ModifyTransportDocumentRequest = {
             country?: string | null;
             name?: string | null;
         } | null;
-    };
+    } | null;
 };
 
 /**
@@ -15339,9 +15383,18 @@ export type NifTransfer = {
      */
     status: 'active' | 'expired' | 'revoked' | 'consumed';
     /**
-     * Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when whoever holds the secret can accept it.
+     * Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when it is not addressed to an account: whoever holds the secret can accept it, unless `recipient_member` is set.
      */
     recipient_account_id: string | null;
+    /**
+     * The team member this transfer is addressed to, or `null`. It is set only on a transfer issued from the web app to a person of the issuing account (an administrator or a member, never the owner), who takes the tax ID by opening a new account of their own: nobody else can accept it, and no secret is ever handed over. It is never set together with `recipient_account_id`: a transfer goes to nobody in particular (whoever holds the secret can accept it), to one account, or to one team member. A transfer issued through the API is never addressed to a member, so `null` is what you get for it. Only the identifier is published, never the name of the person.
+     */
+    recipient_member: {
+        /**
+         * Opaque identifier (UUID v7) of the person as a member of your account: the same `id` that the members of the account publish.
+         */
+        id: string;
+    } | null;
     /**
      * When the transfer was issued (ISO 8601), or `null` when the instant is not recorded.
      */
@@ -15403,9 +15456,18 @@ export type NifTransferWithSecret = {
      */
     status: 'active' | 'expired' | 'revoked' | 'consumed';
     /**
-     * Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when whoever holds the secret can accept it.
+     * Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when it is not addressed to an account: whoever holds the secret can accept it, unless `recipient_member` is set.
      */
     recipient_account_id: string | null;
+    /**
+     * The team member this transfer is addressed to, or `null`. It is set only on a transfer issued from the web app to a person of the issuing account (an administrator or a member, never the owner), who takes the tax ID by opening a new account of their own: nobody else can accept it, and no secret is ever handed over. It is never set together with `recipient_account_id`: a transfer goes to nobody in particular (whoever holds the secret can accept it), to one account, or to one team member. A transfer issued through the API is never addressed to a member, so `null` is what you get for it. Only the identifier is published, never the name of the person.
+     */
+    recipient_member: {
+        /**
+         * Opaque identifier (UUID v7) of the person as a member of your account: the same `id` that the members of the account publish.
+         */
+        id: string;
+    } | null;
     /**
      * When the transfer was issued (ISO 8601), or `null` when the instant is not recorded.
      */
@@ -19091,11 +19153,15 @@ export type PromotionItem = {
      */
     target_id: string;
     /**
+     * With `target_type` `presentation`, the variant it is sold with (a product without declared configurations sells "variant + presentation" as its own item, with its own price). `null` for a presentation on its own and for every other `target_type`.
+     */
+    variant_id: string | null;
+    /**
      * Name of the item at the time of the request.
      */
     name: string;
     /**
-     * Readable description of the variant, presentation or configuration, or `null` for a product or a pack.
+     * Readable description of the variant, presentation (with its variant, "Soft · Box of 12") or configuration, or `null` for a product or a pack.
      */
     selection_label: string | null;
     /**
@@ -22565,6 +22631,38 @@ export type SeriesPdfTemplate = {
 export type SeriesRef = {
     id: string | null;
     code: string | null;
+};
+
+/**
+ * SeriesStats
+ *
+ * Number of numbering series of the authenticated company, archived ones included, in total and per document type. Returned by `GET /v1/companies/{company}/series/stats`.
+ */
+export type SeriesStats = {
+    /**
+     * All the series of the company, of every type.
+     */
+    total: number;
+    /**
+     * Invoice series.
+     */
+    invoice: number;
+    /**
+     * Quote series.
+     */
+    quote: number;
+    /**
+     * Delivery note series.
+     */
+    delivery_note: number;
+    /**
+     * Proforma series.
+     */
+    proforma: number;
+    /**
+     * Transport document series.
+     */
+    transport_document: number;
 };
 
 /**
@@ -26320,13 +26418,16 @@ export type UpdateInvoiceRequest = {
      * Positive current selection version used as the body CAS. It is required exactly when pdf_template_id is present; omit both fields to leave the current presentation intent unchanged. Both fields only take effect when revisioned presentation is enabled for the company; otherwise they are ignored.
      */
     expected_selection_version?: number;
+    /**
+     * New date of the draft (YYYY-MM-DD), only while the invoice is a draft. It is not the date the invoice ends up with: when the draft is issued it takes the date of the day of issue (Europe/Madrid), whatever this value, and an earlier `issued_on` is kept as `operation_on` when that is empty. If the series already has an issued invoice with a later date, issuing is rejected with 422 `issue_date_before_series_last_issue_date`.
+     */
     issued_on?: string;
     /**
      * New due date (YYYY-MM-DD), only while the invoice is a draft. With a nonempty schedule the invoice falls due on its last instalment: when you replace `payment_terms` and leave `due_on` out, it moves to that date; when you send both and they differ, the draft keeps them and issuing it returns 422 `invoice_due_date_not_last_instalment`.
      */
     due_on?: string;
     /**
-     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date. It can only be changed while the invoice is a draft, and it cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15.
+     * Date the operation took place (YYYY-MM-DD) when it differs from the issue date. It can only be changed while the invoice is a draft, and it cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. When the draft is issued with this field empty and an `issued_on` earlier than the day of issue, that earlier date is kept here.
      */
     operation_on?: string | null;
     notes?: string | null;
@@ -26523,13 +26624,13 @@ export type UpdateProductPresentationRequest = {
 export type UpdateProductRequest = {
     channels?: {
         web?: boolean | null;
-    };
+    } | null;
     slug?: string | null;
     summary?: string | null;
     seo?: {
         title?: string | null;
         description?: string | null;
-    };
+    } | null;
     name?: string;
     sku?: string | null;
     price?: string;
@@ -26891,6 +26992,10 @@ export type UpdatePromotionV1Request = {
          */
         target_id: string;
         /**
+         * Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations ("Soft · Box of 12"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own.
+         */
+        variant_id?: string | null;
+        /**
          * `percent_off` discounts a percentage of the regular price; `fixed` sets the price.
          */
         mode: 'percent_off' | 'fixed';
@@ -27165,7 +27270,7 @@ export type UpdateRecurringInvoiceRequest = {
         cc?: Array<string> | null;
         subject?: string | null;
         body?: string | null;
-    };
+    } | null;
     lines?: Array<{
         description?: string | null;
         additional_description?: string | null;
@@ -27555,7 +27660,7 @@ export type UpdateTransportDocumentRequest = {
         tractor_plate_country?: string | null;
         trailer_plate?: string | null;
         trailer_plate_country?: string | null;
-    };
+    } | null;
     shipments?: Array<{
         id?: string | null;
         transport_date?: string | null;
@@ -27605,7 +27710,7 @@ export type UpdateTransportDocumentRequest = {
             country?: string | null;
             name?: string | null;
         } | null;
-    };
+    } | null;
     carrier?: {
         name?: string | null;
         tax_id?: string | null;
@@ -27619,7 +27724,7 @@ export type UpdateTransportDocumentRequest = {
             country?: string | null;
             name?: string | null;
         } | null;
-    };
+    } | null;
 };
 
 /**
@@ -27628,7 +27733,17 @@ export type UpdateTransportDocumentRequest = {
 export type UpdateVeriFactuSettingsV1Request = {
     enabled?: boolean;
     mode?: 'verifactu' | 'no_verifactu';
+    /**
+     * Deprecated and ignored: records are submitted to AEAT automatically as decided by the Factuarea instance (always on the production API), and the response returns the real value in `auto_transmit`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.
+     *
+     * @deprecated
+     */
     auto_transmit?: boolean;
+    /**
+     * Deprecated and ignored: the AEAT environment is set by the Factuarea instance, not per company (`production`, the real AEAT, on the production API), and the response returns it in `environment`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.
+     *
+     * @deprecated
+     */
     environment?: 'sandbox' | 'production';
     notification_emails?: Array<string>;
     /**
@@ -27883,7 +27998,7 @@ export type VeriFactuActivity = {
 /**
  * VeriFactuConfig
  *
- * VeriFactu configuration of your company (mode, environment, enrollment). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.
+ * VeriFactu configuration of your company (mode, enrollment, the AEAT environment your records go to). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.
  */
 export type VeriFactuConfig = {
     object: 'verifactu_config';
@@ -27896,13 +28011,13 @@ export type VeriFactuConfig = {
      */
     mode: string;
     /**
-     * Indicates whether transmissions to AEAT are sent automatically.
+     * Whether records are submitted to AEAT automatically after issuing, with no further action on your side. It is set by the Factuarea instance, not per company: always `true` on the production API.
      */
     auto_transmit: boolean;
     /**
-     * AEAT environment (`sandbox` / `production`).
+     * AEAT environment your records are submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is set by the Factuarea instance, not per company: always `production` on the production API. Test mode (`fact_test_` keys) never reaches AEAT: VeriFactu operations return 403 `module_not_available_in_sandbox` there.
      */
-    environment: string;
+    environment: 'production' | 'sandbox';
     /**
      * Notification emails for VeriFactu events.
      */
@@ -28071,9 +28186,9 @@ export type VeriFactuRecord = {
      */
     aeat_csv: string | null;
     /**
-     * AEAT environment (`sandbox` / `production`).
+     * AEAT environment the record is submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is the environment of the Factuarea instance, the same as `environment` in `GET /v1/companies/{company}/verifactu/config`: always `production` on the production API.
      */
-    environment: string;
+    environment: 'production' | 'sandbox';
     /**
      * ISO 8601 date of the last transmission that reached AEAT. `null` in PENDING/REJECTED/ERROR states.
      */
@@ -35364,6 +35479,38 @@ export type WooCommerceConnectionCheck = {
 };
 
 /**
+ * WorkScheduleStats
+ *
+ * Number of weekly work schedules of the authenticated company by status and by clocking mode, and employees with a schedule assigned today. Returned by `GET /v1/companies/{company}/work-schedules/stats`.
+ */
+export type WorkScheduleStats = {
+    /**
+     * All the work schedules, active and archived.
+     */
+    total: number;
+    /**
+     * Active work schedules.
+     */
+    active: number;
+    /**
+     * Archived work schedules.
+     */
+    archived: number;
+    /**
+     * Work schedules in validated mode.
+     */
+    validated: number;
+    /**
+     * Work schedules in real clocking mode.
+     */
+    real_clocking: number;
+    /**
+     * Distinct employees with a schedule assignment still in force.
+     */
+    assigned_employees: number;
+};
+
+/**
  * WorkdaySessionStatus
  *
  * The derived state of an employee’s current workday for the Control Horario (time tracking) module, reconstructed from the open work span in the immutable ledger. There is no session table — the state is computed from the entries.
@@ -36359,10 +36506,13 @@ export type InvoiceWritable = {
      * Price-list name snapshot frozen on the document.
      */
     price_list_name: string | null;
+    /**
+     * Issue date. A draft carries the date it was prepared with; when the invoice is issued it takes the date of the day of issue (Europe/Madrid), whatever the draft held, and it is immutable from then on. If the series already has an issued invoice with a later date, issuing is rejected with 422 `issue_date_before_series_last_issue_date`.
+     */
     issued_on: string;
     due_on: string | null;
     /**
-     * Date the operation took place when it differs from `issued_on` (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`).
+     * Date the operation took place when it differs from `issued_on` (arts. 6.1.i and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. When a draft is issued with no `operation_on` and an `issued_on` earlier than the day of issue, that earlier date becomes `operation_on` (a scheduled issue does not do it). It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`).
      */
     operation_on: string | null;
     subtotal: string;
@@ -38700,7 +38850,7 @@ export type PublicApiV1AccountNifTransfersAcceptErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.
+     * The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.
      */
     409: Error;
     /**
@@ -43594,7 +43744,7 @@ export type PublicApiV1InvoicesBulkSendErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. issue_date_before_series_last_issue_date (param issued_on): drafts are issued, dated the day of issue, before they are sent. With revisioned presentation disabled, a draft rejected because its series already has an issued invoice with a later date aborts the call with this 422; with it enabled, that row is reported in `failures[]` as `business_rule_violation`. No number is consumed for the rejected draft.
      */
     422: Error;
     /**
@@ -47004,7 +47154,7 @@ export type PublicApiV1DeliveryNotesConvertResponses = {
         /**
          * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.
          */
-        warning_codes?: Array<string>;
+        warning_codes?: Array<'zero_rate_line_without_exemption'>;
     };
 };
 
@@ -47087,7 +47237,7 @@ export type PublicApiV1ProformasConvertResponses = {
         /**
          * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.
          */
-        warning_codes?: Array<string>;
+        warning_codes?: Array<'zero_rate_line_without_exemption'>;
     };
 };
 
@@ -47248,7 +47398,7 @@ export type PublicApiV1QuotesConvertResponses = {
         /**
          * Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.
          */
-        warning_codes?: Array<string>;
+        warning_codes?: Array<'zero_rate_line_without_exemption'>;
     };
 };
 
@@ -48198,7 +48348,7 @@ export type PublicApiV1ContactsListData = {
         /**
          * Only contacts with these roles: `customer`, `supplier`, `lead` or `unassigned` (repeat it or send a comma-separated list).
          */
-        'roles[]'?: 'customer' | 'supplier' | 'lead' | 'unassigned';
+        'roles[]'?: Array<'customer' | 'supplier' | 'lead' | 'unassigned'> | null;
         /**
          * `any` (default) matches at least one of the `roles[]`; `all` requires all of them.
          */
@@ -48222,7 +48372,7 @@ export type PublicApiV1ContactsListData = {
         /**
          * Only contacts carrying all these tags (case-insensitive, up to 50).
          */
-        'tags[]'?: Array<string>;
+        'tags[]'?: Array<string> | null;
         /**
          * `true` returns only archived contacts and `false` only the rest; omit it to return both.
          */
@@ -48258,7 +48408,7 @@ export type PublicApiV1ContactsListData = {
         /**
          * Metadata filter as `metadata[key]=value` (exact match, up to 20 pairs, all must match).
          */
-        'metadata[]'?: Array<string>;
+        'metadata[]'?: Array<string> | null;
         /**
          * Sort direction by creation date: `asc` (default) or `desc`.
          */
@@ -49486,7 +49636,7 @@ export type PublicApiV1InvoicesCreateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued. issue_date_before_series_last_issue_date (param issued_on): an invoice that is issued in this call (`options`, `payment` or `type: F2`) is dated the day of issue, and it is rejected when the series already has an issued invoice with a later date; no number is consumed.
      */
     422: Error;
     /**
@@ -64481,7 +64631,7 @@ export type PublicApiV1RecurringInvoicesGenerateErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing lifecycle/business guards or recurring_presentation_unavailable with a safe finite reason. latest visual failure recovery is committed after generation rollback; restoration or editing does not automatically resume.
+     * Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing lifecycle/business guards or recurring_presentation_unavailable with a safe finite reason. latest visual failure recovery is committed after generation rollback; restoration or editing does not automatically resume. issue_date_before_series_last_issue_date (param issued_on): with `issue` or `issue_and_send` the generated invoice is dated the day of issue, and it is rejected when the series already has an issued invoice with a later date; nothing is generated and no number is consumed.
      */
     422: Error;
     /**
@@ -65389,7 +65539,7 @@ export type PublicApiV1ContactsActivitiesData = {
         /**
          * Only activity in these directions: `sales`, `purchases` or `relationship` (all three when omitted).
          */
-        'direction[]'?: 'sales' | 'purchases' | 'relationship';
+        'direction[]'?: Array<'sales' | 'purchases' | 'relationship'> | null;
     };
     url: '/companies/{company}/contacts/{contact}/activities';
 };
@@ -66904,7 +67054,7 @@ export type PublicApiV1EmployeeSeatsPreviewData = {
         /**
          * Public identifiers (UUID v7) of the employees to preview; omit it to preview `count` employees.
          */
-        'employee_ids[]'?: Array<string>;
+        'employee_ids[]'?: Array<string> | null;
         /**
          * Contracted seats to preview (absolute value; mutually exclusive with `count` and `employee_ids`).
          */
@@ -67003,13 +67153,7 @@ export type PublicApiV1EmployeesStatsError = PublicApiV1EmployeesStatsErrors[key
 
 export type PublicApiV1EmployeesStatsResponses = {
     200: {
-        data: {
-            total: number;
-            active: number;
-            inactive: number;
-            full_time: number;
-            part_time: number;
-        };
+        data: EmployeeStats;
     };
 };
 
@@ -69338,7 +69482,7 @@ export type PublicApiV1CompaniesSeatChargePreviewData = {
         /**
          * Public identifiers (UUID v7) of the companies to preview; omit it to preview `count` companies.
          */
-        'company_ids[]'?: Array<string>;
+        'company_ids[]'?: Array<string> | null;
     };
     url: '/accounts/{account}/companies/seat-charge-preview';
 };
@@ -69520,14 +69664,7 @@ export type PublicApiV1SeriesStatsError = PublicApiV1SeriesStatsErrors[keyof Pub
 
 export type PublicApiV1SeriesStatsResponses = {
     200: {
-        data: {
-            total: number;
-            invoice: number;
-            quote: number;
-            delivery_note: number;
-            proforma: number;
-            transport_document: number;
-        };
+        data: SeriesStats;
     };
 };
 
@@ -70984,7 +71121,7 @@ export type PublicApiV1VerifactuStatsData = {
          */
         date_to?: string;
         /**
-         * Optional environment filter.
+         * AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.
          */
         environment?: string;
     };
@@ -71077,14 +71214,7 @@ export type PublicApiV1WorkSchedulesStatsError = PublicApiV1WorkSchedulesStatsEr
 
 export type PublicApiV1WorkSchedulesStatsResponses = {
     200: {
-        data: {
-            total: number;
-            active: number;
-            archived: number;
-            validated: number;
-            real_clocking: number;
-            assigned_employees: number;
-        };
+        data: WorkScheduleStats;
     };
 };
 
@@ -71495,7 +71625,7 @@ export type PublicApiV1InvoicesIssueErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued. issue_date_before_series_last_issue_date (param issued_on): the invoice is dated the day of issue, so issuing it is rejected when the series already has an issued invoice with a later date; no number is consumed and the invoice stays a draft.
      */
     422: Error;
     /**
@@ -71882,11 +72012,11 @@ export type PublicApiV1AccountRequestLogsListData = {
         /**
          * HTTP methods, comma-separated (`?method=GET,POST`) or repeated: `GET`, `POST`, `PUT`, `PATCH` or `DELETE`; any other value returns 422.
          */
-        'method[]'?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        'method[]'?: Array<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
         /**
          * Status code ranges, comma-separated (`?status_range=4xx,5xx`) or repeated: `2xx`, `3xx`, `4xx` or `5xx`; it wins over `only_errors=true` (shorthand for `4xx,5xx`).
          */
-        'status_range[]'?: '2xx' | '3xx' | '4xx' | '5xx';
+        'status_range[]'?: Array<'2xx' | '3xx' | '4xx' | '5xx'>;
         /**
          * Shortcut for status_range=4xx,5xx. An explicit status_range wins over it.
          */
@@ -72330,11 +72460,11 @@ export type PublicApiV1DevelopersRequestLogsListData = {
         /**
          * HTTP methods, comma-separated (`?method=GET,POST`) or repeated: `GET`, `POST`, `PUT`, `PATCH` or `DELETE`; any other value returns 422.
          */
-        'method[]'?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        'method[]'?: Array<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
         /**
          * Status code ranges, comma-separated (`?status_range=4xx,5xx`) or repeated: `2xx`, `3xx`, `4xx` or `5xx`; it wins over `only_errors=true` (shorthand for `4xx,5xx`).
          */
-        'status_range[]'?: '2xx' | '3xx' | '4xx' | '5xx';
+        'status_range[]'?: Array<'2xx' | '3xx' | '4xx' | '5xx'>;
         /**
          * Shortcut for status_range=4xx,5xx. An explicit status_range wins over it.
          */
@@ -73566,7 +73696,7 @@ export type PublicApiV1EmployeeBatchesListData = {
         /**
          * Only batches in these statuses, e.g. `draft`, `quoted`, `paid`, `completed` or `failed` (repeat the parameter).
          */
-        'statuses[]': 'draft' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'paid' | 'completed' | 'failed' | 'cancelled' | 'compensating' | 'compensated' | 'needs_review';
+        'statuses[]': Array<'draft' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'paid' | 'completed' | 'failed' | 'cancelled' | 'compensating' | 'compensated' | 'needs_review'>;
     };
     url: '/companies/{company}/employee-batches';
 };
@@ -76538,7 +76668,7 @@ export type PublicApiV1EmployeeSeatOfferRedemptionsListData = {
         /**
          * Only redemptions in these statuses, e.g. `quoted`, `applied`, `cancelled` or `failed` (repeat the parameter).
          */
-        'statuses[]'?: 'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+        'statuses[]'?: Array<'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review'>;
     };
     url: '/companies/{company}/employee-seat-offer-redemptions';
 };
@@ -76693,7 +76823,7 @@ export type PublicApiV1GestoriaSeatOfferRedemptionsListData = {
         /**
          * Only redemptions in these statuses, e.g. `quoted`, `applied`, `cancelled` or `failed` (repeat the parameter).
          */
-        'statuses[]'?: 'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review';
+        'statuses[]'?: Array<'provisioning' | 'scheduled' | 'active' | 'revoking' | 'revoked' | 'quoted' | 'processing' | 'requires_action' | 'payment_pending' | 'applied' | 'cancelling' | 'compensating' | 'compensated' | 'cancelled' | 'failed' | 'needs_review'>;
     };
     url: '/companies/{company}/gestoria-seat-offer-redemptions';
 };
@@ -77779,7 +77909,7 @@ export type PublicApiV1VerifactuRecordsListData = {
          */
         date_to?: string;
         /**
-         * Optional environment filter.
+         * AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.
          */
         environment?: string;
     };
@@ -78188,7 +78318,7 @@ export type PublicApiV1InvoicesMarkSentErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. issue_date_before_series_last_issue_date (param issued_on): before API version `2026-10-01` this operation issues a draft, dated the day of issue; when the series already has an issued invoice with a later date it is rejected and no number is consumed.
      */
     422: Error;
     /**
@@ -84778,7 +84908,7 @@ export type PublicApiV1ContactsSearchData = {
         /**
          * Only contacts with these roles: `customer`, `supplier` or `lead` (repeat it or send a comma-separated list).
          */
-        'roles[]'?: 'customer' | 'supplier' | 'lead';
+        'roles[]'?: Array<'customer' | 'supplier' | 'lead'> | null;
         /**
          * `any` (default) matches at least one of the `roles[]`; `all` requires all of them.
          */
@@ -85465,7 +85595,7 @@ export type PublicApiV1InvoicesSendErrors = {
      */
     409: Error;
     /**
-     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.
+     * Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. issue_date_before_series_last_issue_date (param issued_on): a draft is issued, dated the day of issue, before it is sent; when the series already has an issued invoice with a later date the call is rejected, no number is consumed and nothing is sent.
      */
     422: Error;
     /**
@@ -90436,6 +90566,10 @@ export type PublicApiV1ProductsGalleryUploadErrors = {
      */
     401: Error;
     /**
+     * The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.
+     */
+    402: Error;
+    /**
      * The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).
      */
     403: Error;
@@ -90455,6 +90589,10 @@ export type PublicApiV1ProductsGalleryUploadErrors = {
      * Unexpected server error.
      */
     500: Error;
+    /**
+     * A dependency the operation needs is temporarily unavailable, so nothing was stored or modified. `malware_scan_unavailable`: the antivirus could not scan the uploaded file and the platform never stores a file without scanning it — retry the same request in a few minutes.
+     */
+    503: Error;
 };
 
 export type PublicApiV1ProductsGalleryUploadError = PublicApiV1ProductsGalleryUploadErrors[keyof PublicApiV1ProductsGalleryUploadErrors];
