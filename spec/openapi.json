@@ -245,7 +245,7 @@
     "/accounts/{account}/nif-transfers/accept": {
       "post": {
         "operationId": "public-api.v1.account.nif_transfers.accept",
-        "description": "Accept a tax ID transfer with its `secret`: the tax ID moves to the account in the path. Irreversible.\n- The body carries only `secret`; requires `Idempotency-Key` (else 422 `idempotency_key_required`).\n- Plan gates run first, e.g. 402 `additional_nif_plan_required`, 402 `payment_method_required`.\n- 422 `nif_transfer_invalid` for an unusable secret; 422 `nif_transfer_expired`. Requires the `nif_transfers:write` scope, which `*` does not cover: the API key must list it explicitly.",
+        "description": "Accept a tax ID transfer with its `secret`: the tax ID moves to the account in the path. Irreversible.\n- The body carries only `secret`; requires `Idempotency-Key` (else 422 `idempotency_key_required`).\n- Plan gates run first, e.g. 402 `additional_nif_plan_required`. It never charges: with no free tax ID seat, the tax ID is covered until the next renewal, which then bills its seat.\n- 422 `nif_transfer_invalid` for an unusable secret; 422 `nif_transfer_expired`. Requires the `nif_transfers:write` scope, which `*` does not cover: the API key must list it explicitly.",
         "summary": "Accept a tax ID transfer",
         "tags": [
           "Account"
@@ -314,6 +314,7 @@
                     "expires_at": "2026-10-04T09:00:00+00:00",
                     "status": "consumed",
                     "recipient_account_id": null,
+                    "recipient_member": null,
                     "issued_at": "2026-09-27T09:00:00+00:00",
                     "consumed_at": "2026-09-28T10:30:00+00:00",
                     "revoked_at": null
@@ -402,21 +403,6 @@
                   "$ref": "#/components/schemas/Error"
                 },
                 "examples": {
-                  "payment_method_required": {
-                    "summary": "POST /v1/accounts/{account}/nif-transfers/accept · 402 payment_method_required",
-                    "value": {
-                      "error": {
-                        "type": "payment_required_error",
-                        "code": "payment_method_required",
-                        "message": "La cuenta no tiene un método de pago configurado para cobrar el NIF adicional: configúralo y vuelve a intentarlo.",
-                        "details": {
-                          "payment_setup_url": "https://billing.stripe.com/p/session/live_YWNjdF8xS2ZHM0RLb0h4RXBGV3lY"
-                        },
-                        "doc_url": "https://docs.factuarea.com/guides/errors#payment_method_required",
-                        "request_id": "req_f15e7a1c0d9b3f46a28c010000"
-                      }
-                    }
-                  },
                   "additional_nif_plan_required": {
                     "summary": "POST /v1/accounts/{account}/nif-transfers/accept · 402 additional_nif_plan_required",
                     "value": {
@@ -426,19 +412,6 @@
                         "message": "Tu cuenta no tiene un plan vigente: activa el plan Profesional o superior para añadir NIF.",
                         "doc_url": "https://docs.factuarea.com/guides/errors#additional_nif_plan_required",
                         "request_id": "req_f15e7a1c0d9b3f46a28c020000"
-                      }
-                    }
-                  },
-                  "additional_nif_charge_failed": {
-                    "summary": "POST /v1/accounts/{account}/nif-transfers/accept · 402 additional_nif_charge_failed",
-                    "value": {
-                      "error": {
-                        "type": "payment_required_error",
-                        "code": "additional_nif_charge_failed",
-                        "subcode": "additional_nif_charge_failed",
-                        "message": "No se pudo cobrar el NIF adicional de la cuenta. Detalle: card_declined.",
-                        "doc_url": "https://docs.factuarea.com/guides/errors#additional_nif_charge_failed",
-                        "request_id": "req_f15e7a1c0d9b3f46a28c030000"
                       }
                     }
                   }
@@ -532,7 +505,7 @@
             "$ref": "#/components/responses/NotFoundAccountAxis"
           },
           "409": {
-            "description": "The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request.",
+            "description": "The request conflicts with data that already exists or with a request running at the same time. `resource_conflict` with `subcode` `empty_registration_company_not_empty`: the empty company created at sign-up was going to be replaced by the transferred NIF, but it already has business data. Nothing was transferred. `customer_offer_operation_in_progress`: an operation for the same concept is still pending. Continue that operation instead of starting another. `customer_offer_legacy_outcome_unknown`: a previous billing operation of the account is still being verified. `details.operation_id` is that operation; read its state before repeating the request. `customer_offer_price_mapping_conflict`: the private price of this purchase cannot be verified against the payment provider catalog. Nothing was charged. `employee_batch_idempotency_conflict`: the idempotency key of the body already identifies a different batch intention. Keep the current operation or prepare a new one with a new key. `employee_batch_state_conflict`: the batch is in a state that does not allow this action. Read its current state. `employee_seat_mutation_outcome_unknown`: an employee seat operation is still being verified. `details.operation_id` is its reference and `details.operation_kind` is `legacy_employee`; do not repeat the charge and contact support with the reference. `employee_seat_operation_in_progress`: another employee operation is pending. `details.operation_id` identifies it when known; read its state before starting another. `employee_seat_phase_incompatible` with `param` `quantity`: the subscription has scheduled conditions that must be reviewed before its seats change. `details.reason` is `phase_incompatible`. Nothing was charged. `customer_offer_phase_incompatible` with `param` `quantity`: the conditions already acquired for the additional tax ID seat cannot be preserved by this purchase. `details.reason` is `phase_incompatible`. No company is created or activated and no charge is attempted.",
             "content": {
               "application/json": {
                 "schema": {
@@ -547,6 +520,27 @@
                   },
                   "customer_offer_legacy_outcome_unknown": {
                     "$ref": "#/components/examples/conflict_error_customer_offer_legacy_outcome_unknown"
+                  },
+                  "customer_offer_price_mapping_conflict": {
+                    "$ref": "#/components/examples/conflict_error_customer_offer_price_mapping_conflict"
+                  },
+                  "employee_batch_idempotency_conflict": {
+                    "$ref": "#/components/examples/conflict_error_employee_batch_idempotency_conflict"
+                  },
+                  "employee_batch_state_conflict": {
+                    "$ref": "#/components/examples/conflict_error_employee_batch_state_conflict"
+                  },
+                  "employee_seat_mutation_outcome_unknown": {
+                    "$ref": "#/components/examples/conflict_error_employee_seat_mutation_outcome_unknown"
+                  },
+                  "employee_seat_operation_in_progress": {
+                    "$ref": "#/components/examples/conflict_error_employee_seat_operation_in_progress"
+                  },
+                  "employee_seat_phase_incompatible": {
+                    "$ref": "#/components/examples/conflict_error_employee_seat_phase_incompatible"
+                  },
+                  "seat_terms_incompatible": {
+                    "$ref": "#/components/examples/conflict_error_seat_terms_incompatible"
                   }
                 }
               }
@@ -25042,7 +25036,7 @@
     "/companies/{company}/invoices/bulk-create": {
       "post": {
         "operationId": "public-api.v1.invoices.bulk_create",
-        "description": "Create up to 100 invoices in one call, each a full invoice payload; returns a `BulkCreateResult`.\n- `dry_run=true` validates every row without persisting and classifies each in `results[]`.\n- `dry_run=false` creates only the valid rows and reports the rest in `failures[]`.\n- Rows may carry `payment_terms`; bulk never upserts, and `invalid_invoice_payment_terms` is reported per row.",
+        "description": "Create up to 100 invoices in one call, each a full invoice payload; returns a `BulkCreateResult`.\n- `dry_run=true` validates every row without persisting and classifies each in `results[]`.\n- `dry_run=false` creates only the valid rows and reports the rest in `failures[]`.\n- Rows may carry `payment_terms`; bulk never upserts, and `invalid_invoice_payment_terms` is reported per row.\n- Rows are drafts, never issued here: `issued_on` is the draft date, and an issued invoice takes the date of the day of issue.",
         "summary": "Bulk create invoices",
         "tags": [
           "Invoices"
@@ -31632,7 +31626,7 @@
     "/companies/{company}/invoices/bulk-send": {
       "post": {
         "operationId": "public-api.v1.invoices.bulk_send",
-        "description": "Sends up to 200 invoices by email (queued) in one call, reusing the single-send path per id. Returns a `BulkPartialSuccessResult` with `total`, `successful` and `failed` counts plus a `failures` list (`id` + `error_code` + Spanish `error_message`) for each invoice that could not be sent (not found, terminal status or no resolvable recipient).",
+        "description": "Sends up to 200 invoices by email (queued) in one call, reusing the single-send path per id. Returns a `BulkPartialSuccessResult` with `total`, `successful`, `failed` and a `failures` list (`id` + `error_code` + Spanish `error_message`) for each invoice not sent (not found, terminal status, no resolvable recipient, or a draft the series date order rejects: `business_rule_violation`). Drafts are issued first, oldest first, not in `ids` order, dated the day of issue; with revisioned presentation disabled, that rejection aborts the call with 422 `issue_date_before_series_last_issue_date`.",
         "summary": "Bulk send invoices",
         "tags": [
           "Invoices"
@@ -31902,7 +31896,7 @@
             }
           },
           "422": {
-            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.",
+            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. issue_date_before_series_last_issue_date (param issued_on): drafts are issued, dated the day of issue, before they are sent. With revisioned presentation disabled, a draft rejected because its series already has an issued invoice with a later date aborts the call with this 422; with it enabled, that row is reported in `failures[]` as `business_rule_violation`. No number is consumed for the rejected draft.",
             "content": {
               "application/json": {
                 "schema": {
@@ -31926,6 +31920,20 @@
                         ],
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_value",
                         "request_id": "req_7f328b4f9ea90aa3ffa8da5d13"
+                      }
+                    }
+                  },
+                  "issue_date_before_series_last_issue_date": {
+                    "summary": "Draft rejected by the date order of its series, with revisioned presentation disabled",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "issue_date_before_series_last_issue_date",
+                        "message": "No se puede emitir con fecha 10/11/2026: la serie ya tiene una factura emitida con fecha 12/11/2026.",
+                        "param": "issued_on",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
                       }
                     }
                   },
@@ -33400,7 +33408,7 @@
     "/companies/{company}/invoices/bulk-status": {
       "post": {
         "operationId": "public-api.v1.invoices.bulk_status",
-        "description": "Move up to 50 invoices to `issued`, `sent` (alias of `issued`) or `paid` in one call, with partial success.\n- `paid` requires `payment_date` (not in the future), applied to every invoice.\n- Failures are `resource_not_found` or `invalid_status_transition`, in a `BulkPartialSuccessResult`.",
+        "description": "Move up to 50 invoices to `issued`, `sent` (alias of `issued`) or `paid` in one call, with partial success.\n- `paid` requires `payment_date` (not in the future), applied to every invoice.\n- Issuing goes oldest date first, not in `ids` order; each invoice takes the date of the day of issue (an earlier `issued_on` moves to an empty `operation_on`).\n- Failures, in a `BulkPartialSuccessResult`, are `resource_not_found`, `invalid_status_transition` or `business_rule_violation` (a later issued invoice in the series: no number consumed, no row subcode).",
         "summary": "Bulk change invoice status",
         "tags": [
           "Invoices"
@@ -41492,6 +41500,7 @@
                           {
                             "target_type": "pack",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f9b01",
+                            "variant_id": null,
                             "name": "Pack Huerto urbano",
                             "selection_label": null,
                             "sku": "PACK-HUERTO",
@@ -53560,7 +53569,8 @@
                       "type": "array",
                       "description": "Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.",
                       "items": {
-                        "type": "string"
+                        "type": "string",
+                        "const": "zero_rate_line_without_exemption"
                       }
                     }
                   },
@@ -54228,7 +54238,8 @@
                       "type": "array",
                       "description": "Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.",
                       "items": {
-                        "type": "string"
+                        "type": "string",
+                        "const": "zero_rate_line_without_exemption"
                       }
                     }
                   },
@@ -55824,7 +55835,8 @@
                       "type": "array",
                       "description": "Stable machine-readable codes paired one-to-one (same index) with `warnings`. Branch on these instead of matching the Spanish text; unknown codes should fall back to the corresponding `warnings` entry. Present ONLY together with `warnings`. Catalog (append-only): `zero_rate_line_without_exemption`.",
                       "items": {
-                        "type": "string"
+                        "type": "string",
+                        "const": "zero_rate_line_without_exemption"
                       }
                     }
                   },
@@ -61503,12 +61515,9 @@
             "in": "query",
             "description": "Only contacts with these roles: `customer`, `supplier`, `lead` or `unassigned` (repeat it or send a comma-separated list).",
             "schema": {
-              "type": "array",
-              "enum": [
-                "customer",
-                "supplier",
-                "lead",
-                "unassigned"
+              "type": [
+                "array",
+                "null"
               ],
               "items": {
                 "type": "string",
@@ -61518,7 +61527,9 @@
                   "lead",
                   "unassigned"
                 ]
-              }
+              },
+              "maxItems": 4,
+              "uniqueItems": true
             }
           },
           {
@@ -61598,11 +61609,16 @@
             "in": "query",
             "description": "Only contacts carrying all these tags (case-insensitive, up to 50).",
             "schema": {
-              "type": "array",
+              "type": [
+                "array",
+                "null"
+              ],
               "items": {
                 "type": "string",
                 "maxLength": 100
-              }
+              },
+              "maxItems": 50,
+              "uniqueItems": true
             }
           },
           {
@@ -61954,11 +61970,15 @@
             "in": "query",
             "description": "Metadata filter as `metadata[key]=value` (exact match, up to 20 pairs, all must match).",
             "schema": {
-              "type": "array",
+              "type": [
+                "array",
+                "null"
+              ],
               "items": {
                 "type": "string",
                 "maxLength": 500
-              }
+              },
+              "maxItems": 20
             }
           },
           {
@@ -66471,7 +66491,7 @@
     "/companies/{company}/invoices": {
       "post": {
         "operationId": "public-api.v1.invoices.create",
-        "description": "Create a `draft` invoice, or issue it at once with `options.issue_directly: true`.\n- Send an `Idempotency-Key`; a duplicate `external_id` upserts; `201` is not AEAT acceptance.\n- `type: F2`, `payment` or `options.register_verifactu` make it a paid one-call checkout.\n- `payment_terms` must balance `total_to_pay`.\n\n**Signing certificate (NO VERI*FACTU).** Only in that mode, a missing or invalid company certificate is rejected before the invoice is issued: 422 `verifactu_not_eligible`, `error.subcode: signing_certificate_unavailable`; nothing is consumed, so fix it and repeat the call.",
+        "description": "Create a `draft` invoice, or issue it at once with `options.issue_directly: true`.\n- Send an `Idempotency-Key`; a duplicate `external_id` upserts; `201` is not AEAT acceptance.\n- `type: F2`, `payment` or `options.register_verifactu` make it a paid one-call checkout.\n- Issuing dates it the day of issue, not `issued_on`.\n\n**Signing certificate (NO VERI*FACTU).** Only in that mode, a missing or invalid company certificate is rejected before the invoice is issued: 422 `verifactu_not_eligible`, `error.subcode: signing_certificate_unavailable`; nothing is consumed, so fix it and repeat the call.",
         "summary": "Create an invoice",
         "tags": [
           "Invoices"
@@ -67543,7 +67563,7 @@
             }
           },
           "422": {
-            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued.",
+            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. A line that chooses a catalog tax by id (`tax_rate_id`, `retention_rate_id`, `surcharge_rate_id`) and contradicts it is rejected with `parameter_invalid_value` (subcode `tax_rate_mismatch`): the tax is of another class than its field (for example a withholding tax in `surcharge_rate_id`), or the declared `tax_rate`, `retention_rate` or `surcharge_rate` differs from the percentage of the chosen tax. `error.param` is `lines.N.tax_rate`, `lines.N.retention_rate` or `lines.N.surcharge_rate`, and `error.line_index` is N (the zero-based index of the line). Nothing is saved: send only the id, or the percentage of that tax. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued. issue_date_before_series_last_issue_date (param issued_on): an invoice that is issued in this call (`options`, `payment` or `type: F2`) is dated the day of issue, and it is rejected when the series already has an issued invoice with a later date; no number is consumed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -67703,6 +67723,20 @@
                         "message": "La factura debe vencer el día de su último plazo de pago (15/04/2026), no el 15/03/2026. Ajusta el vencimiento o las fechas de los plazos.",
                         "param": "due_on",
                         "doc_url": "https://docs.factuarea.com/guides/errors#invoice_due_date_not_last_instalment",
+                        "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
+                      }
+                    }
+                  },
+                  "issue_date_before_series_last_issue_date": {
+                    "summary": "Issuing on creation with a later issued invoice in the series",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "issue_date_before_series_last_issue_date",
+                        "message": "No se puede emitir con fecha 10/11/2026: la serie ya tiene una factura emitida con fecha 12/11/2026.",
+                        "param": "issued_on",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
                         "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
                       }
                     }
@@ -69748,6 +69782,7 @@
                     "expires_at": "2026-10-04T09:00:00+00:00",
                     "status": "active",
                     "recipient_account_id": "0199a1f0-1c22-7a10-b111-5a5b5c5d5e5f",
+                    "recipient_member": null,
                     "issued_at": "2026-09-27T09:00:00+00:00",
                     "consumed_at": null,
                     "revoked_at": null,
@@ -69967,6 +70002,21 @@
                       "expires_at": "2026-10-04T09:00:00+00:00",
                       "status": "active",
                       "recipient_account_id": null,
+                      "recipient_member": null,
+                      "issued_at": "2026-09-27T09:00:00+00:00",
+                      "consumed_at": null,
+                      "revoked_at": null
+                    },
+                    {
+                      "id": "0199a1f0-1c22-7a10-b111-7a7b7c7d7e7f",
+                      "object": "nif_transfer",
+                      "company_id": "0199a1f0-1c22-7a10-b111-8a8b8c8d8e8f",
+                      "expires_at": "2026-10-04T09:00:00+00:00",
+                      "status": "active",
+                      "recipient_account_id": null,
+                      "recipient_member": {
+                        "id": "0199a1f0-1c22-7a10-b111-9a9b9c9d9e9f"
+                      },
                       "issued_at": "2026-09-27T09:00:00+00:00",
                       "consumed_at": null,
                       "revoked_at": null
@@ -79662,6 +79712,7 @@
                           {
                             "target_type": "product",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                            "variant_id": null,
                             "name": "Olivo en maceta",
                             "selection_label": null,
                             "sku": "OLIVO-60",
@@ -79691,6 +79742,7 @@
                           {
                             "target_type": "variant",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                            "variant_id": null,
                             "name": "Maceta de terracota",
                             "selection_label": "10,5 cm",
                             "sku": "MACETA-TER-105",
@@ -80045,6 +80097,7 @@
                             {
                               "target_type": "product",
                               "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                              "variant_id": null,
                               "name": "Olivo en maceta",
                               "selection_label": null,
                               "sku": "OLIVO-60",
@@ -80074,6 +80127,7 @@
                             {
                               "target_type": "variant",
                               "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                              "variant_id": null,
                               "name": "Maceta de terracota",
                               "selection_label": "10,5 cm",
                               "sku": "MACETA-TER-105",
@@ -80129,6 +80183,7 @@
                             {
                               "target_type": "pack",
                               "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f9b01",
+                              "variant_id": null,
                               "name": "Pack Huerto urbano",
                               "selection_label": null,
                               "sku": "PACK-HUERTO",
@@ -117316,6 +117371,7 @@
                           {
                             "target_type": "product",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                            "variant_id": null,
                             "name": "Olivo en maceta",
                             "selection_label": null,
                             "sku": "OLIVO-60",
@@ -117345,6 +117401,7 @@
                           {
                             "target_type": "variant",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                            "variant_id": null,
                             "name": "Maceta de terracota",
                             "selection_label": "10,5 cm",
                             "sku": "MACETA-TER-105",
@@ -117566,6 +117623,7 @@
                           {
                             "target_type": "product",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb001",
+                            "variant_id": null,
                             "name": "Olivo en maceta",
                             "selection_label": null,
                             "sku": "OLIVO-60",
@@ -117595,6 +117653,7 @@
                           {
                             "target_type": "variant",
                             "target_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7fb002",
+                            "variant_id": null,
                             "name": "Maceta de terracota",
                             "selection_label": "10,5 cm",
                             "sku": "MACETA-TER-105",
@@ -163312,7 +163371,7 @@
     "/companies/{company}/recurring-invoices/{recurring_invoice}/generate": {
       "post": {
         "operationId": "public-api.v1.recurring_invoices.generate",
-        "description": "Trigger immediate invoice generation from the recurring configuration, outside the scheduled cycle. The server fixes generation date and attempt identity. No public date/child/intent overrides are accepted. Current authority precedes idempotent replay; retained same-day success is returned before new presentation selection.",
+        "description": "Trigger immediate invoice generation from the recurring configuration, outside the scheduled cycle. With `issue` or `issue_and_send` the invoice is born issued, dated the day of issue (Europe/Madrid); an earlier generation date is kept as `operation_on`. A later issued invoice in the series: 422 `issue_date_before_series_last_issue_date`, nothing is generated. The server fixes generation date and attempt identity. No public date/child/intent overrides are accepted. Current authority precedes idempotent replay; retained same-day success is returned before new presentation selection.",
         "summary": "Generate an invoice from a recurring template",
         "tags": [
           "Recurring Invoices"
@@ -163609,7 +163668,7 @@
             }
           },
           "422": {
-            "description": "Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing lifecycle/business guards or recurring_presentation_unavailable with a safe finite reason. latest visual failure recovery is committed after generation rollback; restoration or editing does not automatically resume.",
+            "description": "Validation failed, or the recurring invoice cannot undergo the requested state transition (e.g. resuming a recurrence that is not paused). The `error.param` field identifies which input is invalid, if any. Existing lifecycle/business guards or recurring_presentation_unavailable with a safe finite reason. latest visual failure recovery is committed after generation rollback; restoration or editing does not automatically resume. issue_date_before_series_last_issue_date (param issued_on): with `issue` or `issue_and_send` the generated invoice is dated the day of issue, and it is rejected when the series already has an issued invoice with a later date; nothing is generated and no number is consumed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -163626,6 +163685,20 @@
                         "param": "Idempotency-Key",
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_format",
                         "request_id": "req_ce330ba569aecf8a59e1ff56ea"
+                      }
+                    }
+                  },
+                  "issue_date_before_series_last_issue_date": {
+                    "summary": "Generated invoice rejected by the date order of its series",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "issue_date_before_series_last_issue_date",
+                        "message": "No se puede emitir con fecha 10/11/2026: la serie ya tiene una factura emitida con fecha 12/11/2026.",
+                        "param": "issued_on",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
                       }
                     }
                   },
@@ -168389,11 +168462,9 @@
             "in": "query",
             "description": "Only activity in these directions: `sales`, `purchases` or `relationship` (all three when omitted).",
             "schema": {
-              "type": "array",
-              "enum": [
-                "sales",
-                "purchases",
-                "relationship"
+              "type": [
+                "array",
+                "null"
               ],
               "items": {
                 "type": "string",
@@ -168402,7 +168473,9 @@
                   "purchases",
                   "relationship"
                 ]
-              }
+              },
+              "maxItems": 3,
+              "uniqueItems": true
             }
           },
           {
@@ -171512,7 +171585,7 @@
     "/accounts/{account}/gestoria/workforce-summary": {
       "get": {
         "operationId": "public-api.v1.gestoria.workforce_summary",
-        "description": "Return the consolidated time-tracking compliance panel: one row per `active` company in your credential scope (the owner company excluded).\n- Each row projects the latest monthly close: closed status, last closed period, balance, overtime and `employee_count`.\n- Scope-bound: rows come from the tax IDs your credential reaches, never from the payload.",
+        "description": "Return the consolidated time-tracking compliance panel: one row per `active` company in your credential scope, the account owner company included as one more row of its own (`relation_origin` is `null`).\n- Each row projects the latest monthly close: closed status, last closed period, balance, overtime and `employee_count`.\n- Scope-bound: rows come from the tax IDs your credential reaches, never from the payload.",
         "summary": "Retrieve the consolidated workforce compliance overview",
         "tags": [
           "Companies"
@@ -174843,11 +174916,12 @@
             "description": "Public identifiers (UUID v7) of the documents to summarize, of any type, comma-separated or repeated (up to 100). Documents with no email, or not yours, are omitted from the response.",
             "schema": {
               "type": "array",
-              "format": "uuid",
               "items": {
                 "type": "string",
                 "format": "uuid"
-              }
+              },
+              "minItems": 1,
+              "maxItems": 100
             }
           },
           {
@@ -176999,10 +177073,14 @@
             "in": "query",
             "description": "Public identifiers (UUID v7) of the employees to preview; omit it to preview `count` employees.",
             "schema": {
-              "type": "array",
+              "type": [
+                "array",
+                "null"
+              ],
               "items": {
                 "type": "string"
-              }
+              },
+              "maxItems": 1000
             }
           },
           {
@@ -177422,31 +177500,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "total": {
-                          "type": "integer"
-                        },
-                        "active": {
-                          "type": "integer"
-                        },
-                        "inactive": {
-                          "type": "integer"
-                        },
-                        "full_time": {
-                          "type": "integer"
-                        },
-                        "part_time": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "total",
-                        "active",
-                        "inactive",
-                        "full_time",
-                        "part_time"
-                      ]
+                      "$ref": "#/components/schemas/EmployeeStats"
                     }
                   },
                   "required": [
@@ -191377,10 +191431,14 @@
             "in": "query",
             "description": "Public identifiers (UUID v7) of the companies to preview; omit it to preview `count` companies.",
             "schema": {
-              "type": "array",
+              "type": [
+                "array",
+                "null"
+              ],
               "items": {
                 "type": "string"
-              }
+              },
+              "maxItems": 1000
             }
           },
           {
@@ -192290,55 +192348,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "total": {
-                          "type": "integer",
-                          "examples": [
-                            17,
-                            17
-                          ]
-                        },
-                        "invoice": {
-                          "type": "integer",
-                          "examples": [
-                            5,
-                            5
-                          ]
-                        },
-                        "quote": {
-                          "type": "integer",
-                          "examples": [
-                            2,
-                            2
-                          ]
-                        },
-                        "delivery_note": {
-                          "type": "integer",
-                          "examples": [
-                            3,
-                            3
-                          ]
-                        },
-                        "proforma": {
-                          "type": "integer",
-                          "examples": [
-                            4,
-                            4
-                          ]
-                        },
-                        "transport_document": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "total",
-                        "invoice",
-                        "quote",
-                        "delivery_note",
-                        "proforma",
-                        "transport_document"
-                      ]
+                      "$ref": "#/components/schemas/SeriesStats"
                     }
                   },
                   "required": [
@@ -200853,7 +200863,7 @@
     "/companies/{company}/verifactu/config": {
       "get": {
         "operationId": "public-api.v1.verifactu.config",
-        "description": "Return your company's VeriFactu configuration (mode, environment, enrollment status) and how it remits to AEAT.\n- `remission_mode` is `own_certificate`, `social_collaborator` or `power_of_attorney`; `presenter_certificate_status` is `valid`, `invalid` or `not_configured`.\n- Includes active representation fields and `social_collaborator_available`. Passwords are never exposed.",
+        "description": "Return your company's VeriFactu configuration (mode, enrollment status, the AEAT environment your records go to) and how it remits to AEAT.\n- `environment` and `auto_transmit` are set by the Factuarea instance, not per company: on the production API records always go to the real AEAT (`production`), automatically.\n- `remission_mode` is `own_certificate`, `social_collaborator` or `power_of_attorney`; `presenter_certificate_status` is `valid`, `invalid` or `not_configured`.\n- Includes active representation fields and `social_collaborator_available`. Passwords are never exposed.",
         "summary": "Retrieve VeriFactu config",
         "tags": [
           "VeriFactu"
@@ -201522,7 +201532,7 @@
     "/companies/{company}/verifactu/stats": {
       "get": {
         "operationId": "public-api.v1.verifactu.stats",
-        "description": "Return aggregated KPIs of your VeriFactu records: totals, counts per status, breakdown by record and invoice type and last transmission time.\n- Optional filters: `date_from`, `date_to`, `environment`.\n- `pending_incident_count`, `blocked_incident_count` and `oldest_pending_at` report the pending-remission alert and ignore the filters.",
+        "description": "Return aggregated KPIs of your VeriFactu records: totals, counts per status, breakdown by record and invoice type and last transmission time.\n- Optional filters: `date_from`, `date_to`, `environment` (a value other than the AEAT environment of the instance counts no records).\n- `pending_incident_count`, `blocked_incident_count` and `oldest_pending_at` report the pending-remission alert and ignore the filters.",
         "summary": "Get VeriFactu stats",
         "tags": [
           "VeriFactu"
@@ -201586,7 +201596,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Optional environment filter.",
+            "description": "AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.",
             "schema": {
               "type": "string",
               "example": "production"
@@ -201943,35 +201953,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "total": {
-                          "type": "integer"
-                        },
-                        "active": {
-                          "type": "integer"
-                        },
-                        "archived": {
-                          "type": "integer"
-                        },
-                        "validated": {
-                          "type": "integer"
-                        },
-                        "real_clocking": {
-                          "type": "integer"
-                        },
-                        "assigned_employees": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "total",
-                        "active",
-                        "archived",
-                        "validated",
-                        "real_clocking",
-                        "assigned_employees"
-                      ]
+                      "$ref": "#/components/schemas/WorkScheduleStats"
                     }
                   },
                   "required": [
@@ -204360,7 +204342,7 @@
     "/companies/{company}/invoices/{invoice}/issue": {
       "post": {
         "operationId": "public-api.v1.invoices.issue",
-        "description": "Issue a draft without sending it, assigning its series number.\n- Irreversible; send an `Idempotency-Key`. Only a `draft`, else 422 `invalid_status_transition`.\n- Freezes `payment_terms`: a 02/04 instalment without account is a 422 `invalid_invoice_payment_terms`.\n- With instalments, `due_on` must be the last one, else 422 `invoice_due_date_not_last_instalment`.\n- NO VERI*FACTU: without a valid company certificate, 422 `verifactu_not_eligible` (`signing_certificate_unavailable`); nothing is consumed.",
+        "description": "Issue a draft without sending it, assigning its series number.\n- Irreversible; send an `Idempotency-Key`. Only a `draft`, else 422 `invalid_status_transition`.\n- Dated the day of issue (Europe/Madrid); `issued_on` moves to an empty `operation_on`. A later issued invoice in the series: 422 `issue_date_before_series_last_issue_date`.\n- Freezes `payment_terms`; `due_on` must be the last instalment (422 `invoice_due_date_not_last_instalment`).\n- NO VERI*FACTU: without a valid company certificate, 422 `verifactu_not_eligible` (`signing_certificate_unavailable`); nothing is consumed.",
         "summary": "Issue an invoice",
         "tags": [
           "Invoices"
@@ -204823,7 +204805,7 @@
             }
           },
           "422": {
-            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued.",
+            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. invalid_invoice_payment_terms identifies an exact field such as payment_terms.N.id/due_date/amount/payment_means/account/iban/bic or payment_terms for ordering, sign and exact total_to_pay balance. New issue/corrective requires 02/04 account before commit; draft saving may omit it. No partial write occurs and account values are never echoed in diagnostics. invoice_due_date_not_last_instalment (param due_on): with a nonempty schedule the invoice falls due on its last instalment, so issuing it with a missing or different due_on is rejected before a number is assigned and nothing is issued. issue_date_before_series_last_issue_date (param issued_on): the invoice is dated the day of issue, so issuing it is rejected when the series already has an issued invoice with a later date; no number is consumed and the invoice stays a draft.",
             "content": {
               "application/json": {
                 "schema": {
@@ -204947,6 +204929,20 @@
                         "message": "La factura debe vencer el día de su último plazo de pago (15/04/2026), no el 15/03/2026. Ajusta el vencimiento o las fechas de los plazos.",
                         "param": "due_on",
                         "doc_url": "https://docs.factuarea.com/guides/errors#invoice_due_date_not_last_instalment",
+                        "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
+                      }
+                    }
+                  },
+                  "issue_date_before_series_last_issue_date": {
+                    "summary": "Issuing a draft with a later issued invoice in the series",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "issue_date_before_series_last_issue_date",
+                        "message": "No se puede emitir con fecha 10/11/2026: la serie ya tiene una factura emitida con fecha 12/11/2026.",
+                        "param": "issued_on",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
                         "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
                       }
                     }
@@ -207542,13 +207538,6 @@
             "description": "HTTP methods, comma-separated (`?method=GET,POST`) or repeated: `GET`, `POST`, `PUT`, `PATCH` or `DELETE`; any other value returns 422.",
             "schema": {
               "type": "array",
-              "enum": [
-                "GET",
-                "POST",
-                "PUT",
-                "PATCH",
-                "DELETE"
-              ],
               "items": {
                 "type": "string",
                 "enum": [
@@ -207567,12 +207556,6 @@
             "description": "Status code ranges, comma-separated (`?status_range=4xx,5xx`) or repeated: `2xx`, `3xx`, `4xx` or `5xx`; it wins over `only_errors=true` (shorthand for `4xx,5xx`).",
             "schema": {
               "type": "array",
-              "enum": [
-                "2xx",
-                "3xx",
-                "4xx",
-                "5xx"
-              ],
               "items": {
                 "type": "string",
                 "enum": [
@@ -209684,13 +209667,6 @@
             "description": "HTTP methods, comma-separated (`?method=GET,POST`) or repeated: `GET`, `POST`, `PUT`, `PATCH` or `DELETE`; any other value returns 422.",
             "schema": {
               "type": "array",
-              "enum": [
-                "GET",
-                "POST",
-                "PUT",
-                "PATCH",
-                "DELETE"
-              ],
               "items": {
                 "type": "string",
                 "enum": [
@@ -209709,12 +209685,6 @@
             "description": "Status code ranges, comma-separated (`?status_range=4xx,5xx`) or repeated: `2xx`, `3xx`, `4xx` or `5xx`; it wins over `only_errors=true` (shorthand for `4xx,5xx`).",
             "schema": {
               "type": "array",
-              "enum": [
-                "2xx",
-                "3xx",
-                "4xx",
-                "5xx"
-              ],
               "items": {
                 "type": "string",
                 "enum": [
@@ -216038,20 +216008,6 @@
             "description": "Only batches in these statuses, e.g. `draft`, `quoted`, `paid`, `completed` or `failed` (repeat the parameter).",
             "schema": {
               "type": "array",
-              "enum": [
-                "draft",
-                "quoted",
-                "processing",
-                "requires_action",
-                "payment_pending",
-                "paid",
-                "completed",
-                "failed",
-                "cancelled",
-                "compensating",
-                "compensated",
-                "needs_review"
-              ],
               "items": {
                 "type": "string",
                 "enum": [
@@ -216068,7 +216024,8 @@
                   "compensated",
                   "needs_review"
                 ]
-              }
+              },
+              "maxItems": 12
             }
           },
           {
@@ -234221,24 +234178,6 @@
             "description": "Only redemptions in these statuses, e.g. `quoted`, `applied`, `cancelled` or `failed` (repeat the parameter).",
             "schema": {
               "type": "array",
-              "enum": [
-                "provisioning",
-                "scheduled",
-                "active",
-                "revoking",
-                "revoked",
-                "quoted",
-                "processing",
-                "requires_action",
-                "payment_pending",
-                "applied",
-                "cancelling",
-                "compensating",
-                "compensated",
-                "cancelled",
-                "failed",
-                "needs_review"
-              ],
               "items": {
                 "type": "string",
                 "enum": [
@@ -234259,7 +234198,8 @@
                   "failed",
                   "needs_review"
                 ]
-              }
+              },
+              "maxItems": 16
             }
           },
           {
@@ -235441,24 +235381,6 @@
             "description": "Only redemptions in these statuses, e.g. `quoted`, `applied`, `cancelled` or `failed` (repeat the parameter).",
             "schema": {
               "type": "array",
-              "enum": [
-                "provisioning",
-                "scheduled",
-                "active",
-                "revoking",
-                "revoked",
-                "quoted",
-                "processing",
-                "requires_action",
-                "payment_pending",
-                "applied",
-                "cancelling",
-                "compensating",
-                "compensated",
-                "cancelled",
-                "failed",
-                "needs_review"
-              ],
               "items": {
                 "type": "string",
                 "enum": [
@@ -235479,7 +235401,8 @@
                   "failed",
                   "needs_review"
                 ]
-              }
+              },
+              "maxItems": 16
             }
           },
           {
@@ -242003,7 +241926,7 @@
     "/companies/{company}/verifactu/records": {
       "get": {
         "operationId": "public-api.v1.verifactu.records.list",
-        "description": "List the VeriFactu (Spanish AEAT SIF) records of your company with cursor-based pagination. Each record captures the alta/anulación submitted to AEAT, its hash chain (`huella`), `aeat_csv`, and transmission status. Supports filtering by `status`, `type`, `date_from`/`date_to`, and `environment`.",
+        "description": "List the VeriFactu (Spanish AEAT SIF) records of your company with cursor-based pagination. Each record captures the alta/anulación submitted to AEAT, its hash chain (`huella`), `aeat_csv`, and transmission status. Supports filtering by `status`, `type`, `date_from`/`date_to`, and `environment`: every record goes to the AEAT environment of the instance, so a matching value returns all records and any other value none.",
         "summary": "List VeriFactu records",
         "tags": [
           "VeriFactu"
@@ -242099,7 +242022,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Optional environment filter.",
+            "description": "AEAT environment: `production` (the real AEAT) or `sandbox`. Records go to the environment of the instance, so its value returns every record and any other value none.",
             "schema": {
               "type": "string",
               "example": "production"
@@ -244773,7 +244696,7 @@
     "/companies/{company}/invoices/{invoice}/mark-sent": {
       "post": {
         "operationId": "public-api.v1.invoices.mark_sent",
-        "description": "Record delivery of an invoice; the meaning depends on the API version.\n- Before `2026-10-01` it issues a draft.\n- From `2026-10-01` it only sets `is_sent`, on `issued`/`overdue`; else 422 `invoice_cannot_be_marked_as_sent`.\n\n**Signing certificate (NO VERI*FACTU).** Only in that mode, a missing or invalid company certificate is rejected before the invoice is issued: 422 `verifactu_not_eligible`, `error.subcode: signing_certificate_unavailable`; nothing is consumed, so fix it and repeat the call.",
+        "description": "Record delivery of an invoice; the meaning depends on the API version.\n- Before `2026-10-01` it issues a draft, dated the day of issue.\n- From `2026-10-01` it only sets `is_sent`, on `issued`/`overdue`; else 422 `invoice_cannot_be_marked_as_sent`.\n\n**Signing certificate (NO VERI*FACTU).** Only in that mode, a missing or invalid company certificate is rejected before the invoice is issued: 422 `verifactu_not_eligible`, `error.subcode: signing_certificate_unavailable`; nothing is consumed, so fix it and repeat the call.",
         "summary": "Mark an invoice as sent",
         "tags": [
           "Invoices"
@@ -245227,7 +245150,7 @@
             }
           },
           "422": {
-            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was.",
+            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. issue_date_before_series_last_issue_date (param issued_on): before API version `2026-10-01` this operation issues a draft, dated the day of issue; when the series already has an issued invoice with a later date it is rejected and no number is consumed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -245299,6 +245222,20 @@
                         "subcode": "signing_certificate_unavailable",
                         "doc_url": "https://docs.factuarea.com/guides/errors#verifactu_not_eligible",
                         "request_id": "req_3615620bbcab2ff029c71ac20d"
+                      }
+                    }
+                  },
+                  "issue_date_before_series_last_issue_date": {
+                    "summary": "Issuing the draft (API version before 2026-10-01) with a later issued invoice in the series",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "issue_date_before_series_last_issue_date",
+                        "message": "No se puede emitir con fecha 10/11/2026: la serie ya tiene una factura emitida con fecha 12/11/2026.",
+                        "param": "issued_on",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
                       }
                     }
                   },
@@ -284563,6 +284500,7 @@
                     "expires_at": "2026-10-04T09:00:00+00:00",
                     "status": "revoked",
                     "recipient_account_id": null,
+                    "recipient_member": null,
                     "issued_at": "2026-09-27T09:00:00+00:00",
                     "consumed_at": null,
                     "revoked_at": "2026-09-28T08:15:00+00:00"
@@ -286745,7 +286683,7 @@
     "/companies/{company}/invoices/{invoice}/schedule": {
       "post": {
         "operationId": "public-api.v1.invoices.schedule",
-        "description": "Reserve the issuance of a draft invoice for a future instant (`scheduled_for`).\n- The invoice moves to `scheduled` and keeps its `BORRADOR` number; no series number is consumed yet.\n- Only a `draft` can be scheduled and the date must be in the future (422).\n- With instalments, `due_on` must be the last one, else 422 `invoice_due_date_not_last_instalment`.\n- `issue_and_send` also emails the client if it has an email on file.",
+        "description": "Reserve the issuance of a draft invoice for a future instant (`scheduled_for`).\n- The invoice moves to `scheduled` and keeps its `BORRADOR` number; no series number is consumed yet.\n- Only a `draft` can be scheduled and the date must be in the future (422).\n- With instalments, `due_on` must be the last one, else 422 `invoice_due_date_not_last_instalment`.\n- It is issued when it runs, dated that day (not the draft date); if the series then has a later issued invoice it stays `scheduled` and is retried. `issue_and_send` also emails the client.",
         "summary": "Schedule an invoice",
         "tags": [
           "Invoices"
@@ -288262,11 +288200,9 @@
             "in": "query",
             "description": "Only contacts with these roles: `customer`, `supplier` or `lead` (repeat it or send a comma-separated list).",
             "schema": {
-              "type": "array",
-              "enum": [
-                "customer",
-                "supplier",
-                "lead"
+              "type": [
+                "array",
+                "null"
               ],
               "items": {
                 "type": "string",
@@ -288275,7 +288211,9 @@
                   "supplier",
                   "lead"
                 ]
-              }
+              },
+              "maxItems": 3,
+              "uniqueItems": true
             }
           },
           {
@@ -291985,7 +291923,7 @@
     "/companies/{company}/invoices/{invoice}/send": {
       "post": {
         "operationId": "public-api.v1.invoices.send",
-        "description": "Send an invoice to the client by email, to the email on file unless the payload overrides it.\n- `attach_facturae: true` attaches the Facturae XML; `submission_id` attaches the exact retained XML of that FACe submission of this invoice.\n- It never submits to FACe or regenerates the submission.\n\n**Signing certificate (NO VERI*FACTU).** Only in that mode, a missing or invalid company certificate is rejected before the invoice is issued: 422 `verifactu_not_eligible`, `error.subcode: signing_certificate_unavailable`; nothing is consumed, so fix it and repeat the call.",
+        "description": "Send an invoice to the client by email, to the email on file unless the payload overrides it.\n- `attach_facturae: true` attaches the Facturae XML, `submission_id` the exact XML retained for that FACe submission; nothing is submitted to FACe.\n- A draft is issued first, dated the day of issue.\n\n**Signing certificate (NO VERI*FACTU).** Only in that mode, a missing or invalid company certificate is rejected before the invoice is issued: 422 `verifactu_not_eligible`, `error.subcode: signing_certificate_unavailable`; nothing is consumed, so fix it and repeat the call.",
         "summary": "Send invoice by email",
         "tags": [
           "Invoices"
@@ -292457,7 +292395,7 @@
             }
           },
           "422": {
-            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. Invalid or partial family-specific presentation payload: `pdf_presentation_invalid`; no owner mutation occurs.",
+            "description": "Validation failed, or the invoice cannot undergo the requested state transition (e.g. marking an already-paid invoice as paid, or editing an issued invoice — use a corrective instead). The `error.param` field identifies which input is invalid, if any. Issuing or annulling an invoice can also be rejected with `verifactu_not_eligible`: either a field of the invoice does not fit its billing record, or — only when the company has VeriFactu enabled in NO VERI*FACTU mode — it has no usable signing certificate (`error.subcode: signing_certificate_unavailable`; `error.param` is `certificate`, `representation` or `system_certificate`, depending on what is missing); in both cases the invoice stays exactly as it was. issue_date_before_series_last_issue_date (param issued_on): a draft is issued, dated the day of issue, before it is sent; when the series already has an issued invoice with a later date the call is rejected, no number is consumed and nothing is sent.",
             "content": {
               "application/json": {
                 "schema": {
@@ -292516,6 +292454,20 @@
                         "subcode": "signing_certificate_unavailable",
                         "doc_url": "https://docs.factuarea.com/guides/errors#verifactu_not_eligible",
                         "request_id": "req_e75001c979af96011bdd9a8a90"
+                      }
+                    }
+                  },
+                  "issue_date_before_series_last_issue_date": {
+                    "summary": "Issuing the draft before sending it, with a later issued invoice in the series",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "business_rule_violation",
+                        "subcode": "issue_date_before_series_last_issue_date",
+                        "message": "No se puede emitir con fecha 10/11/2026: la serie ya tiene una factura emitida con fecha 12/11/2026.",
+                        "param": "issued_on",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#business_rule_violation",
+                        "request_id": "req_01KFPT3RM5H7J9K2M4N6P8Q0RS"
                       }
                     }
                   },
@@ -323638,7 +323590,7 @@
     "/companies/{company}/verifactu/settings": {
       "patch": {
         "operationId": "public-api.v1.verifactu.settings.update",
-        "description": "Update your company's VeriFactu settings (mode, environment and, with `remission_mode`, who remits to AEAT).\n- A locked transition returns 422 `business_rule_violation`; once enabled, VeriFactu mode cannot be disabled.\n- A third-party `remission_mode` needs a current representation of its kind, else 422 subcode `representation_required`.\n- Every mode change is audited.",
+        "description": "Update your company's VeriFactu settings (activation, mode, notification emails and, with `remission_mode`, who remits to AEAT).\n- `auto_transmit` and `environment` are deprecated and ignored (accepted until 2026-12-07): the AEAT environment and automatic submission are set by the instance and returned in the response.\n- A locked transition returns 422 `business_rule_violation`; once enabled, VeriFactu mode cannot be disabled.\n- A third-party `remission_mode` needs a current representation of its kind, else 422 subcode `representation_required`.\n- Every mode change is audited.",
         "summary": "Update VeriFactu settings",
         "tags": [
           "VeriFactu"
@@ -323679,8 +323631,6 @@
               "example": {
                 "enabled": true,
                 "mode": "verifactu",
-                "auto_transmit": true,
-                "environment": "production",
                 "notification_emails": [
                   "avisos@empresa.es"
                 ]
@@ -324525,6 +324475,41 @@
               }
             }
           },
+          "402": {
+            "description": "The operation requires a payment that could not be completed: either no payment method is on file (`error.details.payment_setup_url` links to the Billing Portal where it can be set up), the immediate charge was declined by the payment provider, the account lacks the plan or add-on this operation bills against, the annual document limit is reached (`plan_limit_exceeded`, with `error.details.period_end` indicating the end of the period — wait until it has ended or upgrade the plan to continue now), or the account has reached its maximum usage (`storage_quota_exceeded`, raised by upload operations such as signing a delivery note or attaching a file to an expense — contact support before retrying). Nothing was created or modified — resolve the cause and retry the same request. Version note: `error.type` is `payment_required_error` from `Factuarea-Version: 2026-09-01` onwards; earlier versions receive `invalid_request_error` for the three codes that predate that cut (`payment_method_required`, `employee_seat_payment_method_required` and `employee_seat_charge_failed`; every other 402 code, such as `addon_required`, `plan_limit_exceeded` or the additional tax ID codes, is newer and always carries `payment_required_error`). `error.code` is stable across every version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "storage_quota_exceeded": {
+                    "summary": "POST /v1/companies/{company}/products/{product}/gallery · 402 storage_quota_exceeded",
+                    "value": {
+                      "error": {
+                        "type": "payment_required_error",
+                        "code": "storage_quota_exceeded",
+                        "message": "No queda espacio de almacenamiento en tu empresa: estás usando 4995 MB de los 5000 MB de tu plan y este archivo ocupa 3 MB. Elimina archivos que ya no necesites o amplía tu plan desde Facturación, y vuelve a subirlo.",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#storage_quota_exceeded",
+                        "request_id": "req_3e8f1a6c0b9d24e7f5a1c8b3d6"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Identifier of this request (`req_` + ULID, or the value you sent, up to 40 characters). Quote it when contacting support.",
+                "schema": {
+                  "type": "string",
+                  "examples": [
+                    "req_01JQZP8K4M9N2T5V7X0Y3B6D8F"
+                  ]
+                }
+              }
+            }
+          },
           "403": {
             "description": "The request is authenticated but not allowed: the API key lacks the required scope (`insufficient_scope`), the plan does not include the public API or this feature (`addon_not_active`, `feature_not_available_in_plan`), or the module is not available with a test key (`module_not_available_in_sandbox`).",
             "content": {
@@ -324626,6 +324611,32 @@
                         ],
                         "doc_url": "https://docs.factuarea.com/guides/errors#invalid_param_value",
                         "request_id": "req_704bf9fe7e62e2fc5a54bf1ea7"
+                      }
+                    }
+                  },
+                  "image_dimensions_exceeded": {
+                    "summary": "POST /v1/companies/{company}/products/{product}/gallery · 422 image_dimensions_exceeded",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "image_dimensions_exceeded",
+                        "message": "La imagen supera el máximo de 40 megapíxeles permitido.",
+                        "param": "photo",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#image_dimensions_exceeded",
+                        "request_id": "req_6a1c0e5b9d2f47a3c8e1b0d4f7"
+                      }
+                    }
+                  },
+                  "malware_detected": {
+                    "summary": "POST /v1/companies/{company}/products/{product}/gallery · 422 malware_detected",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "malware_detected",
+                        "message": "El archivo se ha rechazado porque el análisis de seguridad detectó contenido malicioso.",
+                        "param": "photo",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#malware_detected",
+                        "request_id": "req_9d3b7a2e1c4f58b6a0e3d7c1b5"
                       }
                     }
                   },
@@ -324747,6 +324758,42 @@
                         "message": "Algo se rompió en nuestro lado al procesar la petición. La condición no la provoca tu payload.",
                         "doc_url": "https://docs.factuarea.com/guides/errors#internal_error",
                         "request_id": "req_01a7d1a84923ef54f2f91b9c1a"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Identifier of this request (`req_` + ULID, or the value you sent, up to 40 characters). Quote it when contacting support.",
+                "schema": {
+                  "type": "string",
+                  "examples": [
+                    "req_01JQZP8K4M9N2T5V7X0Y3B6D8F"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A dependency the operation needs is temporarily unavailable, so nothing was stored or modified. `malware_scan_unavailable`: the antivirus could not scan the uploaded file and the platform never stores a file without scanning it — retry the same request in a few minutes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "malware_scan_unavailable": {
+                    "summary": "POST /v1/companies/{company}/products/{product}/gallery · 503 malware_scan_unavailable",
+                    "value": {
+                      "error": {
+                        "type": "service_unavailable_error",
+                        "code": "malware_scan_unavailable",
+                        "message": "El análisis de seguridad de archivos no está disponible temporalmente. Inténtalo de nuevo en unos minutos.",
+                        "param": "photo",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#malware_scan_unavailable",
+                        "request_id": "req_b27d4c9a1e6f3058d2a7e1c4f9"
                       }
                     }
                   }
@@ -330616,6 +330663,7 @@
             "description": "Initial per-tax-ID grants of the member. Required, it can be empty; only a `member` carries grants.",
             "items": {
               "type": "object",
+              "description": "Grant on one tax ID of your account: its identifier and its access level.",
               "properties": {
                 "company_id": {
                   "type": "string",
@@ -342585,7 +342633,10 @@
             "maximum": 180
           },
           "customer_profile": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "default_price_list_uuid": {
                 "type": [
@@ -342693,7 +342744,10 @@
             }
           },
           "supplier_profile": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "default_tax_uuid": {
                 "type": [
@@ -344628,7 +344682,8 @@
                           "value_uuid"
                         ]
                       },
-                      "maxItems": 50
+                      "maxItems": 50,
+                      "description": "Atomic creation options. Without them the invoice is created as a draft. When an option issues the invoice, it takes the date of the day of issue (Europe/Madrid), not `issued_on`; an earlier `issued_on` is kept as `operation_on` when that is empty. If the series already has an issued invoice with a later date, the call is rejected with 422 `issue_date_before_series_last_issue_date` and no number is consumed."
                     },
                     "configuration_signature": {
                       "type": [
@@ -344825,10 +344880,13 @@
               "null"
             ],
             "format": "date",
-            "description": "Date the operation took place (YYYY-MM-DD) when it differs from the issue date (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012). It cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. It is printed on the PDF and reported in the VeriFactu record."
+            "description": "Date the operation took place (YYYY-MM-DD) when it differs from the issue date (arts. 6.1.i and 7.1.c of Royal Decree 1619/2012). It cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. It is printed on the PDF and reported in the VeriFactu record. When the invoice is issued with this field empty and an `issued_on` earlier than the day of issue, that earlier date is kept here."
           },
           "payment": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "method": {
                 "type": "string",
@@ -344907,7 +344965,8 @@
           },
           "issued_on": {
             "type": "string",
-            "format": "date"
+            "format": "date",
+            "description": "Date of the draft (YYYY-MM-DD). It is not the date the invoice ends up with: when the invoice is issued (in this call with `options`, `payment` or `type: F2`, or later with `issue`) it takes the date of the day of issue (Europe/Madrid), whatever this value. If this date is earlier than that day and `operation_on` is empty, it is kept as `operation_on`. If the series already has an issued invoice with a later date, issuing is rejected with 422 `issue_date_before_series_last_issue_date` and no number is consumed."
           },
           "due_on": {
             "type": "string",
@@ -344968,7 +345027,10 @@
             "maxItems": 50
           },
           "options": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "issue_directly": {
                 "type": [
@@ -345006,7 +345068,8 @@
                 ],
                 "description": "When `true`, the VeriFactu alta is generated synchronously, BEFORE responding, and the response carries its huella and QR in the `verifactu` block. It implies issuing. If the alta cannot be generated the invoice stays issued and the block reports `status: failed` with its `error_code`. Its transmission to AEAT follows its course in batches."
               }
-            }
+            },
+            "description": "Atomic creation options. Without them the invoice is created as a draft. When an option issues the invoice, it takes the date of the day of issue (Europe/Madrid), not `issued_on`; an earlier `issued_on` is kept as `operation_on` when that is empty. If the series already has an issued invoice with a later date, the call is rejected with 422 `issue_date_before_series_last_issue_date` and no number is consumed."
           }
         },
         "required": [
@@ -345891,7 +345954,10 @@
         "description": "Create a product in your catalog. Required: `name` and `price`. Optional: `sku` (unique per company), `description`, `tags`, `stock` (initial quantity), `low_stock_threshold`, `manage_stock`, `currency` (`EUR` only — any other code returns 422), `tax_rate_id`, `is_active`, `metadata` and `external_id`. Stock changes after creation are made through `PATCH /v1/companies/{company}/products/{product}/stock`, not through this endpoint.",
         "properties": {
           "channels": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "web": {
                 "type": [
@@ -345917,7 +345983,10 @@
             "maxLength": 200
           },
           "seo": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "title": {
                 "type": [
@@ -347065,6 +347134,14 @@
                   "format": "uuid",
                   "description": "Public identifier (UUID v7) of an item of your company. Another company or an unknown id is rejected with 422 `invalid_promotion_item`."
                 },
+                "variant_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "description": "Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations (\"Soft · Box of 12\"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own."
+                },
                 "mode": {
                   "type": "string",
                   "enum": [
@@ -348179,7 +348256,10 @@
             "description": "What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft; `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it; `issue_and_send` issues it and emails it to the `auto_delivery` recipients. Any other value is rejected with 422. Optional and nullable: when omitted (or `null`) the mode is derived from `send_automatically` (`true` → `issue_and_send`, `false` or absent → `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if an `auto_delivery` object is configured, `auto_delivery.recipients` must then contain at least one address (422 `auto_delivery_recipients_required` otherwise); `draft` and `issue` send no email and need none. Available in every API version."
           },
           "auto_delivery": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "send_automatically": {
                 "type": [
@@ -348431,7 +348511,10 @@
             "description": "What each run of the recurrence does with the invoice it generates: `draft` leaves it as a draft; `issue` issues it (definitive number, VeriFactu record, stock movements) without emailing it; `issue_and_send` issues it and emails it to the `auto_delivery` recipients. Any other value is rejected with 422. Optional and nullable: when omitted (or `null`) the mode is derived from `send_automatically` (`true` → `issue_and_send`, `false` or absent → `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if an `auto_delivery` object is configured, `auto_delivery.recipients` must then contain at least one address (422 `auto_delivery_recipients_required` otherwise); `draft` and `issue` send no email and need none. Available in every API version."
           },
           "auto_delivery": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "send_automatically": {
                 "type": [
@@ -349474,7 +349557,10 @@
             "maxLength": 5000
           },
           "vehicle": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "tractor_plate": {
                 "type": [
@@ -349737,7 +349823,10 @@
             "maxItems": 50
           },
           "shipper": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "name": {
                 "type": [
@@ -349822,7 +349911,10 @@
             }
           },
           "carrier": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "name": {
                 "type": [
@@ -355176,6 +355268,40 @@
           "offer_package_loss"
         ],
         "title": "EmployeeSeatChargePreview"
+      },
+      "EmployeeStats": {
+        "type": "object",
+        "description": "Number of employees of the authenticated company by status and by type of working day. Returned by `GET /v1/companies/{company}/employees/stats`.",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "All the employees, active and inactive."
+          },
+          "active": {
+            "type": "integer",
+            "description": "Active employees."
+          },
+          "inactive": {
+            "type": "integer",
+            "description": "Deactivated employees."
+          },
+          "full_time": {
+            "type": "integer",
+            "description": "Employees with a full-time working day."
+          },
+          "part_time": {
+            "type": "integer",
+            "description": "Employees with a part-time working day."
+          }
+        },
+        "required": [
+          "total",
+          "active",
+          "inactive",
+          "full_time",
+          "part_time"
+        ],
+        "title": "EmployeeStats"
       },
       "EndedManagedAccount": {
         "type": "object",
@@ -362199,6 +362325,7 @@
             "description": "Initial per-tax-ID grants of the invited person. Required, it can be empty; only a `member` carries grants.",
             "items": {
               "type": "object",
+              "description": "Grant on one tax ID of your account: its identifier and its access level.",
               "properties": {
                 "company_id": {
                   "type": "string",
@@ -362330,6 +362457,7 @@
           "issued_on": {
             "type": "string",
             "format": "date",
+            "description": "Issue date. A draft carries the date it was prepared with; when the invoice is issued it takes the date of the day of issue (Europe/Madrid), whatever the draft held, and it is immutable from then on. If the series already has an issued invoice with a later date, issuing is rejected with 422 `issue_date_before_series_last_issue_date`.",
             "example": "2026-03-15",
             "examples": [
               "2026-03-15"
@@ -362352,7 +362480,7 @@
               "null"
             ],
             "format": "date",
-            "description": "Date the operation took place when it differs from `issued_on` (arts. 6.1.f and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`)."
+            "description": "Date the operation took place when it differs from `issued_on` (arts. 6.1.i and 7.1.c of Royal Decree 1619/2012), or `null` when both coincide. It cannot be later than `issued_on` unless the first line that declares a `regime_key` uses 14 or 15 (otherwise 422 `operation_date_after_issue_date`), and it is immutable once the invoice is issued. A corrective invoice inherits the date of the original. When a draft is issued with no `operation_on` and an `issued_on` earlier than the day of issue, that earlier date becomes `operation_on` (a scheduled issue does not do it). It is printed on the PDF and reported in the VeriFactu record (`FechaOperacion`)."
           },
           "subtotal": {
             "type": "string",
@@ -369259,7 +369387,10 @@
             "maxLength": 5000
           },
           "vehicle": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "tractor_plate": {
                 "type": [
@@ -369522,7 +369653,10 @@
             "maxItems": 50
           },
           "shipper": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "name": {
                 "type": [
@@ -369607,7 +369741,10 @@
             }
           },
           "carrier": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "name": {
                 "type": [
@@ -370509,7 +370646,26 @@
             ],
             "format": "uuid",
             "example": null,
-            "description": "Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when whoever holds the secret can accept it."
+            "description": "Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when it is not addressed to an account: whoever holds the secret can accept it, unless `recipient_member` is set."
+          },
+          "recipient_member": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "example": null,
+            "description": "The team member this transfer is addressed to, or `null`. It is set only on a transfer issued from the web app to a person of the issuing account (an administrator or a member, never the owner), who takes the tax ID by opening a new account of their own: nobody else can accept it, and no secret is ever handed over. It is never set together with `recipient_account_id`: a transfer goes to nobody in particular (whoever holds the secret can accept it), to one account, or to one team member. A transfer issued through the API is never addressed to a member, so `null` is what you get for it. Only the identifier is published, never the name of the person.",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0199a1f0-1c22-7a10-b111-9a9b9c9d9e9f",
+                "description": "Opaque identifier (UUID v7) of the person as a member of your account: the same `id` that the members of the account publish."
+              }
+            },
+            "required": [
+              "id"
+            ]
           },
           "issued_at": {
             "type": [
@@ -370546,6 +370702,7 @@
           "expires_at",
           "status",
           "recipient_account_id",
+          "recipient_member",
           "issued_at",
           "consumed_at",
           "revoked_at"
@@ -370628,7 +370785,26 @@
             ],
             "format": "uuid",
             "example": null,
-            "description": "Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when whoever holds the secret can accept it."
+            "description": "Opaque identifier (UUID v7) of the ONLY account that can accept this transfer, or `null` when it is not addressed to an account: whoever holds the secret can accept it, unless `recipient_member` is set."
+          },
+          "recipient_member": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "example": null,
+            "description": "The team member this transfer is addressed to, or `null`. It is set only on a transfer issued from the web app to a person of the issuing account (an administrator or a member, never the owner), who takes the tax ID by opening a new account of their own: nobody else can accept it, and no secret is ever handed over. It is never set together with `recipient_account_id`: a transfer goes to nobody in particular (whoever holds the secret can accept it), to one account, or to one team member. A transfer issued through the API is never addressed to a member, so `null` is what you get for it. Only the identifier is published, never the name of the person.",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0199a1f0-1c22-7a10-b111-9a9b9c9d9e9f",
+                "description": "Opaque identifier (UUID v7) of the person as a member of your account: the same `id` that the members of the account publish."
+              }
+            },
+            "required": [
+              "id"
+            ]
           },
           "issued_at": {
             "type": [
@@ -370672,6 +370848,7 @@
           "expires_at",
           "status",
           "recipient_account_id",
+          "recipient_member",
           "issued_at",
           "consumed_at",
           "revoked_at",
@@ -383521,6 +383698,14 @@
             "format": "uuid",
             "description": "Public identifier (UUID v7) of the product, variant, presentation, configuration or pack."
           },
+          "variant_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "With `target_type` `presentation`, the variant it is sold with (a product without declared configurations sells \"variant + presentation\" as its own item, with its own price). `null` for a presentation on its own and for every other `target_type`."
+          },
           "name": {
             "type": "string",
             "description": "Name of the item at the time of the request."
@@ -383530,7 +383715,7 @@
               "string",
               "null"
             ],
-            "description": "Readable description of the variant, presentation or configuration, or `null` for a product or a pack."
+            "description": "Readable description of the variant, presentation (with its variant, \"Soft · Box of 12\") or configuration, or `null` for a product or a pack."
           },
           "sku": {
             "type": [
@@ -383611,6 +383796,7 @@
         "required": [
           "target_type",
           "target_id",
+          "variant_id",
           "name",
           "selection_label",
           "sku",
@@ -397502,6 +397688,45 @@
         ],
         "title": "SeriesRef"
       },
+      "SeriesStats": {
+        "type": "object",
+        "description": "Number of numbering series of the authenticated company, archived ones included, in total and per document type. Returned by `GET /v1/companies/{company}/series/stats`.",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "All the series of the company, of every type."
+          },
+          "invoice": {
+            "type": "integer",
+            "description": "Invoice series."
+          },
+          "quote": {
+            "type": "integer",
+            "description": "Quote series."
+          },
+          "delivery_note": {
+            "type": "integer",
+            "description": "Delivery note series."
+          },
+          "proforma": {
+            "type": "integer",
+            "description": "Proforma series."
+          },
+          "transport_document": {
+            "type": "integer",
+            "description": "Transport document series."
+          }
+        },
+        "required": [
+          "total",
+          "invoice",
+          "quote",
+          "delivery_note",
+          "proforma",
+          "transport_document"
+        ],
+        "title": "SeriesStats"
+      },
       "SetAccountMemberGrantV1Request": {
         "type": "object",
         "properties": {
@@ -408050,7 +408275,8 @@
           },
           "issued_on": {
             "type": "string",
-            "format": "date"
+            "format": "date",
+            "description": "New date of the draft (YYYY-MM-DD), only while the invoice is a draft. It is not the date the invoice ends up with: when the draft is issued it takes the date of the day of issue (Europe/Madrid), whatever this value, and an earlier `issued_on` is kept as `operation_on` when that is empty. If the series already has an issued invoice with a later date, issuing is rejected with 422 `issue_date_before_series_last_issue_date`."
           },
           "due_on": {
             "type": "string",
@@ -408063,7 +408289,7 @@
               "null"
             ],
             "format": "date",
-            "description": "Date the operation took place (YYYY-MM-DD) when it differs from the issue date. It can only be changed while the invoice is a draft, and it cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15."
+            "description": "Date the operation took place (YYYY-MM-DD) when it differs from the issue date. It can only be changed while the invoice is a draft, and it cannot be later than `issued_on` (422 `operation_date_after_issue_date`) unless the first line that declares a `regime_key` uses 14 or 15. When the draft is issued with this field empty and an `issued_on` earlier than the day of issue, that earlier date is kept here."
           },
           "notes": {
             "type": [
@@ -408577,7 +408803,10 @@
         "type": "object",
         "properties": {
           "channels": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "web": {
                 "type": [
@@ -408603,7 +408832,10 @@
             "maxLength": 200
           },
           "seo": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "title": {
                 "type": [
@@ -409824,6 +410056,14 @@
                   "format": "uuid",
                   "description": "Public identifier (UUID v7) of an item of your company. Another company or an unknown id is rejected with 422 `invalid_promotion_item`."
                 },
+                "variant_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "description": "Only with `target_type` `presentation`: the variant of the same product it is sold with, for a product without declared configurations (\"Soft · Box of 12\"). A variant of another product, or a variant with any other `target_type`, is rejected with 422 `invalid_promotion_item`. Omit it for the presentation on its own."
+                },
                 "mode": {
                   "type": "string",
                   "enum": [
@@ -411005,7 +411245,10 @@
             "description": "New generation mode of the recurrence: `draft` (generated invoices stay as drafts), `issue` (they are issued without being emailed) or `issue_and_send` (they are issued and emailed to the `auto_delivery` recipients). Any other value is rejected with 422. Optional: when omitted (or `null`) the current mode is kept, unless `send_automatically` is sent on its own and changes whether the recurrence emails its invoices (`true` switches a non-sending mode to `issue_and_send`; `false` switches `issue_and_send` to `draft`). When sent, it takes precedence and `send_automatically` becomes a derived field (`true` only with `issue_and_send`); sending a `send_automatically` (top-level or inside `auto_delivery`) that contradicts it is rejected with 422. Recipients are only required with `issue_and_send`: if the recurrence has an `auto_delivery` configuration, it must keep at least one recipient (422 `auto_delivery_recipients_required` otherwise). Available in every API version."
           },
           "auto_delivery": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "send_automatically": {
                 "type": [
@@ -412107,7 +412350,10 @@
             "maxLength": 5000
           },
           "vehicle": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "tractor_plate": {
                 "type": [
@@ -412370,7 +412616,10 @@
             "maxItems": 50
           },
           "shipper": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "name": {
                 "type": [
@@ -412455,7 +412704,10 @@
             }
           },
           "carrier": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "name": {
                 "type": [
@@ -412556,10 +412808,14 @@
             ]
           },
           "auto_transmit": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Deprecated and ignored: records are submitted to AEAT automatically as decided by the Factuarea instance (always on the production API), and the response returns the real value in `auto_transmit`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.",
+            "deprecated": true
           },
           "environment": {
             "type": "string",
+            "description": "Deprecated and ignored: the AEAT environment is set by the Factuarea instance, not per company (`production`, the real AEAT, on the production API), and the response returns it in `environment`. Still accepted so existing clients keep working; it will be removed on 2026-12-07.",
+            "deprecated": true,
             "enum": [
               "sandbox",
               "production"
@@ -413317,7 +413573,7 @@
       },
       "VeriFactuConfig": {
         "type": "object",
-        "description": "VeriFactu configuration of your company (mode, environment, enrollment). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.",
+        "description": "VeriFactu configuration of your company (mode, enrollment, the AEAT environment your records go to). Returned by `GET /v1/companies/{company}/verifactu/config` and `PATCH /v1/companies/{company}/verifactu/settings`. The certificate password is never exposed.",
         "properties": {
           "object": {
             "type": "string",
@@ -413347,7 +413603,7 @@
           },
           "auto_transmit": {
             "type": "boolean",
-            "description": "Indicates whether transmissions to AEAT are sent automatically.",
+            "description": "Whether records are submitted to AEAT automatically after issuing, with no further action on your side. It is set by the Factuarea instance, not per company: always `true` on the production API.",
             "example": true,
             "examples": [
               true
@@ -413355,7 +413611,11 @@
           },
           "environment": {
             "type": "string",
-            "description": "AEAT environment (`sandbox` / `production`).",
+            "enum": [
+              "production",
+              "sandbox"
+            ],
+            "description": "AEAT environment your records are submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is set by the Factuarea instance, not per company: always `production` on the production API. Test mode (`fact_test_` keys) never reaches AEAT: VeriFactu operations return 403 `module_not_available_in_sandbox` there.",
             "example": "production",
             "examples": [
               "production"
@@ -413817,7 +414077,11 @@
           },
           "environment": {
             "type": "string",
-            "description": "AEAT environment (`sandbox` / `production`).",
+            "enum": [
+              "production",
+              "sandbox"
+            ],
+            "description": "AEAT environment the record is submitted to: `production` (the real AEAT) or `sandbox` (the AEAT pre-production test environment). It is the environment of the Factuarea instance, the same as `environment` in `GET /v1/companies/{company}/verifactu/config`: always `production` on the production API.",
             "example": "production",
             "examples": [
               "production"
@@ -426211,6 +426475,45 @@
         ],
         "title": "WooCommerceConnectionCheck"
       },
+      "WorkScheduleStats": {
+        "type": "object",
+        "description": "Number of weekly work schedules of the authenticated company by status and by clocking mode, and employees with a schedule assigned today. Returned by `GET /v1/companies/{company}/work-schedules/stats`.",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "All the work schedules, active and archived."
+          },
+          "active": {
+            "type": "integer",
+            "description": "Active work schedules."
+          },
+          "archived": {
+            "type": "integer",
+            "description": "Archived work schedules."
+          },
+          "validated": {
+            "type": "integer",
+            "description": "Work schedules in validated mode."
+          },
+          "real_clocking": {
+            "type": "integer",
+            "description": "Work schedules in real clocking mode."
+          },
+          "assigned_employees": {
+            "type": "integer",
+            "description": "Distinct employees with a schedule assignment still in force."
+          }
+        },
+        "required": [
+          "total",
+          "active",
+          "archived",
+          "validated",
+          "real_clocking",
+          "assigned_employees"
+        ],
+        "title": "WorkScheduleStats"
+      },
       "WorkdaySessionStatus": {
         "type": "object",
         "description": "The derived state of an employee’s current workday for the Control Horario (time tracking) module, reconstructed from the open work span in the immutable ledger. There is no session table — the state is computed from the entries.",
@@ -427280,6 +427583,27 @@
                   }
                 }
               }
+            }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "description": "Identifier of this request (`req_` + ULID, or the value you sent, up to 40 characters). Quote it when contacting support.",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "req_01JQZP8K4M9N2T5V7X0Y3B6D8F"
+              ]
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "A dependency the operation needs is temporarily unavailable, so nothing was stored or modified. `malware_scan_unavailable`: the antivirus could not scan the uploaded file and the platform never stores a file without scanning it — retry the same request in a few minutes.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
             }
           }
         },
