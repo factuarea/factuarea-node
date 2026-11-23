@@ -4335,6 +4335,10 @@ export type ChargeRule = {
      */
     vat_rate: number | null;
     /**
+     * Cause of exemption (`E1`–`E6`) or non-subjection (`N1`, `N2`) that the invoice lines produced by the rule carry. Only with `invoice` and a `vat_rate` of 0; `null` otherwise, and the lines then carry no cause.
+     */
+    exemption_reason: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
+    /**
      * When the rule was created (ISO 8601).
      */
     created_at: string;
@@ -4357,6 +4361,10 @@ export type ChargeRuleRequest = {
     concept?: string | null;
     vat_rate?: number | null;
     non_invoice_reason?: 'indemnity_not_subject' | 'multipurpose_voucher' | 'invoiced_elsewhere' | null;
+    /**
+     * Reason for the exemption or non-subjection of the invoice lines this rule produces: one of `E1`, `E2`, `E3`, `E4`, `E5`, `E6`, `N1` or `N2`. Optional, and accepted only with `outcome` `invoice` and `vat_rate` 0: with any other VAT rate, without `vat_rate`, with `do_not_invoice` or with a value outside that list the request is rejected with 422 `charge_rule_invalid`, with `error.param` = `exemption_reason`. Omitted or `null` means no reason: the lines are invoiced at 0 % without an exemption cause. `PUT` replaces the whole rule, so omitting `exemption_reason` there clears the reason stored.
+     */
+    exemption_reason?: string | null;
 };
 
 /**
@@ -12255,7 +12263,7 @@ export type Invoice = {
      */
     total_disbursements: string;
     /**
-     * Amount the client actually has to pay: `total + total_disbursements`. DERIVED, never stored — one single formula computes it — and equal to `total` on an invoice without disbursements. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line yields `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00. Note that `paid_amount`/`pending_amount` are measured against `total`, not against `total_to_pay`.
+     * Amount the client actually has to pay: `total + total_disbursements`. DERIVED, never stored — one single formula computes it — and equal to `total` on an invoice without disbursements. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line yields `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00. Note that `pending_amount` is measured against `total_to_pay`, not against `total` (see `credited_amount` and `paid_amount`).
      */
     total_to_pay: string;
     /**
@@ -12298,13 +12306,21 @@ export type Invoice = {
      */
     verifactu_status: string;
     /**
-     * Amount already collected for this invoice (derived from the payment ledger). Satisfies the invariant `paid_amount + pending_amount === total`.
+     * Amount collected for this invoice along its rectification chain, derived from the payment ledger. Without corrective invoices it is the sum of the payments registered on the invoice. A corrective invoice that replaces the original also counts the payments registered on that original (`inherited_paid_amount`), and an original replaced by a corrective invoice publishes `0.00`.
      */
     paid_amount: string;
     /**
-     * Outstanding balance pending collection for this invoice (derived from the payment ledger).
+     * Outstanding balance pending collection along the rectification chain, derived from the payment ledger. On a live invoice, `pending_amount = total_to_pay - credited_amount - paid_amount`. An original replaced by a corrective invoice (see `superseded_by`) and an applied credit note publish `0.00`, not a negative amount.
      */
     pending_amount: string;
+    /**
+     * Amount that the credit notes of the rectification chain (corrective invoices by differences with a negative amount) deduct from what this invoice demands, as a two-decimal string. `0.00` when none applies. Credit notes issued before a replacement corrective invoice are not deducted from it.
+     */
+    credited_amount: string;
+    /**
+     * Payments registered on the original invoice that count towards this corrective invoice by substitution, as a two-decimal string. `0.00` when none applies. It is included in `paid_amount`; the payments themselves stay listed on the original invoice.
+     */
+    inherited_paid_amount: string;
     /**
      * Payment ledger summary, ALWAYS present (never `null`). `total` mirrors `paid_amount`, `pending` mirrors `pending_amount`. `detail` lists the individual payments and is materialized ONLY on the show endpoint (`GET /v1/companies/{company}/invoices/{invoice}`); in list responses `detail` is `[]` (by cost) while `total`/`pending` stay populated. The detail is also available via `GET /v1/companies/{company}/invoices/{invoice}/payments`.
      */
@@ -12330,6 +12346,7 @@ export type Invoice = {
     payment: InvoicePayment | null;
     public_link: PublicLink | null;
     substituted_by: InvoiceSubstitutedBy | null;
+    superseded_by: InvoiceSupersededBy | null;
     recurring: InvoiceRecurring | null;
     /**
      * Instant (ISO 8601 with offset) at which the collection that settled the invoice was RECORDED in the ledger. `null` while the invoice is not collected. Not the declared date: see `paid_date`.
@@ -13353,6 +13370,22 @@ export type InvoiceSubstitutedBy = {
      * Human-readable number of the replacement full invoice.
      */
     number: string | null;
+};
+
+/**
+ * InvoiceSupersededBy
+ *
+ * Reference to the corrective invoice (corrective by substitution) that replaced this invoice for collection purposes. The original is not voided, but it no longer demands payment: its `paid_amount` and `pending_amount` are `0.00` and it stops becoming overdue. An original that was already overdue goes back to `issued` when the corrective invoice replaces it; until that clean-up runs its `status` can still read `overdue`, although nothing is due on it. Register payments on the corrective invoice. `null` when the invoice has not been replaced.
+ */
+export type InvoiceSupersededBy = {
+    /**
+     * UUID v7 of the corrective invoice that replaces this invoice.
+     */
+    id: string;
+    /**
+     * Human-readable number of the corrective invoice that replaces this invoice.
+     */
+    number: string;
 };
 
 /**
@@ -36137,7 +36170,7 @@ export type InvoiceWritable = {
      */
     total_disbursements: string;
     /**
-     * Amount the client actually has to pay: `total + total_disbursements`. DERIVED, never stored — one single formula computes it — and equal to `total` on an invoice without disbursements. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line yields `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00. Note that `paid_amount`/`pending_amount` are measured against `total`, not against `total_to_pay`.
+     * Amount the client actually has to pay: `total + total_disbursements`. DERIVED, never stored — one single formula computes it — and equal to `total` on an invoice without disbursements. Worked example: a 1,000.00 service line at 21% plus a 150.00 `SUPLIDO` line yields `subtotal` 1000.00, `taxes_total` 210.00, `total` 1210.00, `total_disbursements` 150.00 and `total_to_pay` 1360.00. Note that `pending_amount` is measured against `total_to_pay`, not against `total` (see `credited_amount` and `paid_amount`).
      */
     total_to_pay: string;
     /**
@@ -36180,13 +36213,21 @@ export type InvoiceWritable = {
      */
     verifactu_status: string;
     /**
-     * Amount already collected for this invoice (derived from the payment ledger). Satisfies the invariant `paid_amount + pending_amount === total`.
+     * Amount collected for this invoice along its rectification chain, derived from the payment ledger. Without corrective invoices it is the sum of the payments registered on the invoice. A corrective invoice that replaces the original also counts the payments registered on that original (`inherited_paid_amount`), and an original replaced by a corrective invoice publishes `0.00`.
      */
     paid_amount: string;
     /**
-     * Outstanding balance pending collection for this invoice (derived from the payment ledger).
+     * Outstanding balance pending collection along the rectification chain, derived from the payment ledger. On a live invoice, `pending_amount = total_to_pay - credited_amount - paid_amount`. An original replaced by a corrective invoice (see `superseded_by`) and an applied credit note publish `0.00`, not a negative amount.
      */
     pending_amount: string;
+    /**
+     * Amount that the credit notes of the rectification chain (corrective invoices by differences with a negative amount) deduct from what this invoice demands, as a two-decimal string. `0.00` when none applies. Credit notes issued before a replacement corrective invoice are not deducted from it.
+     */
+    credited_amount: string;
+    /**
+     * Payments registered on the original invoice that count towards this corrective invoice by substitution, as a two-decimal string. `0.00` when none applies. It is included in `paid_amount`; the payments themselves stay listed on the original invoice.
+     */
+    inherited_paid_amount: string;
     /**
      * Payment ledger summary, ALWAYS present (never `null`). `total` mirrors `paid_amount`, `pending` mirrors `pending_amount`. `detail` lists the individual payments and is materialized ONLY on the show endpoint (`GET /v1/companies/{company}/invoices/{invoice}`); in list responses `detail` is `[]` (by cost) while `total`/`pending` stay populated. The detail is also available via `GET /v1/companies/{company}/invoices/{invoice}/payments`.
      */
@@ -36212,6 +36253,7 @@ export type InvoiceWritable = {
     payment: InvoicePayment | null;
     public_link: PublicLink | null;
     substituted_by: InvoiceSubstitutedBy | null;
+    superseded_by: InvoiceSupersededBy | null;
     recurring: InvoiceRecurring | null;
     /**
      * Instant (ISO 8601 with offset) at which the collection that settled the invoice was RECORDED in the ledger. `null` while the invoice is not collected. Not the declared date: see `paid_date`.

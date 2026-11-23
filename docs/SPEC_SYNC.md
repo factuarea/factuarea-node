@@ -113,12 +113,12 @@ writes it pretty-printed (`scripts/spec-sync.mjs apply`) and a hand pin may copy
 the export byte for byte (`cp`): the sync compares canonically, so neither form
 reads as a change. Currently pinned:
 
-| Export                                        | SHA256                                                             |
-| --------------------------------------------- | ------------------------------------------------------------------ |
-| legacy client events retired (736 operations) | `75ab1ece535f0cca2f988869f995bac34fbf3f1512b338a836938c5f30f446cb` |
+| Export                                                               | SHA256                                                             |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| charge-rule exemption cause and rectification chain (736 operations) | `0a53e3e56a8dfefda252225e23edc26e9a9bf10f38a4c3b008afa24d6a5dd967` |
 
 Its canonical digest (`canonicalize` in `scripts/spec-sync.mjs`) is
-`2566ded607d7c8db2ef389fb3d14731c79f7a8c9036470c15ef71128eb626343`.
+`daf71e0a3d18766f300f6f04d15f8ebdddbd98d23e8ba93c5eb01cdd988dcc78`.
 
 Check it with `sha256sum spec/openapi.json`. To pin a newer export by hand:
 
