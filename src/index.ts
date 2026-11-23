@@ -62,7 +62,6 @@ export type {
   BulkArchiveBusinessContactsV1Request,
   BulkChangeContactRoleStatusV1Request,
   ChangeContactRoleStatusV1Request,
-  Client,
   CreateBusinessContactV1Request,
   Event,
   EventData,
