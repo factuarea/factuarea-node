@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.15.0
+
+### Minor Changes
+
+- [#42](https://github.com/factuarea/factuarea-node/pull/42) [`bb6773c`](https://github.com/factuarea/factuarea-node/commit/bb6773c8ad9d09f3ccc8d6f90dd6fab08eff5215) Thanks [@Chelu97](https://github.com/Chelu97)! - The legacy client events are retired and the contact types follow the contract. The pinned contract keeps its 736 operations (none added, none removed). In `0.x` a breaking change travels in a `minor`.
+
+  - Breaking: the four `client.*` events are gone. `client.created`, `client.updated`, `client.deleted` and `client.metadata_changed` leave `EventData`, `WebhookEventPayload` and every list of event names: the `enabled_events` of `webhookEndpoints.create`, `update`, `list`, `show` and `rotateSecret` and of `account.webhooks.create` and `update`, and the `type` of `webhookEndpoints.testEvent` and `account.webhooks.test`. Use `contact.created`, `contact.updated` and `contact.deleted`, with their `EventDataContact*` and `WebhookEventPayloadContact*` types. There is no `contact.metadata_changed`: a change of the metadata or notes of a contact arrives as `contact.updated`. The rest of the `contact.*` family (`archived`, `restored`, `role.*`, `customer_profile.updated`, `supplier_profile.updated`) does not change.
+  - Breaking: removed types. `Client`, which the package root exported, is replaced by `BusinessContact`. The generated `Address`, `BankAccount`, `BicString`, `IbanString`, `PaymentPreferences`, `EventDataClient{Created,Updated,Deleted,MetadataChanged}` and `WebhookEventPayloadClient{Created,Updated,Deleted,MetadataChanged}` go with it; none of them was exported from the package root.
+
+    ```ts
+    import type { BusinessContact } from "@factuarea/sdk";
+    ```
+
+  - Breaking, type level: `AlternativeId`, the `alternative_id` of a `BusinessContact`, no longer declares `object` and its `type` is one of `nif_iva`, `passport`, `country_id`, `residence_certificate`, `other_document` and `not_registered`. `tax_id_foreign` and `national_id` leave the union: they are accepted on input only. The API never returned `object` or those two values, so only code that read `alternative_id.object` or compared `type` with them stops compiling.
+  - `contacts.create`, `contacts.update` and `contacts.bulkCreate` accept `alternative_id` (`{ type, value, country_code }`), the shape `contacts.show` returns, so a foreign contact can be read and sent back unchanged. The flat `alternative_id_type`, `alternative_id_value` and `alternative_id_country_code` keep working.
+  - Published limits of a contact: `address.line_2` 100 (was 255), `address.postal_code` 10 (was 20), `alternative_id_value` 50 (was 100) and `bank_accounts[].bic` 11 (was 20; 8 or 11 characters). The server already enforced them and the SDK does not check lengths. A longer value answers `422` `invalid_param_value` with the field in `error.param`, thrown as `ValidationError`: `address.line_2` and `address.postal_code` used to answer `500` (`ServerError`), and `alternative_id_value` and the BIC used to answer `422` with another `code` and `subcode` (`alternative_id_value_invalid`, `bank_account_bic_invalid`), so a branch on that `subcode` must read `error.param` instead.
+  - `contacts.findByTaxId` accepts the tax ID with spaces, hyphens or dots. `contacts.import` and `contacts.previewImport` normalise the tax ID before looking for duplicates and report `value_too_long` with the new limits. The documentation of `quotes.accept` now says what the API already did: a quote whose `valid_until` has passed can still be accepted.
+  - Nine error codes leave the catalog: `client_has_documents`, `client_import_too_large`, `client_requires_tax_identity` and `supplier_has_documents` (they belonged to the `/v1/clients` and `/v1/suppliers` routes, retired on 2026-09-16) and `forge_webhook_signature_invalid`, `invalid_pdf_artifact_fingerprint`, `invalid_task_reference`, `quote_expired` and `webhook_endpoint_degraded`, which the API never returned. `FactuareaError.code` is a `string`: nothing changes at compile time.
+  - Also in this sync, from contract changes published since `0.14.0`:
+    - A promotion item carries `variant_id` (`string | null`): always present in `PromotionItem`, optional on the items of `promotions.create` and `promotions.update`.
+    - `NifTransfer` and `NifTransferWithSecret` gain `recipient_member` (`{ id } | null`).
+    - `environment` is typed `'production' | 'sandbox'` (was `string`) in `VeriFactuConfig` and `VeriFactuRecord`, and the `environment` and `auto_transmit` of `verifactu.settings.update` are marked deprecated.
+    - `warning_codes` in the response of `quotes.convert`, `proformas.convert` and `deliveryNotes.convert` is typed `Array<'zero_rate_line_without_exemption'>` (was `Array<string>`).
+    - Optional objects of request bodies also accept `null`: `customer_profile` and `supplier_profile` (`contacts.create`), `options` and `payment` (`invoices.create`), `channels` and `seo` (`products.create`, `products.update`), `auto_delivery` (`recurringInvoices.create` and `update`, `invoices.createRecurring`) and `carrier`, `shipper` and `vehicle` (`transportDocuments.create`, `update` and `modify`).
+    - The responses of `employees.stats`, `series.stats` and `workSchedules.stats` are the named generated types `EmployeeStats`, `SeriesStats` and `WorkScheduleStats`, with the same fields. `products.gallery.upload` documents `402` and `503`.
+    - Filters that take several values (`roles[]`, `direction[]`, `method[]`, `status_range[]`, `statuses[]`) are arrays in the generated query types. Resource methods take `params` untyped, so calls do not change.
+
 ## 0.14.0
 
 ### Minor Changes
