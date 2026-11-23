@@ -108,16 +108,17 @@ built-in `GITHUB_TOKEN` to open the PR.
 
 ## Pinned spec
 
-`spec/openapi.json` is the document exported by the private repo, copied byte
-for byte (`cp`, no reserialisation: the sync compares canonically, so the exact
-copy does not read as a change). Currently pinned:
+`spec/openapi.json` is the document exported by the private repo. The sync
+writes it pretty-printed (`scripts/spec-sync.mjs apply`) and a hand pin may copy
+the export byte for byte (`cp`): the sync compares canonically, so neither form
+reads as a change. Currently pinned:
 
-| Export                                                  | SHA256                                                             |
-| ------------------------------------------------------- | ------------------------------------------------------------------ |
-| document templates on the company axis (714 operations) | `0219a93b32c6a223dd6c75b1b97371fa1ec3272ecca1f2da2c9d50b2ca55bf14` |
+| Export                                        | SHA256                                                             |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| legacy client events retired (736 operations) | `75ab1ece535f0cca2f988869f995bac34fbf3f1512b338a836938c5f30f446cb` |
 
 Its canonical digest (`canonicalize` in `scripts/spec-sync.mjs`) is
-`6ec087d0d39bb4cc62d2051c3a960f9d5d7c641c3ad3a4d0db9f28d75c40a44b`.
+`2566ded607d7c8db2ef389fb3d14731c79f7a8c9036470c15ef71128eb626343`.
 
 Check it with `sha256sum spec/openapi.json`. To pin a newer export by hand:
 
