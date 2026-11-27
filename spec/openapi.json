@@ -7125,6 +7125,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "annulled",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -7252,6 +7253,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-21T10:00:00Z",
                         "business_references": null,
@@ -19471,6 +19473,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -19598,6 +19601,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -53602,6 +53606,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -53729,6 +53734,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -54274,6 +54280,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -54401,6 +54408,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -55874,6 +55882,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -56001,6 +56010,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -62245,7 +62255,7 @@
     "/companies/{company}/connected-accounts/{account}/charge-rules": {
       "post": {
         "operationId": "public-api.v1.stripe_autoinvoicing.accounts.charge_rules.create",
-        "description": "Creates a charge treatment rule at the end of the account's list; responds 201.\n- A rule matches by `condition` and either invoices the charge or excludes it with `non_invoice_reason`.\n- Fails with `charge_rule_invalid` or `charge_rule_limit_reached`.",
+        "description": "Creates a charge treatment rule at the end of the account's list; responds 201.\n- A rule matches by `condition` and either invoices the charge or excludes it with `non_invoice_reason`.\n- Optional `applies_to_subscriptions` (`false` by default) also applies the rule to Stripe subscription invoices.\n- Fails with `charge_rule_invalid` or `charge_rule_limit_reached`.",
         "summary": "Create a charge treatment rule",
         "tags": [
           "Stripe"
@@ -62322,6 +62332,7 @@
                         "concept": "Vale regalo",
                         "vat_rate": 10,
                         "exemption_reason": null,
+                        "applies_to_subscriptions": false,
                         "created_at": "2026-09-20T09:20:00+00:00",
                         "updated_at": "2026-09-20T09:20:00+00:00"
                       }
@@ -62447,7 +62458,7 @@
       },
       "get": {
         "operationId": "public-api.v1.stripe_autoinvoicing.accounts.charge_rules.list",
-        "description": "Lists the charge treatment rules of a connected Stripe account ordered by `position`; the first match decides.\n- Each rule exposes `id` (UUID v7), `condition`, `outcome`, `concept`, `vat_rate`, `non_invoice_reason`, `exemption_reason` (the exemption or non-subjection cause of a rule that invoices at 0 %, otherwise `null`).\n- Returns 404 if the account is not in your company.",
+        "description": "Lists the charge treatment rules of a connected Stripe account ordered by `position`; the first match decides.\n- Each rule exposes `id` (UUID v7), `condition`, `outcome`, `concept`, `vat_rate`, `non_invoice_reason`, `exemption_reason` (the exemption or non-subjection cause of a rule that invoices at 0 %, otherwise `null`) and `applies_to_subscriptions` (whether the rule also applies to Stripe subscription invoices).\n- Returns 404 if the account is not in your company.",
         "summary": "List charge treatment rules of a connected Stripe account",
         "tags": [
           "Stripe"
@@ -62515,6 +62526,7 @@
                           "concept": null,
                           "vat_rate": null,
                           "exemption_reason": null,
+                          "applies_to_subscriptions": false,
                           "created_at": "2026-09-20T09:15:00+00:00",
                           "updated_at": "2026-09-20T09:15:00+00:00"
                         },
@@ -62532,6 +62544,7 @@
                           "concept": "Vale regalo",
                           "vat_rate": 10,
                           "exemption_reason": null,
+                          "applies_to_subscriptions": false,
                           "created_at": "2026-09-20T09:20:00+00:00",
                           "updated_at": "2026-09-20T09:20:00+00:00"
                         },
@@ -62549,6 +62562,7 @@
                           "concept": "Formación",
                           "vat_rate": 0,
                           "exemption_reason": "E1",
+                          "applies_to_subscriptions": true,
                           "created_at": "2026-09-20T09:25:00+00:00",
                           "updated_at": "2026-09-20T09:25:00+00:00"
                         }
@@ -63363,6 +63377,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "issued",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -63501,6 +63516,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-22T09:00:00Z",
                         "updated_at": "2026-03-22T09:00:00Z",
                         "business_references": null,
@@ -66721,6 +66737,7 @@
                           "id": null,
                           "name": null
                         },
+                        "recipient": null,
                         "status": "paid",
                         "price_list_id": null,
                         "price_list_name": null,
@@ -66854,6 +66871,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-06-01T10:42:12+02:00",
                         "updated_at": "2026-06-01T10:42:13+02:00",
                         "verifactu": {
@@ -67005,6 +67023,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -67132,6 +67151,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -67181,6 +67201,7 @@
                           "id": null,
                           "name": null
                         },
+                        "recipient": null,
                         "status": "paid",
                         "price_list_id": null,
                         "price_list_name": null,
@@ -67314,6 +67335,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-06-01T10:42:12+02:00",
                         "updated_at": "2026-06-01T10:42:13+02:00",
                         "verifactu": {
@@ -68390,6 +68412,7 @@
                             "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                             "name": "Acme Soluciones SL"
                           },
+                          "recipient": null,
                           "status": "paid",
                           "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                           "price_list_name": "Tarifa profesional 2026",
@@ -68540,6 +68563,7 @@
                           "channel": null,
                           "source_store_id": null,
                           "origin": "native",
+                          "document_language": null,
                           "created_at": "2026-03-15T11:30:00Z",
                           "updated_at": "2026-03-20T10:30:00Z",
                           "business_references": null,
@@ -99915,7 +99939,7 @@
       },
       "put": {
         "operationId": "public-api.v1.stripe_autoinvoicing.accounts.charge_rules.update",
-        "description": "Replace a charge treatment rule: `condition`, `outcome`, `concept`, `vat_rate`, `non_invoice_reason` and `exemption_reason` are all sent again (omitting `exemption_reason` clears the stored cause); its `position` does not change (use the reorder operation). Returns 404 `charge_rule_not_found` if the rule does not exist in that account and company, and 422 `charge_rule_invalid` when a field breaks the contract.",
+        "description": "Replace a charge treatment rule: `condition`, `outcome`, `concept`, `vat_rate`, `non_invoice_reason`, `exemption_reason` and `applies_to_subscriptions` are all sent again (omitting `exemption_reason` clears the stored cause and omitting `applies_to_subscriptions` sets it back to `false`); its `position` does not change (use the reorder operation). Returns 404 `charge_rule_not_found` if the rule does not exist in that account and company, and 422 `charge_rule_invalid` when a field breaks the contract.",
         "summary": "Update a charge treatment rule",
         "tags": [
           "Stripe"
@@ -100002,6 +100026,7 @@
                         "concept": null,
                         "vat_rate": null,
                         "exemption_reason": null,
+                        "applies_to_subscriptions": false,
                         "created_at": "2026-09-20T09:15:00+00:00",
                         "updated_at": "2026-09-21T11:00:00+00:00"
                       }
@@ -103267,6 +103292,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "paid",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -103417,6 +103443,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-20T10:30:00Z",
                         "business_references": null,
@@ -103466,6 +103493,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "issued",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -103596,6 +103624,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-20T10:30:00Z",
                         "business_references": null,
@@ -103645,6 +103674,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "issued",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -103772,6 +103802,198 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
+                        "created_at": "2026-03-15T11:30:00Z",
+                        "updated_at": "2026-03-20T10:30:00Z",
+                        "business_references": null,
+                        "invoicing_period": null,
+                        "legal_literals": [],
+                        "administrative_snapshot": null,
+                        "administrative_override": null,
+                        "administrative_centres": null,
+                        "administrative_version": 1,
+                        "administrative_revision_id": null,
+                        "structured_source_snapshots": [],
+                        "payment_terms": null,
+                        "payment_terms_version": 0,
+                        "payment_terms_source": "none",
+                        "payment_terms_currency": "EUR",
+                        "payment_terms_captured_at": null,
+                        "payment_terms_frozen_at": null,
+                        "pdf_output_state": {
+                          "state": null,
+                          "presentation_id": null,
+                          "artifact_id": null,
+                          "format": null,
+                          "variant": null,
+                          "unavailable_reason": null,
+                          "error": null,
+                          "retry_after": null,
+                          "download_url": null
+                        },
+                        "presentation": null
+                      }
+                    }
+                  },
+                  "complete_without_recipient_tax_id": {
+                    "summary": "GET /v1/companies/{company}/invoices/{invoice} · 200 complete invoice issued without the recipient's tax ID (`client.id` is `null`; the recipient is in `recipient`)",
+                    "value": {
+                      "data": {
+                        "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a44",
+                        "object": "invoice",
+                        "number": "FAC-2026-00044",
+                        "is_number_assigned": true,
+                        "type": "F1",
+                        "series": {
+                          "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b02",
+                          "code": "FAC-2026"
+                        },
+                        "client": {
+                          "id": null,
+                          "name": "Claire Dupont"
+                        },
+                        "recipient": {
+                          "name": "Claire Dupont",
+                          "address": "12 Rue des Lilas",
+                          "postal_code": "75011",
+                          "city": "Paris",
+                          "province": "Île-de-France",
+                          "country": "FR"
+                        },
+                        "status": "paid",
+                        "price_list_id": null,
+                        "price_list_name": null,
+                        "issued_on": "2026-03-15",
+                        "due_on": "2026-04-14",
+                        "operation_on": null,
+                        "subtotal": "49.00",
+                        "taxes_total": "0.00",
+                        "total_vat": "0.00",
+                        "total_retention": "0.00",
+                        "total_surcharge": "0.00",
+                        "total": "49.00",
+                        "total_disbursements": "0.00",
+                        "total_to_pay": "49.00",
+                        "currency": "EUR",
+                        "notes": null,
+                        "external_id": null,
+                        "lines": [
+                          {
+                            "object": "invoice_line",
+                            "description": "Sesión de formación en línea",
+                            "additional_description": null,
+                            "product": null,
+                            "quantity": 1,
+                            "unit_price": "49.0000",
+                            "tax_rate": 0,
+                            "retention_rate": 0,
+                            "surcharge_rate": 0,
+                            "discount_percent": 0,
+                            "subtotal": "49.00",
+                            "taxes": "0.00",
+                            "total": "49.00",
+                            "indirect_tax_regime": "iva",
+                            "variant": null,
+                            "presentation": null,
+                            "item_kind": null,
+                            "commercial_unit_code": null,
+                            "base_unit_code": null,
+                            "conversion_factor": null,
+                            "base_quantity": null,
+                            "counted_quantity": null,
+                            "counted_unit": null,
+                            "price_list_id": null,
+                            "price_list_name": null,
+                            "price_source": null,
+                            "price_unit_code": null,
+                            "configuration": null,
+                            "options": [],
+                            "price_semantics": null,
+                            "price_adjustment_total": null,
+                            "option_adjustments_absorbed": null,
+                            "regime_key": null,
+                            "exemption_reason": "no_sujeta_localizacion",
+                            "aeat_tax_code": null,
+                            "line_type": "NORMAL",
+                            "source_invoice_reference": null,
+                            "source_invoice_ids": null,
+                            "unit": null,
+                            "exemption_reason_text": null,
+                            "pack_group": null,
+                            "id": "019e0000-0000-7000-8000-000000000001",
+                            "business_references": null,
+                            "delivery_notes_references": [],
+                            "sequence_number": null
+                          }
+                        ],
+                        "metadata": {},
+                        "tags": [],
+                        "custom_fields": [],
+                        "operation_regime": "general",
+                        "exemption_reason": null,
+                        "legal_mentions": [],
+                        "exclude_347": false,
+                        "verifactu_status": "accepted",
+                        "paid_amount": "49.00",
+                        "pending_amount": "0.00",
+                        "credited_amount": "0.00",
+                        "inherited_paid_amount": "0.00",
+                        "payments": {
+                          "detail": [
+                            {
+                              "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a91",
+                              "object": "payment",
+                              "invoice_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a44",
+                              "amount": "49.00",
+                              "payment_date": "2026-03-20",
+                              "payment_method": "credit_card",
+                              "payment_method_text": "Tarjeta de crédito",
+                              "reference": "Stripe: ch_3QabcDEF2ghIJklm",
+                              "notes": null,
+                              "is_reversed": false,
+                              "reversed_at": null,
+                              "reversal_reason": null,
+                              "reversal_reason_text": null,
+                              "reversal_note": null,
+                              "created_at": "2026-03-20T10:30:00Z",
+                              "updated_at": "2026-03-20T10:30:00Z"
+                            }
+                          ],
+                          "total": "49.00",
+                          "pending": "0.00"
+                        },
+                        "is_corrective": false,
+                        "corrective": null,
+                        "payment": {
+                          "method": "credit_card",
+                          "reference": "Stripe: ch_3QabcDEF2ghIJklm",
+                          "date": "2026-03-20"
+                        },
+                        "public_link": {
+                          "object": "public_link",
+                          "url": "https://app.factuarea.com/d/01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a44",
+                          "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a44",
+                          "enabled": true,
+                          "expires_at": "2026-09-15T23:59:59Z",
+                          "max_days": 120
+                        },
+                        "substituted_by": null,
+                        "superseded_by": null,
+                        "recurring": null,
+                        "paid_recorded_at": "2026-03-20T10:30:00Z",
+                        "paid_date": "2026-03-20",
+                        "issued_at": "2026-03-15T11:45:00Z",
+                        "sent_at": "2026-03-15T11:47:12Z",
+                        "sent_via": "email",
+                        "is_sent": true,
+                        "voided_at": null,
+                        "void_reason": null,
+                        "scheduled_for": null,
+                        "scheduled_action": null,
+                        "channel": null,
+                        "source_store_id": null,
+                        "origin": "native",
+                        "document_language": "en",
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-20T10:30:00Z",
                         "business_references": null,
@@ -104564,6 +104786,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -104691,6 +104914,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -136085,7 +136309,11 @@
                         "fee_expenses_enabled": false,
                         "fee_expenses_tax_treatment": null,
                         "fee_expenses_since": null,
-                        "email_invoice_to_payer": false
+                        "email_invoice_to_payer": false,
+                        "simplified_series_id": null,
+                        "document_language": null,
+                        "cross_border_supply": "services",
+                        "apply_customer_withholding": false
                       }
                     }
                   }
@@ -136396,7 +136624,7 @@
       },
       "patch": {
         "operationId": "public-api.v1.stripe_autoinvoicing.accounts.update",
-        "description": "Updates a connected Stripe account; omitted fields keep their value.\n- Editable: `name`, `series_id` (`null` uses the company default series) and the per-account fiscal policy.\n- `invoice_note` (up to 500 characters) goes in auto-created invoices; `null` clears it.\n- `email_invoice_to_payer` emails each auto-created invoice to the address that comes with the charge.",
+        "description": "Updates a connected Stripe account; omitted fields keep their value.\n- Editable: `name`, `series_id` (`null` uses the company default series) and the per-account fiscal policy.\n- `invoice_note` (up to 500 characters) goes in auto-created invoices; `null` clears it.\n- `email_invoice_to_payer` emails each auto-created invoice to the address that comes with the charge.\n- Document settings: `simplified_series_id` and `document_language` (`null` clears them), `cross_border_supply` (`services` or `goods`) and `apply_customer_withholding`.",
         "summary": "Update a connected Stripe account",
         "tags": [
           "Stripe"
@@ -136488,7 +136716,11 @@
                         "fee_expenses_enabled": false,
                         "fee_expenses_tax_treatment": null,
                         "fee_expenses_since": null,
-                        "email_invoice_to_payer": false
+                        "email_invoice_to_payer": false,
+                        "simplified_series_id": null,
+                        "document_language": null,
+                        "cross_border_supply": "services",
+                        "apply_customer_withholding": false
                       }
                     }
                   },
@@ -136516,7 +136748,11 @@
                         "fee_expenses_enabled": true,
                         "fee_expenses_tax_treatment": "reverse_charge_eu",
                         "fee_expenses_since": "2026-01",
-                        "email_invoice_to_payer": false
+                        "email_invoice_to_payer": false,
+                        "simplified_series_id": null,
+                        "document_language": null,
+                        "cross_border_supply": "services",
+                        "apply_customer_withholding": false
                       }
                     }
                   }
@@ -139714,7 +139950,7 @@
     "/companies/{company}/invoices/{invoice}/facturae": {
       "get": {
         "operationId": "public-api.v1.invoices.facturae",
-        "description": "Stream the Facturae 3.2.2 XML of an issued invoice: signed `.xsig` with a signing certificate, otherwise `.xml` (see `X-Facturae-Signed`).\n- Without `submission_id` it exports the current legal source; draft and scheduled invoices return 422 `invoice_not_emittable_for_facturae`.\n- With an own `submission_id` it returns that attempt's exact retained bytes, never regenerated or completed with live data.\n- Hash and `ETag` only accompany a known retained artifact.",
+        "description": "Stream the Facturae 3.2.2 XML of an issued invoice: signed `.xsig` with a signing certificate, otherwise `.xml` (see `X-Facturae-Signed`).\n- Without `submission_id` it exports the current legal source; draft and scheduled invoices return 422 `invoice_not_emittable_for_facturae`.\n- With an own `submission_id` it returns that attempt's exact retained bytes, never regenerated or completed with live data.\n- Hash and `ETag` only accompany a known retained artifact.\n- 422 `facturae_buyer_required` when the invoice has no recipient, or is a complete invoice without recipient tax id.",
         "summary": "Download current or retained Facturae XML",
         "tags": [
           "FacturaE"
@@ -147545,7 +147781,7 @@
     "/companies/{company}/invoices/{invoice}/duplicate": {
       "post": {
         "operationId": "public-api.v1.invoices.duplicate",
-        "description": "Copy the lines, client and metadata of an invoice into a new draft with a fresh `id`.\n- The draft is issued today; each `payment_terms` instalment keeps its amount and moves by the days between both issue dates, and `due_on` is the last moved instalment.\n- A simplified invoice is copied without a series and must still be eligible: 422 `simplified_invoice_not_allowed`.\n- Corrective, annulled and cancelled invoices return 422 `invoice_not_duplicatable_in_current_state`.",
+        "description": "Copy the lines, client and metadata of an invoice into a new draft with a fresh `id`.\n- The draft is issued today; each `payment_terms` instalment keeps its amount and moves by the days between both issue dates, and `due_on` is the last moved instalment.\n- A simplified invoice is copied without a series and must still be eligible: 422 `simplified_invoice_not_allowed`.\n- Corrective, annulled and cancelled invoices, and a complete invoice without recipient tax id (only auto-invoicing creates one), return 422 `invoice_not_duplicatable_in_current_state`.",
         "summary": "Duplicate an invoice",
         "tags": [
           "Invoices"
@@ -147621,6 +147857,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -147748,6 +147985,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -153715,6 +153953,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "paid",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -153865,6 +154104,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-20T10:30:00Z",
                         "business_references": null,
@@ -154297,6 +154537,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "paid",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -154447,6 +154688,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-20T10:30:00Z",
                         "business_references": null,
@@ -204848,6 +205090,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "issued",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -204975,6 +205218,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -213354,7 +213598,11 @@
                           "fee_expenses_enabled": false,
                           "fee_expenses_tax_treatment": null,
                           "fee_expenses_since": null,
-                          "email_invoice_to_payer": false
+                          "email_invoice_to_payer": false,
+                          "simplified_series_id": null,
+                          "document_language": null,
+                          "cross_border_supply": "services",
+                          "apply_customer_withholding": false
                         }
                       ]
                     }
@@ -218687,6 +218935,7 @@
                                 "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                                 "name": "Acme Soluciones SL"
                               },
+                              "recipient": null,
                               "status": "paid",
                               "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                               "price_list_name": "Tarifa profesional 2026",
@@ -218837,6 +219086,7 @@
                               "channel": null,
                               "source_store_id": null,
                               "origin": "native",
+                              "document_language": null,
                               "created_at": "2026-03-15T11:30:00Z",
                               "updated_at": "2026-03-20T10:30:00Z",
                               "business_references": null,
@@ -220087,7 +220337,17 @@
                 "stripe_app_uninstalled",
                 "refund_of_non_invoiced_charge",
                 "stripe_invoice_without_amount",
-                "deauthorization_not_applicable"
+                "deauthorization_not_applicable",
+                "stripe_tax_rate_unresolved",
+                "stripe_taxability_reason_unsupported",
+                "stripe_foreign_vat",
+                "stripe_tax_jurisdiction_unknown",
+                "reverse_charge_without_vat_id",
+                "recipient_details_required",
+                "recipient_tax_id_required",
+                "subscription_credit_to_balance",
+                "customer_balance_applied",
+                "withholding_with_stripe_tax"
               ]
             }
           },
@@ -222112,6 +222372,7 @@
                             "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                             "name": "Acme Soluciones SL"
                           },
+                          "recipient": null,
                           "status": "issued",
                           "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                           "price_list_name": "Tarifa profesional 2026",
@@ -222250,6 +222511,7 @@
                           "channel": null,
                           "source_store_id": null,
                           "origin": "native",
+                          "document_language": null,
                           "created_at": "2026-03-22T09:00:00Z",
                           "updated_at": "2026-03-22T09:10:00Z",
                           "business_references": null,
@@ -223043,7 +223305,7 @@
       },
       "post": {
         "operationId": "public-api.v1.invoices.face_submissions.submit",
-        "description": "Submit an issued invoice to FACe; needs send capability, the issuer signing certificate, DIR3 roles 01/02/03 and a contact email.\n- Omit the body for a fresh attempt (201); an own `submission_id` continues that prepared attempt with its retained bytes (200).\n- Concurrent claims and uncertain transmissions return 409; after a 500 or 502 with `attempt_id`, read that attempt before retrying.\n- Test keys never contact FACe.",
+        "description": "Submit an issued invoice to FACe; needs send capability, the issuer signing certificate, DIR3 roles 01/02/03 and a contact email.\n- Omit the body for a fresh attempt (201); an own `submission_id` continues that prepared attempt with its retained bytes (200).\n- Concurrent claims and uncertain transmissions return 409; after a 500 or 502 with `attempt_id`, read that attempt before retrying.\n- Test keys never contact FACe.\n- 422 `facturae_buyer_required` when the invoice has no recipient, or is a complete invoice without recipient tax id.",
         "summary": "Prepare or continue a FACe submission",
         "tags": [
           "FacturaE"
@@ -237383,7 +237645,7 @@
     "/companies/{company}/stripe-autoinvoicing/payments": {
       "get": {
         "operationId": "public-api.v1.stripe_autoinvoicing.payments.list",
-        "description": "List the Stripe charges that generated an invoice (flows A and B plus subscription cycles), with cursor-based pagination. The generated invoice and client are returned as `invoice_id`/`client_id`. Subscription-cycle charges also expose `subscription_id` (external `sub_xxx`), `stripe_invoice_id` and the billed period. Filter by `origin` (`subscription`/`oneshot`).",
+        "description": "List the Stripe charges that generated an invoice (one-shot flows A and B, plus subscription charges: sign-up, renewal, plan change and threshold charge), with cursor-based pagination. The generated invoice and client are returned as `invoice_id`/`client_id`. Subscription charges also expose `subscription_id` (external `sub_xxx`), `stripe_invoice_id` and the billed period. Filter by `origin` (`subscription`/`oneshot`).",
         "summary": "List Stripe autoinvoiced charges",
         "tags": [
           "Stripe"
@@ -237402,7 +237664,7 @@
           {
             "name": "origin",
             "in": "query",
-            "description": "Only payments of this origin: `subscription` or `oneshot`.",
+            "description": "Only payments of this origin: `subscription` (sign-up, renewal, plan change or threshold charge of a subscription) or `oneshot`.",
             "schema": {
               "type": "string",
               "enum": [
@@ -243053,6 +243315,7 @@
                                   "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                                   "name": "Acme Soluciones SL"
                                 },
+                                "recipient": null,
                                 "status": "paid",
                                 "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                                 "price_list_name": "Tarifa profesional 2026",
@@ -243203,6 +243466,7 @@
                                 "channel": null,
                                 "source_store_id": null,
                                 "origin": "native",
+                                "document_language": null,
                                 "created_at": "2026-03-15T11:30:00Z",
                                 "updated_at": "2026-03-20T10:30:00Z",
                                 "business_references": null,
@@ -244582,6 +244846,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "paid",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -244732,6 +244997,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-20T10:30:00Z",
                         "business_references": null,
@@ -245234,6 +245500,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "issued",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -245361,6 +245628,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-16T09:30:00Z",
                         "business_references": null,
@@ -258101,6 +258369,20 @@
                       }
                     }
                   },
+                  "pdf_template_no_changes": {
+                    "summary": "invalid_pdf_template_configuration",
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_pdf_template_configuration",
+                        "subcode": "pdf_template_no_changes",
+                        "message": "La configuración de la plantilla PDF no es válida.",
+                        "param": "changes",
+                        "doc_url": "https://docs.factuarea.com/guides/errors#invalid_pdf_template_configuration",
+                        "request_id": "req_01KFPD3T5MPL8A2B4C6D8E0FGH"
+                      }
+                    }
+                  },
                   "parameter_invalid": {
                     "summary": "Parameter failed validation",
                     "value": {
@@ -267914,6 +268196,7 @@
                           "concept": "Vale regalo",
                           "vat_rate": 10,
                           "exemption_reason": null,
+                          "applies_to_subscriptions": false,
                           "created_at": "2026-09-20T09:20:00+00:00",
                           "updated_at": "2026-09-20T09:20:00+00:00"
                         },
@@ -267931,6 +268214,7 @@
                           "concept": null,
                           "vat_rate": null,
                           "exemption_reason": null,
+                          "applies_to_subscriptions": false,
                           "created_at": "2026-09-20T09:15:00+00:00",
                           "updated_at": "2026-09-20T09:15:00+00:00"
                         },
@@ -267948,6 +268232,7 @@
                           "concept": "Formación",
                           "vat_rate": 0,
                           "exemption_reason": "E1",
+                          "applies_to_subscriptions": true,
                           "created_at": "2026-09-20T09:25:00+00:00",
                           "updated_at": "2026-09-20T09:25:00+00:00"
                         }
@@ -270573,6 +270858,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "scheduled",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -270700,6 +270986,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -287259,6 +287546,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "scheduled",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -287386,6 +287674,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -292516,6 +292805,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "issued",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -292643,6 +292933,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -304170,6 +304461,7 @@
                               "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                               "name": "Acme Soluciones SL"
                             },
+                            "recipient": null,
                             "status": "paid",
                             "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                             "price_list_name": "Tarifa profesional 2026",
@@ -304320,6 +304612,7 @@
                             "channel": null,
                             "source_store_id": null,
                             "origin": "native",
+                            "document_language": null,
                             "created_at": "2026-03-15T11:30:00Z",
                             "updated_at": "2026-03-20T10:30:00Z",
                             "business_references": null,
@@ -308561,6 +308854,7 @@
                                 "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                                 "name": "Acme Soluciones SL"
                               },
+                              "recipient": null,
                               "status": "paid",
                               "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                               "price_list_name": "Tarifa profesional 2026",
@@ -308711,6 +309005,7 @@
                               "channel": null,
                               "source_store_id": null,
                               "origin": "native",
+                              "document_language": null,
                               "created_at": "2026-03-15T11:30:00Z",
                               "updated_at": "2026-03-20T10:30:00Z",
                               "business_references": null,
@@ -313241,6 +313536,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "paid",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -313391,6 +313687,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-20T10:30:00Z",
                         "business_references": null,
@@ -320938,6 +321235,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "draft",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -321065,6 +321363,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-15T11:45:00Z",
                         "business_references": null,
@@ -321487,6 +321786,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "issued",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -321614,6 +321914,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-17T10:00:00Z",
                         "business_references": null,
@@ -327543,6 +327844,7 @@
                           "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
                           "name": "Acme Soluciones SL"
                         },
+                        "recipient": null,
                         "status": "annulled",
                         "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
                         "price_list_name": "Tarifa profesional 2026",
@@ -327670,6 +327972,7 @@
                         "channel": null,
                         "source_store_id": null,
                         "origin": "native",
+                        "document_language": null,
                         "created_at": "2026-03-15T11:30:00Z",
                         "updated_at": "2026-03-21T10:00:00Z",
                         "business_references": null,
@@ -339220,6 +339523,11 @@
             "example": null,
             "description": "Cause of exemption (`E1`–`E6`) or non-subjection (`N1`, `N2`) that the invoice lines produced by the rule carry. Only with `invoice` and a `vat_rate` of 0; `null` otherwise, and the lines then carry no cause."
           },
+          "applies_to_subscriptions": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the rule also applies to the invoices Stripe creates for subscriptions (sign-up, renewal, plan change and usage threshold charge). `false` by default: a rule left at `false` is never evaluated on a subscription invoice. It is valid with both outcomes."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -339243,6 +339551,7 @@
           "concept",
           "vat_rate",
           "exemption_reason",
+          "applies_to_subscriptions",
           "created_at",
           "updated_at"
         ],
@@ -339320,6 +339629,13 @@
               "null"
             ],
             "description": "Reason for the exemption or non-subjection of the invoice lines this rule produces: one of `E1`, `E2`, `E3`, `E4`, `E5`, `E6`, `N1` or `N2`. Optional, and accepted only with `outcome` `invoice` and `vat_rate` 0: with any other VAT rate, without `vat_rate`, with `do_not_invoice` or with a value outside that list the request is rejected with 422 `charge_rule_invalid`, with `error.param` = `exemption_reason`. Omitted or `null` means no reason: the lines are invoiced at 0 % without an exemption cause. `PUT` replaces the whole rule, so omitting `exemption_reason` there clears the reason stored."
+          },
+          "applies_to_subscriptions": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the rule also applies to the invoices Stripe creates for subscriptions (sign-up, renewal, plan change and usage threshold charge): for those it is matched against the metadata of the invoice and of its subscription and against the texts of its lines. Optional, `false` by default: a rule left at `false` is never evaluated on a subscription invoice. Valid with both outcomes, `invoice` and `do_not_invoice`. `PUT` replaces the whole rule, so omitting `applies_to_subscriptions` there sets it back to `false` even if it was `true`. A value that is not a boolean is rejected with 422 `invalid_param_value`, with `error.param` = `applies_to_subscriptions`."
           }
         },
         "required": [
@@ -340670,6 +340986,43 @@
             "type": "boolean",
             "example": false,
             "description": "Whether each invoice auto-created from this account is emailed to the address that comes with the Stripe charge (the person who paid). A charge without an email sends nothing. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`."
+          },
+          "simplified_series_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192e7b1-8f9a-7b3c-8d24-5e6f70819203",
+            "description": "UUID v7 of the document series used to number the simplified invoices (`F2`) that auto-invoicing creates from this account, or `null` when none is configured (the default): they are then numbered in the company default series for simplified invoices. It is always a series of simplified invoices (`invoice_kind` `simplified`) of your company; complete invoices use `series_id`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`; `null` goes back to the default."
+          },
+          "document_language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "es",
+              "en",
+              "ca",
+              null
+            ],
+            "example": "en",
+            "description": "Language of the documents that auto-invoicing creates from this account: `es`, `en` or `ca`. Each invoice is born with it and its PDF and email follow it. `null` when none is configured (the default): invoices carry no language of their own and the company issuing language applies. Invoices already issued keep the language they were born with. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`."
+          },
+          "cross_border_supply": {
+            "type": "string",
+            "enum": [
+              "services",
+              "goods"
+            ],
+            "example": "services",
+            "description": "Kind of operation this account sells to customers outside Spain: `services` or `goods`. It decides how an invoice line without tax charged to such a customer is qualified. Defaults to `services`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`."
+          },
+          "apply_customer_withholding": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the complete invoices auto-created from this account carry the default withholding (IRPF) of the customer contact. It applies only to a customer with a default withholding above 0 and when no line carries a Stripe Tax breakdown. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`."
           }
         },
         "required": [
@@ -340693,7 +341046,11 @@
           "fee_expenses_enabled",
           "fee_expenses_tax_treatment",
           "fee_expenses_since",
-          "email_invoice_to_payer"
+          "email_invoice_to_payer",
+          "simplified_series_id",
+          "document_language",
+          "cross_border_supply",
+          "apply_customer_withholding"
         ],
         "title": "ConnectedAccount"
       },
@@ -348422,7 +348779,8 @@
               "string",
               "null"
             ],
-            "maxLength": 1000
+            "maxLength": 1000,
+            "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
           },
           "metadata": {
             "$ref": "#/components/schemas/Metadata"
@@ -348549,14 +348907,16 @@
                   "string",
                   "null"
                 ],
-                "maxLength": 255
+                "maxLength": 255,
+                "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
               },
               "body": {
                 "type": [
                   "string",
                   "null"
                 ],
-                "maxLength": 5000
+                "maxLength": 5000,
+                "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
               }
             }
           },
@@ -348570,14 +348930,16 @@
                     "string",
                     "null"
                   ],
-                  "maxLength": 255
+                  "maxLength": 255,
+                  "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
                 },
                 "additional_description": {
                   "type": [
                     "string",
                     "null"
                   ],
-                  "maxLength": 5000
+                  "maxLength": 5000,
+                  "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
                 },
                 "quantity": {
                   "type": "number",
@@ -362073,6 +362435,16 @@
               "refund_of_non_invoiced_charge",
               "stripe_invoice_without_amount",
               "deauthorization_not_applicable",
+              "stripe_tax_rate_unresolved",
+              "stripe_taxability_reason_unsupported",
+              "stripe_foreign_vat",
+              "stripe_tax_jurisdiction_unknown",
+              "reverse_charge_without_vat_id",
+              "recipient_details_required",
+              "recipient_tax_id_required",
+              "subscription_credit_to_balance",
+              "customer_balance_applied",
+              "withholding_with_stripe_tax",
               null
             ],
             "example": "autoinvoicing_disabled",
@@ -362285,6 +362657,63 @@
           },
           "client": {
             "$ref": "#/components/schemas/ClientRef"
+          },
+          "recipient": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Recipient of a complete invoice issued WITHOUT the recipient's tax ID (article 6.1.d of Royal Decree 1619/2012): name, address and country only, copied onto the invoice when it was issued. When it is present the invoice has no contact, so `client.id` is `null` and `client.name` repeats `recipient.name`. `null` on every invoice that has a client, which is the common case. Only the account's automatic invoicing creates this kind of invoice, and its VeriFactu record is `F2` (`R5` for its corrective).",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the recipient."
+              },
+              "address": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Street address of the recipient."
+              },
+              "postal_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "city": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "province": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "country": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 3166-1 alpha-2 country code of the recipient, such as `US`."
+              }
+            },
+            "required": [
+              "name",
+              "address",
+              "postal_code",
+              "city",
+              "province",
+              "country"
+            ],
+            "example": null,
+            "examples": [
+              null
+            ]
           },
           "status": {
             "type": "string",
@@ -362835,6 +363264,23 @@
               "native"
             ]
           },
+          "document_language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "es",
+              "en",
+              "ca",
+              null
+            ],
+            "description": "Own language of the invoice (`es`, `en` or `ca`): fixed when the account's automatic invoicing creates it and read-only, so no write operation accepts it. `null` when the invoice has no language of its own, which is the common case: its PDF and its email then come out in the company's issuing language.",
+            "example": null,
+            "examples": [
+              null
+            ]
+          },
           "pdf_output_state": {
             "$ref": "#/components/schemas/DocumentPdfOutputState"
           },
@@ -363104,6 +363550,7 @@
           "type",
           "series",
           "client",
+          "recipient",
           "status",
           "price_list_id",
           "price_list_name",
@@ -363155,6 +363602,7 @@
           "channel",
           "source_store_id",
           "origin",
+          "document_language",
           "pdf_output_state",
           "presentation",
           "created_at",
@@ -363189,6 +363637,7 @@
             "id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8a01",
             "name": "Acme Soluciones SL"
           },
+          "recipient": null,
           "status": "paid",
           "price_list_id": "01931b3e-7c4a-7f2e-9a8b-3c5d6e7f8b10",
           "price_list_name": "Tarifa profesional 2026",
@@ -363333,6 +363782,7 @@
           "channel": null,
           "source_store_id": null,
           "origin": "native",
+          "document_language": null,
           "pdf_output_state": {
             "state": null,
             "presentation_id": null,
@@ -398261,7 +398711,7 @@
       },
       "StripeAutoinvoicedPayment": {
         "type": "object",
-        "description": "A Stripe charge that generated an invoice (one-shot flows A/B and subscription cycles). The public `id` is the UUID v7 of the payment; `invoice_id`/`client_id` link to the generated invoice and client. Subscription-origin context (`subscription_id`, `stripe_invoice_id`, `period_start`, `period_end`) is `null` for one-shot charges.",
+        "description": "A Stripe charge that generated an invoice (one-shot flows A/B and subscription charges: sign-up, renewal, plan change and threshold charge). The public `id` is the UUID v7 of the payment; `invoice_id`/`client_id` link to the generated invoice and client. Subscription-origin context (`subscription_id`, `stripe_invoice_id`, `period_start`, `period_end`) is `null` for one-shot charges.",
         "properties": {
           "id": {
             "type": "string",
@@ -398333,7 +398783,7 @@
               "null"
             ],
             "example": "sub_1QabcDEF2ghIJklm",
-            "description": "External Stripe subscription id (`sub_xxx`) when the charge comes from a subscription cycle; `null` for one-shot charges. This is an external Stripe id, NOT an internal UUID."
+            "description": "External Stripe subscription id (`sub_xxx`) when the charge comes from a subscription (sign-up, renewal, plan change or threshold charge); `null` for one-shot charges. This is an external Stripe id, NOT an internal UUID."
           },
           "stripe_invoice_id": {
             "type": [
@@ -398341,7 +398791,7 @@
               "null"
             ],
             "example": "in_1QabcDEF2ghIJklm",
-            "description": "Stripe invoice id (`in_xxx`) of the billed cycle; `null` for one-shot charges."
+            "description": "Stripe invoice id (`in_xxx`) of the billed subscription invoice; `null` for one-shot charges."
           },
           "period_start": {
             "type": [
@@ -406571,7 +407021,7 @@
       },
       "UpdateConnectedAccountRequest": {
         "type": "object",
-        "description": "Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it), the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`, and `email_invoice_to_payer` (emails each auto-created invoice to the address that comes with the charge). Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).",
+        "description": "Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it), the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`, `email_invoice_to_payer` (emails each auto-created invoice to the address that comes with the charge), and the document settings `simplified_series_id` (series that numbers the simplified invoices; `null` clears it back to the company default series), `document_language` (`es`, `en` or `ca`; `null` clears it back to the company language), `cross_border_supply` (`services` or `goods`) and `apply_customer_withholding` (applies the withholding of the customer). Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`, and so is a `cross_border_supply` outside its catalog (`param` `cross_border_supply`); a `simplified_series_id` that is not a series of simplified invoices is rejected with 422 `business_rule_violation`, subcode `series_invoice_kind_mismatch` and `param` `simplified_series_id`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).",
         "properties": {
           "name": {
             "type": "string",
@@ -406632,6 +407082,38 @@
             "type": "string",
             "description": "First month to record as a fee expense, as `YYYY-MM`. It cannot be later than the current month, and only closed months are recorded. A malformed or future month is rejected with 422 `parameter_invalid_value`.",
             "maxLength": 16
+          },
+          "simplified_series_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Series that numbers the simplified invoices (`F2`) auto-created from this account: the UUID v7 of a series of your company whose `invoice_kind` is `simplified`. Three states: omitted leaves it unchanged, `null` clears it (simplified invoices go back to the company default series for simplified invoices, which is created when missing) and a UUID sets it. A series that is not a series of simplified invoices (complete, corrective, simplified corrective or of another document type) is rejected with 422 `business_rule_violation`, subcode `series_invoice_kind_mismatch` and `param` `simplified_series_id`; one that does not exist or belongs to another company, with 422. Complete invoices keep using `series_id`."
+          },
+          "document_language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Language of the documents auto-created from this account: `es`, `en` or `ca`. Each invoice the account issues is born with it, and its PDF and email follow it. Three states: omitted leaves it unchanged, `null` clears it (new invoices carry no language of their own and the company issuing language applies, which is the default) and a language sets it. A value outside the catalog is rejected with 422 on `document_language`. Invoices already issued keep the language they were born with.",
+            "enum": [
+              "es",
+              "en",
+              "ca",
+              null
+            ]
+          },
+          "cross_border_supply": {
+            "type": "string",
+            "description": "Kind of operation this account sells to customers outside Spain: `services` (the default) or `goods`. It decides how an invoice line without tax charged to such a customer is qualified. Omitted leaves it unchanged. A value outside the catalog is rejected with 422 `parameter_invalid_value` and `param` `cross_border_supply`, and the stored value does not change.",
+            "enum": [
+              "services",
+              "goods"
+            ]
+          },
+          "apply_customer_withholding": {
+            "type": "boolean",
+            "description": "Whether the complete invoices auto-created from this account carry the default withholding (IRPF) of the customer contact. It applies only to a customer with a default withholding above 0 and when no line carries a Stripe Tax breakdown. Defaults to `false`. Omitted leaves it unchanged; a value that is not a boolean is rejected with 422 on `apply_customer_withholding`."
           }
         },
         "title": "UpdateConnectedAccountRequest"
@@ -411055,7 +411537,8 @@
               "string",
               "null"
             ],
-            "maxLength": 1000
+            "maxLength": 1000,
+            "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
           },
           "metadata": {
             "$ref": "#/components/schemas/Metadata"
@@ -411179,14 +411662,16 @@
                   "string",
                   "null"
                 ],
-                "maxLength": 255
+                "maxLength": 255,
+                "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
               },
               "body": {
                 "type": [
                   "string",
                   "null"
                 ],
-                "maxLength": 5000
+                "maxLength": 5000,
+                "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
               }
             }
           },
@@ -411200,14 +411685,16 @@
                     "string",
                     "null"
                   ],
-                  "maxLength": 255
+                  "maxLength": 255,
+                  "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
                 },
                 "additional_description": {
                   "type": [
                     "string",
                     "null"
                   ],
-                  "maxLength": 5000
+                  "maxLength": 5000,
+                  "description": "Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit."
                 },
                 "quantity": {
                   "type": "number",
