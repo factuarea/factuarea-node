@@ -4339,6 +4339,10 @@ export type ChargeRule = {
      */
     exemption_reason: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'N1' | 'N2' | null;
     /**
+     * Whether the rule also applies to the invoices Stripe creates for subscriptions (sign-up, renewal, plan change and usage threshold charge). `false` by default: a rule left at `false` is never evaluated on a subscription invoice. It is valid with both outcomes.
+     */
+    applies_to_subscriptions: boolean;
+    /**
      * When the rule was created (ISO 8601).
      */
     created_at: string;
@@ -4365,6 +4369,10 @@ export type ChargeRuleRequest = {
      * Reason for the exemption or non-subjection of the invoice lines this rule produces: one of `E1`, `E2`, `E3`, `E4`, `E5`, `E6`, `N1` or `N2`. Optional, and accepted only with `outcome` `invoice` and `vat_rate` 0: with any other VAT rate, without `vat_rate`, with `do_not_invoice` or with a value outside that list the request is rejected with 422 `charge_rule_invalid`, with `error.param` = `exemption_reason`. Omitted or `null` means no reason: the lines are invoiced at 0 % without an exemption cause. `PUT` replaces the whole rule, so omitting `exemption_reason` there clears the reason stored.
      */
     exemption_reason?: string | null;
+    /**
+     * Whether the rule also applies to the invoices Stripe creates for subscriptions (sign-up, renewal, plan change and usage threshold charge): for those it is matched against the metadata of the invoice and of its subscription and against the texts of its lines. Optional, `false` by default: a rule left at `false` is never evaluated on a subscription invoice. Valid with both outcomes, `invoice` and `do_not_invoice`. `PUT` replaces the whole rule, so omitting `applies_to_subscriptions` there sets it back to `false` even if it was `true`. A value that is not a boolean is rejected with 422 `invalid_param_value`, with `error.param` = `applies_to_subscriptions`.
+     */
+    applies_to_subscriptions?: boolean | null;
 };
 
 /**
@@ -4998,6 +5006,22 @@ export type ConnectedAccount = {
      * Whether each invoice auto-created from this account is emailed to the address that comes with the Stripe charge (the person who paid). A charge without an email sends nothing. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
      */
     email_invoice_to_payer: boolean;
+    /**
+     * UUID v7 of the document series used to number the simplified invoices (`F2`) that auto-invoicing creates from this account, or `null` when none is configured (the default): they are then numbered in the company default series for simplified invoices. It is always a series of simplified invoices (`invoice_kind` `simplified`) of your company; complete invoices use `series_id`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`; `null` goes back to the default.
+     */
+    simplified_series_id: string | null;
+    /**
+     * Language of the documents that auto-invoicing creates from this account: `es`, `en` or `ca`. Each invoice is born with it and its PDF and email follow it. `null` when none is configured (the default): invoices carry no language of their own and the company issuing language applies. Invoices already issued keep the language they were born with. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    document_language: 'es' | 'en' | 'ca' | null;
+    /**
+     * Kind of operation this account sells to customers outside Spain: `services` or `goods`. It decides how an invoice line without tax charged to such a customer is qualified. Defaults to `services`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    cross_border_supply: 'services' | 'goods';
+    /**
+     * Whether the complete invoices auto-created from this account carry the default withholding (IRPF) of the customer contact. It applies only to a customer with a default withholding above 0 and when no line carries a Stripe Tax breakdown. Defaults to `false`. Editable with `PATCH /v1/companies/{company}/connected-accounts/{account}`.
+     */
+    apply_customer_withholding: boolean;
 };
 
 /**
@@ -6941,6 +6965,9 @@ export type CreateRecurringInvoiceRequest = {
     frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
     start_on: string;
     end_on?: string | null;
+    /**
+     * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+     */
     notes?: string | null;
     metadata?: Metadata;
     tags?: Array<string> | null;
@@ -6968,11 +6995,23 @@ export type CreateRecurringInvoiceRequest = {
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         subject?: string | null;
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         body?: string | null;
     } | null;
     lines: Array<{
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         description?: string | null;
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         additional_description?: string | null;
         quantity: number;
         /**
@@ -12112,7 +12151,7 @@ export type IntegrationEvent = {
     /**
      * Typed reason why the event was discarded, from a CLOSED catalogue, or `null` when it was not discarded. This is the axis to filter and group by. A value retired from the catalogue in a later version is still returned verbatim here, but its `discard_reason_label`, `is_actionable` and `is_replayable` degrade to neutral rather than breaking the page.
      */
-    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable' | null;
+    discard_reason: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable' | 'stripe_tax_rate_unresolved' | 'stripe_taxability_reason_unsupported' | 'stripe_foreign_vat' | 'stripe_tax_jurisdiction_unknown' | 'reverse_charge_without_vat_id' | 'recipient_details_required' | 'recipient_tax_id_required' | 'subscription_credit_to_balance' | 'customer_balance_applied' | 'withholding_with_stripe_tax' | null;
     /**
      * Human-readable label of `discard_reason`, in Spanish (the platform's end-user language). `null` when there is no discard reason, or when the stored reason is no longer part of the current catalogue.
      */
@@ -12216,6 +12255,26 @@ export type Invoice = {
     type: string;
     series: SeriesRef;
     client: ClientRef;
+    /**
+     * Recipient of a complete invoice issued WITHOUT the recipient's tax ID (article 6.1.d of Royal Decree 1619/2012): name, address and country only, copied onto the invoice when it was issued. When it is present the invoice has no contact, so `client.id` is `null` and `client.name` repeats `recipient.name`. `null` on every invoice that has a client, which is the common case. Only the account's automatic invoicing creates this kind of invoice, and its VeriFactu record is `F2` (`R5` for its corrective).
+     */
+    recipient: {
+        /**
+         * Name of the recipient.
+         */
+        name: string;
+        /**
+         * Street address of the recipient.
+         */
+        address: string | null;
+        postal_code: string | null;
+        city: string | null;
+        province: string | null;
+        /**
+         * ISO 3166-1 alpha-2 country code of the recipient, such as `US`.
+         */
+        country: string | null;
+    } | null;
     /**
      * Public invoice status. `issued` means the invoice has been ISSUED (definitive number, VeriFactu record); it says nothing about delivery, which lives in `is_sent`/`sent_at`/`sent_via`. `paid` and `partially_paid` are derived from the payment ledger. Before API version `2026-10-01` the issued status is published as `sent` (that contract called issuing "sending"), so `sent` only appears for integrations pinned to an earlier version.
      */
@@ -12394,6 +12453,10 @@ export type Invoice = {
      * Where the invoice comes from: `native` (issued in Factuarea) or `historical_import` (a historical invoice registered by import: literal number from the file, no series counter and no VeriFactu record).
      */
     origin: 'native' | 'historical_import';
+    /**
+     * Own language of the invoice (`es`, `en` or `ca`): fixed when the account's automatic invoicing creates it and read-only, so no write operation accepts it. `null` when the invoice has no language of its own, which is the common case: its PDF and its email then come out in the company's issuing language.
+     */
+    document_language: 'es' | 'en' | 'ca' | null;
     pdf_output_state: DocumentPdfOutputState;
     presentation: DocumentPresentationState | null;
     created_at: string;
@@ -22805,7 +22868,7 @@ export type StripeAutoinvoicedCorrective = {
 /**
  * StripeAutoinvoicedPayment
  *
- * A Stripe charge that generated an invoice (one-shot flows A/B and subscription cycles). The public `id` is the UUID v7 of the payment; `invoice_id`/`client_id` link to the generated invoice and client. Subscription-origin context (`subscription_id`, `stripe_invoice_id`, `period_start`, `period_end`) is `null` for one-shot charges.
+ * A Stripe charge that generated an invoice (one-shot flows A/B and subscription charges: sign-up, renewal, plan change and threshold charge). The public `id` is the UUID v7 of the payment; `invoice_id`/`client_id` link to the generated invoice and client. Subscription-origin context (`subscription_id`, `stripe_invoice_id`, `period_start`, `period_end`) is `null` for one-shot charges.
  */
 export type StripeAutoinvoicedPayment = {
     /**
@@ -22845,11 +22908,11 @@ export type StripeAutoinvoicedPayment = {
      */
     stripe_reference: string | null;
     /**
-     * External Stripe subscription id (`sub_xxx`) when the charge comes from a subscription cycle; `null` for one-shot charges. This is an external Stripe id, NOT an internal UUID.
+     * External Stripe subscription id (`sub_xxx`) when the charge comes from a subscription (sign-up, renewal, plan change or threshold charge); `null` for one-shot charges. This is an external Stripe id, NOT an internal UUID.
      */
     subscription_id: string | null;
     /**
-     * Stripe invoice id (`in_xxx`) of the billed cycle; `null` for one-shot charges.
+     * Stripe invoice id (`in_xxx`) of the billed subscription invoice; `null` for one-shot charges.
      */
     stripe_invoice_id: string | null;
     /**
@@ -25794,7 +25857,7 @@ export type UpdateCompanyV1Request = {
 /**
  * UpdateConnectedAccountRequest
  *
- * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it), the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`, and `email_invoice_to_payer` (emails each auto-created invoice to the address that comes with the charge). Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
+ * Update a connected Stripe account (multi-store). All fields are optional with merge semantics (an omitted field is left unchanged): `name`, `series_id` (auto-invoicing series UUID; `null` clears it back to the company default), `simplified_threshold_cents` (0-300000), `autoinvoicing_enabled`, `require_nif`, `refunds_enabled`, `subscription_autoinvoicing_enabled`, `invoice_note` (up to 500 characters, written in the notes of the auto-created invoices; `null` clears it), the Stripe fee expense settings `fee_expenses_enabled`, `fee_expenses_tax_treatment` and `fee_expenses_since`, `email_invoice_to_payer` (emails each auto-created invoice to the address that comes with the charge), and the document settings `simplified_series_id` (series that numbers the simplified invoices; `null` clears it back to the company default series), `document_language` (`es`, `en` or `ca`; `null` clears it back to the company language), `cross_border_supply` (`services` or `goods`) and `apply_customer_withholding` (applies the withholding of the customer). Turning fee expenses on requires the purchases module of the plan (403 `feature_not_available_in_plan`) and a tax treatment and a first month, sent or already stored (400 `parameter_missing`). A treatment or month outside the catalog is rejected with 422 `parameter_invalid_value`, and so is a `cross_border_supply` outside its catalog (`param` `cross_border_supply`); a `simplified_series_id` that is not a series of simplified invoices is rejected with 422 `business_rule_violation`, subcode `series_invoice_kind_mismatch` and `param` `simplified_series_id`. The company platform account does not accept `subscription_autoinvoicing_enabled`: its subscriptions are invoiced by Factuarea (422 `parameter_invalid_value`, subcode `platform_account_subscriptions_owned_by_billing`).
  */
 export type UpdateConnectedAccountRequest = {
     name?: string;
@@ -25822,6 +25885,22 @@ export type UpdateConnectedAccountRequest = {
      * First month to record as a fee expense, as `YYYY-MM`. It cannot be later than the current month, and only closed months are recorded. A malformed or future month is rejected with 422 `parameter_invalid_value`.
      */
     fee_expenses_since?: string;
+    /**
+     * Series that numbers the simplified invoices (`F2`) auto-created from this account: the UUID v7 of a series of your company whose `invoice_kind` is `simplified`. Three states: omitted leaves it unchanged, `null` clears it (simplified invoices go back to the company default series for simplified invoices, which is created when missing) and a UUID sets it. A series that is not a series of simplified invoices (complete, corrective, simplified corrective or of another document type) is rejected with 422 `business_rule_violation`, subcode `series_invoice_kind_mismatch` and `param` `simplified_series_id`; one that does not exist or belongs to another company, with 422. Complete invoices keep using `series_id`.
+     */
+    simplified_series_id?: string | null;
+    /**
+     * Language of the documents auto-created from this account: `es`, `en` or `ca`. Each invoice the account issues is born with it, and its PDF and email follow it. Three states: omitted leaves it unchanged, `null` clears it (new invoices carry no language of their own and the company issuing language applies, which is the default) and a language sets it. A value outside the catalog is rejected with 422 on `document_language`. Invoices already issued keep the language they were born with.
+     */
+    document_language?: 'es' | 'en' | 'ca' | null;
+    /**
+     * Kind of operation this account sells to customers outside Spain: `services` (the default) or `goods`. It decides how an invoice line without tax charged to such a customer is qualified. Omitted leaves it unchanged. A value outside the catalog is rejected with 422 `parameter_invalid_value` and `param` `cross_border_supply`, and the stored value does not change.
+     */
+    cross_border_supply?: 'services' | 'goods';
+    /**
+     * Whether the complete invoices auto-created from this account carry the default withholding (IRPF) of the customer contact. It applies only to a customer with a default withholding above 0 and when no line carries a Stripe Tax breakdown. Defaults to `false`. Omitted leaves it unchanged; a value that is not a boolean is rejected with 422 on `apply_customer_withholding`.
+     */
+    apply_customer_withholding?: boolean;
 };
 
 /**
@@ -27035,6 +27114,9 @@ export type UpdateRecurringInvoiceRequest = {
     holiday_handling?: string;
     start_on?: string;
     end_on?: string | null;
+    /**
+     * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+     */
     notes?: string | null;
     metadata?: Metadata;
     tags?: Array<string> | null;
@@ -27061,11 +27143,23 @@ export type UpdateRecurringInvoiceRequest = {
         send_automatically?: boolean | null;
         recipients?: Array<string> | null;
         cc?: Array<string> | null;
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         subject?: string | null;
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         body?: string | null;
     } | null;
     lines?: Array<{
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         description?: string | null;
+        /**
+         * Accepts period variables, replaced when each invoice is generated using its date and the issuing language: `{mes}`, `{mesAnterior}`, `{mesSiguiente}`, `{anio}`, `{anioMesAnterior}`, `{anioMesSiguiente}`, `{trimestre}`, `{trimestreAnterior}` and `{anioTrimestreAnterior}`. A capitalised first letter (for example `{Mes}`) capitalises the value. On save each variable counts as its longest value (month 10 characters, year 4, quarter 14) against the field limit; a 422 is returned if it does not fit.
+         */
         additional_description?: string | null;
         quantity: number;
         /**
@@ -36124,6 +36218,26 @@ export type InvoiceWritable = {
     series: SeriesRef;
     client: ClientRef;
     /**
+     * Recipient of a complete invoice issued WITHOUT the recipient's tax ID (article 6.1.d of Royal Decree 1619/2012): name, address and country only, copied onto the invoice when it was issued. When it is present the invoice has no contact, so `client.id` is `null` and `client.name` repeats `recipient.name`. `null` on every invoice that has a client, which is the common case. Only the account's automatic invoicing creates this kind of invoice, and its VeriFactu record is `F2` (`R5` for its corrective).
+     */
+    recipient: {
+        /**
+         * Name of the recipient.
+         */
+        name: string;
+        /**
+         * Street address of the recipient.
+         */
+        address: string | null;
+        postal_code: string | null;
+        city: string | null;
+        province: string | null;
+        /**
+         * ISO 3166-1 alpha-2 country code of the recipient, such as `US`.
+         */
+        country: string | null;
+    } | null;
+    /**
      * Public invoice status. `issued` means the invoice has been ISSUED (definitive number, VeriFactu record); it says nothing about delivery, which lives in `is_sent`/`sent_at`/`sent_via`. `paid` and `partially_paid` are derived from the payment ledger. Before API version `2026-10-01` the issued status is published as `sent` (that contract called issuing "sending"), so `sent` only appears for integrations pinned to an earlier version.
      */
     status: 'draft' | 'scheduled' | 'issued' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled' | 'annulled' | 'sent';
@@ -36301,6 +36415,10 @@ export type InvoiceWritable = {
      * Where the invoice comes from: `native` (issued in Factuarea) or `historical_import` (a historical invoice registered by import: literal number from the file, no series counter and no VeriFactu record).
      */
     origin: 'native' | 'historical_import';
+    /**
+     * Own language of the invoice (`es`, `en` or `ca`): fixed when the account's automatic invoicing creates it and read-only, so no write operation accepts it. `null` when the invoice has no language of its own, which is the common case: its PDF and its email then come out in the company's issuing language.
+     */
+    document_language: 'es' | 'en' | 'ca' | null;
     pdf_output_state: DocumentPdfOutputState;
     presentation: DocumentPresentationState | null;
     created_at: string;
@@ -73899,7 +74017,7 @@ export type PublicApiV1IntegrationsEventsListData = {
         /**
          * Typed reason why the event was discarded, from the closed catalogue.
          */
-        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable';
+        discard_reason?: 'event_not_normalizable' | 'duplicate_redelivery' | 'connected_account_missing' | 'connected_account_unknown' | 'spontaneous_payment_missing_id' | 'autoinvoicing_disabled' | 'unsupported_currency' | 'refund_without_items' | 'refund_autoinvoicing_disabled' | 'subscription_missing_invoice_id' | 'subscription_proration_review' | 'subscription_not_a_cycle' | 'subscription_trial_skipped' | 'subscription_autoinvoicing_disabled' | 'subscription_already_invoiced' | 'payout_missing_id' | 'payout_connected_account_missing' | 'payment_failed' | 'event_type_not_covered' | 'checkout_lines_retrieve_failed' | 'reversal_payment_not_found' | 'reversal_already_applied' | 'dispute_in_progress' | 'dispute_resolved' | 'test_mode_event' | 'order_event_not_covered' | 'store_not_found' | 'store_environment_test' | 'refund_before_order' | 'refund_reason_unmapped' | 'recurring_invoice_overlap' | 'series_date_clamped' | 'store_autoinvoicing_disabled' | 'vat_residual_out_of_tolerance' | 'simplified_absolute_limit_exceeded' | 'simplified_threshold_exceeded_without_recipient' | 'store_requires_tax_id' | 'order_line_amount_exceeds_column' | 'order_status_unknown' | 'refund_not_settled' | 'protected_customer_data_unavailable' | 'excluded_by_charge_rule' | 'handled_by_stripe_invoice' | 'stripe_authorization_required' | 'stripe_app_uninstalled' | 'refund_of_non_invoiced_charge' | 'stripe_invoice_without_amount' | 'deauthorization_not_applicable' | 'stripe_tax_rate_unresolved' | 'stripe_taxability_reason_unsupported' | 'stripe_foreign_vat' | 'stripe_tax_jurisdiction_unknown' | 'reverse_charge_without_vat_id' | 'recipient_details_required' | 'recipient_tax_id_required' | 'subscription_credit_to_balance' | 'customer_balance_applied' | 'withholding_with_stripe_tax';
         /**
          * Whether the event was parked with its content so it can be replayed.
          */
@@ -76666,7 +76784,7 @@ export type PublicApiV1StripeAutoinvoicingPaymentsListData = {
     };
     query?: {
         /**
-         * Only payments of this origin: `subscription` or `oneshot`.
+         * Only payments of this origin: `subscription` (sign-up, renewal, plan change or threshold charge of a subscription) or `oneshot`.
          */
         origin?: 'subscription' | 'oneshot';
     };
